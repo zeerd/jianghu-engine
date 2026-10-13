@@ -1,0 +1,3 @@
+// Minimal resource script for application icon only
+#include <windows.h>
+IDR_MAINFRAME ICON "mud.ico"

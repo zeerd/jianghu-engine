@@ -1,0 +1,441 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="DebugSeason|Win32">
+      <Configuration>DebugSeason</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugSeason|x64">
+      <Configuration>DebugSeason</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectName>jianghu_core</ProjectName>
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <RootNamespace>mud</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SolutionDir Condition="'$(SolutionDir)' == '' Or '$(SolutionDir)' == '*Undefined*'">$(MSBuildProjectDirectory)\..\</SolutionDir>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>17.0.37516.0</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)\bin\server\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)\bin\server\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
+    <OutDir>$(SolutionDir)\bin\server\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)\bin\server\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)\bin\server\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
+    <OutDir>$(SolutionDir)\bin\server\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <!-- Release|Win32 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CallingConvention>Cdecl</CallingConvention>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- Debug|Win32 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <ErrorReporting>Queue</ErrorReporting>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- DebugSeason|Win32 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_SEASON_01;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <ErrorReporting>Queue</ErrorReporting>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- Release|x64 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CallingConvention>Cdecl</CallingConvention>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- Debug|x64 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ErrorReporting>Queue</ErrorReporting>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- DebugSeason|x64 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_SEASON_01;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ErrorReporting>Queue</ErrorReporting>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- ==================== Source Files ==================== -->
+  <ItemGroup>
+    <!-- core -->
+    <ClCompile Include="src\object\Container.cpp" />
+    <ClCompile Include="src\object\ContainerMove.cpp" />
+    <ClCompile Include="src\object\ContainerItem.cpp" />
+    <ClCompile Include="src\object\ContainerWeight.cpp" />
+    <ClCompile Include="src\object\ContainerDbase.cpp" />
+    <ClCompile Include="src\object\ContainerMisc.cpp" />
+    <ClCompile Include="src\object\Global.cpp" />
+    <ClCompile Include="src\object\CObject.cpp" />
+    <ClCompile Include="src\object\Mapping.cpp" />
+    <!-- game -->
+    <ClCompile Include="src\engine\Channel.cpp" />
+    <ClCompile Include="src\engine\ChatChannel.cpp" />
+    <ClCompile Include="src\engine\EmoteSystem.cpp" />
+    <ClCompile Include="src\engine\RelationshipTracker.cpp" />
+    <ClCompile Include="src\engine\SnoopSystem.cpp" />
+    <ClCompile Include="src\char\Char.cpp" />
+    <ClCompile Include="src\char\CharAttr.cpp" />
+    <ClCompile Include="src\char\CharCombat.cpp" />
+    <ClCompile Include="src\char\CharState.cpp" />
+    <ClCompile Include="src\char\CharFamily.cpp" />
+    <ClCompile Include="src\char\CharFight.cpp" />
+    <ClCompile Include="src\char\CharFlush.cpp" />
+    <ClCompile Include="src\char\CharInterface.cpp" />
+    <ClCompile Include="src\char\CharLevel.cpp" />
+    <ClCompile Include="src\char\CharLook.cpp" />
+    <ClCompile Include="src\char\CharRules.cpp" />
+    <ClCompile Include="src\char\CharSave.cpp" />
+    <ClCompile Include="src\char\CharSkill.cpp" />
+    <ClCompile Include="src\engine\GameInit.cpp" />
+    <ClCompile Include="src\engine\GameObject.cpp" />
+    <ClCompile Include="src\engine\HeartBeat.cpp" />
+    <ClCompile Include="src\item\Item.cpp" />
+    <ClCompile Include="src\item\ItemInterface.cpp" />
+    <ClCompile Include="src\item\ItemMgr.cpp" />
+    <ClCompile Include="src\npc\Npc.cpp" />
+    <ClCompile Include="src\npc\NpcMirror.cpp" />
+    <ClCompile Include="src\npc\NpcMgr.cpp" />
+    <ClCompile Include="src\engine\Rank.cpp" />
+    <ClCompile Include="src\room\RoomMgr.cpp" />
+    <ClCompile Include="src\char\SetupChar.cpp" />
+    <ClCompile Include="src\engine\SetupObjects.cpp" />
+    <ClCompile Include="src\user\User.cpp" />
+    <ClCompile Include="src\user\UserMgr.cpp" />
+    <ClCompile Include="src\config\PartyConfig.cpp" />
+    <ClCompile Include="src\config\ServerConfig.cpp" />
+    <!-- combat -->
+    <ClCompile Include="src\combat\Attack.cpp" />
+    <ClCompile Include="src\combat\AutoFight.cpp" />
+    <ClCompile Include="src\combat\CombatAnnounce.cpp" />
+    <ClCompile Include="src\combat\CombatCalc.cpp" />
+    <ClCompile Include="src\combat\CombatConfig.cpp" />
+    <ClCompile Include="src\combat\Combatd.cpp" />
+    <ClCompile Include="src\combat\CReward.cpp" />
+    <ClCompile Include="src\combat\CombatRules.cpp" />
+    <ClCompile Include="src\combat\SetEffect.cpp" />
+    <ClCompile Include="src\combat\WeaponEffect.cpp" />
+    <!-- item -->
+    <ClCompile Include="src\item\BankOwner.cpp" />
+    <ClCompile Include="src\item\Corpse.cpp" />
+    <ClCompile Include="src\item\Equip.cpp" />
+    <ClCompile Include="src\skill\Force.cpp" />
+    <ClCompile Include="src\item\Money.cpp" />
+    <ClCompile Include="src\skill\Throwing.cpp" />
+    <ClCompile Include="src\item\Vendor.cpp" />
+    <!-- skill -->
+    <ClCompile Include="src\skill\Skill.cpp" />
+    <ClCompile Include="src\skill\SkillMgr.cpp" />
+    <!-- cmd -->
+    <ClCompile Include="src\cmd\CmdHandle.cpp" />
+    <ClCompile Include="src\cmd\CmdStandardInit.cpp" />
+    <ClCompile Include="src\cmd\CmdStandardItem.cpp" />
+    <ClCompile Include="src\cmd\CmdStandardCombat.cpp" />
+    <ClCompile Include="src\cmd\CmdStandardMaster.cpp" />
+    <ClCompile Include="src\cmd\CmdStandardLife.cpp" />
+    <ClCompile Include="src\cmd\CmdUserInit.cpp" />
+    <ClCompile Include="src\cmd\CmdUserSkill.cpp" />
+    <ClCompile Include="src\cmd\CmdUserAccount.cpp" />
+    <ClCompile Include="src\cmd\CmdUserParty.cpp" />
+    <ClCompile Include="src\cmd\CmdUserSocial.cpp" />
+    <ClCompile Include="src\cmd\CmdUserCard.cpp" />
+    <ClCompile Include="src\cmd\CmdUserVendor.cpp" />
+    <ClCompile Include="src\cmd\CmdWizardInit.cpp" />
+    <ClCompile Include="src\cmd\CmdWizardAdmin.cpp" />
+    <ClCompile Include="src\cmd\CmdWizardWorld.cpp" />
+    <ClCompile Include="src\cmd\CmdWizardSystem.cpp" />
+    <ClCompile Include="src\cmd\CmdWizardCard.cpp" />
+    <!-- room -->
+    <ClCompile Include="src\room\FB.cpp" />
+    <ClCompile Include="src\room\FBRoom.cpp" />
+    <ClCompile Include="src\room\Resident.cpp" />
+    <ClCompile Include="src\item\FightRoom.cpp" />
+    <ClCompile Include="src\room\Room.cpp" />
+    <ClCompile Include="src\room\Box.cpp" />
+    <ClCompile Include="src\room\Door.cpp" />
+    <ClCompile Include="src\room\RoomInterface.cpp" />
+    <!-- lua -->
+    <ClCompile Include="src\lua\LuaBind.cpp" />
+    <ClCompile Include="src\lua\LuaBindGlue.cpp" />
+    <ClCompile Include="src\lua\LuaCondition.cpp" />
+    <ClCompile Include="src\lua\LuaEngine.cpp" />
+    <ClCompile Include="src\lua\LuaHook.cpp" />
+    <ClCompile Include="src\lua\LuaLogin.cpp" />
+    <ClCompile Include="src\lua\LuaQuest.cpp" />
+    <ClCompile Include="src\lua\LuaReload.cpp" />
+    <ClCompile Include="src\lua\LuaSyntaxChecker.cpp" />
+    <!-- net -->
+    <ClCompile Include="src\net\GateClient.cpp" />
+    <ClCompile Include="src\net\GateInfo.cpp" />
+    <ClCompile Include="src\net\GateRecvDispatch.cpp" />
+    <ClCompile Include="src\net\NetCompletion.cpp" />
+    <ClCompile Include="src\net\LoginAuth.cpp" />
+    <ClCompile Include="src\net\LoginRegister.cpp" />
+    <ClCompile Include="src\net\Login.cpp" />
+    <ClCompile Include="src\net\Message.cpp" />
+    <ClCompile Include="src\net\ServerSockHandler.cpp" />
+    <ClCompile Include="src\net\ServerSockWorker.cpp" />
+    <!-- db -->
+    <ClCompile Include="src\db\SqliteDb.cpp" />
+    <ClCompile Include="src\db\MySqlDb.cpp" />
+    <ClCompile Include="src\db\LuaBindDb.cpp" />
+    <ClCompile Include="src\db\SqlContainer.cpp" />
+    <ClCompile Include="src\db\SqlEscape.cpp" />
+    <ClCompile Include="src\db\SqlAccount.cpp" />
+    <ClCompile Include="src\db\SqlRank.cpp" />
+    <ClCompile Include="src\db\SqlCards.cpp" />
+    <ClCompile Include="src\db\DbTables.cpp" />
+    <!-- util -->
+    <ClCompile Include="src\util\Encoding.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\util\Logger.cpp" />
+    <ClCompile Include="src\util\Random.cpp" />
+    <ClCompile Include="src\util\StringUtil.cpp" />
+    <ClCompile Include="src\util\CreateDump.cpp" />
+    <ClCompile Include="src\util\Utils.cpp" />
+    <!-- 3rd party -->
+    <ClCompile Include="3rd\sqlite\sqlite3.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\config\MainConfig.h" />
+    <ClInclude Include="src\config\PartyConfig.h" />
+    <ClInclude Include="src\config\ServerConfig.h" />
+    <ClInclude Include="src\engine\Channel.h" />
+    <ClInclude Include="src\engine\BanlistManager.h" />
+    <ClInclude Include="src\engine\ChatChannel.h" />
+    <ClInclude Include="src\engine\EmoteSystem.h" />
+    <ClInclude Include="src\engine\RelationshipTracker.h" />
+    <ClInclude Include="src\engine\SnoopSystem.h" />
+    <ClInclude Include="src\engine\VotingSystem.h" />
+    <ClInclude Include="src\char\Char.h" />
+    <ClInclude Include="src\cmd\CmdHandle.h" />
+    <ClInclude Include="src\cmd\CmdStandard.h" />
+    <ClInclude Include="src\cmd\CmdUser.h" />
+    <ClInclude Include="src\cmd\CmdWizard.h" />
+    <ClInclude Include="src\object\CObject.h" />
+    <ClInclude Include="src\engine\Condition.h" />
+    <ClInclude Include="src\object\Container.h" />
+    <ClInclude Include="src\net\GameSvr.h" />
+    <ClInclude Include="src\object\Global.h" />
+    <ClInclude Include="src\item\Item.h" />
+    <ClInclude Include="src\object\Mapping.h" />
+    <ClInclude Include="src\util\Encoding.h" />
+    <ClInclude Include="src\util\Logger.h" />
+    <ClInclude Include="src\npc\Npc.h" />
+    <ClInclude Include="src\object\Queue.h" />
+    <ClInclude Include="src\room\Room.h" />
+    <ClInclude Include="src\room\Box.h" />
+    <ClInclude Include="src\room\Door.h" />
+    <ClInclude Include="src\net\ServerSockHandler.h" />
+    <ClInclude Include="src\skill\Skill.h" />
+    <ClInclude Include="src\user\User.h" />
+    <ClInclude Include="src\item\BankOwner.h" />
+    <ClInclude Include="src\item\Corpse.h" />
+    <ClInclude Include="src\item\Equip.h" />
+    <ClInclude Include="src\item\FightRoom.h" />
+    <ClInclude Include="src\skill\Force.h" />
+    <ClInclude Include="src\room\House.h" />
+    <ClInclude Include="src\item\Money.h" />
+    <ClInclude Include="src\room\Resident.h" />
+    <ClInclude Include="src\npc\NpcMirror.h" />
+    <ClInclude Include="src\item\Vendor.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
