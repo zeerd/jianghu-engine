@@ -1,0 +1,22 @@
+/**
+ * @file ServerConfig.cpp
+ * @brief 服务器通用玩法开关配置的静态成员与初始化实现 */
+
+#include "ServerConfig.h"
+
+bool CServerConfig::s_force_add_hp          = false;
+bool CServerConfig::s_no_force_conflict     = false;
+bool CServerConfig::s_force_no_need_prepare = false;
+bool CServerConfig::s_no_betrayer_valid     = false;
+bool CServerConfig::s_newlife_no_conflict   = true;
+
+void CServerConfig::init()
+{
+    s_force_add_hp      = ini_get_bool("server", "force_add_hp", 0) != 0;
+    s_no_force_conflict = ini_get_bool("server", "no_force_conflict", 0) != 0;
+    s_force_no_need_prepare
+        = ini_get_bool("server", "force_no_need_prepare", 0) != 0;
+    s_no_betrayer_valid = ini_get_bool("server", "no_betrayer_valid", 0) != 0;
+    s_newlife_no_conflict
+        = ini_get_bool("server", "newlife_no_conflict", 1) != 0;
+}

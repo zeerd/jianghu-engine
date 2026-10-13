@@ -1,0 +1,159 @@
+-- hooks.lua — C++ 挂点参考脚本（空实现，仅供查阅）
+--
+-- 加载规则：开机按 script_root → default_script_root 逐级回退，先命中者生效。
+-- 本文件位于 default_script_root；当 script_root 提供同名文件时以其实现为准。
+--
+-- 通用语义：
+--   · 钩子未定义 = 缺席：C++ 照常执行自身默认逻辑，不视为错误；
+--   · 钩子定义后按各条目的返回值契约生效；
+--   · 对象参数为 userdata，可调用全部已绑定方法；字符串为 GBK 编码。
+-- 命令模块见 command/README.md（一命令一文件，按需 require，不随本表加载）。
+--
+-- ----------------------------------------------------------------------
+-- hooks.do_look(target, observer)
+--   调用点：CChar::do_look，敌意反应之后。
+--   target     被观察者；
+--   observer   观察者。
+--   返回值：无（纯输出型，直接 tell_object / message_vision）。
+--
+-- hooks.setup_human(me)
+--   调用点：setup_human 末尾（属性/气血/分支/体重之后）。
+--   me  初始化中的人类角色（NPC 与玩家均会调用，脚本内自行区分）。
+--   返回值：无（可 set/set_temp 补充初始化，如称号、内功加成）。
+--
+-- hooks.fight(me, victim)
+--   调用点：CCombatd::fight，常规攻击与空手备战连击之后。
+--   返回值：无（可调用 combat_attack* 追加攻击，注意 action_flag 置位/复位）。
+--
+-- hooks.resolve_parry(me, victim, damage, parry_skill)
+--   调用点：CAttack::resolve_parry 末尾（后置增强）。
+--   damage       招架结算后的伤害值；
+--   parry_skill  本回合招架技能名。
+--   返回值：nil = 不变；{damage=…} 覆盖伤害；{text=…} 追加战报文案。
+--
+-- hooks.calculate_damage(me, victim, damage)
+--   调用点：CAttack::calculate_damage 伤害结算之前（覆盖会作用于实际掉血）。
+--   返回值：nil = 不变；数值 = 覆盖伤害；{damage=…, text=…} = 覆盖并追加文案。
+--
+-- hooks.attack_ratios(me, victim, skill, damage, parry, dodge, force)
+--   调用点：CAttack 取回本次招式的四个倍率、并跑完引擎自身的倍率规则之后，
+--   闪避/格挡/伤害结算之前——脚本对倍率拥有最终决定权。
+--   skill   本次攻击使用的技能对象（无技能时为 nil，须自行判空）；
+--   damage/parry/dodge/force  当前伤害/格挡/闪避/加力倍率。
+--   返回值：nil = 四个倍率全部不变；
+--   {damage=…, parry=…, dodge=…, force=…} = 按字段覆盖，字段可只给一部分。
+--   字段值必须是整数：非整数读作缺席，需截断时用 math.modf（向零取整），
+--   不要用 //（向下取整，负倍率会多减一档）。
+--
+-- hooks.set_effect(phase, me, victim, has_weapon, parry_skill, parry_msg, damage, damage_base)
+--   调用点：CSetEffect 按阶段调用；parry_landed/parry_missed/post_damage 消费
+--   返回值（dispatch），post_attack 只通知（notify）。
+--   phase        "parry_landed" | "parry_missed" | "post_damage" | "post_attack"；
+--   has_weapon   攻击方是否持武；
+--   parry_msg    招架文案，仅 parry_missed 时预取，其余为空串；
+--   damage       当前 ctx.damage；damage_base 为 apply/damage 快照。
+--   返回值：nil = 本阶段无特效；{handled=true} = 接管（跳过后续伤害结算）；
+--           damage / text 字段可写回覆盖与追加文案。
+--   post_attack 为攻击结算后的通知阶段（武器特效之后），返回值不消费，
+--   脚本以副作用生效（如宠物命中后奖励主人技能与经验）。
+--
+-- hooks.rank_rule(phase, a, b)
+--   调用点：engine/Rank.cpp 的称谓查询桥（query_rank / respect / rude /
+--           self / self_rude / close / self_close / waimao）。C++ 只申报
+--           询问点（phase），称谓文本与判定规则全部由 data/rank.lua 给出。
+--   phase    "rank" | "respect" | "rude" | "self" | "self_rude" → a=对象, b=nil；
+--            "close" | "self_close" → a=me, b=对方（可为 nil）；
+--            "waimao" → a=性别字符串, b=容貌值（数值）。
+--   返回值：称谓字符串（waimao 无匹配时返回空串）。
+require("data.rank").install(hooks)
+--
+-- hooks.do_channel(verb, me, fmt, mouren, msg_speak)
+--   调用点：CChatChannel::do_channel，权限/频率检查与身份处理之后、
+--           内置频道分支之前。
+--   verb       频道动词；fmt 已格式化的发言文本；mouren 发言者显示身份；
+--   msg_speak  该频道的广播格式串。
+--   返回值：nil = 交还内置频道分支（含通用广播）；
+--           数组（可为空表）= 接管本次发言：元素为广播行，空表表示不广播。
+--
+-- hooks.can_prepare_combine(me, skill_a, skill_b, valid)
+--   调用点：CCmdStandard::prepare 的组合判定（两处调用点）。
+--   valid  既有 valid_combine 结果。
+--   返回值：true = 可组合；false = 拒绝；
+--           nil / 缺席 = 由 C++ 按 valid 决定。
+--
+-- hooks.combat_rule(phase, actor, target, detail)
+--   调用点：战斗引擎的规则询问点。C++ 只申报引擎时机（phase），
+--   规则内容与归属数据集全在脚本；新增规则 = 追加自由 if 分支，C++ 零改动。
+--   phase    "command_gate" | "attack_gate" | "guard_response" | "kill_settle"
+--            | "join_battle" | "pk_reward"；
+--   actor    发起者（发命令者 / 攻击方 / 击杀者 / 加入者 / PK 击杀者）；
+--   target   承受者（命令目标 / 受害者 / 被击杀者 / 被筛对象）。
+--   detail 该时机的补充上下文，无上下文时为 nil（command_gate = 被拦截的命令名）。
+--   command_gate：返回 {reason=文案} = 吞掉本次命令并向房间播报文案
+--   （文案按 message_vision 渲染：$N = actor，$n = target）；nil = 放行。
+--   attack_gate：返回 {reason=文案} = 否决出手（notify_fail）；nil = 放行。
+--   guard_response：返回 {yes=true} = 豁免城市守卫召唤；nil = 照常召唤。
+--   kill_settle：返回 {yes=true} = 命中结算（如仇敌递减，PK 奖励加倍）；nil = 未命中。
+--   join_battle：返回 {yes=true} = target 不作为 NPC 方代表（加入筛选跳过该对象）；
+--   nil = 纳入判定。
+--   pk_reward：PK 结算落地时机（CReward::pk_reward 末尾，kill/guilt、repute
+--   已更新、播报已发）。actor = 击杀者，target = 受害者。返回值不消费，
+--   纯副作用通知：罪行档位、悬捕条件等数据集规则在此实现。
+--
+-- hooks.kill_bonus(killer, victim, reward)
+--   调用点：CReward::handle_npc_kill_reward，击杀 NPC 的经验按 level*4+100
+--   封顶之后、入账之前。每次玩家击杀 NPC 都会被咨询——nk_gain 的组队分红、
+--   晕倒归属、经验折算可能把 reward 算成 0，脚本仍可返回固定奖励，
+--   使数据集奖励不因这些上游因素失效；咨询后仍 <=0 的奖励不入账、不发提示。
+--   C++ 只保留公共算法（经验计算与封顶）与入账，掉落/倍率/保底等规则在此实现。
+--   killer  击杀者；victim 被击杀的 NPC；reward C++ 封顶后的经验值（可能为 0）。
+--   返回值：{reward=N} = 以 N 入账（可含倍率/固定值）；nil / 缺席 = 按 reward 入账。
+--
+-- hooks.char_rule(phase, actor, target)
+--   调用点：引擎对角色状态/行为的规则询问（属性校验上限、生活行为准入）。
+--   规则内容与归属数据集全在脚本；新增规则 = 追加自由 if 分支，C++ 零改动。
+--   phase    "max_mp_limit" | "sleep_anywhere"；
+--   actor    被询问的角色；target 另一相关对象（当前各 phase 不使用，为 nil）。
+--   max_mp_limit：返回 {limit=N} = 内力校验上限（上限值与其门派倍数完全由脚本给出）；
+--   nil / 缺席 = 引擎默认值 60000。
+--   sleep_anywhere：返回 {yes=true} = 允许不在睡眠场所就地入睡；
+--   nil = 仅睡眠场所或强制入睡可睡。
+--
+-- hooks.receive(kind, me, who, attr, amount)
+--   调用点：CChar 的 receive_damage / receive_wound / receive_curing /
+--   receive_healing 实际改动属性之后，每次生效调用一次。
+--   kind   "damage" | "wound" | "curing" | "healing"；
+--   me     承受属性变化的角色；who  造成该变化的对象（治疗与环境伤害为 nil）；
+--   attr   被改动的属性名（"hp" / "mp"）；amount  本次实际生效的数值。
+--   返回值：无（纯通知型，返回值被忽略）。
+--
+-- hooks.channel_group(verb, me)
+--   调用点：CChatChannel::filter_list，每次发言一次（仅当发言未被
+--           hooks.do_channel 接管时到达）。门派 party 属师徒系统机制，
+--           分组在 C++ 处理，不经此钩子；本钩子只接管数据集频道（如帮派）。
+--   verb  频道动词；me  发言者。
+--   返回值：{key=分组dbase键} = 按该键同值过滤收件人（巫师恒收）；
+--           {reject=文案} = 发言者未入组，拒绝本次发言（notify_fail）；
+--           nil / 缺席 = 非分组频道，全体在线按调频设置接收。
+--
+-- hooks.object_create(obj, flag)
+--   调用点：CContainer::create，物品创建/重新初始化时（装载基名已写入）；
+--           子类写完自身缺省后链到基类即可参与（如战斗房间）。
+--   obj  对象；flag  创建标志（索引/副本标志，通常为 0）。
+--   返回值：无（可 set/set_temp 补充缺省，如图片号）。
+--
+-- hooks.pre_buy(vendor, buyer, goods)
+--   调用点：CVendor::do_buy 收款前。商品以快照 table 整体交给脚本，规则按
+--   商品任意属性与买卖双方身份自由表达（价格、对特定人群禁售、限购、身份门槛…）；
+--   C++ 只算常规价（商品价值×12/10）放进 goods.price 供引用或作相对规则基准。
+--   goods.name     商品显示名；goods.code 商品编号；goods.basename/index 基名与索引；
+--   goods.amount   成交前库存；goods.value 商品价值；goods.price C++ 常规成交价。
+--   返回值：{price=N} = 以 N 收款；{reason=文案} = 拒绝成交（notify_fail，
+--           不扣钱不交货）；nil / 缺席 = 按 goods.price 常规成交。
+--   新增商品字段 = C++ 快照处多 add 一项，本签名与既有脚本形参不变。
+--
+-- hooks.post_buy(vendor, buyer, goods)
+--   调用点：CVendor::do_buy 交付商品后。C++ 不认识任何任务键与结算文案，
+--   成交后的数据集侧结算（标记任务完成、播报专属文案）在此实现。
+--   goods.price 为本次实付价、goods.amount 为成交后剩余库存（下架则 0）。
+--   返回值：无（纯副作用型）。

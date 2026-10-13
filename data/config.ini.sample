@@ -1,0 +1,52 @@
+; 游戏服务器统一配置文件
+
+[log]
+; 日志级别：TRACE / DEBUG / INFO / WARN / ERROR / FATAL
+level = info
+;level = trace
+; 日志文件存放目录（相对于工作目录）
+path = log
+
+[database]
+host = 127.0.0.1
+user = root
+password = root
+name = game
+
+[server]
+port = 6600
+name = 金剑江湖
+id = 1
+charge = 0
+start_room = 青云山山脚
+; 每个 IP 地址允许的最大同时连接数
+ip_limit = 30
+; 高级内功 HP 加成策略：1=取最大值  0=三项叠加
+high_force_max_effect = 1
+; 内功等级计入最大气血加成：1=计入 0=不计入
+force_add_hp = 0
+; 关闭内功互冲突检查：1=不检查 0=检查
+no_force_conflict = 0
+; 施法不要求已准备内功：1=拥有任意内功即可施法 0=需已准备
+force_no_need_prepare = 0
+; 背叛师门者一律不得学艺：1=不再按技能差放行 0=按技能差放行
+no_betrayer_valid = 0
+; 转世（newlife）所学内功不参与冲突检查：1=不检查 0=检查
+newlife_no_conflict = 1
+
+[lua]
+script_root = C:\jianghu-engine\lua-sample
+; 服务器自带默认脚本目录（可选，同名脚本被用户目录覆盖）
+default_script_root = C:\jianghu-engine\lua-default
+
+[party]
+; 队伍最大人数（包括队长），范围 2-10，默认 4
+max_members = 4
+; 是否启用组队经验共享，默认 true
+; true  = 组队按原逻辑分享经验
+; false = 只要组队了，所有人（包括队长）都不得经验
+share_exp = true
+; 队员跟随队长自动进入战斗，默认 true
+auto_follow_fight = true
+; 夫妻组队允许的等级差，范围 0-50，默认 10
+couple_level_diff = 10
