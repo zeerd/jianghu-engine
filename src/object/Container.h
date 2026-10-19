@@ -75,6 +75,8 @@ public:
     virtual void on_enter(CContainer* me);
     void on_rem_object(CContainer* obj, CContainer* env);
     void on_add_object(CContainer* obj, CContainer* env);
+    // 名字/id 变化：把新名字重发给同一容器内的在线玩家
+    virtual void on_name_changed();
     DTItemList* get_item_list();
 
     // ========================================================================

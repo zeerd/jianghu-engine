@@ -49,8 +49,10 @@ virtual int handle_action(char* comm, CChar* me, char* arg, char* tar) = 0;
 - **`CChar::handle_action(4 参)`**（`src/char/CharInterface.cpp:45`）遍历角色背包内的物品，逐个调用其四参 `handle_action`——这是**随身物品截获命令**的机制（例如武器截获 `kill`）。
 - 业务级准入规则（如免战保护）不在 C++ 实现：命令分发器在角色目标截获之前询问
   `hooks.combat_rule("command_gate", actor, target, comm)`，具体状态键由脚本自行约定，见下节调用顺序。
-- **`CResident::handle_action(4 参)`**（`src/room/Resident.h:280`）处理房产命令（`enter`/`applyhouse`/…），末尾回退 `CRoom::handle_action`（`:301`）。
-- **`CHouse::handle_action(4 参)`**（`src/room/House.h:108`）截获 `kill`/`fight`/`cast`/`join` 等，阻止非主人滥用房产，末尾同样回退 `CRoom::handle_action`（`:246`）。
+- **居民区脚本**（`lua-default/room/resident_base.lua` 的 `handle_action`，对 `type = "resident"` 的房间由引擎自动装配）处理房产命令（`enter`/`applyhouse`/…），末尾回退房间基类 `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp:338`）。
+- **房屋脚本**（`lua-default/room/house_base.lua` 的 `handle_action`）截获
+  `kill`/`fight`/`cast`/`join` 等，阻止非主人滥用房产，末尾同样回退房间基类
+  `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp:338`）。
 
 ---
 
@@ -143,16 +145,18 @@ flowchart TD
 
 记忆口诀：**房间是 `comm` 在前（`self, comm, me, arg, tar`）；NPC/物品是 `me` 在前（`self, me, comm, arg`）**。四参版在 NPC/Item 上要用**不同的字段名 `handle_action4`**，Room 则仍叫 `handle_action`（因为 Room 只有四参这一种入口）。
 
-### 编码差异（Room 独有）
+### 编码（三条分发路径统一 GBK）
 
-`CLuaRoomT::handle_action` 在 push 前会把 `comm/arg/tar` 从 **GBK 转成 UTF-8**（`src/lua/LuaRoom.inl:311-315`，`gbk_to_utf8`）：
+脚本源码以 UTF-8 存盘，**加载期统一转 GBK**（`load_file_as_gbk`，`src/lua/LuaEngine.cpp`），
+因此 **Lua 字符串空间是 GBK**：脚本字面量、`comm/arg/tar/dir` 入参、`querystr` 出参同为
+GBK，可直接比较。三条分发路径（`src/lua/LuaRoom.inl`、`src/lua/LuaNpc.inl`、
+`src/lua/LuaItem.inl`）均**原样压栈、不做转码**。运行期需要转换时用绑定函数
+`utf8_to_gbk`（无反向绑定 `gbk_to_utf8`）。
 
-```cpp
-strncpy(commBuf, gbk_to_utf8(comm ? comm : "").c_str(), 255);
-```
-
-因此**房间脚本里 `arg`/`tar` 若含中文，是 UTF-8**，可与中文字面量安全比较。
-NPC/Item 的 `handle_action`（`src/lua/LuaNpc.inl:288-289`、`src/lua/LuaItem.inl:321-322`，四参版同理）**直接 push 原始 GBK**，不做转换。命令名 `comm` 通常是 ASCII（`"guard"`、`"kill"`），不受影响；但 NPC/Item 脚本里对 `arg` 做中文比较时需谨慎。
+> **历史差异（已消除）**：`CLuaRoomT::handle_action/valid_leave` 曾单方面把入参转成
+> UTF-8，与字面量方向相反——靠样本命令均为 ASCII 与脚本侧 `utf8_to_gbk` 回转掩盖。
+> 已于 2026-10-24 统一为原样压栈，`house_base.lua`/`resident_base.lua` 的回转补偿
+> 一并移除；契约由 `tests/unit/test_dispatch_encoding.cpp` 钉住。
 
 ---
 
@@ -167,7 +171,7 @@ NPC/Item 的 `handle_action`（`src/lua/LuaNpc.inl:288-289`、`src/lua/LuaItem.i
   self:base_handle_action(comm, me, arg)        -- 回退 3 参基类
   self:base_handle_action4(comm, me, arg, tar)  -- 回退 4 参基类
   ```
-  绑定见 `src/lua/LuaBind.cpp:221-222`（`base_handle_action` / `base_handle_action4`），实现 `src/lua/LuaBindGlue.cpp:298` / `:450`。三参版 `base_handle_action` 仅覆盖 NPC 系；四参版 `base_handle_action4` 覆盖房间系（`CLuaRoom`/`CLuaResident`/`CLuaFBRoom`）与 `CLuaNpc`，物品的基类回退由框架自动完成。
+  绑定见 `src/lua/LuaBind.cpp:221-222`（`base_handle_action` / `base_handle_action4`），实现 `src/lua/LuaBindGlue.cpp:298` / `:450`。三参版 `base_handle_action` 仅覆盖 NPC 系；四参版 `base_handle_action4` 覆盖房间系（`CLuaRoom`/`CLuaFBRoom`）与 `CLuaNpc`，物品的基类回退由框架自动完成。
 
 **关键：漏写 `base` 回退 = 丢基类功能。** 典型：房间脚本若以 `return 0` 收尾而不调 `base_handle_action4`，就会**吞掉 `CRoom::handle_action` 的帮派 `back`（返回总部）** 逻辑。正确写法应以回退收尾：
 
@@ -254,7 +258,7 @@ end
 
 4. **`tonumber(tar)` 判空**：`tar` 可能为空串（无目标命令）。房间脚本入口应先 `if me == nil then return 1 end` 之类防御；对目标用 `self:Present(tonumber(tar))` 后要判 `nil` 再用。
 
-5. **编码不一致**：房间 `arg/tar` 是 UTF-8、NPC/Item 是 GBK（见第四节）。跨类型搬运比较逻辑时注意中文参数编码。
+5. **编码**：三条分发路径入参与脚本字面量同为 GBK（见第四节），中文参数可直接比较；如脚本内手搓 UTF-8 文本与入参比较会静默不相等，需先 `utf8_to_gbk` 转回。
 
 6. **`CItem.handle_action(...)` 不存在**：Lua 侧并未注册 `CItem` 这类 C++ 类型全局表，`return CItem.handle_action(self, comm, me, arg)` 会因 `indexing a nil value` 报错并被框架 `pcall` 捕获后回退基类——功能上「碰巧」仍回退成功，但属于**无效写法**。物品钩子未定义或 `pcall` 失败时框架会自动回退基类；需要显式回退时写 `self:base_handle_action(comm, me, arg)`（对物品其效果同样是返回 0：`CItem` 的 3 参基类实现本身即返回 0）。
 
@@ -272,5 +276,5 @@ end
 | Item 桥接 | `src/lua/LuaItem.inl:305`（3 参）/ `:338`（4 参，字段 `handle_action4`） |
 | `base` 回退绑定 | `src/lua/LuaBindGlue.cpp:298` / `:450`；注册 `src/lua/LuaBind.cpp:221-222` |
 | 全局转发函数 | `src/lua/LuaBindGlue.cpp:380`；注册 `src/lua/LuaBind.cpp:344` |
-| 基类默认行为 | `src/room/Room.cpp:338`（back）、`src/char/CharInterface.cpp:45`（背包转发）、`src/room/Resident.h:280`、`src/room/House.h:108` |
-| 编码转换 | `src/util/Encoding.cpp:32`（`gbk_to_utf8`） |
+| 基类默认行为 | `src/room/Room.cpp:338`（back）、`src/char/CharInterface.cpp:45`（背包转发）、`lua-default/room/resident_base.lua`（房产命令）、`lua-default/room/house_base.lua`（房屋命令截获） |
+| 编码转换 | `src/util/Encoding.cpp`（加载期 `utf8_to_gbk`；`gbk_to_utf8` 仅日志用） |

@@ -226,6 +226,8 @@ static const luaL_Reg object_methods[]
        {"save_to_local", l_save},
        {"load_from_local", l_load},
        {"remove_all_doors", l_remove_all_doors},
+       {"remove_all_box", l_remove_all_box},
+       {"remove", l_remove},
        {"remove_doors", l_remove_doors},
        {"reset", l_room_reset},
        {"Begin_Fight", l_begin_fight},
@@ -235,6 +237,7 @@ static const luaL_Reg object_methods[]
        {"is_fight_room", l_is_fight_room},
        // CSkill
        {"add_magic", l_add_magic},
+       {"valid_force", l_valid_force},
        // CRoom / 地图
        {"add_npc", l_add_npc},
        {"add_door", l_add_door},
@@ -272,7 +275,6 @@ static const luaL_Reg global_funcs[]
        {"add_user", l_add_user},
        {"do_channel", l_do_channel},
        {"sql_update_record", l_sql_update_record},
-       {"update_mf_record", l_update_mf_record},
        {"db_query", l_db_query},
        {"db_execute", l_db_execute},
        {"db_register_ddl", l_db_register_ddl},
@@ -338,7 +340,6 @@ static const luaL_Reg global_funcs[]
        {"get_fight_team_char", l_get_fight_team_char},
        {"get_no_force_conflict", l_get_no_force_conflict},
        {"get_room_char", l_get_room_char},
-       {"get_newlife_no_conflict", l_get_newlife_no_conflict},
        {"query_recruit", l_query_recruit},
        {"update_recruit", l_update_recruit},
        {"do_emote", l_do_emote},
@@ -350,6 +351,7 @@ static const luaL_Reg global_funcs[]
        {"paihangbang", l_paihangbang},
        {"script_exists", l_script_exists},
        {"ini_get", l_ini_get},
+       {"utf8_to_gbk", l_utf8_to_gbk},
        {NULL, NULL}};
 
 void lua_bind_init(lua_State* L)

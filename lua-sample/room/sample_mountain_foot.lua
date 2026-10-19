@@ -14,6 +14,8 @@ return {
         self:add_npc("sample_vendor")
         self:add_door("青云山半山腰", "青云山半山腰", "青云山山脚")
         self:add_door("山脚茶棚", "山脚茶棚", "青云山山脚")
+        self:add_door("山脚钱庄", "山脚钱庄", "青云山山脚")
+        self:add_door("青云城住宅区", "青云城住宅区", "青云山山脚")
         self:set("no_fight", 1)
 
         -- 放置箱子
@@ -29,6 +31,7 @@ return {
         self:set(
             "long",
             "这里是青云山的山脚，一条蜿蜒的山路通向山顶。路边有一个杂货铺，还有一位老者在为路人指路。"
+                .. "山脚东侧是一片青砖小院，那是青云城的住宅区。"
         )
     end,
 

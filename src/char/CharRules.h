@@ -9,10 +9,13 @@
 #include <cstdint>
 
 class CChar;
+class CMainObject;
 
 // 数值覆盖型询问：规则返回 {limit=N} 即采用该值；
 // 缺席 / nil / 缺字段 = 返回 default_limit（引擎默认基准）。
 int64_t char_rule_limit(const char* phase, CChar* actor, int64_t default_limit);
 
 // 命中型询问：规则返回 {yes=true} 即命中；缺席 / nil = false。
-bool char_rule_yes(const char* phase, CChar* actor, CChar* target);
+// target 为「另一相关对象」，可为任意 CMainObject（如 CSkill），按 phase
+// 语义使用。
+bool char_rule_yes(const char* phase, CChar* actor, CMainObject* target);

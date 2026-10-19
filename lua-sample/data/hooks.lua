@@ -5,6 +5,7 @@
 -- 未在此实现的挂点仍按“缺席 = C++ 默认逻辑”生效。
 -- 通用语义与各挂点签名见 lua-default/data/hooks.lua 的注释。
 require("data.rank").install(hooks)
+require("data.quest").install(hooks)
 
 -- hooks.kill_bonus(killer, victim, reward)
 --   调用点：CReward::handle_npc_kill_reward，击杀 NPC 的经验按 level*4+100

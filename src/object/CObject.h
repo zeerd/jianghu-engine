@@ -39,6 +39,10 @@ public:
     void set_name(const char* name, const char* id = 0)
     {
         if (!this) return;
+        // 先存旧值：querystr 指向映射内部，写入后会失效
+        const std::string old_name = querystr("name");
+        const std::string old_id   = querystr("id");
+
         if (name) {
             _M.set("name", name);
         }
@@ -47,12 +51,18 @@ public:
             // strncpy(m_szID, id, 40)[39] = 0;
             _M.set("id", id);
         }
-        else {
-            if (_M.undefinedp("id")) {
-                _M.set("id", _M.querystr("base_name"));
-            }
+        else if (_M.undefinedp("id")) {
+            _M.set("id", _M.querystr("base_name"));
+        }
+
+        if (old_name != querystr("name") || old_id != querystr("id")) {
+            on_name_changed();
         }
     }
+
+    // 名字/id 变化的观察者钩子：容器覆写它，把新名字重发给同一容器内的
+    // 玩家（协议没有「改名」消息，见 CContainer::on_name_changed）。
+    virtual void on_name_changed() {}
 
     void set(const char* key, int32_t value)
     {

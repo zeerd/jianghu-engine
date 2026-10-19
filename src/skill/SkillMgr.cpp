@@ -57,6 +57,39 @@ void skill_release()
     g_skill_list.clear();
 }
 
+// 摘除单个技能，并连带摘除继承自它的技能（传递闭包）。
+// 继承项的归属指针指向基础技能：基础技能被销毁后，继承者必须一起重建，
+// 否则继承项里的归属指针会悬垂（施法转发时会用到）。
+void skill_release_one(const char* base_name)
+{
+    if (!base_name || !base_name[0]) return;
+
+    iterator_skill p = g_skill_list.find(base_name);
+    if (p == g_skill_list.end()) return;
+
+    std::vector<CSkill*> dying;
+    dying.push_back(p->second);
+    g_skill_list.erase(p);
+
+    // 传递闭包：继承自待删技能的技能也一并摘除（下次 load_skill
+    // 重建并重新继承）
+    for (size_t i = 0; i < dying.size(); i++) {
+        CSkill* cur       = dying[i];
+        iterator_skill it = g_skill_list.begin();
+        while (it != g_skill_list.end()) {
+            if (it->second->depends_on(cur)) {
+                dying.push_back(it->second);
+                it = g_skill_list.erase(it);
+            }
+            else {
+                ++it;
+            }
+        }
+    }
+
+    for (CSkill* sk : dying) delete sk;
+}
+
 //---------------------------------------------------------
 // 状态释放
 //---------------------------------------------------------

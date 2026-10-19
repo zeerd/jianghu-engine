@@ -43,7 +43,7 @@ bool db_save_container(const char* table, const char* obj_id,
             msg += "'";
         }
         else {
-            msg = "insert ";
+            msg = "insert into ";
             msg += table;
             msg += "(obj_id, obj_name, obj_data) values('";
             msg += id_esc;
@@ -206,7 +206,9 @@ bool db_save_object(const char* owner_id, long grid, const char* base_name,
             msg += std::to_string(grid);
         }
         else {
-            msg = "insert t_saveobj(owner, grid, base_name, savedata) values(";
+            msg
+                = "insert into t_saveobj(owner, grid, base_name, savedata) "
+                  "values(";
             msg += owner_id;
             msg += ", ";
             msg += std::to_string(grid);

@@ -1,8 +1,5 @@
 -- rank.lua — 称谓查询（江湖称号 / 尊称 / 蔑称 / 自称 / 近称 / 外貌）。
 --
--- 由 C++ engine/Rank.cpp 迁移而来：八个称谓算法整体在此表达，
--- C++ 仅通过 hooks.rank_rule 询问，不再持有称谓文本与判定规则。
---
 -- 钩子契约（hooks.rank_rule(phase, a, b)）：
 --   "rank" / "respect" / "rude" / "self" / "self_rude"  → a=对象, b=nil
 --   "close" / "self_close"                              → a=me, b=对方(可为 nil)

@@ -1,0 +1,5 @@
+{
+  "instructions": [
+    ".claude/rules/*.instructions.md"
+  ]
+}

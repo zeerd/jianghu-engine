@@ -115,7 +115,7 @@ template <typename T>
 void CLuaRoomT<T>::create_int_impl(std::false_type, int flag)
 {
     // 基类无
-    // create(int)（CRoom/CResident/CFBRoom），此重写不作为虚重写被调用。
+    // create(int)（CRoom/CFBRoom），此重写不作为虚重写被调用。
     // 直接调用脚本 create(self, nFlag)，失败无基类可回退。
     m_script_ref
         = g_LuaEngine->load_script(m_script_name.c_str(), LUA_SCRIPT_ROOM);
@@ -275,13 +275,18 @@ void CLuaRoomT<T>::setup()
 }
 
 // CAN_SAVE 读脚本声明的 can_save 字段（构造期即可用，早于 create/load 时序）；
-// 字段缺席时透传基类（CResident 等自带的 CAN_SAVE 不受影响）
+// IS_RESIDENT 读脚本声明的 resident_area 字段；字段缺席时透传基类
 template <typename T>
 int32_t CLuaRoomT<T>::query_attr(int attr)
 {
     if (attr == CAN_SAVE && g_LuaEngine
         && g_LuaEngine->get_script_bool_field(m_script_name.c_str(),
                                               LUA_SCRIPT_ROOM, "can_save")) {
+        return 1;
+    }
+    if (attr == IS_RESIDENT && g_LuaEngine
+        && g_LuaEngine->get_script_bool_field(
+            m_script_name.c_str(), LUA_SCRIPT_ROOM, "resident_area")) {
         return 1;
     }
     return T::query_attr(attr);
@@ -304,20 +309,15 @@ int CLuaRoomT<T>::handle_action(char* comm, CChar* me, char* arg, char* tar)
     }
 
     // 参数顺序：self, comm, me, arg, tar（与 Lua 脚本声明一致）
+    // 编码契约：comm/arg/tar 保持服务器内部 GBK 直接压栈。脚本源码在加载期
+    // 已统一转 GBK（load_file_as_gbk），Lua 字符串空间是 GBK——投递原始 GBK
+    // 才能与脚本字面量直接比较，与 NPC/Item 分发（LuaNpc.inl / LuaItem.inl）
+    // 口径一致。历史上此处曾转成 UTF-8，导致房间钩子与字面量反向。
     lua_bind_push_object(L, this);
-    // comm/arg/tar 是服务器内部 GBK 编码，转成 UTF-8 供脚本比较
-    // （GbkToUtf8 用静态缓冲区，必须复制到局部变量再 push）
-    char commBuf[256], argBuf[256], tarBuf[256];
-    strncpy(commBuf, gbk_to_utf8(comm ? comm : "").c_str(), 255);
-    commBuf[255] = 0;
-    strncpy(argBuf, gbk_to_utf8(arg ? arg : "").c_str(), 255);
-    argBuf[255] = 0;
-    strncpy(tarBuf, gbk_to_utf8(tar ? tar : "").c_str(), 255);
-    tarBuf[255] = 0;
-    lua_pushstring(L, commBuf);   // comm
-    lua_bind_push_object(L, me);  // me
-    lua_pushstring(L, argBuf);    // arg
-    lua_pushstring(L, tarBuf);    // tar
+    lua_pushstring(L, comm ? comm : "");  // comm
+    lua_bind_push_object(L, me);          // me
+    lua_pushstring(L, arg ? arg : "");    // arg
+    lua_pushstring(L, tar ? tar : "");    // tar
 
     if (lua_pcall(L, 5, 1, 0) != LUA_OK) {
         LOG_ERROR("Lua room handle_action failed [%s]: %s",
@@ -354,11 +354,9 @@ int CLuaRoomT<T>::valid_leave_impl(std::true_type, CChar* me, const char* dir)
 
     lua_bind_push_object(L, this);
     lua_bind_push_object(L, me);
-    // dir 是服务器内部 GBK 编码（door->querystr("id")），转成 UTF-8 供脚本比较
-    char dirBuf[256];
-    strncpy(dirBuf, gbk_to_utf8(dir ? dir : "").c_str(), 255);
-    dirBuf[255] = 0;
-    lua_pushstring(L, dirBuf);
+    // dir 是服务器内部 GBK 编码（door->querystr("id")），保持原样压栈，
+    // 与脚本 GBK 字面量直接比较（编码契约见 handle_action 处说明）
+    lua_pushstring(L, dir ? dir : "");
 
     if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
         LOG_ERROR("Lua room valid_leave failed [%s]: %s", m_script_name.c_str(),
@@ -389,11 +387,9 @@ int CLuaRoomT<T>::valid_leave_impl(std::false_type, CChar* me, const char* dir)
 
     lua_bind_push_object(L, this);
     lua_bind_push_object(L, me);
-    // dir 是服务器内部 GBK 编码（door->querystr("id")），转成 UTF-8 供脚本比较
-    char dirBuf[256];
-    strncpy(dirBuf, gbk_to_utf8(dir ? dir : "").c_str(), 255);
-    dirBuf[255] = 0;
-    lua_pushstring(L, dirBuf);
+    // dir 是服务器内部 GBK 编码（door->querystr("id")），保持原样压栈，
+    // 与脚本 GBK 字面量直接比较（编码契约见 handle_action 处说明）
+    lua_pushstring(L, dir ? dir : "");
 
     if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
         LOG_ERROR("Lua fb valid_leave failed [%s]: %s", m_script_name.c_str(),

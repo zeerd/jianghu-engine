@@ -1,5 +1,4 @@
 -- poison_base.lua 毒药物品通用逻辑
--- 将原 CPoisonItem (PoisonItem.cpp) 的逻辑 Lua 化
 -- 放在 lua-default 作为基础公共模块，lua-sample/item 下的毒药脚本通过 require 引用
 
 local poison_base = {}

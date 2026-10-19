@@ -2,10 +2,7 @@
 -- 示例技能：展示高级内功，含自疗术和狮子吼绝招
 
 return {
-    base = "force",
-
     create = function(self)
-        self:base_create()
         self:set_name("高级内功")
         -- add_magic(name, displayName, mp, ap, target, validCast, luaFuncName)
         -- 自疗术：对自身施放，战斗中可用（非敌意，不挂 PK 标记）

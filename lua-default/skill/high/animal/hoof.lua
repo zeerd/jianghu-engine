@@ -1,7 +1,5 @@
 -- hoof.lua  蹬
 
-local skill_utils = require("skill.skill_utils")
-
 return {
     -- create(self)
     create = function(self)

@@ -1,35 +1,36 @@
 /**
  * @file LuaSkill.h
- * @brief Lua 脚本定义的 Skill 模板类，支持 CSkill/CForce/CThrowing 基类。
+ * @brief Lua 脚本定义的 Skill 实现类。
+ *
+ * 技能行为全部由 Lua 脚本提供（法术用 add_magic 注册，回调用同名函数实现）；
+ * 本类只做「脚本 → 引擎」的回调分派，以及脚本没实现时的回落。
  */
 
-////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////
 
 #pragma once
 
-#include <map>
-#include "Force.h"
-#include "Throwing.h"
+#include <string>
+#include <vector>
 #include "Skill.h"
 
-// 模板基类：支持不同 C++ 基类（CSkill/CForce/CThrowing）
-template <typename T>
-class CLuaSkillT : public T {
+// Lua 脚本技能：所有技能都是这一种实现（脚本的 base 字段不再选 C++ 基类）
+class CLuaSkill : public CSkill {
 public:
-    CLuaSkillT(const char* scriptName);
-    virtual ~CLuaSkillT();
+    CLuaSkill(const char* scriptName);
+    virtual ~CLuaSkill();
 
-    // 重写 create()：回退语义——脚本定义 create 时完全接管（需要基类副作用
-    // 时脚本显式调用 self:base_create()，如 force 注册复元术、throwing 注册
-    // 偷袭），否则调用基类 T::create()
+    // 重写 create()：回退语义——脚本定义 create 时完全接管，否则调用基类
+    // CSkill::create()；create 收尾时继承"可 enable
+    // 的技能种类"对应基础技能的法术。
     virtual void create();
 
-    // self:base_create() - 供脚本显式调用 C++ 基类 create（非虚限定调用防递归）
-    void base_create() { T::create(); }
-
     // 重写 query_action：调用 Lua 脚本的 query_action 函数（若存在），
-    // 否则回退到基类 T::query_action
+    // 否则回落到基础技能（同族默认实现，如基本投掷的出招姿势）
     virtual CMapping* query_action(CChar* me);
+
+    // 本技能是否提供 query_action 实现（脚本里有同名函数）
+    virtual bool has_query_action();
 
     // 重写 valid_learn：调用 Lua 脚本的 valid_learn 函数（若存在）
     virtual int valid_learn(CChar* me);
@@ -58,8 +59,12 @@ public:
     // 重写 query_parry_msg
     virtual const char* query_parry_msg(CContainer* weapon);
 
-    // 重写 hit_ob
+    // 重写 hit_ob：调用 Lua 脚本的 hit_ob 函数（若存在），
+    // 否则回落到基础技能（同族默认实现，如基本内功的内功反震）
     virtual char* hit_ob(CChar* me, CChar* victim, int32_t& damage);
+
+    // 本技能是否提供 hit_ob 实现（脚本里有同名函数）
+    virtual bool has_hit_ob();
 
     // 重写 type：调用 Lua 脚本的 type 函数（返回 "knowledge" 等，若存在）
     virtual const char* type();
@@ -83,16 +88,26 @@ public:
     // 设置 base_skill（可 enable 的技能类型）
     void setup_base_skill();
 
-    // 获取已注册的 Lua 法术数量
-    int get_magic_count() { return (int)m_lua_magic_list.size(); }
+    // 继承"可 enable 的技能种类"对应基础技能的法术
+    // （如高级投掷继承基本投掷的"偷袭"）
+    void inherit_base_magics();
 
-    // 获取已注册的 Lua 法术名（用于验证）
+    // 获取已注册法术数量（含继承自基础技能的）
+    int get_magic_count() { return (int)m_magic_list.size(); }
+
+    // 获取已注册法术名（用于验证）
     const char* get_magic_name(int idx);
 
     // 获取法术的显示名（用于验证编码）
     const char* get_magic_display_name(int idx);
 
 private:
+    // 脚本未实现 hit_ob 时回落到基础技能的同名实现
+    char* base_hit_ob(CChar* me, CChar* victim, int32_t& damage);
+
+    // 脚本未实现 query_action 时回落到基础技能的同名实现
+    CMapping* base_query_action(CChar* me);
+
     std::string m_script_name;
     int m_script_ref;               // 脚本 table 的 registry 引用
     std::string m_type_cache;       // type() 返回值缓存（保证返回指针生命周期）
@@ -101,14 +116,6 @@ private:
     std::string
         m_hit_msg_cache;  // hit_ob() 返回消息缓存（保证返回指针生命周期）
 
-    // Lua 法术表：法术名 -> Lua 函数名
-    std::map<std::string, std::string> m_lua_magic_list;
+    // 本技能可 enable 的技能种类（如 "throwing"）：对应同名的基础技能
+    std::vector<std::string> m_base_usages;
 };
-
-// 类型别名
-typedef CLuaSkillT<CSkill> CLuaSkill;        // base = "skill"（普通技能，默认）
-typedef CLuaSkillT<CForce> CLuaForce;        // base = "force"（内功）
-typedef CLuaSkillT<CThrowing> CLuaThrowing;  // base = "throwing"（投掷）
-
-#include "Encoding.h"
-#include "LuaSkill.inl"

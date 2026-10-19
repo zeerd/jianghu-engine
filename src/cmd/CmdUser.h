@@ -21,7 +21,6 @@ char* check_legal_name(const char* name);
 
 // --- test fixture friends ---
 class CmdUserSkillTest;
-class CmdUserCardTest;
 class CmdUserVendorTest;
 class CmdUserAccountTest;
 class CmdUserPartyTest;
@@ -35,7 +34,6 @@ public:
     int handlecommand(char* cmd, CChar* me, int32_t target, char* arg);
 
     friend class CmdUserSkillTest;
-    friend class CmdUserCardTest;
     friend class CmdUserVendorTest;
     friend class CmdUserAccountTest;
     friend class CmdUserPartyTest;
@@ -97,11 +95,7 @@ private:
     static int loc(CChar* me, int32_t target, char* arg);
     static int who(CChar* me, int32_t target, char* arg);
 
-    // ---- 月卡/商业 ----
+    // ---- 商业 ----
     static int list_goods(CChar* me, int32_t target, char* arg);
     static int buy(CChar* me, int32_t target, char* arg);
-    static int card_help(CChar* me, int32_t target, char* arg);
-    static int add_card(CChar* me, int32_t target, char* arg);
-    static int remove_card(CChar* me, int32_t target, char* arg);
-    static int show_cards(CChar* me, int32_t target, char* arg);
 };

@@ -1,5 +1,3 @@
-local skill_utils = require("skill.skill_utils")
-
 return {
     -- create(self)
     create = function(self)

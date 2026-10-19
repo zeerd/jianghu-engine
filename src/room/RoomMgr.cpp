@@ -91,3 +91,25 @@ int l_room_count(lua_State* L)
     lua_pushinteger(L, g_LuaEngine->get_room_count());
     return 1;
 }
+
+// get_my_house(who) -> object|nil - 获取玩家的住宅房间
+int l_get_my_house(lua_State* L)
+{
+    CChar* ch = dynamic_cast<CChar*>(get_object(L, 1));
+    if (!ch || !ch->querystr("resident")[0]) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    char room_name[255];
+    snprintf(room_name, sizeof(room_name), "house_%s_%s",
+             ch->querystr("resident"), ch->id(1));
+    CRoom* room = load_room(room_name);
+    if (!room || room->query("fail_ob")) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    lua_bind_push_object(L, room);
+    return 1;
+}

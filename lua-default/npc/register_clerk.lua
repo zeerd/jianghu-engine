@@ -50,12 +50,20 @@ end
 
 -- ===================== 角色注册流程 =====================
 
--- 注册菜单：每一步答完都回到这个菜单（与凶猛的狗的铸造菜单同构）
+-- 注册菜单：每一步答完都回到这个菜单（与凶猛的狗的铸造菜单同构）。
+-- 菜单项文案即格式说明书：玩家在首次输入之前就该看得到规则，
+-- 不能等答错一次才通过错误提示倒推。
 local function reg_menu(self, me)
     self:AddMenuItem("设置角色姓名。", "$2regname $1 $2", me)
-    self:AddMenuItem("设置登录密码。", "$2regpass $1 $2", me)
+    self:AddMenuItem("设置登录密码（4~22 个字符）。", "$2regpass $1 $2", me)
+    self:AddMenuItem("设置邮箱地址（须含 @，如 name@example.com）。", "$2regemail $1 $2", me)
     self:AddMenuItem("选择性别。", "$0reggender $1", me)
-    self:AddMenuItem("设置天赋属性。", "$2regstat $1 $2", me)
+    self:AddMenuItem(
+        "设置天赋属性（依次为力量、智慧、体质、敏捷，"
+            .. "单项 10~30、总和 84，如 21 21 21 21）。",
+        "$2regstat $1 $2",
+        me
+    )
     self:AddMenuItem("确认创建角色。", "$0regdone $1", me)
     self:SendMenu(me)
 end
@@ -103,6 +111,27 @@ local function do_regpass(self, me, arg)
     return 1
 end
 
+local function do_regemail(self, me, arg)
+    if #arg == 0 then
+        tell_object(me, "请输入邮箱地址。")
+        reg_menu(self, me)
+        return 1
+    end
+
+    -- 简单格式校验：必须包含 @ 且 @ 前后非空
+    local at = string.find(arg, "@")
+    if not at or at == 1 or at == #arg then
+        tell_object(me, "邮箱格式不正确：须包含 @，且 @ 前后不能为空，例如 name@example.com。")
+        reg_menu(self, me)
+        return 1
+    end
+
+    me:set_temp("regclerk/email", arg)
+    tell_object(me, "Ok.")
+    reg_menu(self, me)
+    return 1
+end
+
 local function do_reggender(self, me, arg)
     if arg == "男性" or arg == "女性" then
         me:set_temp("regclerk/gender", arg)
@@ -129,7 +158,8 @@ local function do_regstat(self, me, arg)
     if #nums ~= 4 then
         tell_object(
             me,
-            "请输入四个数字（依次为力量、智慧、体质、敏捷），用空格分开，例如：21 21 21 21。"
+            "请输入四个数字（依次为力量、智慧、体质、敏捷），用空格分开，例如："
+                .. "21 21 21 21；单项 10~30，四项总和必须正好 84。"
         )
         reg_menu(self, me)
         return 1
@@ -163,6 +193,7 @@ end
 local function do_regdone(self, me)
     local name = me:querystr_temp("regclerk/name")
     local pass = me:querystr_temp("regclerk/pass")
+    local email = me:querystr_temp("regclerk/email")
     local gender = me:querystr_temp("regclerk/gender")
 
     if #name == 0 then
@@ -172,6 +203,11 @@ local function do_regdone(self, me)
     end
     if #pass == 0 then
         self:say("你还没有设置登录密码呢。", me)
+        reg_menu(self, me)
+        return 1
+    end
+    if #email == 0 then
+        self:say("你还没有设置邮箱地址呢。", me)
         reg_menu(self, me)
         return 1
     end
@@ -189,6 +225,7 @@ local function do_regdone(self, me)
     local id, err = register_char(
         name,
         pass,
+        email,
         gender,
         me:query_temp("regclerk/str"),
         me:query_temp("regclerk/int"),
@@ -205,6 +242,7 @@ local function do_regdone(self, me)
     me:delete_temp("regclerk/step")
     me:delete_temp("regclerk/name")
     me:delete_temp("regclerk/pass")
+    me:delete_temp("regclerk/email")
     me:delete_temp("regclerk/gender")
     me:delete_temp("regclerk/str")
     me:delete_temp("regclerk/int")
@@ -238,6 +276,8 @@ function npc.handle_action(self, me, comm, arg)
             return do_regname(self, me, arg)
         elseif comm == "regpass" then
             return do_regpass(self, me, arg)
+        elseif comm == "regemail" then
+            return do_regemail(self, me, arg)
         elseif comm == "reggender" then
             return do_reggender(self, me, arg)
         elseif comm == "regstat" then
@@ -247,7 +287,7 @@ function npc.handle_action(self, me, comm, arg)
         end
     end
 
-    return self:base_handle_action(comm, me, arg)
+    return self:base_handle_action(me, comm, arg)
 end
 
 return npc

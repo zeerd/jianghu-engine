@@ -37,7 +37,9 @@ function npc.handle_action(self, me, comm, arg)
         tell_object(me, "$HIY唉，现在真是世风日下，连我这糟老头子也想杀。")
         return 1
     end
-    return -1
+    -- 返回 0（未处理）让引擎继续走常规命令分发（如 talk 走 do_talk）；
+    -- 返回 -1 在 C++ 侧是「真值」，会把命令吞掉，导致 talk 无法触发 do_talk。
+    return 0
 end
 
 function npc.do_leave(self, me)

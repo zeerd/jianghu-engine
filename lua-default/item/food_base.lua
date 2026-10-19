@@ -1,5 +1,4 @@
 -- food_base.lua 食物/药品通用逻辑
--- 将原 CFood (Food.cpp) 的逻辑 Lua 化
 -- 放在 lua-default 作为基础公共模块，lua-sample/item 下的食物脚本通过 require 引用
 
 local food_base = {}

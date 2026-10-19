@@ -19,7 +19,10 @@ end
 -- @param newenter  number: 1=首次登入（新建或断线重连后重新加载存档），
 --                  0=重连线（同帐号重复登录替换旧连接）
 --                  首次登入时会执行等级重算、套装技能取消等额外逻辑。
--- @return number   0=校验通过, 1=校验失败（属性超限等）
+-- @return number   0=校验通过；
+--                  1=校验失败已自行处置（惩罚放行，登录流程照常）；
+--                  2=拒绝准入：引擎把玩家送回游戏大厅并断开，
+--                    说明文案由脚本自行 tell_object。
 function login.on_login(me, newenter)
     local total = me:query("str") + me:query("con") + me:query("int") + me:query("dex")
     local limit = 84 + me:query("reward/attrib")

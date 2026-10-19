@@ -43,6 +43,8 @@ function npc.create(self)
     self:set_skill("dodge_adv", 500)
     self:set_skill("sword", 500)
     self:set_skill("sword_adv", 500)
+    self:set_skill("throwing", 500)
+    self:set_skill("throw_adv", 500)
     self:set_skill("literate", 400)
 
     self:map_skill("force", "force_adv")
@@ -50,10 +52,12 @@ function npc.create(self)
     self:map_skill("parry", "parry_adv")
     self:map_skill("dodge", "dodge_adv")
     self:map_skill("sword", "sword_adv")
+    self:map_skill("throwing", "throw_adv")
 
     self:prepare_skill("unarmed", "unarmed_adv")
 
     self:carry_object("sample_sword_adv"):wield()
+    self:carry_object("sample_chess")
 
     self:set("no_kill", 1)
 end

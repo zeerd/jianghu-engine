@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Skill.cpp
  * @brief implementation of the CSkill class. */
 
@@ -9,14 +9,11 @@
 #include "Sql.h"
 #include "LuaBindEnums.h"
 #include "ServerConfig.h"
+#include "CharRules.h"
 
 //---------------------------------------------------------
 // Construction/Destruction
 //---------------------------------------------------------
-int check_ap(int ap, CChar* me);
-void resume_ap(int ap, CChar* me);
-
-// 加载技能
 CSkill::CSkill() {}
 
 CSkill::~CSkill() { m_magic_list.clear(); }
@@ -37,6 +34,50 @@ int CSkill::query_magic_target(const char* magic)
     CastList_t::iterator p = m_magic_list.find(magic);
     if (p == m_magic_list.end()) return CAST_TO_RANDOM;
     return p->second->target;
+}
+
+const CSkill::Magic_t* CSkill::find_magic(const char* magic) const
+{
+    if (!magic) return NULL;
+    CastList_t::const_iterator p = m_magic_list.find(magic);
+    if (p == m_magic_list.end()) return NULL;
+    return p->second.get();
+}
+
+bool CSkill::has_magic(const char* magic) { return find_magic(magic) != NULL; }
+
+CSkill* CSkill::magic_owner(const char* magic)
+{
+    const Magic_t* entry = find_magic(magic);
+    if (!entry) return NULL;
+    return entry->owner ? entry->owner : this;
+}
+
+// 本技能是否继承了 basic 的法术（继承项的归属指向 basic）。
+// 基础技能被销毁前据此找出依赖者：归属指针一旦悬垂，施法转发会踩到已释放对象。
+bool CSkill::depends_on(const CSkill* basic) const
+{
+    if (!basic) return false;
+    CastList_t::const_iterator it = m_magic_list.begin();
+    for (; it != m_magic_list.end(); ++it) {
+        if (it->second->owner == basic) return true;
+    }
+    return false;
+}
+
+// 继承基础技能的法术：同名不覆盖（本技能自己注册的优先）。
+// 继承项 owner 指向基础技能，施法时转发给归属技能执行，
+// 保证法术逻辑仍由基础技能的脚本实现。
+void CSkill::inherit_magics(const CSkill* basic)
+{
+    if (!basic || basic == this) return;
+
+    for (const auto& kv : basic->m_magic_list) {
+        if (m_magic_list.count(kv.first)) continue;
+        std::unique_ptr<Magic_t> copy(new Magic_t(*kv.second));
+        copy->owner            = const_cast<CSkill*>(basic);
+        m_magic_list[kv.first] = std::move(copy);
+    }
 }
 
 CMapping* CSkill::query_action(CChar* me) { return 0; }
@@ -87,84 +128,17 @@ void CSkill::reset(CChar* me) {}
 
 void CSkill::skill_improved(CChar* me) {}
 
-static void remove_no_cast(CContainer* ob, int32_t param1, int32_t param2)
-{
-    ob->delete_temp("no_cast");
-}
-
 int CSkill::cast(string magic, CChar* me, CContainer* target)
 {
-    CastList_t::iterator p;
-    int32_t object_id = 0;
-
-    bool gift   = false;
-    CMapping* m = me->querymap("newlife/forces");
-    if (m != NULL) {
-        CVector key;
-        m->keys(key);
-        for (int i = 0; i < key.count(); i++) {
-            if (valid_force(key[i])) {
-                gift = true;
-                break;
-            }
-        }
+    // 继承自基础技能的法术：转发给归属技能执行（法术逻辑在基础技能脚本里）
+    const Magic_t* entry = find_magic(magic.c_str());
+    if (entry && entry->owner && entry->owner != this) {
+        // 转发前仍按本技能的前置条件校验（内功搭配限制等）
+        if (!check_cast_force(me)) return 0;
+        return entry->owner->cast(magic, me, target);
     }
 
-    if (CServerConfig::force_no_need_prepare() && !gift) {
-        CMapping* skills;
-        skills = me->query_skills();
-        CVector v;
-        skills->keys(v);
-        for (int i = 0; i < v.count(); i++) {
-            if (valid_force(v[i])) {
-                gift = true;
-                break;
-            }
-        }
-    }
-
-    // 增加内功对法术的限制
-    if (!gift && !valid_force(me->query_skill_mapped("force"))
-        && !valid_force_pro(me))
-        return 0;
-
-    if (target) object_id = target->object_id();
-
-    for (p = m_magic_list.begin(); p != m_magic_list.end(); p++)
-        if (p->first == magic) {
-            Magic_t* magic_name = p->second.get();
-
-            // 先判断AP是否足够！
-            int32_t ap
-                = magic_name->ap
-                  * (120 - me->query_skill(_M.querystr("base_name"), 1) / 4
-                     - me->query("level") / 2)
-                  / 100;
-
-            if (ap < 0) ap = 1;
-
-            if (!check_ap(ap, me)) return 0;
-
-            int sub_ap = 0;
-            if (me->is_fighting()) sub_ap = 1;
-
-            int ret;
-            if ((ret = (*magic_name->func)(me, target))) {
-                me->set_temp("no_cast", 1);
-                me->call_out(remove_no_cast, ret);
-
-                if (object_id == g_last_destruct_object) target = NULL;
-
-                if (sub_ap) resume_ap(ap, me);
-
-                // 传输状态
-                if (target && magic_name->target == CAST_TO_OTHER)
-                    static_cast<CChar*>(target)->send_state();
-                me->send_state();
-                return 1;
-            }
-        }
-
+    // C++ 基类不实现法术：法术一律由 Lua 脚本注册（见 CLuaSkill::cast）
     return 0;
 }
 
@@ -186,17 +160,6 @@ int CSkill::practice_skill(CChar* me) { return 1; }
 
 int CSkill::valid_combine(string combo) { return 0; }
 
-CSkill::Magic_t* CSkill::add_magic(string magic, MAGICFUNCTIONP* func)
-{
-    auto magic_name = std::make_unique<Magic_t>();
-
-    magic_name->func    = func;
-    Magic_t* ret        = magic_name.get();
-    m_magic_list[magic] = std::move(magic_name);
-
-    return ret;
-}
-
 int CSkill::valid_force(const char* arg)
 {
     const char* valid_force = querystr("valid_force");
@@ -208,6 +171,38 @@ int CSkill::valid_force(const char* arg)
 }
 
 int CSkill::valid_force_pro(CChar* me) { return 0; }
+
+// 施法内功前置闸门：
+//   1) 已准备（映射）的内功被本技能接受；
+//   2) 技能脚本扩展 valid_force_pro；
+//   3) 引擎配置 force_no_need_prepare：学会即算；
+//   4) 数据集通用规则 hooks.char_rule("cast_force", me,
+//   this)（如前世修习过的内功）。
+// 返回非 0 表示满足；0 表示不满足（由调用方拒绝施法）。
+int CSkill::check_cast_force(CChar* me)
+{
+    bool gift = false;
+
+    if (CServerConfig::force_no_need_prepare()) {
+        CMapping* skills = me->query_skills();
+        CVector v;
+        skills->keys(v);
+        for (int i = 0; i < v.count(); i++) {
+            if (valid_force(v[i])) {
+                gift = true;
+                break;
+            }
+        }
+    }
+
+    if (!gift) gift = char_rule_yes("cast_force", me, this);
+
+    if (!gift && !valid_force(me->query_skill_mapped("force"))
+        && !valid_force_pro(me))
+        return 0;
+
+    return 1;
+}
 
 // 开始激励
 void CSkill::start_powerup(CChar* me, int duration, int attack, int dodge,
@@ -265,25 +260,28 @@ int l_add_magic(lua_State* L)
     int hostile             = (int)luaL_optinteger(L, 9, 1);
 
     int ret = 0;
-    // 技能（各基类模板实例）均支持 add_magic
+    // 技能均支持 add_magic
     CLuaSkill* skill = dynamic_cast<CLuaSkill*>(obj);
     if (skill)
         ret = skill->lua_add_magic(name, displayName, mp, ap, target, validCast,
                                    luaFuncName, hostile);
-    else {
-        CLuaForce* forceSkill = dynamic_cast<CLuaForce*>(obj);
-        if (forceSkill)
-            ret = forceSkill->lua_add_magic(name, displayName, mp, ap, target,
-                                            validCast, luaFuncName, hostile);
-        else {
-            CLuaThrowing* throwingSkill = dynamic_cast<CLuaThrowing*>(obj);
-            if (throwingSkill)
-                ret = throwingSkill->lua_add_magic(name, displayName, mp, ap,
-                                                   target, validCast,
-                                                   luaFuncName, hostile);
-        }
-    }
     lua_pushinteger(L, ret);
+    return 1;
+}
+
+// self:valid_force(name) -> 1|0
+// 查询某内功名是否被本技能接受；复用技能自身的 valid_force（含 Lua 脚本覆写）。
+// 供数据集 hook（如 hooks.char_rule 的 cast_force）复用技能的 force 判定。
+int l_valid_force(lua_State* L)
+{
+    CMainObject* obj = get_object(L, 1);
+    CSkill* skill    = dynamic_cast<CSkill*>(obj);
+    if (!skill) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
+    const char* name = luaL_checkstring(L, 2);
+    lua_pushinteger(L, skill->valid_force(name));
     return 1;
 }
 

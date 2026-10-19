@@ -11,7 +11,7 @@
 #include "Global.h"
 #include "FightRoom.h"
 #include "Room.h"
-#include "LuaQuest.h"
+#include "LuaHook.h"
 
 //---------------------------------------------------------
 // Construction/Destruction
@@ -116,9 +116,18 @@ CNpc* random_npc();
 
 int CNpc::accept_object(CChar* me, CContainer* item)
 {
-    // 收物事件无条件转发到通用任务钩子；是否有任务、用哪个 key 全由 Lua 决定，
-    // 任务系统缺席时 Lua 侧自行 no-op。
-    return quest_accept_object(this, me, item);
+    // 通用收物钩子：脚本侧（任务等）接管本次物品交付。
+    // 钩子缺席 = 不适用，按引擎默认（不接收）处理。
+    CLuaHookCall hook("pre_accept_object");
+    if (hook.valid()) {
+        hook.add_object(this).add_object(me).add_object(item);
+        if (hook.call()) {
+            bool handled = false;
+            hook.table_field_bool("handled", handled);
+            if (handled) return 1;
+        }
+    }
+    return 0;
 }
 
 // 给NPC增加金钱
@@ -158,17 +167,46 @@ char* CNpc::greeting(CChar* me) { return ""; }
 // learn用到
 int CNpc::recognize_apprentice(CChar* me) { return 0; }
 
+// 通用对话钩子（hooks.pre_talk）：脚本侧（任务等）是否接管本次对话。
+// 钩子缺席 = 不适用；钩子返回 table 时读 handled / flow 两个字段：
+//   handled = true  → 接管本次对话
+//   flow = "engine" → 不接管，但本次对话归引擎标准询问流程
+TalkHookResult query_talk_hook(CNpc* npc, CChar* me, char* ask)
+{
+    TalkHookResult result;
+    if (!npc || !me || !ask) return result;
+
+    CLuaHookCall hook("pre_talk");
+    if (!hook.valid()) return result;
+    hook.add_object(npc).add_object(me).add_str(ask);
+    if (!hook.call()) return result;
+
+    hook.table_field_bool("handled", result.handled);
+    std::string flow;
+    if (hook.table_field_str("flow", flow) && flow == "engine")
+        result.engine_flow = true;
+    return result;
+}
+
 // 与NPC谈话
 int CNpc::do_talk(CChar* me, char* ask)
+{
+    if (!me || !ask) return 0;
+
+    // 通用对话钩子：脚本侧接管本次对话则终止对话，不再走询问菜单。
+    TalkHookResult hook_result = query_talk_hook(this, me, ask);
+    if (hook_result.handled) return 1;
+
+    return do_talk_inquiry(me, ask);
+}
+
+// 引擎标准询问流程（C++ 询问菜单）：不含通用对话钩子。
+int CNpc::do_talk_inquiry(CChar* me, char* ask)
 {
     string msg;
     Inquiry_t* inquiry;
 
     if (!me || !ask) return 0;
-
-    // 对话事件无条件转发到通用任务钩子；任务判定由 Lua 负责（无任务则返回
-    // false）。
-    if (quest_do_talk(this, me, ask)) return 1;
 
     // 查询ask
     if (m_list_inquiry.find(ask) == m_list_inquiry.end()) {

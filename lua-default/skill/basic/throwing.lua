@@ -1,8 +1,6 @@
 -- throwing.lua  基本投掷
 
 return {
-    base = "throwing",
-
     create = function(self)
         self:set_name("基本投掷")
 

@@ -25,7 +25,10 @@ return {
             return notify_fail("你现在不需要用金创药。")
         end
 
-        me:receive_curing("hp", 50)
+        local eff_hp = me:query("eff_hp")
+        local max_hp = me:query("max_hp")
+        local heal_amount = math.min(100, max_hp - eff_hp)
+        me:receive_curing("hp", heal_amount)
         me:FlushMyInfo()
         message_vision("$N吃下一包金创药，气色看起来好多了。", me)
         me:start_busy(2)

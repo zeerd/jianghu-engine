@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 struct lua_State;
 
 // Lua 语法校验主函数
@@ -17,5 +20,12 @@ struct lua_State;
 //
 // --dir <path> : 递归扫描目录下所有 .lua 文件
 //
-// 返回: 0=全部通过, 1=有语法错误
+// 校验内容：语法（luaL_loadbuffer）+ require 闭包（字面量 require("...")
+// 必须能被 package.searchers[2] 解析到存在的脚本文件）。
+//
+// 返回: 0=全部通过, 1=有失败
 int run_lua_checker(const char* cmdLine);
+
+// 逐文件校验（语法 + require 闭包），打印逐文件结果与汇总，返回失败文件数。
+// L 须为已初始化的引擎状态（CLuaEngine::init 之后）；不改变引擎生命周期。
+int check_lua_files(lua_State* L, const std::vector<std::string>& files);

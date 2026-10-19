@@ -56,11 +56,6 @@ CCmdUser::CCmdUser()
 
     m_cmd["buy"]      = buy;
     m_cmd["validate"] = validate;
-
-    m_cmd["card"]       = card_help;
-    m_cmd["addcard"]    = add_card;
-    m_cmd["removecard"] = remove_card;
-    m_cmd["showcards"]  = show_cards;
 }
 
 CCmdUser::~CCmdUser() {}

@@ -8,7 +8,7 @@ bool CServerConfig::s_force_add_hp          = false;
 bool CServerConfig::s_no_force_conflict     = false;
 bool CServerConfig::s_force_no_need_prepare = false;
 bool CServerConfig::s_no_betrayer_valid     = false;
-bool CServerConfig::s_newlife_no_conflict   = true;
+bool CServerConfig::s_rate_limit            = true;
 
 void CServerConfig::init()
 {
@@ -17,6 +17,5 @@ void CServerConfig::init()
     s_force_no_need_prepare
         = ini_get_bool("server", "force_no_need_prepare", 0) != 0;
     s_no_betrayer_valid = ini_get_bool("server", "no_betrayer_valid", 0) != 0;
-    s_newlife_no_conflict
-        = ini_get_bool("server", "newlife_no_conflict", 1) != 0;
+    s_rate_limit        = ini_get_bool("server", "rate_limit", 1) != 0;
 }

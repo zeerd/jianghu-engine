@@ -69,6 +69,9 @@ public:
     // Returns: 0=success, non-zero=error code
     virtual int select_database(const char* dbname) = 0;
 
+    // 后端方言标识：SQLite 与 MySQL 的建表语法、内置函数不同，拼 SQL 时需区分。
+    virtual bool is_sqlite() const { return false; }
+
     // 设置字符集
     // Returns: 0=success, non-zero=error code
     virtual int set_charset(const char* charset)

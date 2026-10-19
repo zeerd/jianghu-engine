@@ -69,3 +69,73 @@ void CWeaponEffect::throw_weapon(CChar* me, CChar* victim, CContainer* weapon,
         }
     }
 }
+
+// 取角色身上第一件暗器（skill_type == "throwing"）
+CContainer* get_first_throwing_weapon(CChar* me, const char* name)
+{
+    if (!me) return 0;
+
+    CContainer* weapon = NULL;
+    if ((weapon = me->query_weapon())
+        && EQUALSTR(weapon->querystr("skill_type"), "throwing"))
+        return weapon;
+
+    weapon           = NULL;
+    CContainer* obj  = NULL;
+    DTItemList* list = me->get_item_list();
+    for (auto val : *list) {
+        obj = val;
+        if ((obj != NULL)
+            && EQUALSTR(obj->querystr("skill_type"), "throwing")) {
+            if (weapon == NULL) {
+                weapon = obj;
+            }
+            if (name == NULL) {
+                break;
+            }
+            else {
+                if (EQUALSTR(obj->querystr("id"), name)) {
+                    weapon = obj;
+                    break;
+                }
+            }
+        }
+    }
+
+    return weapon;
+}
+
+//---------------------------------------------------------
+// [LuaBind] auto-managed bindings
+//---------------------------------------------------------
+#include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
+
+// get_first_throwing_weapon(me[, name]) -> object
+// 返回身上第一件暗器（可指定名字），无则返回 nil
+int l_get_first_throwing_weapon(lua_State* L)
+{
+    CChar* me = NULL;
+    if (lua_isuserdata(L, 1)) me = dynamic_cast<CChar*>(get_object(L, 1));
+    if (!me) return 0;
+    const char* name = lua_isstring(L, 2) ? luaL_checkstring(L, 2) : NULL;
+    CContainer* w    = get_first_throwing_weapon(me, name ? name : NULL);
+    lua_bind_push_object(L, w);
+    return 1;
+}
+
+// throw_weapon(me, victim, weapon[, damage])
+// （CCombatd::throw_weapon：消耗暗器） CCombatd::throw_weapon
+// 仅处理暗器数量消耗与"用尽"提示，不结算伤害
+int l_throw_weapon(lua_State* L)
+{
+    CChar* me          = NULL;
+    CChar* victim      = NULL;
+    CContainer* weapon = NULL;
+    if (lua_isuserdata(L, 1)) me = dynamic_cast<CChar*>(get_object(L, 1));
+    if (lua_isuserdata(L, 2)) victim = dynamic_cast<CChar*>(get_object(L, 2));
+    if (lua_isuserdata(L, 3))
+        weapon = dynamic_cast<CContainer*>(get_object(L, 3));
+    int32_t damage = (int32_t)luaL_optinteger(L, 4, 0);
+    if (me && weapon) CWeaponEffect::throw_weapon(me, victim, weapon, damage);
+    return 0;
+}

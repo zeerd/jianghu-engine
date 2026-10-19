@@ -62,6 +62,235 @@ static void collect_lua_files(const std::string& dir,
     }
 }
 
+// ======================== require 闭包校验 ========================
+// 运行期 require("a.b") 失败会直接使脚本加载报错（历史事故：
+// lua-default/skill/high/animal/*.lua 引用了不存在的 skill.skill_utils，
+// 语法校验通过、运行才炸）。这里在 --check-lua 阶段把字面量 require 的
+// 目标文件提前解析出来，把该类问题挡在启动之前。
+
+static bool is_lua_ident_start(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+static bool is_lua_ident(char c)
+{
+    return is_lua_ident_start(c) || (c >= '0' && c <= '9');
+}
+
+// 若 s[i] 处是长括号开括号（[[ 或 [=[ …），经 open_len 返回开括号长度
+// （2 + 等号数），并返回对应闭括号串（"]]"、"]=]" 等）；否则返回空串。
+static std::string long_bracket(const std::string& s, size_t i,
+                                size_t& open_len)
+{
+    open_len = 0;
+    if (i >= s.size() || s[i] != '[') return "";
+    size_t j = i + 1;
+    int eq   = 0;
+    while (j < s.size() && s[j] == '=') {
+        ++eq;
+        ++j;
+    }
+    if (j >= s.size() || s[j] != '[') return "";
+    open_len = 2 + eq;
+    return std::string("]") + std::string(eq, '=') + std::string("]");
+}
+
+// 从脚本源码收集字面量 require("mod") 的模块名。
+// 跳过行注释（--…）、长注释（--[[…]]）、短字符串（"…" '…'）、长字符串（[[…]]），
+// 因此注释/字符串里出现的 require 示例不会被误收集。
+// 非字面量调用（require(name) 等）计入 dynamic_count，无法静态校验。
+// 源码可为 GBK 或 UTF-8：扫描只针对 ASCII 结构字符，多字节内容按字节顺序
+// 跳过（多字节字节均 >= 0x80，不会与 ASCII 结构符混淆）。
+static void collect_require_calls(const std::string& src,
+                                  std::vector<std::string>& out,
+                                  int& dynamic_count)
+{
+    dynamic_count  = 0;
+    const size_t n = src.size();
+    size_t i       = 0;
+    while (i < n) {
+        const char c = src[i];
+
+        // 注释：-- … 或 --[[ … ]]
+        if (c == '-' && i + 1 < n && src[i + 1] == '-') {
+            size_t open_len              = 0;
+            std::string close            = long_bracket(src, i + 2, open_len);
+            if (!close.empty()) {
+                size_t e = src.find(close, i + 2 + open_len);
+                i        = (e == std::string::npos) ? n : e + close.size();
+            }
+            else {
+                size_t e = src.find('\n', i + 2);
+                i        = (e == std::string::npos) ? n : e;
+            }
+            continue;
+        }
+
+        // 短字符串
+        if (c == '"' || c == '\'') {
+            size_t j = i + 1;
+            while (j < n && src[j] != c) {
+                if (src[j] == '\\') ++j;
+                ++j;
+            }
+            i = (j < n) ? j + 1 : n;
+            continue;
+        }
+
+        // 长字符串
+        if (c == '[') {
+            size_t open_len   = 0;
+            std::string close = long_bracket(src, i, open_len);
+            if (!close.empty()) {
+                size_t e = src.find(close, i + open_len);
+                i        = (e == std::string::npos) ? n : e + close.size();
+                continue;
+            }
+        }
+
+        // 标识符
+        if (is_lua_ident_start(c)) {
+            size_t j = i;
+            while (j < n && is_lua_ident(src[j])) ++j;
+            const std::string ident = src.substr(i, j - i);
+            i                       = j;
+            if (ident == "require") {
+                // 跳过空白找 '('，再跳过空白看是否为字面量模块名
+                size_t k = i;
+                while (k < n
+                       && (src[k] == ' ' || src[k] == '\t' || src[k] == '\r'
+                           || src[k] == '\n'))
+                    ++k;
+                if (k < n && src[k] == '(') {
+                    ++k;
+                    while (k < n
+                           && (src[k] == ' ' || src[k] == '\t' || src[k] == '\r'
+                               || src[k] == '\n'))
+                        ++k;
+                    if (k < n && (src[k] == '"' || src[k] == '\'')) {
+                        const char q = src[k];
+                        size_t e     = k + 1;
+                        while (e < n && src[e] != q) {
+                            if (src[e] == '\\') ++e;
+                            ++e;
+                        }
+                        if (e < n) {
+                            out.push_back(src.substr(k + 1, e - k - 1));
+                            i = e + 1;
+                        }
+                        continue;
+                    }
+                    size_t open_len   = 0;
+                    std::string close = long_bracket(src, k, open_len);
+                    if (!close.empty()) {
+                        size_t e = src.find(close, k + open_len);
+                        if (e != std::string::npos) {
+                            out.push_back(
+                                src.substr(k + open_len, e - (k + open_len)));
+                            i = e + close.size();
+                            continue;
+                        }
+                    }
+                    ++dynamic_count;  // require(非字面量)：静态无法校验
+                }
+            }
+            continue;
+        }
+
+        ++i;
+    }
+}
+
+// require 闭包解析助手（安装到 Lua 全局）：复用引擎 searcher 的
+// package.path 解析口径，只查找与编译、不执行模块。
+// 返回 (true, "") 或 (false, 解析失败原因)。
+static const char* k_require_closure_lua =
+    "function _check_require_closure(modname)\n"
+    "    local ok, res = pcall(package.searchers[2], modname)\n"
+    "    if ok and type(res) == 'function' then return true, '' end\n"
+    "    if ok and type(res) == 'string' then return false, res end\n"
+    "    return false, tostring(res)\n"
+    "end\n";
+
+// 校验单个文件源码里的字面量 require 闭包；打印失败项，全部可解析返回 true。
+static bool check_require_closure(lua_State* L, const std::string& filepath,
+                                  const std::string& gbk_source)
+{
+    std::vector<std::string> modules;
+    int dynamic_count = 0;
+    collect_require_calls(gbk_source, modules, dynamic_count);
+
+    bool ok = true;
+    for (size_t i = 0; i < modules.size(); ++i) {
+        lua_getglobal(L, "_check_require_closure");
+        lua_pushlstring(L, modules[i].c_str(), modules[i].size());
+        if (lua_pcall(L, 1, 2, 0) != LUA_OK) {
+            printf("FAIL: %s\n  require check error: %s\n", filepath.c_str(),
+                   lua_tostring(L, -1));
+            lua_pop(L, 1);
+            ok = false;
+            continue;
+        }
+        if (!lua_toboolean(L, -2)) {
+            const char* why = lua_tostring(L, -1);
+            printf("FAIL: %s\n  require(\"%s\") cannot resolve: %s\n",
+                   filepath.c_str(), modules[i].c_str(), why ? why : "");
+            ok = false;
+        }
+        lua_pop(L, 2);
+    }
+    if (dynamic_count > 0) {
+        printf("NOTE: %s: %d dynamic require(...) not statically checked\n",
+               filepath.c_str(), dynamic_count);
+    }
+    return ok;
+}
+
+int check_lua_files(lua_State* L, const std::vector<std::string>& files)
+{
+    if (!L) return 1;
+
+    if (luaL_dostring(L, k_require_closure_lua) != LUA_OK) {
+        printf("ERROR: cannot install require-closure checker: %s\n",
+               lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return (int)files.size();
+    }
+
+    int failed  = 0;
+    int success = 0;
+    for (size_t i = 0; i < files.size(); ++i) {
+        const std::string& filepath = files[i];
+
+        std::string gbk = load_file_as_gbk(filepath.c_str());
+        if (gbk.empty()) {
+            printf("FAIL: %s\n  cannot read file\n", filepath.c_str());
+            ++failed;
+            continue;
+        }
+        int rc = luaL_loadbuffer(L, gbk.c_str(), gbk.size(), filepath.c_str());
+        if (rc != LUA_OK) {
+            printf("FAIL: %s\n  %s\n", filepath.c_str(), lua_tostring(L, -1));
+            lua_pop(L, 1);
+            ++failed;
+            continue;
+        }
+        lua_pop(L, 1);  // 语法通过，丢弃编译后的 chunk
+
+        if (check_require_closure(L, filepath, gbk)) {
+            printf("OK:   %s\n", filepath.c_str());
+            ++success;
+        }
+        else {
+            ++failed;
+        }
+    }
+
+    printf("\n%d file(s) OK, %d file(s) FAILED\n", success, failed);
+    return failed;
+}
+
 int run_lua_checker(const char* cmdLine)
 {
     // 1. 解析参数
@@ -132,34 +361,11 @@ int run_lua_checker(const char* cmdLine)
         files.push_back(extract_arg(p));
     }
 
-    // 5. 逐个校验语法
-    int failed  = 0;
-    int success = 0;
-    for (size_t i = 0; i < files.size(); ++i) {
-        const std::string& filepath = files[i];
-
-        std::string gbk = load_file_as_gbk(filepath.c_str());
-        if (gbk.empty()) {
-            printf("FAIL: %s\n  cannot read file\n", filepath.c_str());
-            ++failed;
-            continue;
-        }
-        int rc = luaL_loadbuffer(L, gbk.c_str(), gbk.size(), filepath.c_str());
-        if (rc != LUA_OK) {
-            printf("FAIL: %s\n  %s\n", filepath.c_str(), lua_tostring(L, -1));
-            lua_pop(L, 1);
-            ++failed;
-        }
-        else {
-            printf("OK:   %s\n", filepath.c_str());
-            lua_pop(L, 1);
-            ++success;
-        }
-    }
+    // 5. 逐个校验（语法 + require 闭包）
+    int failed = check_lua_files(L, files);
 
     // 6. 清理
     engine->shutdown();
 
-    printf("\n%d file(s) OK, %d file(s) FAILED\n", success, failed);
     return failed ? 1 : 0;
 }

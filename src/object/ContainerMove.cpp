@@ -277,6 +277,27 @@ void CContainer::on_rem_object(CContainer* obj, CContainer* env)
         cli->send_command(cmd, SEND_WAIT_BUFFERED);
 }
 
+// 名字/id 变化后的重发：协议没有「改名」消息，名字只在物件进场景时下发，
+// 因此复用「进入场景」的 ADDOBJECT + DOWNOBJECT 组合，交给同一容器内的
+// 在线玩家。客户端按 object id 幂等合并，重复包不会产生重复条目。
+void CContainer::on_name_changed()
+{
+    if (!m_environment) return;
+
+    // 物品在玩家身上/背包：容器本身就是持有者
+    if (userp(m_environment)) {
+        m_environment->on_add_object(this, m_environment);
+        return;
+    }
+
+    DTItemList search;
+    copy_list(&search, m_environment->get_item_list());
+    for (auto obj : search) {
+        if (userp(obj)) obj->on_add_object(this, m_environment);
+    }
+    search.clear();
+}
+
 //---------------------------------------------------------
 // [LuaBind] auto-managed bindings
 //---------------------------------------------------------
@@ -310,4 +331,17 @@ int l_environment(lua_State* L)
 
     lua_bind_push_object(L, c->environment());
     return 1;
+}
+
+// self:remove() - 删除容器的持久化档案（CContainer::remove）
+int l_remove(lua_State* L)
+{
+    CMainObject* obj = get_object(L, 1);
+    if (!obj) return 0;
+
+    CContainer* c = dynamic_cast<CContainer*>(obj);
+    if (!c) return 0;
+
+    c->remove();
+    return 0;
 }

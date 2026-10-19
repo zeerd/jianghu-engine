@@ -15,6 +15,7 @@
 #include "LoginAuth.h"
 #include "LuaLogin.h"
 #include "LoginRegister.h"
+#include "RegisterHall.h"
 #include "../lua/LuaEngine.h"
 
 #include "Sql.h"
@@ -68,7 +69,8 @@ bool is_guest_login(const char* nid, const char* passwd)
 long alloc_guest_account() { return -(++g_guest_account); }
 
 // 游客临时角色：无档案、不落库，只填最少可上线字段。
-// 起始地设为游戏大厅 rk，正式角色由大厅的注册专员创建。
+// 起始地记为游戏大厅 rk（无环境时的重连兜底），首次上线则由
+// enter_register_hall 送进各自的副本实例；正式角色由大厅的注册专员创建。
 void setup_guest_user(CUser* me)
 {
     // set_name 的第二参数会写回 dbase"id"：必须先拷贝出独立缓冲，
@@ -87,7 +89,7 @@ void setup_guest_user(CUser* me)
     me->set("combat_exp", 0);
     me->set("title", "初来乍到");
     me->set("guest", 1);
-    me->set("start_city", "rk");
+    me->set("start_city", REGISTER_HALL_NAME);
 }
 
 void send_info_to_client(CUser* me)
@@ -384,9 +386,13 @@ int on_login(uint32_t serial, int sockfd, char* arg)
         v.append("answer");
 
         me->set("channels", v);
-        CRoom* room;
+        CRoom* room = nullptr;
 
-        if (me->querystr("start_obj")[0]) {
+        if (guest_login) {
+            // 游客进自己的注册副本实例（入口内含不可用时的全局大厅兜底）
+            enter_register_hall(me);
+        }
+        else if (me->querystr("start_obj")[0]) {
             room = load_room(me->querystr("start_obj"));
             me->del("start_obj");
         }
@@ -405,7 +411,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
                 me->set("start_city", g_start_room);
             }
         }
-        me->move(room);  // 用户切入场景
+        if (room) me->move(room);  // 用户切入场景（游客已在副本实例里）
 
         if (guest_login) {
             tell_object(
@@ -468,19 +474,12 @@ int on_login(uint32_t serial, int sockfd, char* arg)
     // 下载emote信息
     g_channel.download_emote(me);
 
-    // 奖励
-    check_player(me, newenter);
-
-    // 游客账号不参与收费检查（无正式档案）
-    if (g_server_charge && !guest_login) {
-        char endtime[64] = "0000/00/00 00:00:00";
-        if (!verify_id(id, endtime)) {
-            tell_object(
-                me,
-                snprintf(msg, 255, "$HIY您的账户已于 %s 到期，请联系巫师续费。",
-                         endtime));
-            me->move(load_room("rk"));
-        }
+    // 登录校验与奖励（login.on_login）：返回 2 = 拒绝准入，
+    // 引擎只执行通用机制（送回游戏大厅并断开），原因与文案由脚本自理
+    if (check_player(me, newenter) == 2) {
+        enter_register_hall(me);
+        me->send_off();
+        return true;
     }
 
     // 数据存到本地（游客不落库）

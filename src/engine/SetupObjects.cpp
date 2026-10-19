@@ -16,7 +16,6 @@
 #include "User.h"
 #include "Channel.h"
 #include "Combatd.h"
-#include "Resident.h"
 #include "FBRegistry.h"
 #include "LuaCondition.h"
 #include "LuaEngine.h"
@@ -25,25 +24,13 @@
 #include "LuaNpc.h"
 #include "LuaRoom.h"
 
-#include "House.h"
-
 #include <memory>
 
 std::unique_ptr<CSkill> create_skill(string skill_name)
 {
-    std::unique_ptr<CSkill> skill;
-
     // 所有技能均已 lua 化：直接创建 Lua 脚本技能。
-    const char* base
-        = g_LuaEngine->get_script_base(skill_name.c_str(), "skill");
-    if (strcmp(base, "force") == 0)
-        skill = std::make_unique<CLuaForce>(skill_name.c_str());
-    else if (strcmp(base, "throwing") == 0)
-        skill = std::make_unique<CLuaThrowing>(skill_name.c_str());
-    else
-        skill = std::make_unique<CLuaSkill>(skill_name.c_str());
-
-    return skill;
+    // 脚本的 base 字段不再选 C++ 基类（技能行为全在脚本里）。
+    return std::make_unique<CLuaSkill>(skill_name.c_str());
 }
 
 std::unique_ptr<CCondition> create_condition(string base_name)
@@ -227,12 +214,7 @@ std::unique_ptr<CRoom> create_room(string room_name)
             = g_LuaEngine->resolve_room_name(room_name.c_str());
         LOG_DEBUG("script_name=%s", script_name);
         if (g_LuaEngine->script_exists(script_name, LUA_SCRIPT_ROOM)) {
-            const char* stype = g_LuaEngine->get_script_type(
-                script_name, LUA_SCRIPT_ROOM, "room");
-            if (strcmp(stype, "resident") == 0)
-                r = std::make_unique<CLuaResident>(script_name);
-            else
-                r = std::make_unique<CLuaRoom>(script_name);
+            r = std::make_unique<CLuaRoom>(script_name);
             if (r) r->set("area", area_name.c_str());
         }
     }
@@ -243,12 +225,7 @@ std::unique_ptr<CRoom> create_room(string room_name)
         const char* prefix_script
             = g_LuaEngine->resolve_room_prefix(room_name.c_str());
         if (prefix_script[0]) {
-            const char* stype = g_LuaEngine->get_script_type(
-                prefix_script, LUA_SCRIPT_ROOM, "room");
-            if (strcmp(stype, "resident") == 0)
-                r = std::make_unique<CLuaResident>(prefix_script);
-            else
-                r = std::make_unique<CLuaRoom>(prefix_script);
+            r = std::make_unique<CLuaRoom>(prefix_script);
             r->set("base_name", room_name.c_str());
             // 专属存盘表（如帮派总舵）：脚本声明 save_table，镜像进 dbase，
             // 使 load() 早于 create() 时即按该表路由。C++ 不认识具体表名。
@@ -270,10 +247,9 @@ std::unique_ptr<CRoom> create_room(string room_name)
     }
 
     if (!r) {
-        if (room_name.substr(0, 6) == "house_") {
-            r = std::make_unique<CHouse>();
-        }
-        else if (room_name == "fb_registry") {
+        // 房屋等前缀动态房由 create_room 的 resolve_room_prefix 分支在
+        // 上面就绪；此处只兜底静态房与 fb_registry
+        if (room_name == "fb_registry") {
             r = std::make_unique<CFBRegistry>();
         }
         else {

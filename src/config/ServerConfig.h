@@ -9,8 +9,8 @@
 #include "IniParser.h"
 
 /**
- * @brief 服务器玩法开关，控制内功加血、内功冲突、施法准备、
- *        背叛师门校验与转世（newlife）冲突检查等运行期行为。
+ * @brief 服务器玩法开关，控制内功加血、内功冲突、施法准备与
+ *        背叛师门校验等运行期行为。
  */
 class CServerConfig {
 public:
@@ -29,15 +29,15 @@ public:
     // 背叛师门者一律不得学艺（1=不再按技能差放行）
     static bool no_betrayer_valid() { return s_no_betrayer_valid; }
 
-    // 转世（newlife）所学内功不参与冲突检查
-    static bool newlife_no_conflict() { return s_newlife_no_conflict; }
+    // 指令限流（1=16条/5秒边界丢弃；0=关闭，E2E 集成测试用）
+    static bool rate_limit() { return s_rate_limit; }
 
 private:
     static bool s_force_add_hp;
     static bool s_no_force_conflict;
     static bool s_force_no_need_prepare;
     static bool s_no_betrayer_valid;
-    static bool s_newlife_no_conflict;
+    static bool s_rate_limit;
 };
 
 #endif  // SERVER_CONFIG_H

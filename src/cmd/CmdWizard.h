@@ -16,7 +16,6 @@ void printf_all_mappings();
 #define MONSTER_NUM 313
 
 // --- test fixture friends ---
-class CmdWizardCardTest;
 class CmdWizardWorldTest;
 class CmdWizardAdminTest;
 class CmdWizardSystemTest;
@@ -28,7 +27,6 @@ public:
 
     int handlecommand(char* cmd, CChar* me, int32_t target, char* arg);
 
-    friend class CmdWizardCardTest;
     friend class CmdWizardWorldTest;
     friend class CmdWizardAdminTest;
     friend class CmdWizardSystemTest;
@@ -87,5 +85,4 @@ private:
     static int save(CChar* me, int32_t target, char* arg);
 
     // ---- 杂项 ----
-    static int create_card(CChar* me, int32_t target, char* arg);
 };

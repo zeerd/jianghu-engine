@@ -1,5 +1,4 @@
 -- liquid_base.lua 液体物品通用逻辑
--- 将原 CLiquid (Liquid.cpp) 的逻辑 Lua 化
 -- 放在 lua-default 作为基础公共模块，lua-sample/item 下的液体脚本通过 require 引用
 
 local liquid_base = {}

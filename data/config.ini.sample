@@ -31,7 +31,8 @@ no_force_conflict = 0
 force_no_need_prepare = 0
 ; 背叛师门者一律不得学艺：1=不再按技能差放行 0=按技能差放行
 no_betrayer_valid = 0
-; 转世（newlife）所学内功不参与冲突检查：1=不检查 0=检查
+; 前世（newlife）所学内功不参与冲突检查：1=不检查 0=检查
+; 该键由数据集脚本读取（get_newlife_no_conflict），引擎不再消费
 newlife_no_conflict = 1
 
 [lua]

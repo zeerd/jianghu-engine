@@ -124,14 +124,21 @@ int CCmdStandard::cast(CChar* me, int32_t target, char* arg)
         // 检查who 是否存在
         if (g_last_destruct_object == target) who = 0;
 
-        me->improve_skill(skill, 1 + me->query("level") / 5, 1);
+        // 法术归属技能：继承自基础技能的法术（如高级投掷继承的偷袭）由基础
+        // 技能提供，其等级才是法术威力的依据，故收益与敌意判定都按归属技能。
+        CSkill* owner = sk->magic_owner(magic);
+        if (!owner) owner = sk;
+        const char* owner_name = owner->querystr("base_name");
+        if (!owner_name[0]) owner_name = skill;
+
+        me->improve_skill(owner_name, 1 + me->query("level") / 5, 1);
 
         // PK 敌意判定：法术是否构成动手取决于 Lua 声明的 hostile 标志。
         // 非敌意（治疗/增益/自身调理）不挂标记；敌意且波及玩家受害者、
         // 或无需选定受害者的全场技（狮子吼一类）挂标记。
-        if (sk->query_magic_hostile(magic)
+        if (owner->query_magic_hostile(magic)
             && ((who && userp(who) && who != me)
-                || sk->query_magic_target(magic) == CSkill::CAST_TO_NONE)) {
+                || owner->query_magic_target(magic) == CSkill::CAST_TO_NONE)) {
             if (userp(me)) {
                 static_cast<CUser*>(me)->ready_pk();
             }

@@ -11,8 +11,10 @@
 #
 # What it does:
 #   1. Builds tests (Release|Win32 — 生产同构配置；Debug 构建的
-#      测试程序内含 TestConfigGate，运行即报错，故默认禁止)
-#   2. Runs tests under OpenCppCoverage
+#      测试程序内含 TestConfigGate，运行即报错，故默认禁止)。
+#      引擎测试（tests）与 CLI 测试（cli\tests）分别构建。
+#   2. Runs engine tests then CLI tests under OpenCppCoverage
+#      （分别运行，CLI 那轮以 --input_coverage 合并引擎覆盖率）
 #   3. Generates HTML report in coverage_report/
 #   4. Exports Cobertura XML for CI
 #   5. Saves binary .cov to coverage_history/ (pruned to newest -CovKeepCount)
@@ -27,6 +29,7 @@
 param(
     [string]$OpenCppCoveragePath = "",
     [string]$ServerSrc = "src",
+    [string]$CliSrc = "cli\src",
     # 唯一被认可的测试配置 = 生产配置 Release|Win32（/MT, NDEBUG, /O2）。
     # Debug 构建的 tests.exe 含 TestConfigGate：无论以何种方式运行都会
     # 在测试结果中无条件报错（见 tests/test_env.cpp），杜绝拿 Debug
@@ -51,6 +54,9 @@ $TestExe = if ($BuildConfig -eq "Debug") {
 } else {
     Join-Path $RootDir "Release\tests.exe"
 }
+# CLI 测试工程独立（cli\tests\jianghu_cli_tests.vcxproj），产物固定输出到
+# bin\cli\；由本脚本分别构建与运行，覆盖率合并后统一展示。
+$CliTestExe = Join-Path $RootDir "bin\cli\jianghu_cli_tests.exe"
 $CoverageDir = Join-Path $RootDir "coverage_report"
 $HistoryDir = Join-Path $RootDir "coverage_history"
 $SummaryCsv = Join-Path $HistoryDir "summary.csv"
@@ -104,16 +110,20 @@ if (-not (Test-Path $msbuildExe)) {
 }
 Write-Host "Using MSBuild: $msbuildExe" -ForegroundColor DarkGray
 
-$msbuildArgs = @(
-    "tests\tests.vcxproj",
-    "/p:Configuration=$BuildConfig",
-    "/p:Platform=$BuildPlatform",
-    "/nologo", "/verbosity:minimal"
-)
-& $msbuildExe $msbuildArgs
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Build failed!" -ForegroundColor Red
-    exit 1
+# 引擎测试与 CLI 测试分别构建，共享同一 Release|Win32 配置。
+$testProjects = @( "tests\unit\tests.vcxproj", "cli\tests\jianghu_cli_tests.vcxproj" )
+foreach ($proj in $testProjects) {
+    $msbuildArgs = @(
+        $proj,
+        "/p:Configuration=$BuildConfig",
+        "/p:Platform=$BuildPlatform",
+        "/nologo", "/verbosity:minimal"
+    )
+    & $msbuildExe $msbuildArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Build failed ($proj)!" -ForegroundColor Red
+        exit 1
+    }
 }
 Write-Host "Build succeeded." -ForegroundColor Green
 
@@ -124,28 +134,57 @@ if (-not (Test-Path $HistoryDir)) { New-Item -ItemType Directory -Path $HistoryD
 Write-Host "`n=== Running tests with coverage ===" -ForegroundColor Cyan
 
 $sourcePath = Join-Path $RootDir $ServerSrc
-$covArgs = @(
+$cliSourcePath = Join-Path $RootDir $CliSrc
+
+# 分支覆盖率开关（仅在请求时添加）
+$branchArg = @()
+if ($CoverageType -eq "branch") {
+    $branchArg = @("--branch_coverage")
+}
+
+# 第一次：只跑引擎测试，导出二进制覆盖率。
+$engineCov = Join-Path $CoverageDir "engine.cov"
+$engineCovArgs = $branchArg + @(
     "--sources", "`"$sourcePath\*`"",
     "--modules", "`"$TestExe`"",
+    "--working_dir", "`"$RootDir`"",
+    "--export_type", "binary:$engineCov",
+    "--"
+) + @("`"$TestExe`"")
+
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+& $OpenCppCoveragePath @engineCovArgs
+$ErrorActionPreference = $prevEAP
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Engine test execution failed!" -ForegroundColor Red
+    exit 1
+}
+
+# 第二次：跑 CLI 测试，并以 --input_coverage 合并引擎的覆盖率，
+# 使最终 HTML/Cobertura/二进制报告同时包含两套测试的结果。
+$covArgs = $branchArg + @(
+    "--sources", "`"$sourcePath\*`"",
+    "--sources", "`"$cliSourcePath\*`"",
+    "--modules", "`"$CliTestExe`"",
+    "--working_dir", "`"$RootDir`"",
+    "--input_coverage", "`"$engineCov`"",
     "--export_type", "html:$CoverageDir",
     "--export_type", "cobertura:$CoverageDir\coverage.xml",
     "--export_type", "binary:$CovBinary",
     "--"
-) + @("`"$TestExe`"")
+) + @("`"$CliTestExe`"")
 
-# Add branch coverage flag if requested
-if ($CoverageType -eq "branch") {
-    $covArgs = @("--branch_coverage") + $covArgs
-}
-
-$prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 & $OpenCppCoveragePath @covArgs
 $ErrorActionPreference = $prevEAP
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Test execution failed!" -ForegroundColor Red
+    Write-Host "ERROR: CLI test execution failed!" -ForegroundColor Red
     exit 1
 }
+
+# 合并完成，中间文件不再需要
+Remove-Item -LiteralPath $engineCov -Force -ErrorAction SilentlyContinue
 
 # --- Step 3.5: Prune old .cov binaries ---
 # delta 比较只依赖 summary.csv（Step 5），不读 .cov；旧 .cov 纯属占磁盘，
@@ -174,9 +213,13 @@ if (-not (Test-Path $coberturaPath)) {
 # Files excluded from coverage statistics
 $excludedFiles = @("main.cpp", "CreateDump.cpp", "LuaSyntaxChecker.cpp", "Sql.cpp", "MySqlDb.cpp")
 
-# Strip everything up to and including "src\" so rows show source-relative paths
+# Strip everything up to and including "src\" so rows show source-relative paths.
+# CLI 源码位于 cli\src\，先匹配并保留 cli\ 前缀，避免与引擎同名文件混淆。
 function Get-SourceRelativePath {
     param([string]$Path)
+    $cliMarker = "cli\src\"
+    $idx = $Path.IndexOf($cliMarker, [System.StringComparison]::OrdinalIgnoreCase)
+    if ($idx -ge 0) { return "cli\" + $Path.Substring($idx + $cliMarker.Length) }
     $marker = "src\"
     $idx = $Path.IndexOf($marker, [System.StringComparison]::OrdinalIgnoreCase)
     if ($idx -ge 0) { return $Path.Substring($idx + $marker.Length) }
@@ -294,6 +337,10 @@ $treeFiles += Get-ChildItem -Path $sourcePath -Filter "*.cpp" -Recurse -ErrorAct
 $treeFiles += Get-ChildItem -Path $sourcePath -Filter "*.h"   -Recurse -ErrorAction SilentlyContinue
 $treeFiles += Get-ChildItem -Path $sourcePath -Filter "*.inl" -Recurse -ErrorAction SilentlyContinue
 
+# CLI 源码（cli\src）也纳入统计，扩展名为 .cc / .h
+$treeFiles += Get-ChildItem -Path $cliSourcePath -Filter "*.cc" -Recurse -ErrorAction SilentlyContinue
+$treeFiles += Get-ChildItem -Path $cliSourcePath -Filter "*.h"  -Recurse -ErrorAction SilentlyContinue
+
 $notInstrumented = @()
 foreach ($f in $treeFiles) {
     $rel = Get-SourceRelativePath $f.FullName
@@ -333,7 +380,9 @@ if (-not (Test-Path $SummaryCsv)) {
 }
 # delta 只与同构建配置的上一条比较：不同配置的行映射不同，跨配置比较
 # 会得到无意义的大跳水。method 列记录采集配置，切换配置后首条即新基线。
-$method = "xml-$($BuildConfig.ToLower())"
+# 本脚本现在合并引擎测试与 CLI 测试的覆盖率，故 method 标注 -merge；
+# 合并后的首条记录即新的合并基线，不会与旧引擎单测基线作差。
+$method = "xml-merge-$($BuildConfig.ToLower())"
 $prevLine = Get-Content $SummaryCsv |
     Where-Object { ($_ -split ",")[-1] -eq $method } |
     Select-Object -Last 1

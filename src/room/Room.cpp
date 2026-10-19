@@ -382,6 +382,17 @@ int l_remove_all_doors(lua_State* L)
     return 0;
 }
 
+// self:remove_all_box() - 移除房间全部箱子及其内容（CRoom）
+int l_remove_all_box(lua_State* L)
+{
+    CMainObject* obj = get_object(L, 1);
+    if (!obj) return 0;
+    CRoom* room = dynamic_cast<CRoom*>(obj);
+    if (!room) return 0;
+    room->remove_all_box();
+    return 0;
+}
+
 // self:reset() - 重置房间（CRoom）
 int l_room_reset(lua_State* L)
 {

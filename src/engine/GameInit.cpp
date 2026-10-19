@@ -34,7 +34,6 @@ static std::unique_ptr<IItemMgr> s_ItemMgrOwner;
 int g_server_id          = 1;
 int g_server_port        = 6600;
 char g_server_name[64]   = "金剑江湖";
-int g_server_charge      = 0;
 char g_server_dbname[64] = "game";
 char g_start_room[128]   = "rk";
 int g_ip_limit           = 30;
@@ -87,8 +86,7 @@ int init_game(const char* ipaddress, const char* name, const char* password)
     g_server_port        = ini_get_int("server", "port", 6600);
     std::string tmp_name = utf8_to_gbk(ini_get("server", "name", "jianghu"));
     strncpy(g_server_name, tmp_name.c_str(), sizeof(g_server_name) - 1);
-    g_server_id     = ini_get_int("server", "id", 1);
-    g_server_charge = ini_get_int("server", "charge", 0);
+    g_server_id = ini_get_int("server", "id", 1);
     strncpy(g_server_dbname, ini_get("database", "name", "game"),
             sizeof(g_server_dbname) - 1);
     std::string tmp_room = utf8_to_gbk(ini_get("server", "start_room", "rk"));

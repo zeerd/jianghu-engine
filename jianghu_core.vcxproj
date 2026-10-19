@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugSeason|Win32">
@@ -40,25 +40,25 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -70,7 +70,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -106,27 +106,27 @@
     <_ProjectFileVersion>17.0.37516.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)\bin\server\</OutDir>
+    <OutDir>$(SolutionDir)\bin\</OutDir>
     <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)\bin\server\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
-    <OutDir>$(SolutionDir)\bin\server\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)\bin\server\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)\bin\server\</OutDir>
+    <OutDir>$(SolutionDir)\bin\</OutDir>
     <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
-    <OutDir>$(SolutionDir)\bin\server\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <!-- Release|Win32 -->
@@ -303,9 +303,8 @@
     <ClCompile Include="src\item\BankOwner.cpp" />
     <ClCompile Include="src\item\Corpse.cpp" />
     <ClCompile Include="src\item\Equip.cpp" />
-    <ClCompile Include="src\skill\Force.cpp" />
     <ClCompile Include="src\item\Money.cpp" />
-    <ClCompile Include="src\skill\Throwing.cpp" />
+    <ClCompile Include="src\lua\LuaSkill.cpp" />
     <ClCompile Include="src\item\Vendor.cpp" />
     <!-- skill -->
     <ClCompile Include="src\skill\Skill.cpp" />
@@ -322,17 +321,14 @@
     <ClCompile Include="src\cmd\CmdUserAccount.cpp" />
     <ClCompile Include="src\cmd\CmdUserParty.cpp" />
     <ClCompile Include="src\cmd\CmdUserSocial.cpp" />
-    <ClCompile Include="src\cmd\CmdUserCard.cpp" />
     <ClCompile Include="src\cmd\CmdUserVendor.cpp" />
     <ClCompile Include="src\cmd\CmdWizardInit.cpp" />
     <ClCompile Include="src\cmd\CmdWizardAdmin.cpp" />
     <ClCompile Include="src\cmd\CmdWizardWorld.cpp" />
     <ClCompile Include="src\cmd\CmdWizardSystem.cpp" />
-    <ClCompile Include="src\cmd\CmdWizardCard.cpp" />
     <!-- room -->
     <ClCompile Include="src\room\FB.cpp" />
     <ClCompile Include="src\room\FBRoom.cpp" />
-    <ClCompile Include="src\room\Resident.cpp" />
     <ClCompile Include="src\item\FightRoom.cpp" />
     <ClCompile Include="src\room\Room.cpp" />
     <ClCompile Include="src\room\Box.cpp" />
@@ -345,7 +341,6 @@
     <ClCompile Include="src\lua\LuaEngine.cpp" />
     <ClCompile Include="src\lua\LuaHook.cpp" />
     <ClCompile Include="src\lua\LuaLogin.cpp" />
-    <ClCompile Include="src\lua\LuaQuest.cpp" />
     <ClCompile Include="src\lua\LuaReload.cpp" />
     <ClCompile Include="src\lua\LuaSyntaxChecker.cpp" />
     <!-- net -->
@@ -356,6 +351,7 @@
     <ClCompile Include="src\net\LoginAuth.cpp" />
     <ClCompile Include="src\net\LoginRegister.cpp" />
     <ClCompile Include="src\net\Login.cpp" />
+    <ClCompile Include="src\net\RegisterHall.cpp" />
     <ClCompile Include="src\net\Message.cpp" />
     <ClCompile Include="src\net\ServerSockHandler.cpp" />
     <ClCompile Include="src\net\ServerSockWorker.cpp" />
@@ -367,7 +363,6 @@
     <ClCompile Include="src\db\SqlEscape.cpp" />
     <ClCompile Include="src\db\SqlAccount.cpp" />
     <ClCompile Include="src\db\SqlRank.cpp" />
-    <ClCompile Include="src\db\SqlCards.cpp" />
     <ClCompile Include="src\db\DbTables.cpp" />
     <!-- util -->
     <ClCompile Include="src\util\Encoding.cpp">
@@ -382,6 +377,7 @@
     <ClCompile Include="src\util\StringUtil.cpp" />
     <ClCompile Include="src\util\CreateDump.cpp" />
     <ClCompile Include="src\util\Utils.cpp" />
+    <ClCompile Include="src\util\CommandLine.cpp" />
     <!-- 3rd party -->
     <ClCompile Include="3rd\sqlite\sqlite3.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -416,6 +412,7 @@
     <ClInclude Include="src\object\Mapping.h" />
     <ClInclude Include="src\util\Encoding.h" />
     <ClInclude Include="src\util\Logger.h" />
+    <ClInclude Include="src\util\CommandLine.h" />
     <ClInclude Include="src\npc\Npc.h" />
     <ClInclude Include="src\object\Queue.h" />
     <ClInclude Include="src\room\Room.h" />
@@ -428,10 +425,7 @@
     <ClInclude Include="src\item\Corpse.h" />
     <ClInclude Include="src\item\Equip.h" />
     <ClInclude Include="src\item\FightRoom.h" />
-    <ClInclude Include="src\skill\Force.h" />
-    <ClInclude Include="src\room\House.h" />
     <ClInclude Include="src\item\Money.h" />
-    <ClInclude Include="src\room\Resident.h" />
     <ClInclude Include="src\npc\NpcMirror.h" />
     <ClInclude Include="src\item\Vendor.h" />
   </ItemGroup>

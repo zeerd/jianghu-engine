@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{2e10a807-9b77-45eb-9f01-9ab4bcc8feb3}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SolutionDir Condition="'$(SolutionDir)' == '' Or '$(SolutionDir)' == '*Undefined*'">$(MSBuildProjectDirectory)\..\..\</SolutionDir>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup />
+  <!-- Intermediate directory must be unique per project. The MSBuild default
+       ($(Configuration)\, i.e. tests\Release\) is shared with leftovers of other
+       projects and triggers MSB8028 (broken clean/rebuild). OutDir is left
+       untouched on purpose: run-coverage.ps1 and unit-test.instructions.md
+       depend on tests\Debug\tests.exe and Release\tests.exe. -->
+  <PropertyGroup>
+    <IntDir>$(SolutionDir)bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <!-- Debug|Win32 -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)tests\Debug\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../../3rd/lib;$(SolutionDir)bin\$(Configuration)\;$(SolutionDir)bin\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- Debug|x64 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../../3rd/lib;$(SolutionDir)bin\$(Configuration)\;$(SolutionDir)bin\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- Release|Win32 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../../3rd/lib;$(SolutionDir)bin\$(Configuration)\;$(SolutionDir)bin\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- Release|x64 -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/source-charset:utf-8 /wd4091 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../../3rd/lib;$(SolutionDir)bin\$(Configuration)\;$(SolutionDir)bin\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- ==================== Source Files ==================== -->
+  <ItemGroup>
+    <!-- jianghu_core.lib is linked, not compiled here -->
+    <!-- Mock layer (provides db/Sql.cpp stubs for test) -->
+    <ClCompile Include="mock\mock_net.cpp" />
+    <ClCompile Include="mock\mock_db.cpp" />
+    <ClCompile Include="mock\mock_game.cpp" />
+    <ClCompile Include="mock\mock_itemmgr.cpp" />
+    <!-- Test files -->
+    <ClCompile Include="test_smoke.cpp" />
+    <ClCompile Include="test_sqlite_db.cpp" />
+    <ClCompile Include="test_sqlite_integration.cpp" />
+    <ClCompile Include="test_equip.cpp" />
+    <ClCompile Include="test_house.cpp" />
+    <ClCompile Include="test_login_flow.cpp" />
+    <ClCompile Include="test_resident_lua.cpp" />
+    <ClCompile Include="test_resident_lua_flow.cpp" />
+    <ClCompile Include="test_stacking.cpp" />
+    <ClCompile Include="test_queue.cpp" />
+    <ClCompile Include="test_mapping.cpp" />
+    <ClCompile Include="test_sql_escape.cpp" />
+    <ClCompile Include="test_mgr_loaders.cpp" />
+    <ClCompile Include="test_encoding.cpp" />
+    <ClCompile Include="test_stringutil.cpp" />
+    <ClCompile Include="test_log_levels.cpp" />
+    <ClCompile Include="test_random.cpp" />
+    <ClCompile Include="test_combatcalc.cpp" />
+    <ClCompile Include="test_combatconfig.cpp" />
+    <ClCompile Include="test_reward.cpp" />
+    <ClCompile Include="test_fb_registry.cpp" />
+    <ClCompile Include="test_carry_object.cpp" />
+    <ClCompile Include="test_container_move.cpp" />
+    <ClCompile Include="test_object_create.cpp" />
+    <ClCompile Include="test_loginregister.cpp" />
+    <ClCompile Include="test_checkplayer.cpp" />
+    <ClCompile Include="test_rank.cpp" />
+    <ClCompile Include="test_force_adv_recover.cpp" />
+    <ClCompile Include="test_db_layer.cpp" />
+    <ClCompile Include="test_db_tables.cpp" />
+    <ClCompile Include="test_db_register_account.cpp" />
+    <ClCompile Include="test_register_clerk.cpp" />
+    <ClCompile Include="test_register_hall.cpp" />
+    <ClCompile Include="test_char_attr.cpp" />
+    <ClCompile Include="test_char_level.cpp" />
+    <ClCompile Include="test_char_skill.cpp" />
+    <ClCompile Include="test_char_family.cpp" />
+    <ClCompile Include="test_char_combat.cpp" />
+    <ClCompile Include="test_char_save.cpp" />
+    <ClCompile Include="test_char_core.cpp" />
+    <ClCompile Include="test_char_fight.cpp" />
+    <ClCompile Include="test_char_state.cpp" />
+    <ClCompile Include="test_char_flush.cpp" />
+    <ClCompile Include="test_char_look.cpp" />
+    <ClCompile Include="test_char_rules.cpp" />
+    <ClCompile Include="test_lua_backtrace.cpp" />
+    <ClCompile Include="test_lua_checker.cpp" />
+    <ClCompile Include="test_dispatch_encoding.cpp" />
+    <ClCompile Include="test_lua_data_script.cpp" />
+    <ClCompile Include="test_lua_enum_globals.cpp" />
+    <ClCompile Include="test_bind_container_dbase.cpp" />
+    <ClCompile Include="test_bind_container_item.cpp" />
+    <ClCompile Include="test_bind_container_misc.cpp" />
+    <ClCompile Include="test_bind_char_attr.cpp" />
+    <ClCompile Include="test_bind_char_skill.cpp" />
+    <ClCompile Include="test_bind_char_combat.cpp" />
+    <ClCompile Include="test_bind_npc.cpp" />
+    <ClCompile Include="test_bind_room.cpp" />
+    <ClCompile Include="test_live_position.cpp" />
+    <ClCompile Include="test_room_add_npc.cpp" />
+    <ClCompile Include="test_room_interface.cpp" />
+    <ClCompile Include="test_box_door.cpp" />
+    <ClCompile Include="test_rename_notify.cpp" />
+    <ClCompile Include="test_bind_fightroom.cpp" />
+    <ClCompile Include="test_fightroom_team.cpp" />
+    <ClCompile Include="test_bind_item.cpp" />
+    <ClCompile Include="test_bind_global.cpp" />
+    <ClCompile Include="test_bind_glue.cpp" />
+    <ClCompile Include="test_bind_char_family.cpp" />
+    <ClCompile Include="test_bind_char_misc.cpp" />
+    <ClCompile Include="test_user_cmd_queue.cpp" />
+    <ClCompile Include="test_setup_objects.cpp" />
+    <ClCompile Include="test_combat_rules.cpp" />
+    <ClCompile Include="test_dynamic_room.cpp" />
+    <ClCompile Include="test_npc_behavior.cpp" />
+    <ClCompile Include="test_setup_char.cpp" />
+    <ClCompile Include="test_setup_human.cpp" />
+    <ClCompile Include="test_container_ownership.cpp" />
+    <ClCompile Include="test_channel_subsystems.cpp" />
+    <ClCompile Include="test_channel_deep.cpp" />
+    <ClCompile Include="test_bind_loader.cpp" />
+    <ClCompile Include="test_bind_fbroom.cpp" />
+    <ClCompile Include="test_fb_room.cpp" />
+    <ClCompile Include="test_attack.cpp" />
+    <ClCompile Include="test_auto_fight.cpp" />
+    <ClCompile Include="test_set_effect.cpp" />
+    <ClCompile Include="test_skill_throwing.cpp" />
+    <ClCompile Include="test_skill_magic_inherit.cpp" />
+    <ClCompile Include="test_skill_cast.cpp" />
+    <ClCompile Include="test_post_attack.cpp" />
+    <!-- 0%-coverage test files -->
+    <ClCompile Include="test_weapon_effect.cpp" />
+    <ClCompile Include="test_bank_owner.cpp" />
+    <ClCompile Include="test_cmd_user_skill.cpp" />
+    <ClCompile Include="test_cmd_user_vendor.cpp" />
+    <ClCompile Include="test_vendor.cpp" />
+    <ClCompile Include="test_treasure.cpp" />
+    <ClCompile Include="test_cmd_wizard_dice.cpp" />
+    <ClCompile Include="test_cmd_gate.cpp" />
+    <ClCompile Include="test_cmd_lua_command.cpp" />
+    <ClCompile Include="test_lua_hook.cpp" />
+    <ClCompile Include="test_lua_quest.cpp" />
+    <ClCompile Include="test_lua_callout.cpp" />
+    <ClCompile Include="test_cmd_user_account.cpp" />
+    <ClCompile Include="test_cmd_wizard_world.cpp" />
+    <ClCompile Include="test_cmd_wizard_admin.cpp" />
+    <ClCompile Include="test_cmd_standard_item.cpp" />
+    <ClCompile Include="test_cmd_standard_combat.cpp" />
+    <ClCompile Include="test_cmd_user_party.cpp" />
+    <ClCompile Include="test_cmd_user_social.cpp" />
+    <ClCompile Include="test_party_config.cpp" />
+    <ClCompile Include="test_server_config.cpp" />
+    <ClCompile Include="test_gate_info.cpp" />
+    <ClCompile Include="test_net_dispatch.cpp" />
+    <ClCompile Include="test_server_sock.cpp" />
+    <ClCompile Include="test_cmd_standard_life.cpp" />
+    <ClCompile Include="test_cmd_standard_master.cpp" />
+    <ClCompile Include="test_cmd_wizard_system.cpp" />
+    <ClCompile Include="test_lua_condition.cpp" />
+    <ClCompile Include="test_lua_error_paths.cpp" />
+    <ClCompile Include="test_lua_item.cpp" />
+    <ClCompile Include="test_emote_system.cpp" />
+    <ClCompile Include="test_corpse.cpp" />
+    <ClCompile Include="test_lua_npc.cpp" />
+    <ClCompile Include="test_npc_mirror.cpp" />
+    <!-- Infrastructure -->
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="test_env.cpp" />
+    <ClCompile Include="test_log_sections.cpp" />
+    <ClCompile Include="test_log_runid.cpp" />
+    <ClCompile Include="test_command_line.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="mock\mock_itemmgr.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\jianghu_core.vcxproj">
+      <Project>{a1b2c3d4-e5f6-7890-abcd-ef1234567890}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\..\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-static.1.8.1.8\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-static.targets" Condition="Exists('..\..\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-static.1.8.1.8\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-static.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\..\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-static.1.8.1.8\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-static.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-static.1.8.1.8\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-static.targets'))" />
+  </Target>
+</Project>

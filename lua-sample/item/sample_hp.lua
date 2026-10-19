@@ -25,7 +25,10 @@ return {
             return notify_fail("你现在不需要用回春丹。")
         end
 
-        me:receive_healing("hp", 100)
+        local eff_hp = me:query("eff_hp")
+        local hp = me:query("hp")
+        local heal_amount = math.min(100, eff_hp - hp)
+        me:receive_healing("hp", heal_amount)
         me:FlushMyInfo()
         message_vision("$N吃下一粒回春丹，精神立刻好了许多。", me)
         me:start_busy(2)

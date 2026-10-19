@@ -8,7 +8,6 @@
 extern int g_server_id;           // 服务器编号	1-999
 extern int g_server_port;         // 服务器端口号  6600
 extern char g_server_name[64];    // 服务器名称
-extern int g_server_charge;       // 是否收费
 extern char g_server_dbname[64];  // 数据库名称
 extern char g_start_room[128];    // 起始房间
 extern int g_ip_limit;            // 每 IP 最大连接数

@@ -1,4 +1,4 @@
--- wiz_jy.lua  监狱
+-- jy.lua  监狱
 
 return {
     type = "room",

@@ -337,13 +337,6 @@ int l_send_state(lua_State* L)
     return 0;
 }
 
-// config.ini [server] newlife_no_conflict 开关（开启返回 1，否则返回 0）
-int l_get_newlife_no_conflict(lua_State* L)
-{
-    lua_pushinteger(L, CServerConfig::newlife_no_conflict() ? 1 : 0);
-    return 1;
-}
-
 // self:revive(quiet) - 复活该角色
 int l_revive(lua_State* L)
 {

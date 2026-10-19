@@ -103,4 +103,7 @@ private:
     int m_top0;     // 构造前栈深（析构还原基线）
     bool m_valid;   // 钩子函数已就绪
     bool m_called;  // 已执行 call()
+    // 钩子名：调用方传入的字符串字面量，生命周期覆盖本次调用。
+    // 只用于报错定位（日志里必须指明是哪个钩子失败）。
+    const char* m_name;
 };

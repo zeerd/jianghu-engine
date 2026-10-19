@@ -1,6 +1,6 @@
 .\Remove-LuaBom.ps1 -Path "c:\jianghu-engine\lua-default\"
 .\Remove-LuaBom.ps1 -Path "c:\jianghu-engine\lua-sample\"
-.\Remove-LuaBom.ps1 -Path "c:\jianghu-engine\tests\lua-tests\"
+.\Remove-LuaBom.ps1 -Path "c:\jianghu-engine\tests\unit\lua-tests\"
 
 Get-ChildItem -Path src -Recurse -Include *.cpp | ForEach-Object { clang-format -i $_.FullName }
 Get-ChildItem -Path src -Recurse -Include *.inl | ForEach-Object { clang-format -i $_.FullName }

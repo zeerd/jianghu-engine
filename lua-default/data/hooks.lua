@@ -108,16 +108,21 @@ require("data.rank").install(hooks)
 --   C++ 只保留公共算法（经验计算与封顶）与入账，掉落/倍率/保底等规则在此实现。
 --   killer  击杀者；victim 被击杀的 NPC；reward C++ 封顶后的经验值（可能为 0）。
 --   返回值：{reward=N} = 以 N 入账（可含倍率/固定值）；nil / 缺席 = 按 reward 入账。
+--   此处即 NPC 击杀结算点：任务进度、悬赏等击杀事件结算也在此实现（此时击杀
+--   经验尚未入账，脚本若读 combat_exp 只含此前的累计值）。
 --
 -- hooks.char_rule(phase, actor, target)
 --   调用点：引擎对角色状态/行为的规则询问（属性校验上限、生活行为准入）。
 --   规则内容与归属数据集全在脚本；新增规则 = 追加自由 if 分支，C++ 零改动。
---   phase    "max_mp_limit" | "sleep_anywhere"；
+--   phase    "max_mp_limit" | "sleep_anywhere" | "cast_force"；
 --   actor    被询问的角色；target 另一相关对象（当前各 phase 不使用，为 nil）。
 --   max_mp_limit：返回 {limit=N} = 内力校验上限（上限值与其门派倍数完全由脚本给出）；
 --   nil / 缺席 = 引擎默认值 60000。
 --   sleep_anywhere：返回 {yes=true} = 允许不在睡眠场所就地入睡；
 --   nil = 仅睡眠场所或强制入睡可睡。
+--   cast_force：施法内功前置询问；target 为被施法的技能对象（CSkill）。
+--     返回 {yes=true} = 该角色满足本技能的施法内功前置（如：前世修习过的内功）；
+--     nil / 缺席 = 不额外放行，由引擎按已准备内功/脚本扩展/引擎配置判定。
 --
 -- hooks.receive(kind, me, who, attr, amount)
 --   调用点：CChar 的 receive_damage / receive_wound / receive_curing /
@@ -157,3 +162,17 @@ require("data.rank").install(hooks)
 --   成交后的数据集侧结算（标记任务完成、播报专属文案）在此实现。
 --   goods.price 为本次实付价、goods.amount 为成交后剩余库存（下架则 0）。
 --   返回值：无（纯副作用型）。
+--
+-- hooks.pre_talk(npc, me, ask)
+--   调用点：NPC 对话。CNpc::do_talk 与 Lua NPC 的 base_do_talk 共用此挂点，
+--           每次对话只咨询一次；脚本侧（任务等）据此决定是否接管本次对话。
+--   npc   对话对象；me  发起对话的角色；ask  本次询问的话题。
+--   返回值：{handled=true} = 接管本次对话（引擎终止对话，不再走任何询问菜单）；
+--           {flow="engine"} = 不接管，但本次对话归引擎标准询问流程；
+--           nil / 缺席 = 不接管，本次对话归对象自身流程（NPC 脚本询问菜单）。
+--
+-- hooks.pre_accept_object(npc, me, item)
+--   调用点：CNpc::accept_object，物品交给 NPC 时。任务交付等数据集逻辑在此实现。
+--   命名与 CNpc::accept_object / NPC 脚本的 accept_object 同向：npc 是接收方。
+--   npc   接收方；me  交付者；item 交付的物品。
+--   返回值：{handled=true} = 已处理（引擎不再走默认逻辑）；nil / 缺席 = 未处理。

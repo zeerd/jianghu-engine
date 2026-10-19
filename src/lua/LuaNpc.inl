@@ -6,7 +6,6 @@
 #include "LuaBind.h"
 #include "LuaEngine.h"
 #include "LuaNpc.h"
-#include "LuaQuest.h"
 
 #include <lua.hpp>
 #include <vector>
@@ -217,9 +216,16 @@ int CLuaNpcT<T>::do_lua_inquiry(CChar* me, char* ask)
 template <typename T>
 int CLuaNpcT<T>::base_do_talk(CChar* me, char* ask)
 {
-    if (quest_has_active(me)) return T::do_talk(me, ask);
-    if (dynamic_cast<CVendor*>(this)) return T::do_talk(me, ask);
-    if (dynamic_cast<CBankOwner*>(this)) return T::do_talk(me, ask);
+    if (!me || !ask) return 0;
+
+    // 通用对话钩子：脚本侧（任务等）接管本次对话则终止对话；
+    // 钩子判定归引擎流程则走引擎询问菜单；
+    // 钩子不适用则商家/钱庄走引擎流程，其余走脚本自己的询问菜单。
+    TalkHookResult hook_result = query_talk_hook(this, me, ask);
+    if (hook_result.handled) return 1;
+    if (hook_result.engine_flow) return T::do_talk_inquiry(me, ask);
+    if (dynamic_cast<CVendor*>(this)) return T::do_talk_inquiry(me, ask);
+    if (dynamic_cast<CBankOwner*>(this)) return T::do_talk_inquiry(me, ask);
     return do_lua_inquiry(me, ask);
 }
 
@@ -237,12 +243,8 @@ int CLuaNpcT<T>::do_talk(CChar* me, char* ask)
     lua_getfield(L, -1, "do_talk");
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 2);
-        // 脚本未定义 do_talk：有进行中任务/商家/钱庄老板委托基类，否则走 Lua
-        // 询问逻辑（任务判定由 Lua 侧通用谓词完成，C++ 不硬编码 key）
-        if (quest_has_active(me)) return T::do_talk(me, ask);
-        if (dynamic_cast<CVendor*>(this)) return T::do_talk(me, ask);
-        if (dynamic_cast<CBankOwner*>(this)) return T::do_talk(me, ask);
-        return do_lua_inquiry(me, ask);
+        // 脚本未定义 do_talk：与脚本显式调用 base_do_talk 的回退逻辑一致
+        return base_do_talk(me, ask);
     }
 
     // 参数：self, me, ask
@@ -254,10 +256,7 @@ int CLuaNpcT<T>::do_talk(CChar* me, char* ask)
         LOG_ERROR("Lua do_talk failed [%s]: %s", m_script_name.c_str(),
                   lua_tostring(L, -1));
         lua_pop(L, 2);
-        if (quest_has_active(me)) return T::do_talk(me, ask);
-        if (dynamic_cast<CVendor*>(this)) return T::do_talk(me, ask);
-        if (dynamic_cast<CBankOwner*>(this)) return T::do_talk(me, ask);
-        return do_lua_inquiry(me, ask);
+        return base_do_talk(me, ask);
     }
 
     int result = (int)lua_tointeger(L, -1);

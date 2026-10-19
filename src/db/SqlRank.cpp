@@ -70,57 +70,6 @@ int paihangbang(CContainer* me)
 }
 
 // ============================================================
-// 寻宝掉落记录 (t_mf 表)
-// ============================================================
-
-bool update_mf_record(const char* base_name, int energy)
-{
-    try {
-        char msg[255];
-        DbResultSet result;
-
-        snprintf(msg, 255, "SELECT count FROM t_mf WHERE base_name = '%s'",
-                 base_name);
-        int ret_code = g_db->query(msg, result);
-        if (ret_code != 0) {
-            LOG_ERROR("update_mf_record:query db fail!");
-            return false;
-        }
-
-        unsigned long long n = result.size();
-        if (n == 0) {
-            snprintf(msg, 255,
-                     "INSERT INTO t_mf (base_name, count, energy) VALUES "
-                     "('%s', %d, %d)",
-                     base_name, 1, energy);
-            ret_code = g_db->execute(msg);
-            if (ret_code != 0) {
-                LOG_ERROR("update_mf_record:insert to db fail!");
-                return false;
-            }
-        }
-        else {
-            const DbRow& row = result.rows[0];
-
-            snprintf(msg, 255,
-                     "update t_mf set count = '%ld' where base_name = '%s'",
-                     atoi(row[0].c_str()) + 1, base_name);
-            ret_code = g_db->execute(msg);
-
-            if (ret_code != 0) {
-                LOG_ERROR("update_mf_record:%s!", g_db->error());
-                return false;
-            }
-        }
-
-        return true;
-    } catch (...) {
-        LOG_ERROR("update_mf_record:unknown!");
-        return false;
-    }
-}
-
-// ============================================================
 // 玩家历练记录 (t_record 表)
 // ============================================================
 
@@ -208,14 +157,6 @@ int l_sql_update_record(lua_State* L)
         sql_update_record(id, type, level, data_gbk.c_str(), update) ? 1 : 0);
     return 1;
 }
-int l_update_mf_record(lua_State* L)
-{
-    const char* base_name = luaL_checkstring(L, 1);
-    int energy            = (int)luaL_checkinteger(L, 2);
-    lua_pushboolean(L, update_mf_record(base_name, energy) ? 1 : 0);
-    return 1;
-}
-
 // paihangbang(npc) -> number  排行榜查询
 int l_paihangbang(lua_State* L)
 {

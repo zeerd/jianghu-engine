@@ -20,6 +20,7 @@
 #include "Vendor.h"
 #include "Money.h"
 #include "LuaHook.h"
+#include "ServerConfig.h"
 
 #include "CmdStandard.h"
 #include "CmdUser.h"
@@ -180,8 +181,9 @@ int CCmdHandle::command(char* Command, CChar* me)
 
     if (!filter) g_notify_fail_msg[0] = 0;
 
-    // 检查是否使用网路加速
-    if (!filter && userp(me) && me->add_temp("cmd/cnt", 1) > 15) {
+    // 检查是否使用网路加速（配置可关闭限流，E2E 集成测试置 rate_limit=0）
+    if (!filter && userp(me) && CServerConfig::rate_limit()
+        && me->add_temp("cmd/cnt", 1) > 15) {
         me->delete_temp("cmd/cnt");
 
         if (g_current_time - me->query_temp("cmd/time")

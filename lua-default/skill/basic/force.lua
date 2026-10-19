@@ -1,16 +1,18 @@
 -- force.lua  基本内功
 
 return {
-    base = "force",
-
     create = function(self)
         self:set_name("基本内功")
 
-        -- add_magic(name, displayName, mp, ap, target, validCast, luaFuncName)
-        self:add_magic("recover", "复元术", 20, 100, CAST_TO_ME, CAST_IN_BOTH, "do_recover")
+        -- add_magic(name, displayName, mp, ap, target, validCast, luaFuncName
+        --           [, hostile])
+        -- 复元术：自身调息复元，不构成敌意行为（hostile = 0）
+        self:add_magic("recover", "复元术", 20, 100, CAST_TO_ME, CAST_IN_BOTH, "do_recover", 0)
     end,
 
     -- hit_ob(self, me, victim, damage_bonus)
+    -- 内功反震：mp_factor 越高反震越强；被反震方按伤情分四档播报
+    -- 返回 (damage_bonus, 命中消息)：消息进战斗战报
     hit_ob = function(self, me, victim, damage_bonus)
         local factor = me:query("mp_factor")
         local desc = 0
@@ -23,9 +25,6 @@ return {
 
         if userp(me) then
             me:add("mp", -factor)
-        end
-        if me:Query(IS_SHIWEI) then
-            me:add("mp", -factor // 5)
         end
 
         local mp = me:query("mp")
@@ -58,8 +57,7 @@ return {
                 else
                     desc = 3
                 end
-                message_vision(chat[desc + 1], me, victim)
-                return damage_bonus
+                return damage_bonus, chat[desc + 1]
             end
 
             damage_bonus = damage_bonus + damage

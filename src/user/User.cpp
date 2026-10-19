@@ -8,6 +8,7 @@
 #include "User.h"
 #include "Room.h"
 #include "Channel.h"
+#include "RegisterHall.h"
 #include "Sql.h"
 
 extern void close_client(uint32_t serial);
@@ -195,8 +196,9 @@ void CUser::update_age()
 {
     if (!last_age_set) last_age_set = g_current_time;
     CContainer* env = environment();
-    if (env && EQUALSTR(env->querystr("base_name"), "rk")) {
-        return;  // 在游戏大厅不增长年龄
+    // 全局大厅与它的副本实例同名：站在哪一局都不涨年龄
+    if (env && EQUALSTR(env->querystr("base_name"), REGISTER_HALL_NAME)) {
+        return;
     }
     add("mud_age", g_current_time - last_age_set);
     last_age_set = g_current_time;

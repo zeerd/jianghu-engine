@@ -1,6 +1,6 @@
 /**
  * @file LuaRoom.h
- * @brief Lua 脚本定义的地图/房间模板类，支持 CRoom/CResident/CFBRoom/CFB。
+ * @brief Lua 脚本定义的地图/房间模板类，支持 CRoom/CFBRoom/CFB。
  */
 
 //---------------------------------------------------------
@@ -10,14 +10,13 @@
 #include "FB.h"
 #include "FBRoom.h"
 #include "Room.h"
-#include "Resident.h"
 
 #include <type_traits>
 #include <vector>
 #include "LuaInstanceRegistry.h"
 
 // 编译期特性检测：T 是否含各可选基类方法
-// （CFBRoom/CRoom/CResident 与 CFB 的虚函数集不同，需用标签分派
+// （CFBRoom/CRoom 与 CFB 的虚函数集不同，需用标签分派
 //   避免在不含该方法的基类 T 上实例化非法调用）
 
 // 检测 T 是否含 create(int)（仅 CFB 系有：CItem/CFB 的 create(int nFlag)）
@@ -29,7 +28,7 @@ struct has_int_create<T, decltype(std::declval<T&>().create(0), void())>
     : std::true_type {};
 
 // 检测 T 是否含 valid_leave(CChar*, const char*)
-// （CRoom/CResident/CFBRoom 有，CFB 无）
+// （CRoom/CFBRoom 有，CFB 无）
 template <typename T, typename = void>
 struct has_valid_leave : std::false_type {};
 
@@ -54,7 +53,7 @@ public:
     virtual ~CLuaRoomT();
 
     // 重写 create()：调用 Lua 脚本的 create(self)（失败回退到 C++ 基类）
-    // 适用于 CRoom/CResident/CFBRoom（无参 create）
+    // 适用于 CRoom/CFBRoom（无参 create）
     virtual void create();
 
     // 重写 create(int)：调用 Lua 脚本的 create(self, nFlag)
@@ -105,7 +104,7 @@ public:
     virtual int handle_action(char* comm, CChar* me, char* arg, char* tar);
 
     // 重写 valid_leave()：调用 Lua 脚本的 valid_leave(self, me, dir)
-    // （CRoom/CResident/CFBRoom 有基类方法；CFB 无，用标签分派避免非法回退）
+    // （CRoom/CFBRoom 有基类方法；CFB 无，用标签分派避免非法回退）
     virtual int valid_leave(CChar* me, const char* dir);
 
     // 重写 desc()：调用 Lua 脚本的 desc(self, me)（仅 CFB 有基类方法）
@@ -130,6 +129,7 @@ private:
     // 标签分派：仅当基类 T 确实含 desc 时才回退到 T::desc
     void desc_impl(std::true_type, CChar* me);
     void desc_impl(std::false_type, CChar* me);
+
     // 标签分派：仅当基类 T 含 valid_leave 时非虚调用，否则默认放行
     int base_valid_leave_impl(std::true_type, CChar* me, const char* dir)
     {
@@ -143,9 +143,7 @@ private:
 
 // 类型别名
 typedef CLuaRoomT<CRoom> CLuaRoom;
-typedef CLuaRoomT<CResident> CLuaResident;
 typedef CLuaRoomT<CFBRoom> CLuaFBRoom;
 typedef CLuaRoomT<CFB> CLuaFB;
 
-#include "Encoding.h"
 #include "LuaRoom.inl"

@@ -22,9 +22,10 @@ std::string utf8_to_gbk(const char* utf8)
         = WideCharToMultiByte(CP_ACP, 0, wbuf.data(), -1, NULL, 0, NULL, NULL);
     if (glen <= 0) return std::string(utf8);
 
-    std::string result(glen - 1, '\0');
+    std::string result(glen, '\0');
     WideCharToMultiByte(CP_ACP, 0, wbuf.data(), -1, &result[0], glen, NULL,
                         NULL);
+    result.resize(glen - 1);
     return result;
 }
 
@@ -43,8 +44,9 @@ std::string gbk_to_utf8(const char* gbk)
         = WideCharToMultiByte(CP_UTF8, 0, wbuf.data(), -1, NULL, 0, NULL, NULL);
     if (ulen <= 0) return std::string(gbk);
 
-    std::string result(ulen - 1, '\0');
+    std::string result(ulen, '\0');
     WideCharToMultiByte(CP_UTF8, 0, wbuf.data(), -1, &result[0], ulen, NULL,
                         NULL);
+    result.resize(ulen - 1);
     return result;
 }

@@ -19,7 +19,7 @@ int64_t char_rule_limit(const char* phase, CChar* actor, int64_t default_limit)
     return limit;
 }
 
-bool char_rule_yes(const char* phase, CChar* actor, CChar* target)
+bool char_rule_yes(const char* phase, CChar* actor, CMainObject* target)
 {
     CLuaHookCall hook("char_rule");
     hook.add_str(phase).add_object(actor).add_object(target);

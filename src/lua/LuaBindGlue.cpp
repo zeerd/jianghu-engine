@@ -4,6 +4,7 @@
 
 #include "LuaBindIncludes.h"
 #include "IniParser.h"
+#include "ServerConfig.h"
 
 // 迭代器内部状态结构
 
@@ -94,19 +95,11 @@ static int resolve_script_ref(CMainObject* obj)
 {
     if (!obj) return LUA_NOREF;
 
-    // 技能（各基类模板实例）
+    // 技能
 
     CLuaSkill* skill = dynamic_cast<CLuaSkill*>(obj);
 
     if (skill) return skill->get_script_ref();
-
-    CLuaForce* forceSkill = dynamic_cast<CLuaForce*>(obj);
-
-    if (forceSkill) return forceSkill->get_script_ref();
-
-    CLuaThrowing* throwingSkill = dynamic_cast<CLuaThrowing*>(obj);
-
-    if (throwingSkill) return throwingSkill->get_script_ref();
 
     // NPC（各基类模板实例）
 
@@ -123,10 +116,6 @@ static int resolve_script_ref(CMainObject* obj)
     CLuaRoom* room = dynamic_cast<CLuaRoom*>(obj);
 
     if (room) return room->get_script_ref();
-
-    CLuaResident* resident = dynamic_cast<CLuaResident*>(obj);
-
-    if (resident) return resident->get_script_ref();
 
     CLuaFBRoom* fbrooom = dynamic_cast<CLuaFBRoom*>(obj);
 
@@ -405,9 +394,7 @@ int l_handle_action(lua_State* L)
 
 // self:base_create() - 调用基类 create()
 
-// 技能脚本（base="force"/"throwing"）在 create 中
-
-// 复用 CForce::create（注册复元术）/ CThrowing::create（注册偷袭）
+// NPC 脚本（CLuaMirrorNpc）在 create 中复用 CNpc::create 的默认实现。
 
 int l_base_create(lua_State* L)
 
@@ -418,24 +405,6 @@ int l_base_create(lua_State* L)
 
     if (CLuaMirrorNpc* mi = dynamic_cast<CLuaMirrorNpc*>(obj)) {
         mi->base_create();
-
-        return 0;
-    }
-
-    if (CLuaForce* f = dynamic_cast<CLuaForce*>(obj)) {
-        f->base_create();
-
-        return 0;
-    }
-
-    if (CLuaThrowing* t = dynamic_cast<CLuaThrowing*>(obj)) {
-        t->base_create();
-
-        return 0;
-    }
-
-    if (CLuaSkill* s = dynamic_cast<CLuaSkill*>(obj)) {
-        s->base_create();
 
         return 0;
     }
@@ -466,20 +435,12 @@ int l_base_handle_action4(lua_State* L)
 
     const char* tar = luaL_optstring(L, 5, "");
 
-    // 房间系（CRoom/CResident/CFBRoom 均有 4 参 handle_action）
+    // 房间系（CRoom/CFBRoom 均有 4 参 handle_action）
 
     if (CLuaRoom* r = dynamic_cast<CLuaRoom*>(obj)) {
         lua_pushinteger(
 
             L, r->base_handle_action4((char*)comm, me, (char*)arg, (char*)tar));
-
-        return 1;
-    }
-
-    if (CLuaResident* rs = dynamic_cast<CLuaResident*>(obj)) {
-        lua_pushinteger(L, rs->base_handle_action4((char*)comm, me, (char*)arg,
-
-                                                   (char*)tar));
 
         return 1;
     }
@@ -544,15 +505,9 @@ int l_base_init(lua_State* L)
         return 0;
     }
 
-    // 房间系（CRoom/CResident/CFBRoom/CFB 均有 init(CChar*)）
+    // 房间系（CRoom/CFBRoom/CFB 均有 init(CChar*)）
     if (CLuaRoom* r = dynamic_cast<CLuaRoom*>(obj)) {
         r->base_init(me);
-
-        return 0;
-    }
-
-    if (CLuaResident* rs = dynamic_cast<CLuaResident*>(obj)) {
-        rs->base_init(me);
 
         return 0;
     }
@@ -601,12 +556,6 @@ int l_base_valid_leave(lua_State* L)
         return 1;
     }
 
-    if (CLuaResident* rs = dynamic_cast<CLuaResident*>(obj)) {
-        lua_pushinteger(L, rs->base_valid_leave(me, dir));
-
-        return 1;
-    }
-
     if (CLuaFBRoom* fr = dynamic_cast<CLuaFBRoom*>(obj)) {
         lua_pushinteger(L, fr->base_valid_leave(me, dir));
 
@@ -641,12 +590,6 @@ int l_base_setup(lua_State* L)
 
     if (CLuaRoom* r = dynamic_cast<CLuaRoom*>(obj)) {
         r->base_setup();
-
-        return 0;
-    }
-
-    if (CLuaResident* rs = dynamic_cast<CLuaResident*>(obj)) {
-        rs->base_setup();
 
         return 0;
     }
@@ -701,12 +644,6 @@ int l_base_reset(lua_State* L)
         return 0;
     }
 
-    if (CLuaResident* rs = dynamic_cast<CLuaResident*>(obj)) {
-        rs->base_reset();
-
-        return 0;
-    }
-
     if (CLuaFBRoom* fr = dynamic_cast<CLuaFBRoom*>(obj)) {
         fr->base_reset();
 
@@ -730,5 +667,21 @@ int l_ini_get(lua_State* L)
     const char* key     = luaL_checkstring(L, 2);
     const char* def     = luaL_optstring(L, 3, "");
     lua_pushstring(L, ini_get(section, key, def));
+    return 1;
+}
+
+// utf8_to_gbk(s) -> string - 脚本侧 UTF-8 文本转成服务器内部 GBK
+int l_utf8_to_gbk(lua_State* L)
+{
+    const char* s = luaL_checkstring(L, 1);
+    lua_pushstring(L, utf8_to_gbk(s).c_str());
+    return 1;
+}
+
+// get_no_force_conflict() -> number - config.ini [server] no_force_conflict
+// 开关（开启返回 1，否则返回 0）
+int l_get_no_force_conflict(lua_State* L)
+{
+    lua_pushinteger(L, CServerConfig::no_force_conflict() ? 1 : 0);
     return 1;
 }

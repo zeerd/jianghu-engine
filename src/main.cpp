@@ -14,6 +14,7 @@
 #include "ServerSockHandler.h"
 #include "Logger.h"
 #include "MainConfig.h"
+#include "util/CommandLine.h"
 #include "util/IniParser.h"
 #include "resource.h"
 
@@ -55,8 +56,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
         return 1;
     }
 
-    // Read configuration from data/config.ini
-    ini_load("data/config.ini");
+    // 读取配置：默认 data/config.ini，可用 --config <path> 覆盖
+    char config_path[1024];
+    ini_load(parse_config_path(lpCmdLine, config_path, sizeof(config_path)));
     char dbip[80], user[80], pwd[80];
     strncpy(dbip, ini_get("database", "host", "127.0.0.1"), sizeof(dbip) - 1);
     strncpy(user, ini_get("database", "user", "root"), sizeof(user) - 1);

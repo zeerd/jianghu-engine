@@ -2,90 +2,64 @@
 
 CCmdWizard::CCmdWizard()
 {
-    m_grant.set("goto", 50);
-    m_grant.set("summon", 50);
-    m_grant.set("promote", 50);
-    m_grant.set("kickout", 60);
-    m_grant.set("whois", 70);
-    m_grant.set("where", 70);
-    m_grant.set("clone", 80);
-    m_grant.set("clonenpc", 80);
-    m_grant.set("smash", 80);
-    m_grant.set("stop", 50);
-    m_grant.set("full", 70);
-    m_grant.set("call", 90);
-    m_grant.set("set_skill", 90);
-    m_grant.set("clear_skill", 100);
-    m_grant.set("restore_exp", 100);
-    m_grant.set("ban", 60);
-    m_grant.set("unban", 60);
-    m_grant.set("freeze", 70);
-    m_grant.set("unfreeze", 70);
-    m_grant.set("chpass", 80);
-    m_grant.set("chverifypass", 90);
-    m_grant.set("recover", 90);
-    m_grant.set("wholist", 50);
-    m_grant.set("snoop", 60);
-    m_grant.set("chblk", 50);
+    // 巫师命令单源注册表：命令字 + handler + 最低 grant，三元组一一对应，
+    // 与 docs/protocol.md §4.4 的巫师命令表逐条一致。
+    // m_cmd 与 m_grant 由同一张表生成，杜绝两类漂移：
+    //   - 有授权条目、无 handler（如历史上的 reward_money/tail——不可达死条目）；
+    //   - 有 handler、无授权条目（缺省 grant 为 0，任何巫师都能执行）。
+    struct Entry {
+        const char* name;
+        func handler;
+        int grant;
+    };
+    static const Entry entries[] = {
+        // ---- 玩家管理 ----
+        {"promote", promote, 50},
+        {"kickout", kick, 60},
+        {"whois", whois, 70},
+        {"ban", ban, 60},
+        {"unban", unban, 60},
+        {"freeze", freeze, 70},
+        {"unfreeze", unfreeze, 70},
+        {"chpass", chpass, 80},
+        {"chverifypass", chverifypass, 90},
+        {"recover", recover, 90},
+        {"snoop", snoop, 60},
+        {"chblk", chblk, 50},
+        {"wholist", who, 50},
 
-    m_grant.set("reboot", 90);
-    m_grant.set("reward_exp", 80);
-    m_grant.set("sub_exp", 80);
-    m_grant.set("reward_money", 80);
-    m_grant.set("systemparam", 90);
-    m_grant.set("skillparam", 90);
-    m_grant.set("data", 70);
+        // ---- 世界操作 ----
+        {"goto", goto_cmd, 50},
+        {"summon", summon, 50},
+        {"clone", clone_object, 80},
+        {"clonenpc", clone_npc, 80},
+        {"smash", smash, 80},
+        {"where", where_me, 70},
+        {"stop", stop_battle, 50},
+        {"data", data, 70},
+        {"update", update, 80},
 
-    m_grant.set("tail", 90);
-    m_grant.set("update", 80);
-    m_grant.set("reload", 80);
-    m_grant.set("force_save", 80);
+        // ---- 系统管理 ----
+        {"full", full, 70},
+        {"call", call, 90},
+        {"set_skill", set_skill, 90},
+        {"clear_skill", clear_skill, 100},
+        {"restore_exp", restore_exp, 100},
+        {"recruit_exp", recruit_exp, 50},
+        {"print_mapping", print_mapping, 50},
+        {"reboot", reboot, 90},
+        {"reward_exp", reward_exp, 80},
+        {"sub_exp", sub_exp, 80},
+        {"systemparam", sys_param, 90},
+        {"skillparam", skill_param, 90},
+        {"reload", reload_lua, 80},
+        {"force_save", save, 80},
+    };
 
-    m_cmd["goto"]         = goto_cmd;
-    m_cmd["summon"]       = summon;
-    m_cmd["promote"]      = promote;
-    m_cmd["kickout"]      = kick;
-    m_cmd["whois"]        = whois;
-    m_cmd["where"]        = where_me;
-    m_cmd["clone"]        = clone_object;
-    m_cmd["clonenpc"]     = clone_npc;
-    m_cmd["smash"]        = smash;
-    m_cmd["stop"]         = stop_battle;
-    m_cmd["full"]         = full;
-    m_cmd["call"]         = call;
-    m_cmd["set_skill"]    = set_skill;
-    m_cmd["clear_skill"]  = clear_skill;
-    m_cmd["restore_exp"]  = restore_exp;
-    m_cmd["recruit_exp"]  = recruit_exp;
-    m_cmd["ban"]          = ban;
-    m_cmd["unban"]        = unban;
-    m_cmd["freeze"]       = freeze;
-    m_cmd["unfreeze"]     = unfreeze;
-    m_cmd["chpass"]       = chpass;
-    m_cmd["chverifypass"] = chverifypass;
-
-    m_cmd["recover"] = recover;
-    m_cmd["wholist"] = who;
-    m_cmd["snoop"]   = snoop;
-
-    m_cmd["reboot"] = reboot;
-
-    m_cmd["reward_exp"] = reward_exp;
-    m_cmd["sub_exp"]    = sub_exp;
-
-    m_cmd["systemparam"] = sys_param;
-    m_cmd["skillparam"]  = skill_param;
-
-    m_cmd["data"]  = data;
-    m_cmd["chblk"] = chblk;
-
-    m_cmd["update"]     = update;
-    m_cmd["force_save"] = save;
-    m_cmd["reload"]     = reload_lua;
-
-    m_cmd["print_mapping"] = print_mapping;
-
-    m_cmd["createcard"] = create_card;
+    for (const Entry& e : entries) {
+        m_cmd[e.name]    = e.handler;
+        m_grant.set(e.name, e.grant);
+    }
 }
 
 CCmdWizard::~CCmdWizard() {}

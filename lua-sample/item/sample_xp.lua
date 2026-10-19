@@ -21,6 +21,10 @@ return {
         end
 
         me:add("combat_exp", 100000)
+        -- 天地灵气拓宽经脉：内力上限 +100。注意「上限」与「当前内力」是两回事，
+        -- 引擎把当前内力压在 max_mp 之下，抬了上限内力不会自己跟上来——
+        -- 吃完还得打坐一阵，把内力真练进去。
+        me:add("max_mp", 100)
         me:FlushMyInfo()
         message_vision("$N吃下一粒经验果。", me)
         me:start_busy(2)

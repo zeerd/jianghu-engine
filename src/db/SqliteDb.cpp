@@ -108,6 +108,8 @@ public:
         return execute(sql.c_str());
     }
 
+    bool is_sqlite() const override { return true; }
+
     int last_rows() const override { return m_rows; }
 
     const char* error() const override { return m_last_error.c_str(); }
@@ -131,10 +133,13 @@ private:
 // 工厂方法实现
 std::unique_ptr<IDatabase> IDatabase::create(const char* type)
 {
-    if (type && strcmp(type, "sqlite") == 0) {
+    // 缺省与 "mysql" 都产出 MySQL 后端（由 MySqlDb.cpp 提供）
+    if (!type || strcmp(type, "mysql") == 0) {
+        return create_my_sql_db();
+    }
+    if (strcmp(type, "sqlite") == 0) {
         return std::make_unique<CSqliteDb>();
     }
-    // 默认返回 MySQL（由 MySqlDb.cpp 提供）
     return nullptr;
 }
 

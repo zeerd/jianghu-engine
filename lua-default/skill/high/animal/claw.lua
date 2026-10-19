@@ -1,5 +1,3 @@
-local skill_utils = require("skill.skill_utils")
-
 return {
     create = function(self)
         self:set_name("抓")

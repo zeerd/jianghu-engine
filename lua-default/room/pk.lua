@@ -1,4 +1,4 @@
--- wiz_pk.lua  PK场
+-- pk.lua  PK场
 
 return {
     type = "room",

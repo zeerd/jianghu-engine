@@ -1,4 +1,7 @@
--- wiz_rk.lua  游戏大厅
+-- rk.lua  游戏大厅
+
+-- 双身份：既作为全局大厅房被直接加载，也作为 rk_fb 副本实例的一局被
+-- create_fb_room 实例化（base_name 恒为 rk，故两处行为完全一致）。
 
 -- 注册专员的命令白名单：talk 是与专员交谈，register/regxxx 是注册流程
 -- （菜单项回灌的命令也会先经过房间拦截，必须放行）。
@@ -8,6 +11,7 @@ local allow = {
     regchar = true,
     regname = true,
     regpass = true,
+    regemail = true,
     reggender = true,
     regstat = true,
     regdone = true,
@@ -27,9 +31,8 @@ return {
 
     handle_action = function(self, comm, me, arg, target)
         -- register 快捷命令：省去查编号，直接开始注册流程。
-        -- 只转发 ASCII 的 regchar，带文字的命令（regname 等）一律回 0，
-        -- 交给命令分发器的目标截获环节处理（那里的 arg 是原始 GBK，
-        -- 而房间钩子里的 arg 已被转成 UTF-8，不能直接转发给 NPC）。
+        -- 只转发 ASCII 的 regchar；带文字的命令（regname 等）一律回 0，
+        -- 交给命令分发器的目标截获环节路由到注册专员。
         if comm == "register" then
             local who = nil
             local objs = self:Get_ItemList()
@@ -52,21 +55,10 @@ return {
             return 0
         end
 
-        if
-            comm ~= "card"
-            and comm ~= "createcard"
-            and comm ~= "addcard"
-            and comm ~= "removecard"
-            and comm ~= "showcards"
-            and comm ~= "quit"
-            and comm ~= "mudage"
-            and comm ~= "password"
-            and comm ~= "validate"
-        then
+        if comm ~= "quit" and comm ~= "mudage" and comm ~= "password" and comm ~= "validate" then
             tell_object(
                 me,
-                "你尝试了一下，但是发现这里似乎没有信号。"
-                    .. "（请输入/card命令获取进一步指示，输入register创建角色）"
+                "你尝试了一下，但是发现这里似乎没有信号。" .. "（输入register创建角色）"
             )
             return 1
         end

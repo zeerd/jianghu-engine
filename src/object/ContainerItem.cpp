@@ -240,7 +240,7 @@ int l_title(lua_State* L)
     return 1;
 }
 
-// self:say(msg, me)
+// self:say(msg, me[, tips])
 int l_say(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -253,6 +253,8 @@ int l_say(lua_State* L)
     CChar* me       = NULL;
     if (lua_isuserdata(L, 3)) me = dynamic_cast<CChar*>(get_object(L, 3));
 
-    c->say(msg, me);
+    const char* tips = lua_isstring(L, 4) ? lua_tostring(L, 4) : NULL;
+
+    c->say(msg, me, tips);
     return 0;
 }

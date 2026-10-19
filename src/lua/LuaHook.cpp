@@ -290,7 +290,11 @@ int lua_call_command(const char* cmd, CChar* me, int32_t target, char* arg)
 //---------------------------------------------------------
 
 CLuaHookCall::CLuaHookCall(const char* name)
-    : m_L(nullptr), m_top0(0), m_valid(false), m_called(false)
+    : m_L(nullptr),
+      m_top0(0),
+      m_valid(false),
+      m_called(false),
+      m_name(name ? name : "")
 {
     m_L = g_LuaEngine ? g_LuaEngine->get_state() : nullptr;
     if (!m_L || !name || !name[0]) return;
@@ -382,7 +386,7 @@ bool CLuaHookCall::call()
     if (nargs < 0) nargs = 0;
 
     if (lua_pcall(m_L, nargs, 1, 0) != LUA_OK) {
-        LOG_ERROR("[LuaHook] call failed: %s", lua_tostring(m_L, -1));
+        LOG_ERROR("[LuaHook] %s failed: %s", m_name, lua_tostring(m_L, -1));
         lua_settop(m_L, m_top0);
         m_valid = false;
     }

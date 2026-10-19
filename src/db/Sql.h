@@ -69,8 +69,8 @@ bool db_load_room_boxes(const char* room_base_name,
 // ------------------------------------------------------------
 bool db_verify_password(const char* id, const char* pass);
 long db_register_account(const char* name, const char* passwd,
-                         const char* gender, int str, int intel, int con,
-                         int dex, char* err, int errlen);
+                         const char* email, const char* gender, int str,
+                         int intel, int con, int dex, char* err, int errlen);
 bool db_change_password(const char* id, const char* new_pass);
 bool db_change_verify_password(const char* id, const char* new_pass);
 bool db_set_online_flag(const char* id, int online);
@@ -92,16 +92,6 @@ bool db_update_relative(const char* me, const char* target, long pt, int flag);
 // 排行榜
 // ------------------------------------------------------------
 int paihangbang(CContainer* me);
-
-// ------------------------------------------------------------
-// 游戏卡/麻将操作 (对应 sql_jx.cpp, sql_mj.cpp)
-// ------------------------------------------------------------
-bool register_card(const char* card, const char* id);
-bool unregister_card(const char* card, const char* id);
-bool create_card(CChar* me);
-bool show_cards(CChar* me);
-
-bool verify_id(const char* id, char* endtime);
 
 bool sql_update_record(const char* id, int type, int level, const char* data,
                        bool update = false);

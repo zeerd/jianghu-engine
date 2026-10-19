@@ -102,13 +102,9 @@ public:
                                 const char* def = "item");
 
     // 获取脚本的任意字符串字段（fieldName），用于选择 C++ 基类。
-    // def 为默认值。SKILL 脚本可用 base 字段（"force"/"throwing"/"skill"）。
+    // def 为默认值。
     const char* get_script_field(const char* name, LuaScriptType type,
                                  const char* fieldName, const char* def);
-
-    // 获取 SKILL 脚本的 base 字段（用于 Skill 选择基类）
-    // def 默认 "skill"
-    const char* get_script_base(const char* name, const char* def = "skill");
 
     // 手动热重载单个脚本（返回新的 registry 引用）
     // compositeKey: 复合 key（如 "item/hammer"）
@@ -300,6 +296,13 @@ private:
                                     const std::string& path, LuaScriptType type,
                                     unsigned long contentHash,
                                     const char* errorMsg);
+
+    // 房间类装配：脚本返回表声明 type = "resident" 时，自动把
+    // room/resident_base.lua 混入该表（install 语义：脚本自定义同名钩子
+    // 优先，并设置 resident_area/can_save）。地图脚本因此无需逐文件
+    // require + install。要求栈顶为脚本返回表，返回后栈保持不变；
+    // 装配失败只记日志，不阻断脚本加载。
+    void apply_room_class_mixins();
 
     // 扫描脚本目录树，建立 复合key("type_dir/name") -> 完整路径 映射
     void scan_script_tree();

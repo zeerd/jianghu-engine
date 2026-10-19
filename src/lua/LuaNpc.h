@@ -74,9 +74,10 @@ public:
         return call_base_handle_action4(npc_has_handle_action4<T>(), comm, me,
                                         arg, tar);
     }
-    // 供 Lua 脚本显式调用基类 do_talk（含 进行中任务/Vendor/BankOwner
+    // 供 Lua 脚本显式调用基类 do_talk（含 通用对话钩子 / Vendor/BankOwner
     // 回退 + DoLuaInquiry 兜底，与脚本未定义 do_talk 时的行为一致）
-    // 任务判定经通用谓词 QuestHasActive，C++ 不硬编码任何具体任务 key。
+    // 通用对话钩子（hooks.pre_talk）决定脚本侧是否接管本次对话，
+    // C++ 不硬编码任何具体任务 key。
     // self:base_do_talk(me, ask)
     int base_do_talk(CChar* me, char* ask);
 

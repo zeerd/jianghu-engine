@@ -34,11 +34,21 @@ bool db_verify_password(const char* id, const char* pass)
         }
 
         DbResultSet result;
-        snprintf(
-            msg, sizeof(msg),
-            "select cc_name from jianghudb where cc_id=%s && cc_verifypass = "
-            "OLD_PASSWORD('%s') ",
-            id, tmp);
+        // SQLite 无 OLD_PASSWORD()：cc_verifypass 由应用层按明文存取并等值比较
+        // （见 db_change_verify_password）；MySQL 沿用服务端 OLD_PASSWORD
+        // 哈希。
+        if (g_db->is_sqlite()) {
+            snprintf(msg, sizeof(msg),
+                     "select cc_name from jianghudb where cc_id=%s and "
+                     "cc_verifypass='%s'",
+                     id, tmp);
+        }
+        else {
+            snprintf(msg, sizeof(msg),
+                     "select cc_name from jianghudb where cc_id=%s and "
+                     "cc_verifypass=OLD_PASSWORD('%s')",
+                     id, tmp);
+        }
         int ret_code = g_db->query(msg, result);
         if (ret_code != 0) {
             LOG_ERROR("db_verify_password: query db fail! %s", g_db->error());
@@ -59,9 +69,10 @@ bool db_verify_password(const char* id, const char* pass)
 // 注册新账号：校验参数后向 jianghudb 插入一行基本资料（不含 cc_savedata，
 // 正式档案由首次登录时 verify_user 的新人分支建立，与巫师账号自举同路径）。
 // 成功返回新账号 id（>0）；失败返回 0，并把错误信息写入 err。
+// 参数顺序：name, passwd, email, gender, str, intel, con, dex
 long db_register_account(const char* name, const char* passwd,
-                         const char* gender, int str, int intel, int con,
-                         int dex, char* err, int errlen)
+                         const char* email, const char* gender, int str,
+                         int intel, int con, int dex, char* err, int errlen)
 {
     if (err && errlen > 0) err[0] = 0;
 
@@ -90,6 +101,17 @@ long db_register_account(const char* name, const char* passwd,
             return 0;
         }
 
+        // 邮箱校验：简单格式检查（含 @ 且 @ 前后非空），不做查重
+        if (!email || email[0] == '\0') {
+            if (err) snprintf(err, errlen, "请填写邮箱地址。");
+            return 0;
+        }
+        const char* at = strchr(email, '@');
+        if (!at || at == email || at[1] == '\0') {
+            if (err) snprintf(err, errlen, "邮箱格式不正确。");
+            return 0;
+        }
+
         // 密码：cc_passwd varchar(22)；登录流程会剔除单引号，此处同样剔除，
         // 保证存库密码与登录校验串一致。
         char pass[24];
@@ -110,50 +132,36 @@ long db_register_account(const char* name, const char* passwd,
             return 0;
         }
 
-        DbResultSet result;
-        std::string esc_name = sql_escape_literal(name);
+        // 注意：不再查重名字，允许同名不同账号；cc_id 由数据库 AUTO_INCREMENT
+        // 自动分配
+        std::string esc_name  = sql_escape_literal(name);
+        std::string esc_email = sql_escape_literal(email);
 
-        // 名字查重
         std::string sql
-            = "select cc_id from jianghudb where cc_name='" + esc_name + "'";
-        if (g_db->query(sql.c_str(), result) != 0) {
-            LOG_ERROR("db_register_account: query name fail! %s",
-                      g_db->error());
-            if (err) snprintf(err, errlen, "注册失败，请稍后再试。");
-            return 0;
-        }
-        if (!result.empty()) {
-            if (err) snprintf(err, errlen, "这个名字已经有人用了，换一个吧。");
-            return 0;
-        }
-
-        // 取下一个账号 id（游戏主线程串行访问 DB，max+1 安全）
-        DbResultSet id_result;
-        long next_id = 1000;
-        if (g_db->query("select max(cc_id) from jianghudb", id_result) != 0) {
-            LOG_ERROR("db_register_account: query max id fail! %s",
-                      g_db->error());
-            if (err) snprintf(err, errlen, "注册失败，请稍后再试。");
-            return 0;
-        }
-        if (!id_result.empty() && !id_result.rows[0].columns.empty()
-            && !id_result.rows[0][0].empty()) {
-            next_id = atol(id_result.rows[0][0].c_str()) + 1;
-        }
-
-        sql
-            = "insert into jianghudb (cc_id, cc_name, cc_passwd, cc_gender, "
-              "cc_str, cc_int, cc_con, cc_dex) values ("
-              + std::to_string(next_id) + ", '" + esc_name + "', '"
-              + sql_escape_literal(pass) + "', '" + sql_escape_literal(gender)
-              + "', " + std::to_string(str) + ", " + std::to_string(intel)
-              + ", " + std::to_string(con) + ", " + std::to_string(dex) + ")";
+            = "insert into jianghudb (cc_name, cc_passwd, cc_email, cc_gender, "
+              "cc_str, cc_int, cc_con, cc_dex) values ('"
+              + esc_name + "', '" + sql_escape_literal(pass) + "', '"
+              + esc_email + "', '" + sql_escape_literal(gender) + "', "
+              + std::to_string(str) + ", " + std::to_string(intel) + ", "
+              + std::to_string(con) + ", " + std::to_string(dex) + ")";
         if (g_db->execute(sql.c_str()) != 0) {
             LOG_ERROR("db_register_account: insert fail! %s", g_db->error());
             if (err) snprintf(err, errlen, "注册失败，请稍后再试。");
             return 0;
         }
 
+        // 取回自增生成的 cc_id
+        DbResultSet id_result;
+        long next_id         = 0;
+        const char* id_query = g_db->is_sqlite() ? "SELECT last_insert_rowid()"
+                                                 : "SELECT LAST_INSERT_ID()";
+        if (g_db->query(id_query, id_result) == 0 && !id_result.empty()
+            && !id_result.rows[0].columns.empty()) {
+            next_id = atol(id_result.rows[0][0].c_str());
+        }
+        else {
+            if (err) snprintf(err, errlen, "注册失败，无法获取账号 ID。");
+        }
         return next_id;
     } catch (...) {
         LOG_ERROR("db_register_account: unknown exception");
@@ -185,11 +193,19 @@ bool db_change_verify_password(const char* id, const char* new_pass)
 
     try {
         char msg[256];
-        snprintf(
-            msg, sizeof(msg),
-            "update jianghudb set cc_verifypass = OLD_PASSWORD('%s') where "
-            "cc_id=%s",
-            new_pass, id);
+        // SQLite 无 OLD_PASSWORD()：直接写入明文，由 db_verify_password
+        // 等值比较
+        if (g_db->is_sqlite()) {
+            snprintf(msg, sizeof(msg),
+                     "update jianghudb set cc_verifypass='%s' where cc_id=%s",
+                     new_pass, id);
+        }
+        else {
+            snprintf(msg, sizeof(msg),
+                     "update jianghudb set cc_verifypass = OLD_PASSWORD('%s') "
+                     "where cc_id=%s",
+                     new_pass, id);
+        }
         int ret = g_db->execute(msg);
         return ret == 0;
     } catch (...) {
@@ -344,8 +360,8 @@ bool db_update_recruit(const char* master, const char* id, const char* name,
         }
         else {
             snprintf(msg, sizeof(msg),
-                     "insert recruit_exp(re_master, re_id, re_name, re_exp, "
-                     "re_apprentice) values(%s, %s, '%s', %ld, %d)",
+                     "insert into recruit_exp(re_master, re_id, re_name, "
+                     "re_exp, re_apprentice) values(%s, %s, '%s', %ld, %d)",
                      master, id, name, exp, apprentice);
         }
 
@@ -419,7 +435,7 @@ bool db_update_relative(const char* me, const char* target, long pt, int flag)
             }
             else {
                 snprintf(msg, sizeof(msg),
-                         "insert relative(cc_id, cc_other, cc_point, "
+                         "insert into relative(cc_id, cc_other, cc_point, "
                          "cc_relative) values(%s, %s, %ld, 0)",
                          me, target, pt);
             }
@@ -433,7 +449,7 @@ bool db_update_relative(const char* me, const char* target, long pt, int flag)
             }
             else {
                 snprintf(msg, sizeof(msg),
-                         "insert relative(cc_id, cc_other, cc_point, "
+                         "insert into relative(cc_id, cc_other, cc_point, "
                          "cc_relative) values(%s, %s, %ld, %d)",
                          me, target, pt, flag);
             }
@@ -456,21 +472,22 @@ bool db_update_relative(const char* me, const char* target, long pt, int flag)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// register_char(name, passwd, gender, str, int, con, dex) -> id, err
+// register_char(name, passwd, email, gender, str, int, con, dex) -> id, err
 // 注册新账号：成功返回新账号 id 与空错误串；失败返回 0 与错误信息。
 int l_register_char(lua_State* L)
 {
     const char* name   = luaL_checkstring(L, 1);
     const char* passwd = luaL_checkstring(L, 2);
-    const char* gender = luaL_checkstring(L, 3);
-    int str            = (int)luaL_checkinteger(L, 4);
-    int intel          = (int)luaL_checkinteger(L, 5);
-    int con            = (int)luaL_checkinteger(L, 6);
-    int dex            = (int)luaL_checkinteger(L, 7);
+    const char* email  = luaL_checkstring(L, 3);
+    const char* gender = luaL_checkstring(L, 4);
+    int str            = (int)luaL_checkinteger(L, 5);
+    int intel          = (int)luaL_checkinteger(L, 6);
+    int con            = (int)luaL_checkinteger(L, 7);
+    int dex            = (int)luaL_checkinteger(L, 8);
 
     char err[256];
-    long id = db_register_account(name, passwd, gender, str, intel, con, dex,
-                                  err, sizeof(err));
+    long id = db_register_account(name, passwd, email, gender, str, intel, con,
+                                  dex, err, sizeof(err));
     lua_pushinteger(L, id);
     lua_pushstring(L, err);
     return 2;

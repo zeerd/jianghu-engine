@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Combatd.cpp
  * @brief Combat coordinator (attack dispatch + fight loop)
  */
@@ -13,7 +13,6 @@
 #include "Channel.h"
 #include "FightRoom.h"
 #include "Money.h"
-#include "Throwing.h"
 #include "Room.h"
 
 #include "LuaBindEnums.h"

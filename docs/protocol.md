@@ -115,7 +115,7 @@ login <客户端本地IP> <客户端版本> <账号ID> <密码> <卡号> <卡密
 3.  S→C     &C=24&R=0&\t                                        出口段结束标记(ADDOOR)
 4.  S→C     &C=24&R=<房间>&D=<方向>&N=<目标房名>&A=<标签>&\t      逐出口条目，每出口一条
 5.  S→C     &C=18&U=<oid>&G=<权限>&V=<版本>&R=<运行时长>&
-                 M=<服名>&l=<剩余点卡>&Y=<月卡月数>&\t           登录成功ACK(LOGINUSER)
+                 M=<服名>&l=<预留，恒0>&Y=<预留，恒0>&\t           登录成功ACK(LOGINUSER)
 6.  S→C     &C=30&B=1&\t                                         公告开始(BULLET)
 7.  S→C     &C=30&M=<公告文本>&\t...(多行)                        公告行
 8.  S→C     &C=15&T=<oid>&o=...&\t                               角色属性(RTNINFO)
@@ -307,10 +307,6 @@ login <客户端本地IP> <客户端版本> <账号ID> <密码> <卡号> <卡密
 | `accept_party`/`partyleave`/`partykick`/`partyfollow`/`partylist` | 接受组队/离队/踢人/跟随/队伍列表 |
 | `pair` | 邀请伴侣组队：`pair <目标ID>` |
 | `accept_pair`/`pairleave`/`pairkick`/`pairfollow`/`pairlist` | 接受伴侣组队/离队/踢人/跟随/队伍列表 |
-| `card` | 点卡帮助 |
-| `addcard` | 充值 |
-| `removecard` | 移除卡 |
-| `showcards` | 查看卡 |
 
 ### 4.4 巫师命令表（需 grant ≥ 50，且达到下表逐条最低权限）
 
@@ -343,7 +339,6 @@ login <客户端本地IP> <客户端版本> <账号ID> <密码> <卡号> <卡密
 | `force_save` | 80 | 强制保存 |
 | `recruit_exp` | 50 | 招募经验（管理） |
 | `print_mapping` | 50 | 打印映射 |
-| `createcard` | 50 | 创建点卡 |
 | `call` | 90 | 调用函数 |
 | `set_skill` | 90 | 设置技能 |
 | `chverifypass` | 90 | 修改他人验证密码 |

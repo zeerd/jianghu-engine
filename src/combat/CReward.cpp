@@ -11,7 +11,6 @@
 #include "Container.h"
 #include "Global.h"
 #include "LuaHook.h"
-#include "LuaQuest.h"
 #include "PartyConfig.h"
 #include "CombatRules.h"
 
@@ -484,7 +483,6 @@ void CReward::killer_reward(CChar* killer, CChar* victim)
             }
 
             handle_npc_kill_reward(killer, victim, reward);
-            quest_npc_killed(killer, victim);
         }
         killer->add("mks", 1);
     }
