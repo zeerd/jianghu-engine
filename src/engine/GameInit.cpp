@@ -54,9 +54,9 @@ void init_lua_engine()
 
     const char* luaRoot     = ini_get("lua", "script_root", "lua");
     const char* defaultRoot = ini_get("lua", "default_script_root", "");
-    LOG_DEBUG("Lua script root: %s", luaRoot);
+    LOG_INFO("Lua script root: %s", luaRoot);
     if (defaultRoot && defaultRoot[0])
-        LOG_DEBUG("Lua default script root: %s", defaultRoot);
+        LOG_INFO("Lua default script root: %s", defaultRoot);
 
     if (!g_LuaEngine->init(luaRoot, defaultRoot)) {
         LOG_FATAL("Lua engine init failed!");

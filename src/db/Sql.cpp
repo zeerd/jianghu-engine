@@ -17,10 +17,6 @@ char* check_legal_name(const char* name);
 // 全局数据库实例
 IDatabase* g_db = nullptr;
 
-static std::string g_db_type = "none";  // "mysql", "sqlite", 或 "none"
-
-const char* get_db_type() { return g_db_type.c_str(); }
-
 long iTelLinHand;
 double g_game_count;  // 游戏每分种消耗的点数
 
@@ -147,9 +143,9 @@ bool init_sql_server(const char* ipaddress, const char* name,
 {
     static std::unique_ptr<IDatabase> s_dbOwner;
 
-    g_db_type = ini_get("database", "type", "mysql");
+    const std::string db_type = get_db_type();
 
-    if (g_db_type == "sqlite") {
+    if (db_type == "sqlite") {
         s_dbOwner          = create_sqlite_db();
         g_db               = s_dbOwner.get();
         const char* dbPath = ini_get("database", "path", "data/game.db");
@@ -212,7 +208,7 @@ bool init_sql_server(const char* ipaddress, const char* name,
         return false;
     }
 
-    LOG_DEBUG("sql success. dbtype=%s", g_db_type.c_str());
+    LOG_DEBUG("sql success. dbtype=%s", db_type.c_str());
     return restore_data_table();
 }
 

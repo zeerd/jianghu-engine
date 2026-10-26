@@ -92,6 +92,7 @@ int l_find_player(lua_State* L);
 int l_flush_my_info(lua_State* L);
 int l_flush_my_skill(lua_State* L);
 int l_get_all_online_users(lua_State* L);
+int l_get_db_type(lua_State* L);
 int l_get_fight_team_char(lua_State* L);
 int l_get_fight_team_num(lua_State* L);
 int l_get_first_throwing_weapon(lua_State* L);

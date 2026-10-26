@@ -629,8 +629,8 @@ void CLuaEngine::apply_room_class_mixins()
     if (!lua_istable(L, -1)) return;  // 防御：调用方已保证
 
     lua_getfield(L, -1, "type");
-    bool resident = lua_isstring(L, -1)
-                     && strcmp(lua_tostring(L, -1), "resident") == 0;
+    bool resident
+        = lua_isstring(L, -1) && strcmp(lua_tostring(L, -1), "resident") == 0;
     lua_pop(L, 1);
     if (!resident) return;
 

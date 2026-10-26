@@ -76,7 +76,8 @@ function liquid_base.do_use(self, me, target)
     end
 
     if self:query("liquid/remaining") == 0 then
-        me:tell_object(
+        tell_object(
+            me,
             string.format(
                 "你已经将%s里的%s喝得一滴也不剩了。",
                 self:name(),
@@ -163,7 +164,7 @@ function liquid_base.do_fill(self, me)
 end
 
 -- 处理指令
-function liquid_base.handle_action(self, me, comm, arg)
+function liquid_base.handle_action(self, comm, me, arg)
     if comm == "fill" then
         return liquid_base.do_fill(self, me)
     end

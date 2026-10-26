@@ -68,7 +68,7 @@ function poison_base.remove_effect(self, p1, p2)
 end
 
 -- 处理指令
-function poison_base.handle_action(self, me, comm, arg)
+function poison_base.handle_action(self, comm, me, arg)
     if comm == "tumo" then
         return poison_base.do_mo(self, me)
     end

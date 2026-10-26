@@ -266,7 +266,7 @@ function npc.do_talk(self, me, ask)
 end
 
 -- 菜单回灌的命令统一从这里分发（命令名是 ASCII，不受 GBK/UTF-8 差异影响）
-function npc.handle_action(self, me, comm, arg)
+function npc.handle_action(self, comm, me, arg)
     if comm == "regchar" then
         return do_regchar(self, me)
     end
@@ -287,7 +287,7 @@ function npc.handle_action(self, me, comm, arg)
         end
     end
 
-    return self:base_handle_action(me, comm, arg)
+    return self:base_handle_action(comm, me, arg)
 end
 
 return npc

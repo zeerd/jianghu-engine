@@ -316,9 +316,10 @@ int CLuaItemT<T>::handle_action(char* comm, CChar* me, char* arg)
         return T::handle_action(comm, me, arg);
     }
 
+    // 压参顺序：self, comm, me, arg（与脚本约定一致）
     lua_bind_push_object(L, this);
-    lua_bind_push_object(L, me);
     lua_pushstring(L, comm ? comm : "");
+    lua_bind_push_object(L, me);
     lua_pushstring(L, arg ? arg : "");
 
     if (lua_pcall(L, 4, 1, 0) != LUA_OK) {
@@ -352,9 +353,10 @@ int CLuaItemT<T>::handle_action(char* comm, CChar* me, char* arg, char* tar)
                                         tar);
     }
 
+    // 压参顺序：self, comm, me, arg, tar（与脚本约定一致）
     lua_bind_push_object(L, this);
-    lua_bind_push_object(L, me);
     lua_pushstring(L, comm ? comm : "");
+    lua_bind_push_object(L, me);
     lua_pushstring(L, arg ? arg : "");
     lua_pushstring(L, tar ? tar : "");
 

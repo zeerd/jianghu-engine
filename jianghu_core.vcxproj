@@ -363,6 +363,7 @@
     <ClCompile Include="src\db\SqlEscape.cpp" />
     <ClCompile Include="src\db\SqlAccount.cpp" />
     <ClCompile Include="src\db\SqlRank.cpp" />
+    <ClCompile Include="src\db\SqlConfig.cpp" />
     <ClCompile Include="src\db\DbTables.cpp" />
     <!-- util -->
     <ClCompile Include="src\util\Encoding.cpp">

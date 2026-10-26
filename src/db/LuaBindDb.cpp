@@ -29,6 +29,16 @@ int l_db_execute(lua_State* L)
     return 1;
 }
 
+// 全局：get_db_type() -> string - 数据库类型（"mysql"/"sqlite"/"none"）
+// 脚本据此选择方言相关的 DDL（如 card_core.init_table 建卡表）
+int l_get_db_type(lua_State* L)
+
+{
+    lua_pushstring(L, get_db_type());
+
+    return 1;
+}
+
 // 全局：db_register_ddl(sql) - 登记一条数据集专用建表语句
 // 开机 prepare_tables 末尾统一执行；C++ 不认识具体表名，DDL 内容全归脚本。
 // 同一条 DDL 重复登记视为无效（脚本热重载会重新执行注册代码）。

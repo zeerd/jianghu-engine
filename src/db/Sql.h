@@ -17,7 +17,9 @@ class CContainer;
 // 数据库操作封装接口
 // ============================================================
 
-// 获取数据库类型 ("mysql", "sqlite", 或 "none")
+// 获取数据库类型（[database] type，配置缺失回退 "mysql"）。
+// 纯配置读取、不依赖连接：开机期脚本（data/card_core.init_table 等）必须在
+// init_sql_server 之前拿到它，才能选对 SQLite/MySQL 建表方言。
 const char* get_db_type();
 
 // 基础数据库操作

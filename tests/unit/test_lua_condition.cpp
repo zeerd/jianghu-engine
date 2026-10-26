@@ -102,10 +102,10 @@ TEST_F(LuaConditionTest, NormalScript_ContinuesAndDecrements)
 TEST_F(LuaConditionTest, ScriptLoadFailure_ApplyRejected)
 {
     const char* names[] = {
-        "tc_missing_zzz",    // 无法读文件（文件不存在）
-        "tc_no_table",       // 非表返回
-        "tc_runtime",        // chunk 执行期 error
-        "tc_init_error",     // 脚本表 init 抛错
+        "tc_missing_zzz",  // 无法读文件（文件不存在）
+        "tc_no_table",     // 非表返回
+        "tc_runtime",      // chunk 执行期 error
+        "tc_init_error",   // 脚本表 init 抛错
     };
     for (const char* name : names) {
         ScopedCondition guard(name);

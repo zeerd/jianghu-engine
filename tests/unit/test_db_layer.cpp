@@ -15,6 +15,7 @@
 #include <map>
 #include "Container.h"
 #include "IDatabase.h"
+#include "IniParser.h"
 #include "Sql.h"
 #include "mock/mock_database.h"
 
@@ -401,10 +402,26 @@ TEST_F(DbLayerTest, QueryRelative_NotFound)
 }
 
 // ====================================================================
-// Sql.cpp 核心链接验证（仍通过 mock）
+// SqlConfig.cpp：库类型是配置值，开机脚本据此选建表方言
 // ====================================================================
 
-TEST(DbCoreLink, GetDbType_Link) { EXPECT_STREQ(get_db_type(), "none"); }
+// 未配置 type → 回退 mysql（与 init_sql_server 的默认值一致）
+TEST(DbCoreLink, GetDbType_DefaultsToMysql)
+{
+    ini_load("tests/unit/test_config.ini");  // 该配置未声明 type
+
+    EXPECT_STREQ(get_db_type(), "mysql");
+}
+
+// 配置给出 sqlite → 返回 sqlite：data/card_core.init_table 的方言分支
+// （开机登记 DDL 时还没连库）全靠它选对建表语句
+TEST(DbCoreLink, GetDbType_ReadsConfiguredType)
+{
+    ini_load("tests/unit/test_db_type.ini");
+    EXPECT_STREQ(get_db_type(), "sqlite");
+
+    ini_load("tests/unit/test_config.ini");  // 恢复全局配置，不污染后续用例
+}
 
 // ====================================================================
 // 补充测试：覆盖错误路径、空结果、边界条件

@@ -77,9 +77,10 @@ TEST_F(fixture, PlainRoomTypeSkipsMixin)
 TEST_F(fixture, ResidentTypeRoomRemixinOnReload)
 {
     // 热重载与首载走同一装配入口：重载出的全新脚本表同样带上属区行为
-    //（若重载路径漏装，resident_area 缺席 → 本断言为 false）
+    // （若重载路径漏装，resident_area 缺席 → 本断言为 false）
     CLuaEngine* engine = CLuaEngine::instance();
-    EXPECT_NE(LUA_NOREF, engine->reload_script_by_name("fixture_resident_auto"));
+    EXPECT_NE(LUA_NOREF,
+              engine->reload_script_by_name("fixture_resident_auto"));
     EXPECT_TRUE(engine->get_script_bool_field("fixture_resident_auto",
                                               LUA_SCRIPT_ROOM, "resident_area"))
         << "重载后的脚本表未被装配";
@@ -91,7 +92,7 @@ TEST_F(fixture, ResidentMixinFailureDoesNotBreakRoomLoad)
     // 过程：摘 require → 重载 resident 房间 → 表加载成功但未装配
     //       → 恢复 require → 再次重载 → 装配恢复
     CLuaEngine* engine = CLuaEngine::instance();
-    lua_State* L = engine->get_state();
+    lua_State* L       = engine->get_state();
 
     // 1) 保存原 require
     lua_getglobal(L, "require");
@@ -102,11 +103,12 @@ TEST_F(fixture, ResidentMixinFailureDoesNotBreakRoomLoad)
     lua_setglobal(L, "require");
 
     // 3) 触发重载（走装配 helper）
-    EXPECT_NE(LUA_NOREF, engine->reload_script_by_name("fixture_resident_auto"));
+    EXPECT_NE(LUA_NOREF,
+              engine->reload_script_by_name("fixture_resident_auto"));
 
     // 4) 装配失败 → resident_area 为 false（错误分支被执行，覆盖率入账）
-    EXPECT_FALSE(engine->get_script_bool_field("fixture_resident_auto",
-                                               LUA_SCRIPT_ROOM, "resident_area"))
+    EXPECT_FALSE(engine->get_script_bool_field(
+        "fixture_resident_auto", LUA_SCRIPT_ROOM, "resident_area"))
         << "装配失败应导致 resident_area 缺席";
 
     // 5) 恢复 require
@@ -115,7 +117,8 @@ TEST_F(fixture, ResidentMixinFailureDoesNotBreakRoomLoad)
     luaL_unref(L, LUA_REGISTRYINDEX, saved_require_ref);
 
     // 6) 再次重载 → 装配恢复
-    EXPECT_NE(LUA_NOREF, engine->reload_script_by_name("fixture_resident_auto"));
+    EXPECT_NE(LUA_NOREF,
+              engine->reload_script_by_name("fixture_resident_auto"));
     EXPECT_TRUE(engine->get_script_bool_field("fixture_resident_auto",
                                               LUA_SCRIPT_ROOM, "resident_area"))
         << "恢复 require 后装配应重新生效";

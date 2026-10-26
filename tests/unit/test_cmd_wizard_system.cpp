@@ -643,7 +643,7 @@ TEST_F(CmdWizardSystemTest, GrantGate_RecruitExpAllowsAt50)
 {
     me->set("grant", (long)50);
     db->SetQueryFail(true);
-    char arg[256] = "query no_such_master kid1/exp";
+    char arg[256]        = "query no_such_master kid1/exp";
     g_notify_fail_msg[0] = 0;
     EXPECT_EQ(call_recruit_exp(me, 0, arg), 0) << "grant 50 放行到 handler";
     EXPECT_STREQ(g_notify_fail_msg, "没有该玩家的收徒记录！");

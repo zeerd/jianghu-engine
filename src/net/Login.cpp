@@ -153,7 +153,6 @@ int on_login(uint32_t serial, int sockfd, char* arg)
     char nid[255], id[255], fmt1[80], fmt2[80];
     const char* myip;
     double left = 0;
-    int charge  = 1;  // 收费
 
     snprintf(ipaddress, 80, "%s", &arg[255]);
 

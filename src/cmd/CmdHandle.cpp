@@ -285,6 +285,10 @@ int CCmdHandle::command(char* Command, CChar* me)
                          SEND_WAIT_IMMEDIATE);
     }
     else {
+        // 调试用：把原始整行（命令词 + 目标 +
+        // 参数）落日志，便于排查拼写与参数问题
+        LOG_WARN("未知的命令 raw=[%s] cmd=[%s] target=[%s] arg=[%s]", Command,
+                 Comm, Tar, arg);
         tell_object(me, "未知的命令。");
     }
 

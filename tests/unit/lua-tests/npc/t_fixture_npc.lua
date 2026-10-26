@@ -19,12 +19,12 @@ function npc.do_talk(self, me, ask)
     return 1
 end
 
-function npc.handle_action(self, me, comm, arg)
+function npc.handle_action(self, comm, me, arg)
     self:set("last_action", comm or "")
     return 0
 end
 
-function npc.handle_action4(self, me, comm, arg, tar)
+function npc.handle_action4(self, comm, me, arg, tar)
     self:set("last_action", comm or "")
     return 0
 end

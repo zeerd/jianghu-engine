@@ -76,10 +76,10 @@ return {
         return 1
     end,
 
-    -- handle_action(self, me, comm, arg)
+    -- handle_action(self, comm, me, arg)
     -- 当玩家从菜单选择"使用传送符"时，引擎调用此函数。
     -- comm = "teleport"，arg = ""（由菜单格式 "$0teleport $1" 决定）
-    handle_action = function(self, me, comm, arg)
+    handle_action = function(self, comm, me, arg)
         if comm == "teleport" then
             -- 弹出二级菜单，让玩家选择目的地
             -- 必须写成 "$0dest $1 <地点>"：$0 前缀不触发输入，$1 由客户端替换为

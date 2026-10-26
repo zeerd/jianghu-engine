@@ -33,11 +33,11 @@ function item.query_autoload(self)
     error("query_autoload boom")
 end
 
-function item.handle_action(self, me, comm, arg)
+function item.handle_action(self, comm, me, arg)
     error("handle_action boom")
 end
 
-function item.handle_action4(self, me, comm, arg, tar)
+function item.handle_action4(self, comm, me, arg, tar)
     error("handle_action4 boom")
 end
 

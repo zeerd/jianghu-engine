@@ -250,21 +250,25 @@ std::unique_ptr<CRoom> create_room(string room_name)
         // 房屋等前缀动态房由 create_room 的 resolve_room_prefix 分支在
         // 上面就绪；此处只兜底静态房与 fb_registry
         if (room_name == "fb_registry") {
+            // 内置副本注册处：纯 C++ 容器，不落库，t_room 里没有它的行。
+            // 走 load() 必然失败，既误报"没有该房间"，又给它挂上 fail_ob，
+            // 因此这里直接跳过读库。
             r = std::make_unique<CFBRegistry>();
+            r->set("base_name", room_name.c_str());
         }
         else {
             r = std::make_unique<CRoom>();
-        }
 
-        r->set("base_name", room_name.c_str());
+            r->set("base_name", room_name.c_str());
 
-        if (!r->load()) {
-            LOG_ERROR("没有该房间%s，替换成标准房间。", room_name.c_str());
+            if (!r->load()) {
+                LOG_ERROR("没有该房间%s，替换成标准房间。", room_name.c_str());
 
-            string msg = "fail";
-            msg += room_name;
-            r->set_name(msg.c_str());
-            r->set("fail_ob", 1);
+                string msg = "fail";
+                msg += room_name;
+                r->set_name(msg.c_str());
+                r->set("fail_ob", 1);
+            }
         }
 
         r->set("infinity", 1);

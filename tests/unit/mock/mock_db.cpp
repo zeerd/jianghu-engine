@@ -24,8 +24,8 @@ IDatabase* g_db = nullptr;
 // ====================================================================
 // Database type
 // ====================================================================
-static std::string g_db_type = "none";
-const char* get_db_type() { return g_db_type.c_str(); }
+// get_db_type() 由库提供（src/db/SqlConfig.cpp，读 [database] type）：
+// 它是纯配置读取，不属于 db/Sql.cpp 的替身范围。
 
 // ====================================================================
 // Server config (expected by some db functions)

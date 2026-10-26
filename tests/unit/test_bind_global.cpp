@@ -903,6 +903,25 @@ TEST_F(BindGlobalTest, DbRegisterDdl_RegistersOnce)
     g_dataset_table_ddl.resize(before);
 }
 
+// 回归：dataset 的 card_core.init_table 经全局 get_db_type() 选 SQLite/MySQL
+// 两套 DDL；绑定丢失时登录期 login.on_login 直接抛
+// "attempt to call a nil value (global 'get_db_type')"。
+TEST_F(BindGlobalTest, GetDbTypeRegisteredAsGlobal)
+{
+    int top = lua_gettop(L);
+
+    lua_getglobal(L, "get_db_type");
+    ASSERT_TRUE(lua_isfunction(L, -1)) << "get_db_type 已注册为全局函数";
+
+    ASSERT_EQ(LUA_OK, lua_pcall(L, 0, 1, 0));
+    ASSERT_TRUE(lua_isstring(L, -1));
+
+    // Lua 侧必须看到与 C++ 侧一致的库类型，脚本据此分支建表语句
+    EXPECT_STREQ(get_db_type(), lua_tostring(L, -1));
+
+    lua_settop(L, top);
+}
+
 // ---------------- net/Message.cpp：数字转中文的全量级分支 ----------------
 
 TEST_F(BindGlobalTest, ChineseNumber_AllMagnitudes)

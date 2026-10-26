@@ -291,9 +291,9 @@ int l_base_handle_action(lua_State* L)
 
     if (!obj) return 0;
 
-    CMainObject* meObj = get_object(L, 2);
+    const char* comm = luaL_checkstring(L, 2);
 
-    const char* comm = luaL_checkstring(L, 3);
+    CMainObject* meObj = get_object(L, 3);
 
     CChar* me = meObj ? dynamic_cast<CChar*>(meObj) : NULL;
 

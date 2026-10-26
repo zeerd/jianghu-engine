@@ -239,6 +239,7 @@
     <ClCompile Include="test_treasure.cpp" />
     <ClCompile Include="test_cmd_wizard_dice.cpp" />
     <ClCompile Include="test_cmd_gate.cpp" />
+    <ClCompile Include="test_cmd_unknown_log.cpp" />
     <ClCompile Include="test_cmd_lua_command.cpp" />
     <ClCompile Include="test_lua_hook.cpp" />
     <ClCompile Include="test_lua_quest.cpp" />

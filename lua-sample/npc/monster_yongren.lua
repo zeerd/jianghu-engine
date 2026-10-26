@@ -475,7 +475,7 @@ local function do_welcome2(self, me, arg)
     return 1
 end
 
-function n.handle_action(self, me, comm, arg)
+function n.handle_action(self, comm, me, arg)
     -- 打斗与咆哮一律不理会（抢书的 roar 由房间层 house_base 另行拦下）
     if comm == "kill" or comm == "fight" or comm == "cast" then
         message_vision("$n向$N皱了皱眉.", me, self)
@@ -508,8 +508,8 @@ function n.handle_action(self, me, comm, arg)
         return do_giveme(self, me, arg)
     end
 
-    -- 绑定签名是 (self, me, comm, arg)，与 register_clerk.lua 同口径
-    return self:base_handle_action(me, comm, arg)
+    -- 绑定签名是 (self, comm, me, arg)，与 register_clerk.lua 同口径
+    return self:base_handle_action(comm, me, arg)
 end
 
 function n.accept_object(self, me, obj)

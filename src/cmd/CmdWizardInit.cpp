@@ -5,7 +5,8 @@ CCmdWizard::CCmdWizard()
     // 巫师命令单源注册表：命令字 + handler + 最低 grant，三元组一一对应，
     // 与 docs/protocol.md §4.4 的巫师命令表逐条一致。
     // m_cmd 与 m_grant 由同一张表生成，杜绝两类漂移：
-    //   - 有授权条目、无 handler（如历史上的 reward_money/tail——不可达死条目）；
+    //   - 有授权条目、无 handler（如历史上的
+    //   reward_money/tail——不可达死条目）；
     //   - 有 handler、无授权条目（缺省 grant 为 0，任何巫师都能执行）。
     struct Entry {
         const char* name;
@@ -57,7 +58,7 @@ CCmdWizard::CCmdWizard()
     };
 
     for (const Entry& e : entries) {
-        m_cmd[e.name]    = e.handler;
+        m_cmd[e.name] = e.handler;
         m_grant.set(e.name, e.grant);
     }
 }

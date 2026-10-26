@@ -74,15 +74,17 @@ TEST_F(BindGlueTest, BaseValidLeaveDispatch)
 
 TEST_F(BindGlueTest, BaseHandleActionNeedsMe)
 {
-    // object slots hold real userdata; class mismatch -> guard returns 0
+    // 新签名 self:base_handle_action(comm, me, arg)：me 在第 3 槽。
+    // object 槽位是真实 userdata、但类型不匹配 CLuaNpc -> 守卫推 0 返回 1。
     lua_bind_push_object(L, &ch);
-    lua_bind_push_object(L, &ch);  // me
     lua_pushstring(L, "go north");
+    lua_bind_push_object(L, &ch);  // me 槽
     EXPECT_EQ(1, CallRetCount(l_base_handle_action, 3));
 
+    // self:base_handle_action4(comm, me, arg, tar) 同样以第 3 槽为 me
     lua_bind_push_object(L, &ch);
     lua_pushstring(L, "go north");
-    lua_bind_push_object(L, &ch);  // me
+    lua_bind_push_object(L, &ch);  // me 槽
     EXPECT_EQ(1, CallRetCount(l_base_handle_action4, 3));
 }
 

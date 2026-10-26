@@ -131,19 +131,19 @@ flowchart TD
 
 ---
 
-## 四、Lua 脚本签名（务必对照，Room 与 NPC/Item 参数顺序不同）
+## 四、Lua 脚本签名
 
-框架模板把 C++ 参数转成 Lua 调用时，**Room 与 NPC/Item 的入参顺序不一致**，这是最容易写错的地方：
+框架把 C++ `handle_action(comm, me, arg[, tar])` 的参数按同序压入 Lua：
 
 | 脚本类型 | 触发条件 | 查找的脚本字段 | Lua 签名 | 源码 |
 |---|---|---|---|---|
 | **Room** | C++ 四参 `handle_action` | `handle_action` | `function(self, comm, me, arg, tar)` | `src/lua/LuaRoom.inl:293` |
-| **NPC（3 参）** | C++ 三参 `handle_action` | `handle_action` | `function(self, me, comm, arg)` | `src/lua/LuaNpc.inl:272` |
-| **NPC（4 参）** | C++ 四参 `handle_action` | `handle_action4` | `function(self, me, comm, arg, tar)` | `src/lua/LuaNpc.inl:306` |
-| **Item（3 参）** | C++ 三参 `handle_action` | `handle_action` | `function(self, me, comm, arg)` | `src/lua/LuaItem.inl:305` |
-| **Item（4 参）** | C++ 四参 `handle_action` | `handle_action4` | `function(self, me, comm, arg, tar)` | `src/lua/LuaItem.inl:338` |
+| **NPC（3 参）** | C++ 三参 `handle_action` | `handle_action` | `function(self, comm, me, arg)` | `src/lua/LuaNpc.inl:272` |
+| **NPC（4 参）** | C++ 四参 `handle_action` | `handle_action4` | `function(self, comm, me, arg, tar)` | `src/lua/LuaNpc.inl:306` |
+| **Item（3 参）** | C++ 三参 `handle_action` | `handle_action` | `function(self, comm, me, arg)` | `src/lua/LuaItem.inl:305` |
+| **Item（4 参）** | C++ 四参 `handle_action` | `handle_action4` | `function(self, comm, me, arg, tar)` | `src/lua/LuaItem.inl:338` |
 
-记忆口诀：**房间是 `comm` 在前（`self, comm, me, arg, tar`）；NPC/物品是 `me` 在前（`self, me, comm, arg`）**。四参版在 NPC/Item 上要用**不同的字段名 `handle_action4`**，Room 则仍叫 `handle_action`（因为 Room 只有四参这一种入口）。
+NPC/Item 的四参版挂在 `handle_action4` 字段，Room 则仍叫 `handle_action`（Room 只有四参这一种入口）。
 
 ### 编码（三条分发路径统一 GBK）
 
@@ -233,7 +233,7 @@ return self:base_handle_action4(comm, me, arg, tar)
 NPC 的四参钩子挂在**另一个字段名** `handle_action4` 上（字段名见第四节）；命中条件时拦截，否则回退基类：
 
 ```lua
-function npc.handle_action4(self, me, comm, arg, target)
+function npc.handle_action4(self, comm, me, arg, target)
     if comm == "go" and me:query("level") < 30 then
         self:say("……")
         return 1
@@ -250,7 +250,7 @@ end
 
 ## 八、常见陷阱
 
-1. **参数顺序写反**：把 Room 的 `(self, comm, me, arg, tar)` 顺序套到 NPC/Item（应为 `(self, me, comm, arg)`），或反之。`me` 与 `comm` 互换后，脚本里 `me:query(...)` 会把字符串当对象、`comm == "guard"` 永远不成立，命令拦截**静默失效**。评审/编写时先对照第四节表格确认字段名与顺序。
+1. **`comm` 与 `me` 写反**：脚本里 `me:query(...)` 会把字符串当对象、`comm == "guard"` 永远不成立，回退 `base_handle_action` 时还会抛 `bad argument (string expected, got jianghu_object)` 被框架 `pcall` 吞掉并记入 ERROR 日志，命令拦截**静默失效**。评审/编写时对照第四节表格确认字段名与顺序。
 
 2. **忘调 `base` 回退**：房间脚本以 `return 0` 收尾会丢失 `CRoom::handle_action` 的 `back`（`src/room/Room.cpp:338`）；NPC 以 `return 0` 收尾会丢失 `CChar::handle_action(4 参)` 的背包物品转发。凡接管 `handle_action` 又需要基类副作用的，末尾应 `return self:base_handle_action4(...)`（或 3 参版）。
 

@@ -23,11 +23,11 @@ function npc.do_talk(self, me, ask)
     error("do_talk boom")
 end
 
-function npc.handle_action(self, me, comm, arg)
+function npc.handle_action(self, comm, me, arg)
     error("handle_action boom")
 end
 
-function npc.handle_action4(self, me, comm, arg, tar)
+function npc.handle_action4(self, comm, me, arg, tar)
     error("handle_action4 boom")
 end
 

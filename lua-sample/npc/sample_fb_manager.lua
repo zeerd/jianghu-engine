@@ -30,7 +30,7 @@ function npc.do_talk(self, me, ask)
     return 1
 end
 
-function npc.handle_action(self, me, comm, arg)
+function npc.handle_action(self, comm, me, arg)
     if comm == "leave" then
         return npc.do_leave(self, me)
     elseif comm == "kill" or comm == "fight" or comm == "cast" then

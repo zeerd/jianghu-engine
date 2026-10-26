@@ -54,7 +54,7 @@ Get-ChildItem -Path lua-sample -Recurse -Include *.lua | ForEach-Object { stylua
 
 ## Lua 脚本语法校验（--check-lua 模式）
 
-注意：工具是只检查最基础的语法，是底线，不是标准。你不能拿工具检查的结果作为脚本正确的判定依据。
+注意：工具做的是静态检查（语法 / require 闭包 / 未绑定全局 / 未绑定方法），是底线，不是标准。你不能拿工具检查的结果作为脚本正确的判定依据。已知盲区见 `src/lua/LuaSyntaxChecker.cpp` 文件头（动态 require、局部与全局同名等只记 NOTE 或直接放过）。
 
 服务器支持 `--check-lua` 参数，用于在启动前校验 Lua 脚本语法。该模式会初始化完整的 Lua + C++ 绑定环境（`lua_bind_init()`），因此能正确识别脚本中使用的枚举、常量和绑定函数。
 
@@ -63,10 +63,12 @@ Get-ChildItem -Path lua-sample -Recurse -Include *.lua | ForEach-Object { stylua
 ### 使用方式
 
 ```cmd
-jianghu.exe --check-lua [--config <ini>] [--dir <path>] <file.lua> ...
+jianghu.exe --check-lua [--config <ini>] [--dir <path>] [--baseline <file>] [--write-baseline] <file.lua> ...
 ```
 - `--config <ini>`：可选，指定配置文件路径（默认 `data/config.ini`）
-- `--dir <path>`：可选，校验该目录下全部 `.lua` 文件
+- `--dir <path>`：可选，校验该目录下全部 `.lua` 文件；目录不存在、或目录里一个 `.lua` 都没有，直接按失败退出（不许假绿）
+- `--baseline <file>`：可选，豁免基线条目（`A:<全局名>` / `M:<方法名>` / `B:<文件>:<字面量>`），只拦新增；缺省取 `<dir>/check_lua_baseline.txt`
+- `--write-baseline`：把本次发现的违规写入基线（存量清理的引导手段）。违规本身不判失败，但语法错误、文件读不到、require 解析失败仍照常失败
 - `<file.lua> ...`：待校验的 Lua 文件列表（既不给 `--dir` 也无文件参数时，仅输出 usage 并退出）
 
 ### 编译

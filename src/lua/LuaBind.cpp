@@ -275,6 +275,7 @@ static const luaL_Reg global_funcs[]
        {"add_user", l_add_user},
        {"do_channel", l_do_channel},
        {"sql_update_record", l_sql_update_record},
+       {"get_db_type", l_get_db_type},
        {"db_query", l_db_query},
        {"db_execute", l_db_execute},
        {"db_register_ddl", l_db_register_ddl},

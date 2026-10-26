@@ -52,7 +52,7 @@ end
 
 -- paihangbang 的行消费：comm="update"，
 -- arg 为 "<名次> <id> <姓名> <门派> <历练>"
-function npc.handle_action(self, me, comm, arg)
+function npc.handle_action(self, comm, me, arg)
     if comm ~= "update" then
         return 0
     end

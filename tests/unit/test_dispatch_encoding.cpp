@@ -19,7 +19,7 @@
 
 namespace {
 // GBK 字节：测试=B2 E2 CA D4，改名=B8 C4 C3 FB，出口=B3 F6 BF DA
-const char kGbkCeshi[]  = "\xB2\xE2\xCA\xD4";
+const char kGbkCeshi[]   = "\xB2\xE2\xCA\xD4";
 const char kGbkGaiming[] = "\xB8\xC4\xC3\xFB";
 const char kGbkChukou[]  = "\xB3\xF6\xBF\xDA";
 
@@ -31,7 +31,7 @@ protected:
     void SetUp() override
     {
         ASSERT_NE(ensure_lua_env(), nullptr);
-        me   = new CChar();
+        me = new CChar();
         me->set("id", "tester");
         room = load_room("t_encoding_room");
         ASSERT_NE(room, nullptr) << "夹具脚本缺失或加载失败";
@@ -48,15 +48,14 @@ protected:
 TEST_F(DispatchEncodingTest, HandleActionArgMatchesGbkLiteral)
 {
     EXPECT_EQ(
-        room->handle_action((char*)"run", me, (char*)kGbkCeshi, (char*)""),
-        11)
+        room->handle_action((char*)"run", me, (char*)kGbkCeshi, (char*)""), 11)
         << "GBK arg 应与脚本字面量直接相等（分发不做转码）";
 }
 
 TEST_F(DispatchEncodingTest, HandleActionCommMatchesGbkLiteral)
 {
-    EXPECT_EQ(
-        room->handle_action((char*)kGbkGaiming, me, (char*)"", (char*)""), 12)
+    EXPECT_EQ(room->handle_action((char*)kGbkGaiming, me, (char*)"", (char*)""),
+              12)
         << "GBK comm 应与脚本字面量直接相等";
 }
 
