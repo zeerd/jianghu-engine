@@ -68,16 +68,16 @@ int32_t CChar::receive_damage(const char* szType, int32_t damage, CChar* who)
             who = (CChar*)find_object(query_temp("last_damage_from"), 1);
         }
 
-        if (who && who != this && living(this) && userp(who)
+        if (who && who != this && is_living(this) && is_user(who)
             && !querystr_temp("last_fainted_from")[0]) {
             set_temp("last_fainted_from", who->querystr("id"));
-            if (userp(this)) call_out(remove_faint, 60);
+            if (is_user(this)) call_out(remove_faint, 60);
         }
     }
 
     set_heart_beat(1);
 
-    if (who && wizardp(who)
+    if (who && is_wizard(who)
         && EQUALSTR(who->querystr("env/combat"), "verbose")) {
         LOG_DEBUG("receive_damage: %s, damage:%s fainted:%s", name(),
                   who->id(1), querystr_temp("last_fainted_from"));
@@ -117,16 +117,16 @@ int32_t CChar::receive_wound(const char* type, int32_t damage, CChar* who)
             who = (CChar*)find_object(query_temp("last_damage_from"), 1);
         }
 
-        if (who && who != this && living(this) && userp(who)
+        if (who && who != this && is_living(this) && is_user(who)
             && !querystr_temp("last_fainted_from")[0]) {
             set_temp("last_fainted_from", who->querystr("id"));
-            if (userp(this)) call_out(remove_faint, 60);
+            if (is_user(this)) call_out(remove_faint, 60);
         }
     }
 
     if (query(type) > val) set(type, val);
 
-    if (who && wizardp(who)
+    if (who && is_wizard(who)
         && EQUALSTR(who->querystr("env/combat"), "verbose")) {
         LOG_DEBUG("receive_wound: %s damage:%s fainted:%s", name(), who->id(1),
                   querystr_temp("last_fainted_from"));

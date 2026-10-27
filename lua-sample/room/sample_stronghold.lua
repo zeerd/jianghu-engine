@@ -26,7 +26,7 @@ return {
     end,
 
     init = function(self, me)
-        if not userp(me) then
+        if not is_user(me) then
             return
         end
 
@@ -49,7 +49,7 @@ return {
         local list = self:Get_ItemList()
         if list then
             for item in iter_items(list) do
-                if item:is_character() and userp(item) == 0 then
+                if item:is_character() and is_user(item) == 0 then
                     if item:query("attitude") == "aggressive" then
                         tell_object(me, "$HIR还有敌人在场，你无法离开！")
                         return 0

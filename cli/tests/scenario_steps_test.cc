@@ -28,6 +28,8 @@ namespace {
 class TestableScenarioRunner : public CScenarioRunner {
 public:
     using CScenarioRunner::CScenarioRunner;
+    using CScenarioRunner::attr_snapshot;
+    using CScenarioRunner::attr_value;
     using CScenarioRunner::eval_attr_cond;
     using CScenarioRunner::eval_cond;
     using CScenarioRunner::run_capture_step;
@@ -264,6 +266,37 @@ TEST_F(ScenarioStepsTest, EvalCondItemMatchesInventory)
     EXPECT_FALSE(runner.eval_cond("item 大刀", detail));
 }
 
+// wield <物品> <槽位>：断言物品真的落进了指定槽位。
+// 只看装备回执文本是不够的——回执不说明落在哪个槽位。
+TEST_F(ScenarioStepsTest, EvalCondWieldChecksSlot)
+{
+    login();
+    core_->state().handle_message(make_msg(
+        11, {{"E", "1001"}, {"T", "500"}, {"u", "0"}, {"i", "1"}, {"U", "0"}}));
+    core_->state().handle_message(
+        make_msg(17, {{"O", "500"}, {"N", "铁剑"}, {"I", "sword_01"}}));
+
+    auto runner = make_runner();
+    std::string detail;
+
+    // 未装备（wield=0）时任何槽位都不算数
+    EXPECT_FALSE(runner.eval_cond("wield 铁剑 右手", detail));
+    EXPECT_FALSE(runner.eval_cond("wield 铁剑 未知", detail));
+
+    // RTNITEM 把对象 500 的槽位置为 7（右手）
+    core_->state().handle_message(make_msg(14, {{"I0", "500"}, {"E0", "7"}}));
+
+    EXPECT_TRUE(runner.eval_cond("wield 铁剑 右手", detail)) << "物品名子串匹配";
+    EXPECT_TRUE(runner.eval_cond("wield sword_01 右手", detail)) << "按内部 id";
+    EXPECT_TRUE(runner.eval_cond("wield 铁剑 7", detail)) << "接受数字槽位";
+    EXPECT_FALSE(runner.eval_cond("wield 铁剑 左手", detail)) << "槽位不符";
+    EXPECT_FALSE(runner.eval_cond("wield 大刀 右手", detail)) << "物品不在背包";
+
+    // 语法错误要给出可读原因
+    EXPECT_FALSE(runner.eval_cond("wield 铁剑", detail));
+    EXPECT_NE(detail.find("wield condition needs"), std::string::npos);
+}
+
 TEST_F(ScenarioStepsTest, EvalCondUnknownKeyReportsDetail)
 {
     auto runner = make_runner();
@@ -306,14 +339,40 @@ TEST_F(ScenarioStepsTest, EvalAttrCondComparesAllOperators)
 
     // 全部支持的属性名都可解析（此处仅验证解析不报错）
     a.combat_exp = 1; a.hp = 2; a.max_hp = 3;
-    a.mp = 4; a.max_mp = 5; a.level = 6; a.shen = 7;
+    a.mp = 4; a.max_mp = 5; a.level = 6; a.shen = 7; a.eff_hp = 8;
     EXPECT_TRUE(runner.eval_attr_cond("combat_exp >= 0", detail));
     EXPECT_TRUE(runner.eval_attr_cond("hp >= 0", detail));
     EXPECT_TRUE(runner.eval_attr_cond("max_hp >= 0", detail));
+    EXPECT_TRUE(runner.eval_attr_cond("eff_hp >= 0", detail));
     EXPECT_TRUE(runner.eval_attr_cond("mp >= 0", detail));
     EXPECT_TRUE(runner.eval_attr_cond("max_mp >= 0", detail));
     EXPECT_TRUE(runner.eval_attr_cond("level >= 0", detail));
     EXPECT_TRUE(runner.eval_attr_cond("shen >= 0", detail));
+}
+
+// eff_hp（有效气血上限）与 max_hp 是两回事：升级只抬 max_hp，eff_hp 会滞后，
+// 「金创药把 eff_hp 补回 max_hp」这条测试点就靠它判定。
+TEST_F(ScenarioStepsTest, EvalAttrCondEffHpTracksEffectiveCap)
+{
+    auto &a = core_->state().mutable_player_attr();
+    a.hp     = 363;
+    a.max_hp = 489;
+    a.eff_hp = 363;
+
+    auto runner = make_runner();
+    std::string detail;
+
+    // 升级后：最大上限 489、有效上限仍停在 363
+    EXPECT_TRUE(runner.eval_cond("attr max_hp >= 489", detail));
+    EXPECT_TRUE(runner.eval_cond("attr eff_hp < 489", detail));
+    EXPECT_FALSE(runner.eval_cond("attr eff_hp >= 489", detail));
+
+    // 补满后：有效上限追上最大上限（且与当前 hp 区分开）
+    a.eff_hp = 489;
+    EXPECT_TRUE(runner.eval_cond("attr eff_hp >= 489", detail));
+    EXPECT_FALSE(runner.eval_cond("attr eff_hp < 489", detail));
+    EXPECT_TRUE(runner.eval_cond("attr hp < 489", detail))
+        << "hp 未满时不应被 eff_hp 的断言误判";
 }
 
 TEST_F(ScenarioStepsTest, EvalCondAttrDispatchesToAttrEval)
@@ -323,6 +382,51 @@ TEST_F(ScenarioStepsTest, EvalCondAttrDispatchesToAttrEval)
     std::string detail;
     EXPECT_TRUE(runner.eval_cond("attr exp >= 50", detail));
     EXPECT_FALSE(runner.eval_cond("attr exp > 50", detail));
+}
+
+// 属性断言超时必须带回**当前值**：只回显条件的话，失败时分不清是
+//「状态还没到位」还是「状态变了却没同步到客户端」——后者才是真 bug。
+TEST_F(ScenarioStepsTest, WaitAttrTimeoutReportsCurrentValue)
+{
+    core_->state().mutable_player_attr().hp = 489;
+    auto runner = make_runner();
+
+    EXPECT_FALSE(runner.run_step({"wait", "attr hp < 489 timeout=80"}));
+    EXPECT_NE(runner.fail_reason().find("timeout waiting for 'attr hp < 489'"),
+              std::string::npos);
+    EXPECT_NE(runner.fail_reason().find("hp=489"), std::string::npos)
+        << "失败原因要带出当前值";
+
+    // 属性名写错时仍走「unknown attr」，不误报成超时
+    std::string detail;
+    EXPECT_FALSE(runner.eval_cond("attr nosuch >= 1", detail));
+    EXPECT_NE(detail.find("unknown attr"), std::string::npos);
+}
+
+// attr_snapshot 的边界：只有形如 `attr <已知名> <op> <值>` 才给得出快照，
+// 其余一律空串（前置判定已由 eval_cond 拦掉，这里是防御分支的直接覆盖）。
+TEST_F(ScenarioStepsTest, AttrSnapshotOnlyForWellFormedAttrCond)
+{
+    core_->state().mutable_player_attr().eff_hp = 363;
+    auto runner = make_runner();
+
+    EXPECT_EQ(runner.attr_snapshot("attr eff_hp < 489"), "eff_hp=363");
+    EXPECT_EQ(runner.attr_snapshot("text 你好"), "")
+        << "非属性条件不附加快照";
+    EXPECT_EQ(runner.attr_snapshot("attr eff_hp"), "")
+        << "缺运算符与值时不猜";
+    EXPECT_EQ(runner.attr_snapshot("attr nosuch >= 1"), "")
+        << "未知属性名给不出快照";
+}
+
+// 非属性断言超时不附加「（当前 …）」，失败原因保持原样可被既有断言匹配
+TEST_F(ScenarioStepsTest, WaitTextTimeoutKeepsPlainReason)
+{
+    auto runner = make_runner();
+    EXPECT_FALSE(runner.run_step({"wait", "text 根本不存在 timeout=80"}));
+    EXPECT_NE(runner.fail_reason().find("timeout waiting for 'text 根本不存在'"),
+              std::string::npos);
+    EXPECT_EQ(runner.fail_reason().find("（当前"), std::string::npos);
 }
 
 // ==================== run_step：verb 分发 ====================

@@ -297,7 +297,7 @@ int CCmdWizard::call(CChar* me, int32_t target, char* arg)
         if (strcmp(arg1, "grant") == 0) return notify_fail("请使用promote。");
         if (strcmp(arg1, "点数") == 0)
             return notify_fail("请使用增值服务支票。");
-        if (strcmp(arg1, "family") == 0 && userp(who))
+        if (strcmp(arg1, "family") == 0 && is_user(who))
             static_cast<CChar*>(who)->release_master();
 
         who->del(arg1);

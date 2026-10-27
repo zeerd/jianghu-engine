@@ -4,7 +4,7 @@
 #   name : 角色名（2~10 字节，需唯一）
 #   pass : 登录密码
 # 产出变量：
-#   acct : 注册成功后服务器返回的角色账号 id（供 sample_mainline.sce 登录使用）
+#   acct : 注册成功后服务器返回的角色账号 id（供各道 lane_*.sce 登录使用）
 #
 # 说明：注册走「与 NPC 交谈 → 菜单回灌命令」的分步流程，与引擎
 # lua-default/npc/register_clerk.lua 的 do_talk/reg_menu 一致。

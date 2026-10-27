@@ -27,6 +27,7 @@ static const LuaEnumEntry kObjectAttrEnums[] = {
     {"CAN_COMBINE", CMainObject::CAN_COMBINE},
     {"CAN_EQUIPPED", CMainObject::CAN_EQUIPPED},
     {"CAN_GET", CMainObject::CAN_GET},
+    {"CAN_SAVE", CMainObject::CAN_SAVE},
     {"IS_BOX", CMainObject::IS_BOX},
     {"IS_RESIDENT", CMainObject::IS_RESIDENT},
     {"GRANT_PLAYER", CMainObject::GRANT_PLAYER},

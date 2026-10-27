@@ -1055,7 +1055,7 @@ TEST_F(HouseTest, Give_ToYongrenOk_RentItemGuarded)
 // =====================================================================
 // accept_object（monster_yongren.lua）：租借品收还、非租借品拒收。
 // E2E 走不到收还分支——do_price 把租品交到仆役手上，玩家背包里按名
-// 定位到的只可能是非租品（sample_house.sce 只能断言拒收侧），
+// 定位到的只可能是非租品（house/servant.sce 只能断言拒收侧），
 // 正向契约在此守护：脚本检查丢失 yongren/rent 时此处必须变红。
 // 单测脚本根不含 lua-sample，故用共享夹具把样本脚本原文暂存进
 // 脚本根（引擎按内容 hash 自动重载，负缓存见

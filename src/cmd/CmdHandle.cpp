@@ -174,7 +174,7 @@ int CCmdHandle::command(char* Command, CChar* me)
 
     else if (filter)
         bDebug = false;
-    else if (!living(me))
+    else if (!is_living(me))
         return 0;
     else if (me->is_loading())
         return 0;
@@ -182,7 +182,7 @@ int CCmdHandle::command(char* Command, CChar* me)
     if (!filter) g_notify_fail_msg[0] = 0;
 
     // 检查是否使用网路加速（配置可关闭限流，E2E 集成测试置 rate_limit=0）
-    if (!filter && userp(me) && CServerConfig::rate_limit()
+    if (!filter && is_user(me) && CServerConfig::rate_limit()
         && me->add_temp("cmd/cnt", 1) > 15) {
         me->delete_temp("cmd/cnt");
 
@@ -240,7 +240,7 @@ int CCmdHandle::command(char* Command, CChar* me)
 
         if (who) {
             if (who->is_character()) {
-                if (living(who)) {
+                if (is_living(who)) {
                     // 命令准入：数据集规则否决即吞掉本次命令并向房间播报文案
                     std::string gate = combat_rule_reason(
                         "command_gate", me, static_cast<CChar*>(who), Comm);
@@ -309,7 +309,7 @@ int CCmdHandle::handlecommand(char* cmd, CChar* me, int32_t target, char* arg)
             return ret;
 
         // 搜索巫师指令
-        if (wizardp(me)
+        if (is_wizard(me)
             && (ret = g_cmd_wizard.handlecommand(cmd, me, target, arg)) != -1)
             return ret;
     }

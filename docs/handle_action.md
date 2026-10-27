@@ -67,7 +67,7 @@ flowchart TD
     B -->|正常| C["① 环境截获<br/>where:handle_action(Comm, me, arg, Tar)  (4参)"]
     C -->|返回非0| R1[命令被吞，return 1]
     C -->|返回0| D{"② 目标截获（有 target 时）<br/>who = where->present / me->present"}
-    D -->|who 是 living 角色| CG["②a command_gate 询问<br/>combat_rule_reason(me, who, Comm)"]
+    D -->|who 是 is_living 角色| CG["②a command_gate 询问<br/>combat_rule_reason(me, who, Comm)"]
     CG -->|"返回 {reason=文案}"| R2[message_vision 播报，return 1]
     CG -->|放行| E["who:handle_action(Comm, me, arg)  (3参)"]
     D -->|who 是物品| F["who:handle_action(Comm, me, arg)  (3参)"]
@@ -96,7 +96,7 @@ flowchart TD
    if (!who) who = me->present(target);
    if (who) {
        if (who->is_character()) {
-           if (living(who)) {
+           if (is_living(who)) {
                // 命令准入：数据集规则否决即吞掉本次命令并向房间播报文案
                std::string gate = combat_rule_reason(
                    "command_gate", me, static_cast<CChar*>(who), Comm);
@@ -114,7 +114,7 @@ flowchart TD
    }
    ```
 
-   living 角色先过 `hooks.combat_rule("command_gate", me, who, Comm)`：脚本返回
+   is_living 角色先过 `hooks.combat_rule("command_gate", me, who, Comm)`：脚本返回
    `{reason=文案}` 即由 C++ `message_vision` 播报并吞掉命令（「脚本写状态 → 拦截命令」
    这类准入规则全部住在这里，C++ 只负责询问，不认识具体状态键）；
    返回 nil 才继续三参 `handle_action`。物品直接走三参版。

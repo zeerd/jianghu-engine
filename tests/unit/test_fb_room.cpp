@@ -403,7 +403,7 @@ TEST_F(FBRoomTest, ChangeRoom_PlainRoomClearsFbNodie)
     EXPECT_EQ(0, user->query_temp("fb_nodie"));
 }
 
-// 对照组：副本房间换房必须下发出口信息（门存在与否都要走通 userp 分支）
+// 对照组：副本房间换房必须下发出口信息（门存在与否都要走通 er 分支）
 TEST_F(FBRoomTest, ChangeRoom_FbRoomWithDoorsSendsExitInfo)
 {
     CFB* fb       = own(new CFB());

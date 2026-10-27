@@ -248,27 +248,21 @@ bool verify_user(const char* userid, char* passwd)
         if (row[17].empty())  // 是新人
         {
             char msg[255];
-            CUser me;
+
             // 从新读出属性数据，开始分配
-            me.set_name(snprintf(msg, 40, "%s", row[1].c_str()), userid);
-            me.set("gender", snprintf(msg, 40, "%s", row[10].c_str()));
+            int str = 0, intel = 0, con = 0, dex = 0;
             try {
-                me.set("str", atoi(row[4].c_str()));
-                me.set("int", atoi(row[5].c_str()));
-                me.set("con", atoi(row[6].c_str()));
-                me.set("dex", atoi(row[7].c_str()));
+                str   = atoi(row[4].c_str());
+                intel = atoi(row[5].c_str());
+                con   = atoi(row[6].c_str());
+                dex   = atoi(row[7].c_str());
             } catch (...) {
                 LOG_ERROR("error property:%s", userid);
                 notify_fail("未知的属性值！");
                 return false;
             }
 
-            // 判断四属性值是否合法
-            int str   = me.query("str");
-            int con   = me.query("con");
-            int intel = me.query("int");
-            int dex   = me.query("dex");
-
+            // 判断四属性值是否合法（与 make_body 同口径）
             if (str < 10 || str > 30) {
                 notify_fail("力量值非法。");
                 return false;
@@ -294,17 +288,19 @@ bool verify_user(const char* userid, char* passwd)
                 return false;
             }
 
-            setup_char(&me);
-            me.set("title", "普通百姓");
-
-            me.set("birthday", g_current_time);
+            CUser me;
+            // 与 make_body 共用同一份初始档案：age=14 必须早于 setup_char、
+            // combat_exp/level 是起手值。缺了它们，新人会带着随机 age 算出的
+            // 虚高 max_hp 上线，hp 也一并被抬到上限之上。
+            init_new_char(me, row[1].c_str(), userid, row[10].c_str(), str, con,
+                          intel, dex);
+            me.set("combat_exp", 0);
 
             CVector v;
             v.append("chat");
             v.append("rumor");
 
             me.set("channels", v);
-            me.set("start_city", g_start_room);
 
             me.set("grant", atoi(row[20].c_str()));
 

@@ -63,7 +63,7 @@ void CChar::init(CChar* me)
 
     snprintf(mark, 80, "vendetta/%s", vendetta_mark);
 
-    if (userp(me) && is_killing(me)) {
+    if (is_user(me) && is_killing(me)) {
         g_auto_fight.auto_fight(this, me, "hatred");
         return;
     }
@@ -71,7 +71,7 @@ void CChar::init(CChar* me)
         g_auto_fight.auto_fight(this, me, "vendetta");
         return;
     }
-    else if (userp(me) && EQUALSTR(querystr("attitude"), "aggressive")) {
+    else if (is_user(me) && EQUALSTR(querystr("attitude"), "aggressive")) {
         g_auto_fight.auto_fight(this, me, "aggressive");
         return;
     }
@@ -210,7 +210,7 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
 
     if (env != who->environment()) return 0;  // 不在同一场景中
 
-    if (userp(this) && userp(who)
+    if (is_user(this) && is_user(who)
         && (query("level") < 75 || who->query("level") < 75))
         return notify_fail("才入江湖，何必动刀动枪。");
 
@@ -294,13 +294,13 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
     room->join_team(who, CFightRoom::FIGHT_TEAM_B);
 
     // 记录NK经验onwer
-    if (!(userp(who))) {
+    if (!(is_user(who))) {
         set_temp("fight/will_nk", who->object_id());
         who->set_temp("fight/owner", object_id());
     }
 
     // 环境内其他本帮派的加入战斗。
-    if (!userp(who)) {
+    if (!is_user(who)) {
         DTItemList search;
         const char *bangpai, *mbang, *ebang;
 
@@ -316,7 +316,7 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
             if (bangpai[0]) {
                 if (EQUALSTR(bangpai, ebang)) {
                     snprintf(msg, 255, "join %ld 1", room->object_id());
-                    if (!userp(msprite))  // NPC帮忙
+                    if (!is_user(msprite))  // NPC帮忙
                         static_cast<CChar*>(msprite)->command(msg);
                 }
             }

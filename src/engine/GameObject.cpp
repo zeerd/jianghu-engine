@@ -41,7 +41,7 @@ CContainer* random_get_item(CContainer* me, int type, CContainer* exclude)
 //---------------------------------------------------------
 // 角色查询
 //---------------------------------------------------------
-int living(CContainer* me) { return me->query_attr(CChar::IS_LIVING); }
+int is_living(CContainer* me) { return me->query_attr(CChar::IS_LIVING); }
 
 int wiz_level(CChar* me) { return me->query("grant"); }
 
@@ -213,13 +213,13 @@ int l_random_get_item(lua_State* L)
     return 1;
 }
 
-// living(ob) -> boolean
+// is_living(ob) -> boolean
 int l_living(lua_State* L)
 {
     CContainer* ob = NULL;
     if (lua_isuserdata(L, 1)) ob = dynamic_cast<CContainer*>(get_object(L, 1));
     if (ob)
-        lua_pushboolean(L, living(ob));
+        lua_pushboolean(L, is_living(ob));
     else
         lua_pushboolean(L, 0);
     return 1;

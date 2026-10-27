@@ -54,7 +54,7 @@ int CChar::recruit_apprentice(CChar* me)
     family.set("generation", my_family->query("generation") + 1);
     family.set("enter_time", g_current_time);
 
-    if (userp(this)) {
+    if (is_user(this)) {
         family.set("last_exp", me->query_exp());
         family.set("user", 1);
     }
@@ -171,7 +171,7 @@ CChar* CChar::query_leader() { return m_leader; }
 int CChar::follow_me(CChar* me, char* dir)
 {
     char msg[80];
-    if (!living(this) || me == this) return 0;
+    if (!is_living(this) || me == this) return 0;
 
     if (me == m_leader || (query("pursuer") && is_killing(me))) {
         return command(snprintf(msg, 80, "go 0 %s", dir));

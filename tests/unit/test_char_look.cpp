@@ -162,7 +162,7 @@ TEST_F(CharLookTest, DoLook_Hostile)
 // ---------------- do_look: wizard sees details ----------------
 TEST_F(CharLookTest, DoLook_WizardSeesExtras)
 {
-    me->set("grant", (long)100);  // wizardp(me) true
+    me->set("grant", (long)100);  // is_wizard(me) true
     ob->set("daily/family/少林派/daily", (long)50);
     ob->set_temp("apply/mf", (long)30);
     ob->set("misc/beekeeping/flower_supply", (long)7);

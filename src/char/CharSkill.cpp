@@ -210,13 +210,13 @@ void CChar::improve_skill(const char* skill, int amount, int weak_mode)
     sk = load_skill(skill);
     if (sk->query("fail_ob")) return;
 
-    if (!weak_mode || !userp(this)) {
+    if (!weak_mode || !is_user(this)) {
         if (skills.undefinedp(skill)) skills.set(skill, 0l);
     }
 
     learned.add(skill, amount);
 
-    if ((!weak_mode || !userp(this))
+    if ((!weak_mode || !is_user(this))
         && learned.query(skill)
                > (skills.query(skill) + 1) * (skills.query(skill) + 1)) {
         skills.add(skill, 1);
@@ -229,7 +229,7 @@ void CChar::improve_skill(const char* skill, int amount, int weak_mode)
         // 通知
         flush_my_skill(this);
 
-        if (userp(this)) {
+        if (is_user(this)) {
             LOG_DEBUG("improve_skill(%s(%s) %s(%d))", name(1), id(1), skill,
                       query_skill(skill, 1));
         }

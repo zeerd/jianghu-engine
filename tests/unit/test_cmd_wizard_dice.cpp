@@ -57,7 +57,7 @@ protected:
         room.set_name("dice_room", "dice_room");
         wiz = new StateRecordingUser();
         wiz->set_name("测试巫师", "wizdice");
-        wiz->set("grant", (long)200);  // wizardp 门槛
+        wiz->set("grant", (long)200);  // is_wizard 门槛
         wiz->move(&room);
         wiz->clear();  // 隔离 move 触发的投递
     }

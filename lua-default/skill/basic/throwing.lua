@@ -26,11 +26,11 @@ return {
             return notify_fail("你想偷袭谁？")
         end
 
-        if not wizardp(me) and wizardp(target) then
+        if not is_wizard(me) and is_wizard(target) then
             return notify_fail("玩家不能偷袭巫师。")
         end
 
-        if userp(target) then
+        if is_user(target) then
             return notify_fail("不能偷袭玩家。")
         end
 

@@ -139,45 +139,6 @@ std::vector<std::string> panel_combat(const GameState &gs)
     return lines;
 }
 
-// Wield position names for display (from CChar::Wield_Position in xclient)
-static std::string wield_position_name(int pos)
-{
-    switch (pos) {
-        case 1:
-            return "头部";
-        case 2:
-            return "左耳";
-        case 3:
-            return "右耳";
-        case 4:
-            return "耳环";
-        case 5:
-            return "颈部";
-        case 6:
-            return "左手";
-        case 7:
-            return "右手";
-        case 8:
-            return "手部";
-        case 9:
-            return "左手腕";
-        case 10:
-            return "右手腕";
-        case 11:
-            return "手腕";
-        case 12:
-            return "铠甲";
-        case 13:
-            return "腰带";
-        case 14:
-            return "鞋子";
-        case 15:
-            return "戒指";
-        default:
-            return "未知";
-    }
-}
-
 // Helper: true if item has valid metadata (for .info display filtering).
 static bool inv_has_meta(const ObjectInfo &item)
 {

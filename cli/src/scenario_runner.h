@@ -43,6 +43,11 @@ protected:
     std::string subst(const std::string &in) const;
     bool eval_cond(const std::string &cond, std::string &detail);
     bool eval_attr_cond(const std::string &val, std::string &detail);
+    // 取单个属性的当前值（未知名返回 false）。eval_attr_cond 与超时诊断共用
+    // 同一份属性名单，避免两处各写一份而漂移。
+    bool attr_value(const std::string &name, long long &out) const;
+    // 把 `attr <name> ...` 的实际值拼成 "<name>=<当前值>"，供超时失败原因附带。
+    std::string attr_snapshot(const std::string &cond) const;
     bool wait_cond(const std::string &cond, int timeout_ms);
     bool run_step(const Step &step);
     bool run_menu_step(const std::string &want);

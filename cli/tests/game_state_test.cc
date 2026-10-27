@@ -327,6 +327,22 @@ TEST_F(GameStateTest, ReceivePlayerInfo)
     EXPECT_EQ(state_.player_attr().str, 20);
 }
 
+// 开着 --dbg 时 RTNINFO 照常解析：DBG 只是旁路打印，不得改变状态更新结果。
+// 顺带覆盖 case 15 的 DBG 分支（默认关闭时该分支不执行）。
+TEST_F(GameStateTest, ReceivePlayerInfoWithDbgLogging)
+{
+    g_dbg_enabled.store(true);
+    state_.handle_message(make_msg(15, {{"T", "1001"},
+                                        {"p", "张三"},
+                                        {"e", "500"},
+                                        {"g", "1000"}}));
+
+    EXPECT_EQ(state_.player_attr().name, "张三");
+    EXPECT_EQ(state_.player_attr().hp, 500);
+    EXPECT_EQ(state_.player_attr().max_hp, 1000);
+    g_dbg_enabled.store(false);
+}
+
 TEST_F(GameStateTest, ReceiveInfoForOtherPlayerIgnored)
 {
     state_.handle_message(

@@ -30,7 +30,7 @@ double CCombatCalc::skill_power(CChar* ob, const char* skill, int usage)
 
     int32_t combat_exp = ob->query("combat_exp");
 
-    if (userp(ob) && combat_exp > 10000)
+    if (is_user(ob) && combat_exp > 10000)
         combat_exp = 6000 + combat_exp / 2;  // 玩家的经验值只有1/2是有效的。
 
     if (!level) return combat_exp / 2;
@@ -46,7 +46,7 @@ double CCombatCalc::skill_power(CChar* ob, const char* skill, int usage)
         abi = ob->query_dex();
     p = (power + combat_exp) / 30 * abi;
 
-    if (wizardp(ob) && EQUALSTR(ob->querystr("env/combat"), "verbose")) {
+    if (is_wizard(ob) && EQUALSTR(ob->querystr("env/combat"), "verbose")) {
         char msg[255];
         _snprintf(msg, 255,
                   "p:%.2f, skill：%s, level=%d, power=%.2f, exp=%ld, abi=%ld",

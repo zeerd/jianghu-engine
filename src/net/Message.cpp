@@ -102,7 +102,7 @@ const char* gender_pronoun(string sex)
 
 void tell_object(CContainer* ob, const char* str, const char* channel)
 {
-    if (userp(ob)) {
+    if (is_user(ob)) {
         if (channel && (static_cast<CUser*>(ob)->refuse_channel(channel)))
             return;
         message_vision_room(ob, "tell", str);
@@ -160,7 +160,7 @@ void message_channel(const char* channel, const char* msg, CChar* me,
         replace_string(str2, "$N", my_name, 512);
         replace_string(str2, "$n", gender_self(your_gender), 512);
 
-        if (userp(you) && !(static_cast<CChar*>(you)->refuse_channel(channel)))
+        if (is_user(you) && !(static_cast<CChar*>(you)->refuse_channel(channel)))
             tell_object(you, str2);
 
         replace_string(str1, "$p", gender_pronoun(your_gender), 512);
@@ -327,7 +327,7 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
         for (auto val : *t) {
             obj = val;
 
-            if (wizardp(static_cast<CChar*>(obj)))  // 是巫师
+            if (is_wizard(static_cast<CChar*>(obj)))  // 是巫师
                 dynamic_cast<IClientObject*>(obj)->send_command(
                     msg, SEND_WAIT_IMMEDIATE);
         }

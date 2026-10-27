@@ -38,7 +38,7 @@ void CChar::die()
     del("condition");  // 清除所有condition
     delete_temp("condition");
 
-    if (query_temp("fb_nodie") && userp(this))  // 非死亡副本
+    if (query_temp("fb_nodie") && is_user(this))  // 非死亡副本
     {
         remove_all_killer();
 
@@ -99,7 +99,7 @@ void CChar::die()
         g_reward.killer_reward(killer, this);
         killer->remove_killer(this);
         // 给存盘
-        if (userp(killer)) killer->save();
+        if (is_user(killer)) killer->save();
 
         killer->finish_kill(this);
     }
@@ -115,7 +115,7 @@ void CChar::die()
 
     if (!env->query("PK")) CCorpse::make_corpse(this, killer);
 
-    if (userp(this)) save();
+    if (is_user(this)) save();
 
     if (query_attr(IS_USER)) {
         remove_all_killer();

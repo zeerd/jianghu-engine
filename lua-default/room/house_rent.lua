@@ -3,7 +3,7 @@
 -- 「谁身上带着本房的租品」与「外人带着租品时哪些指令要拦下」，供
 -- room/house_base.lua 的查租、赶人与命令截获复用。
 --
--- Build+Run: .\run-coverage.ps1（HouseTest.*）；E2E 见 sample_house.sce
+-- Build+Run: .\run-coverage.ps1（HouseTest.*）；E2E 见 tests/integration/scenarios/house/
 
 local M = {}
 
@@ -146,7 +146,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
             return 1
         end
 
-        if userp(obj) then
+        if is_user(obj) then
             message_vision("$N疑惑的问着$n：你想拣什么？", yongren, me)
             return 1
         end

@@ -202,7 +202,7 @@ TEST_F(CharFamilyTest, FollowMe_NotLiving)
 {
     CChar* m = MakeMaster();
     CChar* a = new CChar();
-    // m is living by default; a==this check
+    // m is is_living by default; a==this check
     char dir[] = "north";
     EXPECT_EQ(m->follow_me(m, dir), 0);  // me == this -> 0
     delete a;

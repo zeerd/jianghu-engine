@@ -26,7 +26,7 @@
 #include "Global.h"
 #include "HeartBeat.h"  // g_destruct_list：暗器耗尽自毁后回收
 #include "Item.h"
-#include "Login.h"     // wizardp
+#include "Login.h"     // is_wizard
 #include "LuaSkill.h"  // CLuaSkill
 #include "Skill.h"
 #include "WeaponEffect.h"  // get_first_throwing_weapon
@@ -371,7 +371,7 @@ TEST_F(ThrowingTest, DoSneak_CannotTargetWizardOrPlayer)
     EXPECT_NE(std::string::npos,
               std::string(g_notify_fail_msg).find("不能偷袭巫师"));
 
-    // 玩家目标同样被拦（必须是真玩家：userp 判定）
+    // 玩家目标同样被拦（必须是真玩家：is_user 判定）
     auto* player         = MakeVictim("snk3_p");
     g_notify_fail_msg[0] = '\0';
     EXPECT_EQ(0, Sneak(me, player));

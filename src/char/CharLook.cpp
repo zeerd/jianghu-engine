@@ -167,8 +167,8 @@ int CChar::do_look(CChar* me)
         say(snprintf(msg, 255,
                      "%s看起来约%s多岁。%s%s%s%s武功看起来%s。%s%s%s%s", pro,
                      chinese_number(query("age") / 10 * 10, str), resident,
-                     wizardp(this) ? "是巫师。" : "",
-                     (query("age") > 15 || wizardp(me))
+                     is_wizard(this) ? "是巫师。" : "",
+                     (query("age") > 15 || is_wizard(me))
                          ? query_waimao(querystr("gender"), per)
                          : "",
                      pro, ability_evaluate[skills], family_des[0] ? pro : "",
@@ -199,7 +199,7 @@ int CChar::do_look(CChar* me)
     int32_t me_shen  = me->query("repute");
     int32_t obj_shen = query("repute");
 
-    if (this != me && living(this)
+    if (this != me && is_living(this)
         && ((me_shen < 0 && obj_shen > 0) || (me_shen > 0 && obj_shen < 0))
         && ((me_shen - obj_shen > query("mp") * 20)
             || (obj_shen - me_shen > query("mp") * 20))) {

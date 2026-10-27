@@ -443,7 +443,7 @@ protected:
         return it;
     }
 
-    // 录制玩家：userp 守卫（no_use/no_wield）与私发文案的观察面
+    // 录制玩家：is_user 守卫（no_use/no_wield）与私发文案的观察面
     StateRecordingUser* MakeUser(const char* id)
     {
         auto* u = new StateRecordingUser();
@@ -558,7 +558,7 @@ TEST_F(CmdStandardItemDeepTest, Get_SleepRoomCarryPerson_Rejected)
 {
     room->set("sleep_room", 1);  // area 未置 → 非民居客店(43)
     auto* sleeper = MakeUser("get_sleep1");
-    sleeper->set_temp("disabled", "1");  // 昏迷 → CAN_GET(=!living)
+    sleeper->set_temp("disabled", "1");  // 昏迷 → CAN_GET(=!is_living)
 
     g_notify_fail_msg[0] = '\0';
     EXPECT_EQ(0, CallGet(me, sleeper->object_id(), (char*)""));

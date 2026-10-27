@@ -22,5 +22,5 @@ int query_invalid_account(const char* id);
 // --- 工具 ---
 char* make_ip(char* main_ip, char* local_ip);
 char* get_ip(CChar* me);
-int wizardp(CChar* me);
-int userp(CContainer* me);
+int is_wizard(CChar* me);
+int is_user(CContainer* me);

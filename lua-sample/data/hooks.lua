@@ -7,6 +7,21 @@
 require("data.rank").install(hooks)
 require("data.quest").install(hooks)
 
+-- 新角色起步本金（金）
+local START_MONEY = 60000
+
+-- hooks.setup_human(me)
+--   调用点：C++ setup_human 末尾（属性/气血/分支/体重之后）。注册与每次登录
+--   都会走到，故以 dbase 的 start_money 标记 gating，只在首次发放一次。
+--   发放起步本金：新角色靠它购物、置业、存款，自立门户。
+--   只作用于玩家：青云子、老李头等 NPC 同为人类 race，也会走到此钩子。
+function hooks.setup_human(me)
+    if not is_user(me) then return end
+    if me:query("start_money") ~= 0 then return end
+    pay_player(me, START_MONEY)
+    me:set("start_money", 1)
+end
+
 -- hooks.kill_bonus(killer, victim, reward)
 --   调用点：CReward::handle_npc_kill_reward，击杀 NPC 的经验按 level*4+100
 --   封顶之后、入账之前。每次玩家击杀 NPC 都会被咨询（reward 可能为 0），

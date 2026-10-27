@@ -23,8 +23,8 @@ int CReward::victim_lose(CChar* killer, CChar* victim)
 {
     int32_t lose, exp_k, exp_v;
 
-    if ((wizardp(victim) && !wizardp(killer))
-        || (!wizardp(victim) && wizardp(killer)))
+    if ((is_wizard(victim) && !is_wizard(killer))
+        || (!is_wizard(victim) && is_wizard(killer)))
         return 0;
 
     exp_k              = killer->query("combat_exp");
@@ -247,7 +247,7 @@ int CReward::nk_gain(CChar* killer, CChar* victim)
             CContainer* obj1 = val;
             if (!obj1->is_character()) continue;
             CChar* target = static_cast<CChar*>(obj1);
-            if (!userp(target)) continue;
+            if (!is_user(target)) continue;
             if (target->query_temp("fight/fight_team")
                     != killer->query_temp("fight/fight_team")
                 || !target->query_temp("fight/is_fighting"))

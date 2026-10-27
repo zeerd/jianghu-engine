@@ -231,7 +231,7 @@ victim.receive_damage("hp", dmg, me)
 
 **Dependents**：
 - `src/cmd/`：`kill/fight/cast/join/guard/halt/flee/follow` 全部命令面。
-- `CReward` 结算被死亡流程、E2E 剧本（`sample_mainline.sce` 战斗步）消费。
+- `CReward` 结算被死亡流程、E2E 剧本（`combat/sneak_and_battle.sce` 战斗步）消费。
 - 客户端状态包：`CharFlush.cpp` 输出 `att/def` 战力显示与 `pks` 统计。
 
 **API Surface**（public interface）：
@@ -386,7 +386,7 @@ victim.receive_damage("hp", dmg, me)
 - ✅ NPC 四型敌对 AI、wimpy 自动逃跑、net-dead 保护。
 - ✅ 全决策点 Lua hook 覆盖（缺席即放行）。
 - ✅ 单测覆盖（`tests/unit/test_*combat*`、`test_cmd_wizard_system.cpp` 等）与
-  E2E 剧本战斗步（`sample_mainline.sce`）。
+  E2E 剧本战斗步（`combat/sneak_and_battle.sce`）。
 
 **What's Missing**（not yet implemented）：
 - ❌ 战斗数值的成文平衡基准（当前靠代码常量 + legacy 手感）。

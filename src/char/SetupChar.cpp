@@ -79,12 +79,12 @@ void setup_human(CChar* me)
     setup_human_base_attrs(me);
 
     int age = m->query("age");
-    if (userp(me) || m->undefinedp("max_hp")) setup_human_max_hp(me, age);
+    if (is_user(me) || m->undefinedp("max_hp")) setup_human_max_hp(me, age);
 
     if (m->undefinedp("gender")) m->set("gender", "男性");
     if (m->undefinedp("can_speak")) m->set("can_speak", 1);
 
-    if (userp(me)) {
+    if (is_user(me)) {
         if (m->undefinedp("level")) m->set("level", 1);
     }
     else
@@ -145,7 +145,7 @@ void setup_char(CChar* me)
     }
 
     // 设置NPC的等级
-    if (!userp(me) && m->undefinedp("level"))
+    if (!is_user(me) && m->undefinedp("level"))
         m->set("level", CChar::exp2level(m->query("combat_exp")));
 
     if (race == "人类")
@@ -157,14 +157,14 @@ void setup_char(CChar* me)
     else
         LOG_ERROR("Chard: undefined race %s。", race.c_str());
 
-    if (!userp(me) || m->undefinedp("hp"))  // 将NPC的hp上限补满
+    if (!is_user(me) || m->undefinedp("hp"))  // 将NPC的hp上限补满
         m->set("hp", m->query("max_hp"));
 
     if (m->undefinedp("eff_hp")
         || m->query("eff_hp") > m->query("max_hp"))  // 让有效上限不超过最大值。
         m->set("eff_hp", m->query("max_hp"));
 
-    if (m->undefinedp("repute") && !userp(me)) {
+    if (m->undefinedp("repute") && !is_user(me)) {
         m->set("repute", m->query("shen_type") * m->query("level") * 100);
     }
 

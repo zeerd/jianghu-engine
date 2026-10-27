@@ -1,5 +1,5 @@
 // test_bind_container_dbase.cpp — unit tests for the CMainObject/CContainer
-// dbase & temp-mapping binds now living in object/ContainerDbase.cpp.
+// dbase & temp-mapping binds now is_living in object/ContainerDbase.cpp.
 //
 #include "test_bind_common.h"
 

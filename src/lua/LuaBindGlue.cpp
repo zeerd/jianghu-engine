@@ -5,8 +5,19 @@
 #include "LuaBindIncludes.h"
 #include "IniParser.h"
 #include "ServerConfig.h"
+#include "../net/RegisterHall.h"
 
 // 迭代器内部状态结构
+
+// enter_register_hall(me) - move the player into the register hall
+// (same entry as guest login; see net/RegisterHall.cpp)
+int l_enter_register_hall(lua_State* L)
+{
+    CChar* me = dynamic_cast<CChar*>(get_object(L, 1));
+    if (!me) return 0;
+    enter_register_hall(me);
+    return 0;
+}
 
 typedef DTItemList::iterator ListIterType;
 

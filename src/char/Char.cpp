@@ -96,7 +96,7 @@ void CChar::heart_beat()
     if (!environment()) return;
     if (is_loading()) {
         m_wait_loading++;
-        if (m_wait_loading > 5 && userp(this))  // 5秒后自动切入地图
+        if (m_wait_loading > 5 && is_user(this))  // 5秒后自动切入地图
         {
             // 让他进入
             command("loc 0 0 0");
@@ -133,11 +133,11 @@ void CChar::heart_beat()
         set("combat_exp", LONGMAX);
     }
 
-    if (userp(this)) {
+    if (is_user(this)) {
         m_save_count++;
         if (m_save_count >= 100) {
             m_save_count = g_utils.random(40);
-            if (userp(this)) save();  // auto save
+            if (is_user(this)) save();  // auto save
         }
 
         send_off();
@@ -204,7 +204,7 @@ void CChar::heart_beat()
 
     if (g_combat_config.kick_idle()) {
         if (static_cast<CUser*>(this)->query_idle() > IDLE_TIMEOUT
-            && !wizardp(this)) {
+            && !is_wizard(this)) {
             static_cast<CUser*>(this)->user_dump();
         }
     }

@@ -81,7 +81,7 @@ int CCmdStandard::go_door(CChar* me, int32_t target, char* arg)
 
         for (auto val : search) {
             obj = val;
-            if (!living(obj)) continue;
+            if (!is_living(obj)) continue;
             if (obj == me) continue;
             if (obj->environment() != env) continue;  // 已经移动
             // 检查队伍中的跟随情况
@@ -157,7 +157,7 @@ int CCmdStandard::Sleep(CChar* me, int32_t target, char* arg)
     if (!(obj = get_room_char(me, target)))
         return notify_fail("你想跟谁一起睡？");
 
-    if (!userp(obj)) return notify_fail("人家可不愿理你！");
+    if (!is_user(obj)) return notify_fail("人家可不愿理你！");
 
     // can't sleep with npc...
 
@@ -194,7 +194,7 @@ int CCmdStandard::Sleep(CChar* me, int32_t target, char* arg)
     if (me->query_temp("apply/index"))
         return notify_fail("你穿的这么整齐，是去上街还是要睡觉呢？");
 
-    if (userp(obj) && obj->query_temp("pending/sleep") != me->object_id()) {
+    if (is_user(obj) && obj->query_temp("pending/sleep") != me->object_id()) {
         message_vision("\n$RED$N含情脉脉地对$n说：我．．．\n\n", me, obj);
 
         me->set_temp("pending/sleep", obj->object_id());
@@ -295,7 +295,7 @@ int CCmdStandard::exercise(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_exercise的场景使用Exercise命令
     CContainer* env = me->environment();
-    if ((env->query("no_exercise") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_exercise") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止练功。");
 
     int hp_cost, busy_time;
@@ -421,7 +421,7 @@ int CCmdStandard::say(CChar* me, int32_t target, char* arg)
 
     // 禁止在设置为no_say的场景使用Say命令
     CContainer* env = me->environment();
-    if ((env->query("no_say") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_say") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止说话。");
 
     if (me->query("no_say") || me->query_temp("no_say"))
@@ -474,7 +474,7 @@ int CCmdStandard::tell(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_tell的场景使用Tell命令
     CContainer* env = me->environment();
-    if ((env->query("no_tell") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_tell") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止私聊。");
 
     char msg[512];
@@ -482,14 +482,14 @@ int CCmdStandard::tell(CChar* me, int32_t target, char* arg)
 
     if (!(who = find_player(target))) return notify_fail("没有这个人。。。");
 
-    if (!living(who) || who->query_temp("net_dead"))
+    if (!is_living(who) || who->query_temp("net_dead"))
         return notify_fail("对方听不到你讲话。");
 
     char key[80];
 
     snprintf(key, 80, "notell/%s", me->querystr("id"));
 
-    if (!wizardp(me) && (who->query_temp(key) || who->query_temp("notell/all")))
+    if (!is_wizard(me) && (who->query_temp(key) || who->query_temp("notell/all")))
         return notify_fail("%s不接受你的悄悄话。", who->name(1));
 
     if (!g_channel.check_channel_msg(me, "tell", arg, 0)) return 0;
@@ -503,7 +503,7 @@ int CCmdStandard::tell(CChar* me, int32_t target, char* arg)
 
     // 判断对方是否发呆中
     int idle;
-    if (userp(who) && (idle = static_cast<CUser*>(who)->query_idle()) > 180) {
+    if (is_user(who) && (idle = static_cast<CUser*>(who)->query_idle()) > 180) {
         tell_object(me, snprintf(msg, 400,
                                  "$HIG%s已经发呆了%d秒，可能不能马上回答你哦～",
                                  who->name(), idle));

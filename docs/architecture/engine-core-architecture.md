@@ -395,8 +395,9 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 - **单元测试**：`tests/unit/tests.vcxproj`，静态库 `jianghu_core.lib` + 链接期 mock
   （`mock_db.cpp`、`mock_itemmgr.cpp`、`mock_net.cpp`、`mock_database.h`）；
   真实 Lua 链接，脚本测试只针对 `lua-default` 与 `lua-sample`。
-- **E2E**：`run-integration-tests.ps1` 起真实服务器 + 无头 CLI + 四部剧本
-  （`register` / `sample_mainline` / `sample_social` / `sample_house`，约 460 步）。
+- **E2E**：`run-integration-tests.ps1` 起真实服务器 + 无头 CLI + **多账号并行的四条道**
+  （`register.sce` 先并行注册，再并行跑 `lane_foot` / `lane_skill` / `lane_combat` /
+  `lane_social`——每道一个独立账号，`include` 串起各自的剧本片段）。
 - **唯一认可的验证入口**：仓库根 `.\run-coverage.ps1`（`Release|Win32`，
   绝对禁止 Debug —— Debug 与 Release 不是同一个被测对象）。
 - Coverage：门槛 75% 及格 / 90% 良好；E2E 行覆盖约 33%（缺口是系统性的，由单测兜底）。

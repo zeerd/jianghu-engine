@@ -78,7 +78,7 @@ void CContainer::clean_up()
 
     for (auto obj2 : search) {
         //      obj->move(room);            //物品落入空房间
-        if (userp(obj2))
+        if (is_user(obj2))
             obj2->move(room);
         else {
             if (!query("saveobjects")) {

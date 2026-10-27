@@ -23,7 +23,7 @@ int CCmdUser::skill(CChar* me, int32_t target, char* arg)
     if (!who) who = me;
 
     // 判断me是否有权限看who的技能。
-    if (!wizardp(me) && me != who && !is_relative(me, who)
+    if (!is_wizard(me) && me != who && !is_relative(me, who)
         && !who->recognize_apprentice(me))
         return notify_fail("你无权查看对方技能。");
 

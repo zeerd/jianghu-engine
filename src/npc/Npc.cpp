@@ -33,7 +33,7 @@ int CNpc::self_action()
     const char* ptr = NULL;
 
     if (!environment()) return 0;
-    if (!living(this)) return 0;
+    if (!is_living(this)) return 0;
 
     if (!(chance
           = is_fighting() ? query("chat_chance_combat") : query("chat_chance")))

@@ -89,7 +89,7 @@ int CCmdUser::set_param(CChar* me, int32_t target, char* arg)
     analyse_string(arg, val, 40);
 
     wiz_only.load_buffer(str_wiz_only);
-    if (!wizardp(me) && wiz_only.find(arg) != wiz_only.end())
+    if (!is_wizard(me) && wiz_only.find(arg) != wiz_only.end())
         return notify_fail("只有巫师能用这个设定。");
 
     if (strcmp(arg, "wimpy") == 0 && (atol(val) < 0 || atol(val) > 80))

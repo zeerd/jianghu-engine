@@ -187,7 +187,7 @@ TEST_F(CharStateTest, SendState_Npc_NoBroadcast_SuppressesOthers)
 }
 
 // 投递能力而非身份：未建立 client 连接、或已掉线的玩家，同样不该拼装私发包。
-// 这两种状态用 userp()（只看 IS_USER）判不出，旧写法会给出相反结论。
+// 这两种状态用 is_user()（只看 IS_USER）判不出，旧写法会给出相反结论。
 // 注意：不进房间——玩家 move() 会经 change_room 设置 client/loading 键，
 // 那之后就已经"有客户端"了，得不到这里的初始状态。
 TEST_F(CharStateTest, SendState_UserNoEndpoint_NoPrivate)
@@ -433,7 +433,7 @@ TEST_F(CharStateTest, ReviveEscapesNestedCharContainer)
     carrier.move(&room);
 
     ch->move(&carrier);       // 人在角色容器内
-    ch->disable_player("x");  // 非 living → revive 走
+    ch->disable_player("x");  // 非 is_living → revive 走
     ch->revive(1);
 
     EXPECT_EQ(static_cast<CContainer*>(&room), ch->environment())

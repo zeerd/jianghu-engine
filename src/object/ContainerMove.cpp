@@ -40,7 +40,7 @@ int CContainer::move(CContainer* me)
         return 0;
     }
 
-    if (query("value") >= 500000 && userp(me)) {
+    if (query("value") >= 500000 && is_user(me)) {
         char msg[255];
         char color[10];
 
@@ -80,7 +80,7 @@ int CContainer::move(CContainer* me)
                           name(), me->name(), weight(), me->query_encumb(),
                           me->query_max_encumbrance());
                 // 为了预防玩家不停的移动造成复制，在移动失败后强制忙乱
-                if (userp(me)) ((CChar*)me)->start_busy(4);
+                if (is_user(me)) ((CChar*)me)->start_busy(4);
                 return 0;  // 太重了。
             }
         }
@@ -90,7 +90,7 @@ int CContainer::move(CContainer* me)
     if (m_environment) {
         m_environment->on_leave(this);
 
-        if (userp(m_environment)) m_environment->save();
+        if (is_user(m_environment)) m_environment->save();
 
         m_environment = NULL;
     }
@@ -129,7 +129,7 @@ void CContainer::change_room(CContainer* me)
         on_add_object(me, this);     // 对场景而言,是加了个东西
     }
 
-    if (!userp(me)) return;
+    if (!is_user(me)) return;
 
     const char* map = querystr("map");
 
@@ -175,7 +175,7 @@ MAP2USER* CContainer::get_users(const char* channel, MAP2USER* list)
     if (!this) return list;
 
     for (auto obj2 : m_item_list) {
-        if (userp(obj2) && !static_cast<CUser*>(obj2)->refuse_channel(channel))
+        if (is_user(obj2) && !static_cast<CUser*>(obj2)->refuse_channel(channel))
             (*list)[obj2->object_id()] = static_cast<CUser*>(obj2);
     }
 
@@ -240,7 +240,7 @@ void CContainer::on_enter(CContainer* me)
 // 增加一个物件的通讯
 void CContainer::on_add_object(CContainer* obj, CContainer* env)
 {
-    if (!userp(this)) return;
+    if (!is_user(this)) return;
 
     char tmp[64];
     std::string cmd;
@@ -285,7 +285,7 @@ void CContainer::on_name_changed()
     if (!m_environment) return;
 
     // 物品在玩家身上/背包：容器本身就是持有者
-    if (userp(m_environment)) {
+    if (is_user(m_environment)) {
         m_environment->on_add_object(this, m_environment);
         return;
     }
@@ -293,7 +293,7 @@ void CContainer::on_name_changed()
     DTItemList search;
     copy_list(&search, m_environment->get_item_list());
     for (auto obj : search) {
-        if (userp(obj)) obj->on_add_object(this, m_environment);
+        if (is_user(obj)) obj->on_add_object(this, m_environment);
     }
     search.clear();
 }

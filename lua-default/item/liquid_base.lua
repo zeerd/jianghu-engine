@@ -46,7 +46,7 @@ function liquid_base.do_use(self, me, target)
 
     local msg = self:querystr("drink_msg")
 
-    if not living(me) then
+    if not is_living(me) then
         return 1
     end
     if me:is_busy() then
@@ -105,7 +105,7 @@ end
 
 -- 填充液体
 function liquid_base.do_fill(self, me)
-    if not living(me) then
+    if not is_living(me) then
         return 1
     end
     if me:is_busy() then

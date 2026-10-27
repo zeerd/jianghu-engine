@@ -199,7 +199,7 @@ void CAttack::resolve_dodge(AttackContext& ctx)
     ctx.mod_val             = 0;
     std::string dodge_skill = ctx.dodge_skill;
 
-    if (living(ctx.victim)) {
+    if (is_living(ctx.victim)) {
         dodge_skill     = ctx.victim->query_skill_mapped("dodge");
         ctx.dodge_skill = dodge_skill;
     }
@@ -247,7 +247,7 @@ void CAttack::resolve_dodge(AttackContext& ctx)
         }
 
         // NPC attacker gains exp when dodged
-        if (ctx.ap <= ctx.dp && !userp(ctx.me)) {
+        if (ctx.ap <= ctx.dp && !is_user(ctx.me)) {
             ctx.add_exp_me = 1 + g_utils.random(ctx.me->query("level") / 5 + 1);
             if (g_utils.random(ctx.me->query_int()) > 15)
                 ctx.me->add("combat_exp", ctx.add_exp_me);
@@ -591,7 +591,7 @@ void CAttack::send_verbose_debug(AttackContext& ctx)
 {
     char msg[255];
 
-    if (wizardp(ctx.me)
+    if (is_wizard(ctx.me)
         && EQUALSTR(ctx.me->querystr("env/combat"), "verbose")) {
         if (ctx.damage > 0) {
             _snprintf(
@@ -605,7 +605,7 @@ void CAttack::send_verbose_debug(AttackContext& ctx)
         message_vision_room(ctx.me, "tell", msg);
     }
 
-    if (wizardp(ctx.victim)
+    if (is_wizard(ctx.victim)
         && EQUALSTR(ctx.victim->querystr("env/combat"), "verbose")) {
         if (ctx.damage > 0) {
             _snprintf(

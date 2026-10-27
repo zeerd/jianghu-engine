@@ -12,7 +12,7 @@ int CCmdStandard::kill(CChar* me, int32_t target, char* arg)  // 记仇的
 
     if (!(who = get_room_char(me, target))) return 0;
 
-    if (userp(me) && me->querystr_temp("party/master")
+    if (is_user(me) && me->querystr_temp("party/master")
         && me->querystr_temp("party/master")[0]
         && me->query_temp("party/follow")) {
         CChar* pary_master
@@ -22,7 +22,7 @@ int CCmdStandard::kill(CChar* me, int32_t target, char* arg)  // 记仇的
         }
     }
 
-    if (userp(me) && userp(who)) {
+    if (is_user(me) && is_user(who)) {
         // 出手准入：任一数据集规则反对即拒绝（规则内容与归属全在 Lua）
         std::string gate = combat_rule_reason("attack_gate", me, who);
         if (!gate.empty()) return notify_fail("%s", gate.c_str());
@@ -40,7 +40,7 @@ int CCmdStandard::kill(CChar* me, int32_t target, char* arg)  // 记仇的
         me->set_killer(who);
         who->set_killer(me);
 
-        if (env->query("city") && userp(who)) {
+        if (env->query("city") && is_user(who)) {
             // 守卫反应：任一数据集规则命中则豁免召唤（如受害者已在名单中）
             if (!combat_rule_yes("guard_response", me, who)) {
                 CNpc* guard = load_npc("pub_guard");
@@ -49,7 +49,7 @@ int CCmdStandard::kill(CChar* me, int32_t target, char* arg)  // 记仇的
                 guard->set("guard", atoi(who->id(1)));
             }
         }
-        if (userp(me) && userp(who)) static_cast<CUser*>(me)->ready_pk();
+        if (is_user(me) && is_user(who)) static_cast<CUser*>(me)->ready_pk();
         return 1;
     }
 
@@ -69,7 +69,7 @@ int CCmdStandard::cast(CChar* me, int32_t target, char* arg)
 
     if (((me->environment())->query("no_cast")
          || (me->environment())->query("no_all"))
-        && !wizardp(me))
+        && !is_wizard(me))
         return notify_fail("这里禁止使用法术！");
 
     if (me->query_temp("no_cast")) return notify_fail("你不能立刻使用法术!");
@@ -137,9 +137,9 @@ int CCmdStandard::cast(CChar* me, int32_t target, char* arg)
         // 非敌意（治疗/增益/自身调理）不挂标记；敌意且波及玩家受害者、
         // 或无需选定受害者的全场技（狮子吼一类）挂标记。
         if (owner->query_magic_hostile(magic)
-            && ((who && userp(who) && who != me)
+            && ((who && is_user(who) && who != me)
                 || owner->query_magic_target(magic) == CSkill::CAST_TO_NONE)) {
-            if (userp(me)) {
+            if (is_user(me)) {
                 static_cast<CUser*>(me)->ready_pk();
             }
         }
@@ -157,7 +157,7 @@ int CCmdStandard::join_battle(CChar* me, int32_t target, char* arg)
     // 禁止在设置为no_join的场景使用JoinBattle命令
     if (((me->environment())->query("no_join")
          || (me->environment())->query("no_all"))
-        && !wizardp(me))
+        && !is_wizard(me))
         return notify_fail("这里禁止加入战斗");
 
     int team;
@@ -182,7 +182,7 @@ int CCmdStandard::join_battle(CChar* me, int32_t target, char* arg)
             CContainer* obj_smash = val;
             if (!obj_smash->is_character()) continue;
             CChar* target = static_cast<CChar*>(obj_smash);
-            if (!userp(target)) continue;
+            if (!is_user(target)) continue;
             if ((target->query_temp("fight/is_fighting")
                  && target->query_temp("net_dead"))) {
                 obj->set("smash", 1);
@@ -201,13 +201,13 @@ int CCmdStandard::join_battle(CChar* me, int32_t target, char* arg)
         CContainer* obj1 = val;
         if (!obj1->is_character()) continue;
         CChar* target = static_cast<CChar*>(obj1);
-        if (!userp(target) && !target->query("help")
+        if (!is_user(target) && !target->query("help")
             && !combat_rule_yes("join_battle", me, target)) {
             team_obj = target->query_temp("fight/fight_team");
             break;
         }
     }
-    if (team_obj != 100 && team == team_obj && userp(me)
+    if (team_obj != 100 && team == team_obj && is_user(me)
         && !obj->query("smash")) {
         return notify_fail("此战斗禁止加入NPC一方!");
     }
@@ -221,7 +221,7 @@ int CCmdStandard::join_battle(CChar* me, int32_t target, char* arg)
                   snprintf(msg, 255, "%s加入战队%d.", me->name(), team));
 
         // PK Mark!
-        if (userp(me)) static_cast<CUser*>(me)->ready_pk();
+        if (is_user(me)) static_cast<CUser*>(me)->ready_pk();
     }
     return 1;
 }
@@ -239,7 +239,7 @@ int CCmdStandard::guard(CChar* me, int32_t target, char* arg)
     if (!(obj = get_room_object(me, target))) return 0;
     if (!obj->query_attr(CChar::IS_FIGHTROOM)) return 0;
 
-    if (!wizardp(me)) {
+    if (!is_wizard(me)) {
         // 观战准入：战斗声明 no_guard 即拒绝，文案可选
         const char* reason = obj->querystr("no_guard");
         if (reason[0]) return notify_fail("%s", reason);
@@ -274,13 +274,13 @@ int CCmdStandard::fight(CChar* me, int32_t target, char* arg)
     }
     //----------------------------------------
 
-    if ((env->query("no_fight") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_fight") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止战斗。");
 
     if (!(who = get_room_char(me, target)))
         return notify_fail("你要和谁切磋？");
 
-    if (userp(me) && me->querystr_temp("party/master")
+    if (is_user(me) && me->querystr_temp("party/master")
         && me->querystr_temp("party/master")[0]
         && me->query_temp("party/follow")) {
         CChar* pary_master
@@ -292,13 +292,13 @@ int CCmdStandard::fight(CChar* me, int32_t target, char* arg)
 
     if (env->query_attr(CChar::IS_FIGHTROOM)) return 1;  // 已经在战斗了。
 
-    if (!living(who)) return notify_fail("%s已经无法战斗了。", who->name());
+    if (!is_living(who)) return notify_fail("%s已经无法战斗了。", who->name());
 
     if (who == me) return notify_fail("你不能攻击自己。");
 
     if (who->is_busy()) return notify_fail("对方没空理你。");
 
-    if (userp(who) && who->query_temp("pending/fight") != me->object_id()) {
+    if (is_user(who) && who->query_temp("pending/fight") != me->object_id()) {
         message_vision(snprintf(msg, 255, "$N对著$n说道：%s%s，领教%s的高招！",
                                 query_self(me), me->name(), query_respect(who)),
                        me, who);
@@ -334,7 +334,7 @@ int CCmdStandard::follow(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_follow的场景使用Follow命令
     CContainer* env = me->environment();
-    if ((env->query("no_follow") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_follow") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止跟随他人。");
 
     CChar* who;

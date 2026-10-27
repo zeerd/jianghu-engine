@@ -201,7 +201,7 @@ void CRoom::change_room(CContainer* me)
 
     CContainer::change_room(me);
 
-    if (userp(me)) {
+    if (is_user(me)) {
         // 进入普通场景清除副本死亡不损失标志；副本房（CFBRoom）保留，
         // 故按 IS_FBROOM 分流——CRoom 由此吸收原 CFBRoom::change_room。
         if (!query_attr(IS_FBROOM)) me->delete_temp("fb_nodie");

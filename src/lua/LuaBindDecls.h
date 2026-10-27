@@ -81,6 +81,7 @@ int l_drop_all(lua_State* L);
 int l_eff_status_msg(lua_State* L);
 int l_enable_player(lua_State* L);
 int l_end_fight(lua_State* L);
+int l_enter_register_hall(lua_State* L);
 int l_environment(lua_State* L);
 int l_exp2level(lua_State* L);
 int l_fight_ob(lua_State* L);

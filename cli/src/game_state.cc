@@ -195,6 +195,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
         case 15: {
             ObjectID target_id = msg.get_int("T");
             if (target_id == player_id_) {
+                DBG("RTNINFO: " << msg.to_string());
                 player_attr_.id           = target_id;
                 player_attr_.name         = msg.get("p");
                 player_attr_.icon         = static_cast<int>(msg.get_int("P"));

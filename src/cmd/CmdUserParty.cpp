@@ -4,7 +4,7 @@ int CCmdUser::party(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_invite的场景使用Talk命令
     CContainer* env = me->environment();
-    if ((env->query("no_invite") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_invite") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止邀请他人。");
 
     CChar* who;
@@ -167,7 +167,7 @@ int CCmdUser::partyfollow(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_follow的场景使用Follow命令
     CContainer* env = me->environment();
-    if ((env->query("no_follow") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_follow") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止跟随他人。");
     char msg[255];
 

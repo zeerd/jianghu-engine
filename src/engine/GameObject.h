@@ -24,7 +24,7 @@ CContainer* random_get_item(CContainer* me, int type,
                             CContainer* exclude = NULL);
 
 // --- 角色查询 ---
-int living(CContainer* me);
+int is_living(CContainer* me);
 int wiz_level(CChar* me);
 
 // --- 地图实时位置（客户端地图同步用的 map/* 临时坐标） ---

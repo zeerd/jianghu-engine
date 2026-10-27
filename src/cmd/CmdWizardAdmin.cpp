@@ -365,7 +365,7 @@ int CCmdWizard::chblk(CChar* me, int32_t target, char* arg)
     analyse_string(arg, arg1, 40);
 
     if (!(who = find_online(arg))) return notify_fail("你要关谁的频道。");
-    if (wizardp(who)) return notify_fail("不能关闭巫师的频道。");
+    if (is_wizard(who)) return notify_fail("不能关闭巫师的频道。");
 
     if (strcmp(arg1, "open") == 0) {
         who->del("chblk");

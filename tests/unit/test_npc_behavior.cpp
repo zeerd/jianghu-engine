@@ -2,7 +2,7 @@
 // / random_move 随机走动 / 战斗态自走分支（src/npc/Npc.cpp）
 //
 // 关键约定：
-//   - living = !IS_LIVING：set_temp("disabled","1") 置假（test_auto_fight
+//   - is_living = !IS_LIVING：set_temp("disabled","1") 置假（test_auto_fight
 //   先例）
 //   - is_fighting = query_temp("fight/is_fighting")（Char.cpp 直读 temp）
 //   - set_inquiry 为 protected：派生 using 暴露（test_cmd_user_social 先例）

@@ -155,7 +155,7 @@ void CItem::set_amount(int32_t amount)
     CContainer* env = environment();
     if (env) {
         if (env->query_attr(IS_BOX)) static_cast<CBox*>(env)->save_local();
-        if (userp(env)) env->save();
+        if (is_user(env)) env->save();
     }
 
     update_me();
@@ -179,7 +179,7 @@ int CItem::do_look(CChar* me)
 
     list = get_item_list();
     if (list->size()
-        && (DIFFERSTR(querystr("status"), "locked") || wizardp(me))) {
+        && (DIFFERSTR(querystr("status"), "locked") || is_wizard(me))) {
         add_menu_item("里面有：", "", me);
         for (auto val : *list) {
             item = val;
@@ -247,7 +247,7 @@ void CItem::init()
 {
     if (query_amount() > 1) {
         if (!query_attr(CAN_COMBINE)) {
-            if (userp(environment())) {
+            if (is_user(environment())) {
                 char msg[255];
                 environment()->move(load_room("jy"));
                 g_channel.do_channel(

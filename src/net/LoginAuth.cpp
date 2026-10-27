@@ -60,9 +60,9 @@ char* get_ip(CChar* me)
     return make_ip(MainIP, LocalIP);
 }
 
-int wizardp(CChar* me) { return me->query("grant") >= CChar::GRANT_WIZARD; }
+int is_wizard(CChar* me) { return me->query("grant") >= CChar::GRANT_WIZARD; }
 
-int userp(CContainer* me)
+int is_user(CContainer* me)
 {
     if (!me) return 0;
     return me->query_attr(CChar::IS_USER);
@@ -109,22 +109,22 @@ int query_invalid_account(const char* id) { return db_query_freeze(id); }
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// userp(ob) -> boolean - 是否玩家
+// is_user(ob) -> boolean - 是否玩家
 int l_userp(lua_State* L)
 {
     CMainObject* obj = NULL;
     if (lua_isuserdata(L, 1)) obj = get_object(L, 1);
-    lua_pushboolean(L, obj ? userp(dynamic_cast<CContainer*>(obj)) : 0);
+    lua_pushboolean(L, obj ? is_user(dynamic_cast<CContainer*>(obj)) : 0);
     return 1;
 }
 
-// wizardp(me) -> boolean
+// is_wizard(me) -> boolean
 int l_wizardp(lua_State* L)
 {
     CChar* me = NULL;
     if (lua_isuserdata(L, 1)) me = dynamic_cast<CChar*>(get_object(L, 1));
     if (me)
-        lua_pushboolean(L, wizardp(me));
+        lua_pushboolean(L, is_wizard(me));
     else
         lua_pushboolean(L, 0);
     return 1;

@@ -311,7 +311,7 @@ TEST_F(CharFlushTest, FlushMyInfo_SkillTypeSelection)
         << u->msgs[0];
     EXPECT_NE(att_sword, att_unarmed);
 
-    // 不 move(nullptr)（会触发 userp(u)->save()）；CItem dtor 为空，
+    // 不 move(nullptr)（会触发 is_user(u)->save()）；CItem dtor 为空，
     // u 的列表在 TearDown 析构时不被遍历。
     delete sword;
 }

@@ -65,8 +65,8 @@ TEST(SmokeTest, MockFunctionsLink)
     extern void message_vision(const char*, CContainer*, CContainer*, bool);
     extern bool db_save_object(const char*, long, const char*, const char*);
     extern bool db_load_object(const char*, long, std::string&, std::string&);
-    extern int userp(CContainer*);
-    extern int wizardp(CChar*);
+    extern int is_user(CContainer*);
+    extern int is_wizard(CChar*);
 
     tell_object(nullptr, "test", "system");
     message_vision("test", nullptr, nullptr, false);
@@ -74,8 +74,8 @@ TEST(SmokeTest, MockFunctionsLink)
     EXPECT_FALSE(db_save_object("owner", 1, "item", "data"));
     std::string base, data;
     EXPECT_FALSE(db_load_object("owner", 1, base, data));
-    EXPECT_EQ(userp(nullptr), 0);
-    EXPECT_EQ(wizardp(nullptr), 0);
+    EXPECT_EQ(is_user(nullptr), 0);
+    EXPECT_EQ(is_wizard(nullptr), 0);
 }
 
 TEST(SmokeTest, StackingLogic)

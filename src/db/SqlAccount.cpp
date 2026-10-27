@@ -82,7 +82,7 @@ long db_register_account(const char* name, const char* passwd,
     }
 
     try {
-        // 四维合法性：单项 10~30，总和 84（与 make_body/verify_user 一致）
+        // 四维合法性：单项 10~30，总和 84（与 verify_user 一致）
         if (str < 10 || str > 30 || con < 10 || con > 30 || intel < 10
             || intel > 30 || dex < 10 || dex > 30) {
             if (err)
@@ -137,13 +137,19 @@ long db_register_account(const char* name, const char* passwd,
         std::string esc_name  = sql_escape_literal(name);
         std::string esc_email = sql_escape_literal(email);
 
+        // 起手值列与 init_new_char 同源（NEW_CHAR_*）：在首次登录建档之前，
+        // 账号行的年龄/等级也应是新角色的真实起手值，而不是列默认的 0。
+        // 经验保持缺省 0；cc_savedata 仍按设计由首次登录的新人分支建立
+        //（见 verify_user）。
         std::string sql
             = "insert into jianghudb (cc_name, cc_passwd, cc_email, cc_gender, "
-              "cc_str, cc_int, cc_con, cc_dex) values ('"
+              "cc_str, cc_int, cc_con, cc_dex, cc_age, cc_level) values ('"
               + esc_name + "', '" + sql_escape_literal(pass) + "', '"
               + esc_email + "', '" + sql_escape_literal(gender) + "', "
               + std::to_string(str) + ", " + std::to_string(intel) + ", "
-              + std::to_string(con) + ", " + std::to_string(dex) + ")";
+              + std::to_string(con) + ", " + std::to_string(dex) + ", "
+              + std::to_string(NEW_CHAR_AGE) + ", "
+              + std::to_string(NEW_CHAR_LEVEL) + ")";
         if (g_db->execute(sql.c_str()) != 0) {
             LOG_ERROR("db_register_account: insert fail! %s", g_db->error());
             if (err) snprintf(err, errlen, "注册失败，请稍后再试。");

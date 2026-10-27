@@ -23,7 +23,7 @@ return {
             "$RED$N被$n的内力一震，眼前一黑，身子向后飞出丈许！！",
         }
 
-        if userp(me) then
+        if is_user(me) then
             me:add("mp", -factor)
         end
 

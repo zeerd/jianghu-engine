@@ -267,7 +267,7 @@ int CChatChannel::check_channel_msg(CChar* me, const char* verb,
     char msg[255];
 
     // 1, 禁忌字眼.
-    if (userp(me) && strcmp(verb, "noise") != 0) {
+    if (is_user(me) && strcmp(verb, "noise") != 0) {
         for (const auto& word : m_chanbanword) {
             if (lstrchr((const unsigned char*)chat,
                         (const unsigned char*)word.c_str()))
@@ -277,10 +277,10 @@ int CChatChannel::check_channel_msg(CChar* me, const char* verb,
     }
 
     // 2,防止频率过快.
-    if (!wizardp(me) && EQUALSTR(me->querystr_temp("last_channel_msg"), chat))
+    if (!is_wizard(me) && EQUALSTR(me->querystr_temp("last_channel_msg"), chat))
         return notify_fail("用交谈频道说话请不要重复相同的讯息。");
 
-    if (!wizardp(me)) {
+    if (!is_wizard(me)) {
         me->set_temp("last_channel_msg", chat);
         me->add_temp("channel_msg_cnt", 1);
         if (me->query_temp("channel_msg_cnt") > 5) {
@@ -317,7 +317,7 @@ int CChatChannel::filter_listener(CUser* ppl, CMapping* ch)
 {
     if (!ppl->environment()) return 0;
 
-    if (ch->query("wiz_only")) return wizardp(ppl);
+    if (ch->query("wiz_only")) return is_wizard(ppl);
 
     return 1;
 }
@@ -325,7 +325,7 @@ int CChatChannel::filter_listener(CUser* ppl, CMapping* ch)
 // 分组成员判定：同分组键同值；巫师恒通过（环境存在性由 filter_listener 管）
 int CChatChannel::group_listener(CUser* ppl, const char* value, const char* key)
 {
-    if (wizardp(ppl)) return 1;
+    if (is_wizard(ppl)) return 1;
     return EQUALSTR(ppl->querystr(key), value);
 }
 
@@ -433,7 +433,7 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
 
     snprintf(block_key, 20, "chblk/%s", verb);
 
-    if (userp(me) && !wizardp(me)) {
+    if (is_user(me) && !is_wizard(me)) {
         if (g_current_time < me->query("chblk/all"))
             return notify_fail("你所有的聊天频道都被关闭了！");
 
@@ -441,19 +441,19 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
             return notify_fail("你的这个频道被关闭了！");
     }
 
-    if (userp(me)) {
+    if (is_user(me)) {
         if ((channel->query("wiz_only") || channel->query("wiz_use"))
-            && !wizardp(me))
+            && !is_wizard(me))
             return 0;
 
         if (channel->query("newbie") != 1 && me->query("age") < 15
-            && !wizardp(me))
+            && !is_wizard(me))
             return notify_fail("你的年纪太小了，只能用新手频道说话。");
 
         // check if same channel message but not wizard
         if (!check_channel_msg(me, verb, chat, block_key)) return 0;
 
-        if (!wizardp(me) && channel->query("use_mp")) {
+        if (!is_wizard(me) && channel->query("use_mp")) {
             if (me->query("mp") < 20)
                 return notify_fail("你的内力不足以造谣！");
 
@@ -500,7 +500,7 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
             fmt = snprintf(chat, 512, "%s(%s)%s", me->name(), me->id(), tmp);
 
             if (strcmp(verb, "rumor") == 0) {
-                if (userp(me))
+                if (is_user(me))
                     fmt = snprintf(chat, 512, "%s%s",
                                    channel->querystr("anonymous"), tmp);
             }
@@ -514,7 +514,7 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
 
     if (mouren[0]) {
         // 造谣有20%的几率要破
-        if (userp(me) && !emote)  // 修改表情有时连巫师也会骗过的BUG。
+        if (is_user(me) && !emote)  // 修改表情有时连巫师也会骗过的BUG。
             if (g_utils.random(10) < 8)
                 bHide = 1;
             else
@@ -526,7 +526,7 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     }
     else {
         strncpy(mouren, me->querystr("channel_id"), 40)[39] = 0;
-        if (userp(me) || !mouren[0]) {
+        if (is_user(me) || !mouren[0]) {
             if (strcmp(me->name(0), me->name(1)) && emote)
                 do_channel(ob, nullptr, "sys",
                            snprintf(msg, 512, "$HIW%s(%s)$HIW扮%s!",

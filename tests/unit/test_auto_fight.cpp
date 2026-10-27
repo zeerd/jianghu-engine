@@ -316,7 +316,7 @@ TEST_F(AutoFightTest, StartBerserk_NpcMe_ScansAndWithdraws)
     me->set_temp("looking_for_trouble", 1);
 
     CAutoFight::start_berserk(me, obj->object_id(), 0);
-    // NPC 扫视后退避：不杀也不开战（!userp(me) 守卫）
+    // NPC 扫视后退避：不杀也不开战（!is_user(me) 守卫）
     EXPECT_FALSE(obj->has("想杀死你"));
     EXPECT_FALSE(obj->has("陪我玩两手"));
     EXPECT_EQ(0, me->query_temp("looking_for_trouble"));

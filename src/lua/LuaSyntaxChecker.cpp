@@ -54,6 +54,14 @@ static const char* skip_arg(const char* p)
 // 提取一个参数值（到下一个空白或字符串结尾），并前移 p
 static std::string extract_arg(const char*& p)
 {
+    if (*p == '"') {
+        ++p;
+        const char* start = p;
+        while (*p && *p != '"') ++p;
+        std::string out(start, p - start);
+        if (*p == '"') ++p;
+        return out;
+    }
     const char* start = p;
     while (*p && *p != ' ' && *p != '\t') ++p;
     return std::string(start, p - start);

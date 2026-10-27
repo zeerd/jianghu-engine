@@ -5,7 +5,7 @@
 // 覆盖其全部守卫分支：
 //   damage>0、master_id 指向在线主人、宠物具备 xunshou_shu 或 qufeng、
 //   宠物与猎物等级差 < 10。
-// 观察面：master 的 query_learned()（weak_mode=1 + userp 只累加 learned）
+// 观察面：master 的 query_learned()（weak_mode=1 + is_user 只累加 learned）
 //        与 query("combat_exp")。
 //
 // Build+Run: .\run-coverage.ps1

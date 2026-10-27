@@ -144,7 +144,7 @@ public:
     }
 };
 
-// 加载分支需要 userp(this)：user 侧只暴露加载计数
+// 加载分支需要 is_user(this)：user 侧只暴露加载计数
 class TestBeatUser : public CUser {
 public:
     using CChar::m_wait_loading;
@@ -236,7 +236,7 @@ TEST_F(CharCoreTest, HeartBeat_HpNegativeUnconcious)
 {
     CContainer* room = new CContainer();
     ch->move(room);
-    ch->set("hp", (long)-1);  // hp<0 but living -> unconcious (no destruct)
+    ch->set("hp", (long)-1);  // hp<0 but is_living -> unconcious (no destruct)
     ch->heart_beat();
     EXPECT_STREQ(ch->querystr_temp("disabled"), "昏迷不醒");
     ch->move(nullptr);

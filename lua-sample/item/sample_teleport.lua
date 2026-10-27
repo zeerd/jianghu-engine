@@ -62,7 +62,7 @@ return {
     init = function(self)
         self:base_init()
         local env = self:environment()
-        if env and userp(env) then
+        if env and is_user(env) then
             self:set("owner", env:id(1))
         end
     end,

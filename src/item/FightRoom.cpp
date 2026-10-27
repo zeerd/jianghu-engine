@@ -227,7 +227,7 @@ void CFightRoom::leave_team(CChar* obj) { do_leave_team(obj); }
 // 清除某队槽位：结算经验提示、扣人数并删除战斗临时变量
 void CFightRoom::clear_team_slot(int team, int idx, CChar* obj)
 {
-    if (userp(obj)) {
+    if (is_user(obj)) {
         char msg[512];
         tell_object(
             obj,
@@ -299,11 +299,11 @@ void CFightRoom::end_fight()
             for (auto item2 : search) {
                 if (item2->query_attr(IS_CHAR)) do_leave_team((CChar*)item2);
                 if (query("mine")
-                    && !userp(item2)) {  // 如果是地雷战斗，只有玩家出战斗
+                    && !is_user(item2)) {  // 如果是地雷战斗，只有玩家出战斗
                     destruct(item2);
                     continue;
                 }
-                if (!item2->move(env) && !userp(item2)) destruct(item2);
+                if (!item2->move(env) && !is_user(item2)) destruct(item2);
             }
         } catch (...) {
             ;
@@ -434,7 +434,7 @@ int CFightRoom::join_team(CChar* ob, int Team)  // Join_Team(me, FIGHT_TEAM_A);
         char msg[255];
 
         if (!is_threshold_match() && !m_single) {
-            if (CPartyConfig::auto_follow_fight() && userp(ob)
+            if (CPartyConfig::auto_follow_fight() && is_user(ob)
                 && ob->query_temp("party/number")) {
                 DTItemList search;
                 CContainer* env;
@@ -443,7 +443,7 @@ int CFightRoom::join_team(CChar* ob, int Team)  // Join_Team(me, FIGHT_TEAM_A);
                 copy_list(&search, env->get_item_list());
 
                 for (auto obj2 : search) {
-                    if (!living(obj2)) continue;
+                    if (!is_living(obj2)) continue;
                     if (obj2 == ob) continue;
                     if (obj2->environment() != env) continue;  // 已经移动
                     // 检查队伍中的跟随情况
@@ -458,7 +458,7 @@ int CFightRoom::join_team(CChar* ob, int Team)  // Join_Team(me, FIGHT_TEAM_A);
 
                 search.clear();
             }
-            else if (CPartyConfig::auto_follow_fight() && userp(ob)) {
+            else if (CPartyConfig::auto_follow_fight() && is_user(ob)) {
                 if (ob->querystr_temp("party/master")[0]
                     && ob->query_temp("party/follow")) {
                     CChar* pary_master = (CChar*)find_online(

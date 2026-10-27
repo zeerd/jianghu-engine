@@ -71,6 +71,10 @@ TEST_F(DbRegisterAccountTest, Success_InsertsRowAndReturnsNextId)
     EXPECT_TRUE(db->ExecutedContaining("'男性'")) << "性别入库";
     EXPECT_TRUE(db->ExecutedContaining("'abc12345'")) << "密码入库";
     EXPECT_TRUE(db->ExecutedContaining("21, 21, 21, 21")) << "四维入库";
+    EXPECT_TRUE(db->ExecutedContaining("cc_age, cc_level"))
+        << "起手年龄/等级两列入库";
+    EXPECT_TRUE(db->ExecutedContaining(", 14, 1)"))
+        << "起手年龄/等级与 make_body 同源（14 / 1）；经验保持缺省 0";
 }
 
 TEST_F(DbRegisterAccountTest, Success_NoNameDeduplication)

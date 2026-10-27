@@ -396,7 +396,7 @@ TEST_F(BindGlobalTest, TimeHelpers)
 TEST_F(BindGlobalTest, LivingFind)
 
 {
-    // living = query_attr(IS_LIVING)：普通容器不具备（GameObject.cpp）
+    // is_living = query_attr(IS_LIVING)：普通容器不具备（GameObject.cpp）
 
     lua_bind_push_object(L, &c);
 

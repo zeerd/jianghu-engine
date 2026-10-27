@@ -68,7 +68,7 @@ if env:query("sleep_room") == 0 then ... end   -- ✅
 if not env:query("sleep_room") then ... end     -- ❌ 永不为真
 ```
 
-`userp` / `wizardp` / `living` / `is_busy` 返回布尔，用 `not` 才对。
+`is_user` / `is_wizard` / `is_living` / `is_busy` 返回布尔，用 `not` 才对。
 
 ## 与 C++ 命令表的分工
 

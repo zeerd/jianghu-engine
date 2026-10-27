@@ -12,7 +12,7 @@ int CCmdStandard::apprentice(CChar* me, int32_t target, char* arg)
 
     // 禁止在设置为no_apprentice的场景使用Apprentice命令
     CContainer* env = me->environment();
-    if ((env->query("no_apprentice") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_apprentice") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止拜师。");
 
     if (!who->query_attr(CChar::IS_LIVING)) {
@@ -21,7 +21,7 @@ int CCmdStandard::apprentice(CChar* me, int32_t target, char* arg)
 
     if (who == me) return notify_fail("拜自己为师？好主意．．：P");
 
-    if (userp(who) && who->query("recruit_exp") == 0)
+    if (is_user(who) && who->query("recruit_exp") == 0)
         return notify_fail("对方还没有收徒资格！");
 
     if (me->is_apprentice_of(who)) {
@@ -86,12 +86,12 @@ int CCmdStandard::recruit(CChar* me, int32_t target, char* arg)
 
     // 禁止在设置为no_recruit的场景使用Recruit命令
     CContainer* env = me->environment();
-    if ((env->query("no_recruit") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_recruit") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止收徒。");
 
     if (who == me) return notify_fail("收自己为弟子？好主意．．．不过没有用。");
 
-    if (userp(me) && me->query("recruit_exp") == 0)
+    if (is_user(me) && me->query("recruit_exp") == 0)
         return notify_fail("你还没有收徒资格！");
 
     if (who->is_apprentice_of(me)) {
@@ -170,7 +170,7 @@ int CCmdStandard::expell(CChar* me, int32_t target, char* arg)
 
     // 禁止在设置为no_expell的场景使用Expell命令
     CContainer* env = me->environment();
-    if ((env->query("no_expell") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_expell") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止弃徒。");
 
     if (!who->query_attr(CChar::IS_USER))
@@ -225,7 +225,7 @@ int CCmdStandard::teach(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_teach的场景使用Teach命令
     CContainer* env = me->environment();
-    if ((env->query("no_teach") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_teach") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止传授技能。");
 
     CChar* who;
@@ -241,7 +241,7 @@ int CCmdStandard::teach(CChar* me, int32_t target, char* arg)
     if (who == NULL)
         return notify_fail("你的%s不在这里。", me->querystr("couple/gender"));
 
-    if (!living(who))
+    if (!is_living(who))
         return notify_fail("嗯....你得先把%s弄醒再说。", who->name());
 
     if (who->is_busy()) return notify_fail("%s现在正忙着呢。", who->name());
@@ -341,7 +341,7 @@ int CCmdStandard::teach(CChar* me, int32_t target, char* arg)
                               me->name(), sk->name(1)));
 
     if (me->query("hp") > gin_cost) {
-        if (userp(me)) me->receive_damage("hp", gin_cost);
+        if (is_user(me)) me->receive_damage("hp", gin_cost);
     }
     else {
         tell_object(me, "但是你太累了，没有办法再教。");
@@ -390,7 +390,7 @@ int CCmdStandard::learn(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_learn的场景使用Learn命令
     CContainer* env = me->environment();
-    if ((env->query("no_learn") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_learn") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止学习技能。");
 
     int master_skill, my_skill;
@@ -452,7 +452,7 @@ int CCmdStandard::learn(CChar* me, int32_t target, char* arg)
         who->send_menu(me);
         return 0;
     }
-    if (userp(who)) {
+    if (is_user(who)) {
         int max_leran = 400;
         if (sk->query("max_learan")) max_leran = sk->query("max_learan");
 
@@ -594,7 +594,7 @@ int CCmdStandard::enable(CChar* me, int32_t target, char* arg)
            "parry", "dodge",  "magic",  "whip",  "lingfa",   "finger",
            "hand",  "cuff",   "claw",   "strike"};
 
-    if (strcmp(arg, "check") == 0 && wizardp(me)) {
+    if (strcmp(arg, "check") == 0 && is_wizard(me)) {
         me = find_player(target);
         if (!me) return notify_fail("没有这个人。");
     }
@@ -779,7 +779,7 @@ int CCmdStandard::study(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_study的场景使用Study命令
     CContainer* env = me->environment();
-    if ((env->query("no_study") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_study") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止练功。");
 
     CContainer* where;
@@ -874,7 +874,7 @@ int CCmdStandard::practice(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_practice的场景使用Practice命令
     CContainer* env = me->environment();
-    if ((env->query("no_practice") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_practice") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止练功。");
 
     char msg[255];

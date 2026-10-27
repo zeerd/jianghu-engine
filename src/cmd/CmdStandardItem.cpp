@@ -23,11 +23,11 @@ int CCmdStandard::get(CChar* me, int32_t target, char* arg)
 
     if (!env || EQUALSTR(env->querystr("status"), "locked")) return 0;
     if (env->query_attr(CChar::IS_FIGHTROOM) && !me->is_fighting()
-        && !wizardp(me))
+        && !is_wizard(me))
         return notify_fail(
             "你想拣战场里的东西，但是太危险了，你犹豫了一下，又退缩了。");
 
-    if (living(env)
+    if (is_living(env)
         && (me->query("grant") < 70
             || wiz_level(me) <= wiz_level(static_cast<CChar*>(env))))
         return notify_fail("你的巫师等级必须比对方高，才能搜身。");
@@ -39,22 +39,22 @@ int CCmdStandard::get(CChar* me, int32_t target, char* arg)
     if (!who || !who->query_attr(CChar::CAN_GET))
         return notify_fail("你要拣什么。");
 
-    if (env->query("sleep_room") && userp(who)
+    if (env->query("sleep_room") && is_user(who)
         && DIFFERSTR(env->querystr("area"), "house"))
         return notify_fail("这是客店，光天化日之下，你也敢背人？");
 
-    if (userp(who) && who->query_temp("fb_nodie"))
+    if (is_user(who) && who->query_temp("fb_nodie"))
         return notify_fail("非死亡副本，不允许背人。");
 
     m = who->query_entire_dbase();
     if (!m->undefinedp("no_get")
-        && !(wizardp(me) && me->query("env/override"))) {
+        && !(is_wizard(me) && me->query("env/override"))) {
         strncpy(cmd, who->querystr("no_get"), 255);
         return notify_fail(cmd[0] ? cmd : "这个东西拿不起来。");
     }
 
     // 判断是否主人
-    if (!m->undefinedp("owner") && !(wizardp(me) && me->query("env/override"))
+    if (!m->undefinedp("owner") && !(is_wizard(me) && me->query("env/override"))
         && DIFFERSTR(who->querystr("owner"), me->querystr("id")))
         return notify_fail("这不是你的东西。");
 
@@ -94,7 +94,7 @@ int CCmdStandard::use(CChar* me, int32_t target, char* arg)
 
     // 禁止在设置为no_use的场景使用use命令
     CContainer* env = me->environment();
-    if ((env->query("no_use") || env->query("no_all")) && userp(me))
+    if ((env->query("no_use") || env->query("no_all")) && is_user(me))
         return notify_fail("这里禁止使用道具。");
 
     char szTarget[40];
@@ -149,7 +149,7 @@ int CCmdStandard::wield(CChar* me, int32_t target, char* arg)
 
     // 禁止在设置为no_wield的场景使用wield命令
     CContainer* env = me->environment();
-    if ((env->query("no_wield") || env->query("no_all")) && userp(me))
+    if ((env->query("no_wield") || env->query("no_all")) && is_user(me))
         return notify_fail("这里禁止装备道具。");
 
     if (me->is_busy()) return notify_fail("你正忙着");
@@ -183,7 +183,7 @@ int CCmdStandard::un_wield(CChar* me, int32_t target, char* arg)
 
     // 禁止在设置为no_unwield的场景使用unwield命令
     CContainer* env = me->environment();
-    if ((env->query("no_unwield") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_unwield") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止卸下道具。");
 
     if (me->is_busy()) return notify_fail("你正忙着。");
@@ -276,7 +276,7 @@ int CCmdStandard::drop(CChar* me, int32_t target, char* arg)
     env = me->environment();
 
     // 禁止在设置为no_drop的场景使用Drop命令
-    if ((env->query("no_drop") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_drop") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止丢弃物品。");
 
     if (strlen(arg)) {
@@ -328,7 +328,7 @@ int CCmdStandard::drop(CChar* me, int32_t target, char* arg)
         LOG_INFO("%s(%s) drop %s(%s) into %s.", me->name(1), me->id(1),
                  obj->name(1), obj->id(1), env->name(1));
 
-        if (env->query("no_drop_man") && !wizardp(me))
+        if (env->query("no_drop_man") && !is_wizard(me))
             return notify_fail("空间太小，此物无法容纳。");
     }
 
@@ -394,7 +394,7 @@ int CCmdStandard::give(CChar* me, int32_t target, char* arg)
 
     if (me->is_busy()) return notify_fail("你正忙着。");
 
-    if (!living(Target)) return notify_fail("对方没办法接受你的礼物。");
+    if (!is_living(Target)) return notify_fail("对方没办法接受你的礼物。");
 
     if (!check_ap(ap, me)) return 0;
 
@@ -407,21 +407,21 @@ int CCmdStandard::give(CChar* me, int32_t target, char* arg)
 
     CMapping* m = who->query_entire_dbase();
     if (!m->undefinedp("no_give")
-        && !(wizardp(me) && me->query("env/override"))) {
+        && !(is_wizard(me) && me->query("env/override"))) {
         const char* ptr = m->querystr("no_give");
         return notify_fail(ptr[0] ? ptr : "这样东西不能随意给人。");
     }
 
     if (!m->undefinedp("no_drop")
-        && !(wizardp(me) && me->query("env/override")))
+        && !(is_wizard(me) && me->query("env/override")))
         return notify_fail("这样东西不能随便给人。");
 
     // 判断是否主人
-    if (!m->undefinedp("owner") && !(wizardp(me) && me->query("env/override"))
+    if (!m->undefinedp("owner") && !(is_wizard(me) && me->query("env/override"))
         && DIFFERSTR(who->querystr("owner"), Target->querystr("id")))
         return notify_fail("这不是%s的东西。", Target->name(1));
 
-    if (!m->undefinedp("obj") && !(wizardp(me) && me->query("env/override"))
+    if (!m->undefinedp("obj") && !(is_wizard(me) && me->query("env/override"))
         && DIFFERSTR(who->querystr("obj"), Target->querystr("id")))
         return notify_fail("这不是%s的东西。", Target->name(1));
 

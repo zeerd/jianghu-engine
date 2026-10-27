@@ -105,7 +105,7 @@ int CFB::move_in(CChar* me, int party)
         DTItemList search;
         copy_list(&search, me->get_item_list());
         for (auto obj : search) {
-            if (userp(obj))
+            if (is_user(obj))
                 obj->move(load_room(g_start_room));
             else if (obj->query_attr(IS_FIGHTROOM))
                 obj->move(load_room(g_start_room));
@@ -197,7 +197,7 @@ void CFB::end_fb()
         copy_list(&search, get_item_list());
         try {
             for (auto item2 : search) {
-                if (!userp(item2)
+                if (!is_user(item2)
                     && !item2->query_attr(
                         IS_FIGHTROOM)) {  // 只有玩家和战斗移到别的地图
                     destruct(item2);
@@ -216,7 +216,7 @@ void CFB::end_fb()
             copy_list(&search, room->get_item_list());
 
             for (auto item2 : search) {
-                if (!userp(item2)
+                if (!is_user(item2)
                     && !item2->query_attr(
                         IS_FIGHTROOM)) {  // 只有玩家和战斗移到别的地图
                     destruct(item2);
@@ -255,7 +255,7 @@ void CFB::heart_beat()
             int found = 0;
 
             for (auto item2 : search) {
-                if (userp(item2)
+                if (is_user(item2)
                     || item2->query_attr(
                         IS_FIGHTROOM)) {  // 只有玩家和战斗移到别的地图
                     m_tick = 0;
@@ -315,7 +315,7 @@ void CFB::heart_beat()
     copy_list(&search, get_item_list());
     try {
         for (auto item2 : search) {
-            if (!userp(item2)
+            if (!is_user(item2)
                 && !item2->query_attr(
                     IS_FIGHTROOM)) {  // 只有玩家和战斗移到别的地图
                 destruct(item2);

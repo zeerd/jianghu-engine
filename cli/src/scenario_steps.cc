@@ -93,8 +93,78 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
 
     if (key == "attr") return eval_attr_cond(val, detail);
 
+    // wield <物品> <槽位>：等待某物品真的被装备到指定槽位（如 wield 铁剑 右手）。
+    // 只断言「回执文本提到装备」是不够的——回执不说明落在哪个槽位；
+    // 物品名子串匹配（同 item/object），槽位按 .info 的显示名比对，也接受数字槽位。
+    if (key == "wield") {
+        size_t slot_pos = val.find_first_of(" \t");
+        if (slot_pos == std::string::npos) {
+            detail = "wield condition needs: wield <item> <slot>";
+            return false;
+        }
+        std::string item_name = trim(val.substr(0, slot_pos));
+        std::string slot      = trim(val.substr(slot_pos + 1));
+        for (const auto &o : st.inventory()) {
+            if (o.wield == 0) continue;  // 0 = 未装备，槽位名只会是「未知」
+            bool name_hit
+                = (o.name == item_name || o.internal_id == item_name
+                   || o.name.find(item_name) != std::string::npos);
+            if (!name_hit) continue;
+            if (wield_position_name(o.wield) == slot
+                || std::to_string(o.wield) == slot) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     detail = "unknown condition key: " + key;
     return false;
+}
+
+// 取属性当前值。属性名单只此一份：eval_attr_cond 的判定与 wait_cond 的超时
+// 诊断都读它，避免两处各写一份而漂移。
+// 之所以需要它：剧本失败时只回显条件、不回显当前值，就没法区分
+//「状态还没到位」与「状态变了却没同步到客户端」——后者才是真 bug。
+bool CScenarioRunner::attr_value(const std::string &name, long long &out) const
+{
+    const PlayerAttr &a = core_.state().player_attr();
+    if (name == "exp")
+        out = a.exp;
+    else if (name == "combat_exp")
+        out = a.combat_exp;
+    else if (name == "hp")
+        out = a.hp;
+    else if (name == "max_hp")
+        out = a.max_hp;
+    else if (name == "eff_hp")  // 有效气血上限：升级抬高 max_hp 后它会滞后，
+        out = a.eff_hp;         // 正是「金创药补上限」的验证点
+    else if (name == "mp")
+        out = a.mp;
+    else if (name == "max_mp")
+        out = a.max_mp;
+    else if (name == "level")
+        out = a.level;
+    else if (name == "shen")
+        out = a.shen;
+    else
+        return false;
+    return true;
+}
+
+// 把 `attr <name> <op> <value>` 中该属性的当前值拼成 "<name>=<值>"
+std::string CScenarioRunner::attr_snapshot(const std::string &cond) const
+{
+    static const std::string prefix = "attr ";
+    if (cond.compare(0, prefix.size(), prefix) != 0) return "";
+    const size_t begin = prefix.size();
+    const size_t end   = cond.find_first_of(" \t", begin);
+    if (end == std::string::npos) return "";
+
+    const std::string name = cond.substr(begin, end - begin);
+    long long value        = 0;
+    if (!attr_value(name, value)) return "";
+    return name + "=" + std::to_string(value);
 }
 
 bool CScenarioRunner::eval_attr_cond(const std::string &val,
@@ -107,25 +177,8 @@ bool CScenarioRunner::eval_attr_cond(const std::string &val,
         detail = "attr condition syntax: attr <name> <op> <value>";
         return false;
     }
-    const PlayerAttr &a = core_.state().player_attr();
-    long long have      = 0;
-    if (name == "exp")
-        have = a.exp;
-    else if (name == "combat_exp")
-        have = a.combat_exp;
-    else if (name == "hp")
-        have = a.hp;
-    else if (name == "max_hp")
-        have = a.max_hp;
-    else if (name == "mp")
-        have = a.mp;
-    else if (name == "max_mp")
-        have = a.max_mp;
-    else if (name == "level")
-        have = a.level;
-    else if (name == "shen")
-        have = a.shen;
-    else {
+    long long have = 0;
+    if (!attr_value(name, have)) {
         detail = "unknown attr: " + name;
         return false;
     }
@@ -171,7 +224,12 @@ bool CScenarioRunner::wait_cond(const std::string &cond, int timeout_ms)
                 return fail("server closed the connection");
             }
             if (std::chrono::steady_clock::now() >= deadline) {
-                return fail("timeout waiting for '" + cond + "'");
+                // 附带当前值：属性类断言失败时，只给条件等于没给信息——
+                // 必须能看出是「还没到位」还是「变了没同步过来」。
+                std::string why = "timeout waiting for '" + cond + "'";
+                const std::string snap = attr_snapshot(c);
+                if (!snap.empty()) why += "（当前 " + snap + "）";
+                return fail(why);
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(20));

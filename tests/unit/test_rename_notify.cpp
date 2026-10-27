@@ -3,7 +3,7 @@
 // 的在线玩家。
 //
 // 背景：协议没有「改名」消息，名字只在物件进场景/玩家进场景时下发。脚本先
-// Add_Box 再 set_name 时，已在场玩家拿到的仍是旧名字，sample_mainline.sce 的
+// Add_Box 再 set_name 时，已在场玩家拿到的仍是旧名字，combat/treebox.sce 的
 // `wait object 一个奇怪的树` 就只能碰运气（玩家进山顶前箱子已刷出才通过）。
 //
 // Build+Run: .\run-coverage.ps1

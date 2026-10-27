@@ -2,7 +2,7 @@
 //
 // 契约：setup_human 在拆分前后行为不变，且每个功能集遵守自己的规则：
 //   1) 未定义的先天属性按区间随机缺省，已定义的不被覆盖；
-//   2) 最大气血按年龄阶梯公式计算，并受 userp/undefinedp 门控；
+//   2) 最大气血按年龄阶梯公式计算，并受 is_user/undefinedp 门控；
 //   3) 内功气血加成受 taoism>50、qi_age>0、全真教覆盖（xiantian_gong>0 且
 //      family=全真教 双条件）与 high_force_max_effect（取最大/求和，config.ini
 //      [server]）控制；
@@ -178,7 +178,7 @@ TEST_F(SetupHumanTest, MaxHp_User_AlwaysRecomputes)
     me->set("max_hp", (long)999);
     setup_human(me);
 
-    // userp 分支无视 undefinedp：900 + (30-14)*20 = 1220
+    // is_user 分支无视 undefinedp：900 + (30-14)*20 = 1220
     EXPECT_EQ(me->query("max_hp"), 1220) << "玩家每次 setup 都重算最大气血";
     delete me;
 }
@@ -425,7 +425,7 @@ TEST_F(SetupHumanTest, Direct_BaseAttrs_TouchesOnlyItsSixKeys)
 
 TEST_F(SetupHumanTest, Direct_MaxHp_RecomputesWithoutGate)
 {
-    // 子函数无门控：调用即重算（userp/undefinedp 判断属于编排层）
+    // 子函数无门控：调用即重算（is_user/undefinedp 判断属于编排层）
     CChar* me = MakeNpc(30);
     me->set("max_hp", (long)999);
     setup_human_max_hp(me, 30);

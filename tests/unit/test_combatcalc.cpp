@@ -4,7 +4,7 @@
 // Run:    tests\Debug\tests.exe --gtest_filter=CombatCalc*
 //
 // This test compiles the real CombatCalc.cpp. External dependencies
-// (userp, wizardp, MessageVision) are stubbed in test_stubs.cpp.
+// (is_user, is_wizard, MessageVision) are stubbed in test_stubs.cpp.
 //
 #include "pch.h"
 #include <cmath>
@@ -60,7 +60,7 @@ TEST_F(CombatCalcTest, SkillPower_NoSkill)
 }
 
 // ====================================================================
-// Skill_Power: not living -> returns 0
+// Skill_Power: not is_living -> returns 0
 // ====================================================================
 TEST_F(CombatCalcTest, SkillPower_NotLiving)
 {

@@ -82,7 +82,7 @@ char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
             strncpy(target_gender, target->querystr("gender"), 10);
             strncpy(target_name, target->name(), 40);
 
-            if (userp(me) && userp(target)) {
+            if (is_user(me) && is_user(target)) {
                 if (EQUALSTR(me->querystr("couple/id"),
                              target->querystr("id"))) {
                     snprintf(target_name, 40, "%s%s",
@@ -143,7 +143,7 @@ char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
         strncpy(msg, str.c_str(), 512);
         replace_string(msg, "$N",
                        who ? who
-                           : (userp(me) ? snprintf(tmp, 255, "%s(%s)",
+                           : (is_user(me) ? snprintf(tmp, 255, "%s(%s)",
                                                    me->name(), me->id())
                                         : snprintf(tmp, 255, "%s", me->name())),
                        512);

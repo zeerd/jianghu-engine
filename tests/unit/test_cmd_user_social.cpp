@@ -189,9 +189,9 @@ TEST_F(CmdUserSocialTest, Vote_NoArgs)
     EXPECT_EQ(result, 0);
 }
 
-TEST_F(CmdUserSocialTest, NpcIsLiving) { EXPECT_TRUE(living(npc)); }
+TEST_F(CmdUserSocialTest, NpcIsLiving) { EXPECT_TRUE(is_living(npc)); }
 
-TEST_F(CmdUserSocialTest, PlayerIsLiving) { EXPECT_TRUE(living(me)); }
+TEST_F(CmdUserSocialTest, PlayerIsLiving) { EXPECT_TRUE(is_living(me)); }
 
 TEST_F(CmdUserSocialTest, NickName_Temp)
 {

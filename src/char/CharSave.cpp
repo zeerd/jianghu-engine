@@ -150,7 +150,7 @@ int CChar::save()
 
     if (m_destruct) return 0;
 
-    if (!userp(this)) {
+    if (!is_user(this)) {
         CMapping savedata;
         get_save_data(&savedata);
         return CContainer::save_impl(&savedata);
@@ -174,7 +174,7 @@ int CChar::get_save_data(CMapping* save)
     save->set("skill_map", skill_map);
     save->set("skill_prepare", skill_prepare);
 
-    if (userp(this)) {
+    if (is_user(this)) {
         CMapping auto_load;
         CContainer* obj;
         char msg[80];
@@ -288,7 +288,7 @@ int CChar::load_from_server()
 
 int CChar::load()
 {
-    if (!userp(this)) {
+    if (!is_user(this)) {
         CMapping save;
         if (!CContainer::load_impl(&save)) return 0;
 

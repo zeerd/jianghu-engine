@@ -62,46 +62,32 @@ char* check_legal_name(const char* name)
     const char* err = call_lua_check_name(name);
     return (char*)err;
 }
-char* make_body(char* name, char* passwd, char* gender, int str, int con,
-                int intel, int dex)
+// 新角色初始档案：
+//
+// age 必须在 setup_char 之前给定：缺省会被 setup_human_base_attrs 随机成
+// 15~44，setup_human_max_hp 于是按随机 age、且 level 此刻尚未写入（按 0）
+// 算出虚高的 max_hp，setup_char 随后又把 hp 按这个 max_hp 补满——角色会
+// 带着 hp > 实际上限上线，要等心跳 heal_up 才被压回。
+// level 是新角色的起手值（起手经验为 0，保持缺省不写）。
+void init_new_char(CUser& me, const char* name, const char* id,
+                   const char* gender, int str, int con, int intel, int dex)
 {
-    static char msg[255];
-    char id[20];
-    CUser user;
+    me.set_name(name, id);
+    me.set("gender", gender);
+    me.set("age", NEW_CHAR_AGE);
 
-    if (strlen(name) < 2 || strlen(name) > 10) return "姓名的长度非法。";
+    me.set("str", str);
+    me.set("con", con);
+    me.set("int", intel);
+    me.set("dex", dex);
 
-    strcpy(msg, check_legal_name(name));
+    setup_char(&me);
 
-    if (msg[0]) return msg;
+    me.set("title", "普通百姓");
+    me.set("birthday", g_current_time);
+    me.set("level", NEW_CHAR_LEVEL);
 
-    if (str + con + intel + dex != 84) return "天赋属性非法。";
-
-    snprintf(id, 20, "%d", ++g_current_account);
-
-    user.set_name(name, id);
-    user.set("gender", gender);
-    user.set("age", 14);
-
-    user.set("str", str);
-    user.set("con", con);
-    user.set("int", intel);
-    user.set("dex", dex);
-
-    setup_char(&user);
-    user.set("title", "普通百姓");
-    user.set("birthday", g_current_time);
-    user.set("combat_exp", 1000);
-    user.set("level", 1);
-
-    user.set("start_city", g_start_room);
-
-    if (!user.save_to_server()) return "档案制作失败！";
-
-    snprintf(msg, 255,
-             "&C=%d&M=注册成功，用户帐号：%d，姓名：%s，请登录游戏！&\t",
-             NOTIFY, g_current_account, name);
-    return msg;
+    me.set("start_city", g_start_room);
 }
 
 int check_valid_char(char* arg)

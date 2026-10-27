@@ -93,7 +93,7 @@ CCorpse* CCorpse::make_corpse(CChar* victim, CChar* killer)
     snprintf(msg, 255, "%s的尸体", victim->name(1));
     corpse->set_name(msg, "corpse");
 
-    if (userp(victim) || victim->query("is_user")) corpse->set("is_user", 1);
+    if (is_user(victim) || victim->query("is_user")) corpse->set("is_user", 1);
 
     corpse->set("victim_name", victim->name(1));
     corpse->set("age", victim->query("age"));
@@ -103,7 +103,7 @@ CCorpse* CCorpse::make_corpse(CChar* victim, CChar* killer)
     corpse->move(victim->environment());
 
     // Don't let wizard left illegal items in their corpses.
-    if (!wizardp(victim)) {
+    if (!is_wizard(victim)) {
         DTItemList search;
         CContainer* obj;
         char cmd[255];

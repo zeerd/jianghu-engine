@@ -1,13 +1,18 @@
 // test_loginregister.cpp - Unit tests for LoginRegister functions
 //
-// Covers: CheckValidChar, check_legal_name (C++ fallback path)
-// MakeBody is not unit-tested here due to heavy dependencies (file I/O, DB).
+// Covers: CheckValidChar, check_legal_name (C++ fallback path),
+//         init_new_char（新角色初始档案；落库不在本文件——make_body 的
+//         save_to_server 依赖 DB）。
 //
+#include "pch.h"
+
 #include "gtest/gtest.h"
 #include <cstring>
 
 // Include the header for function declarations
 #include "net/LoginRegister.h"
+#include "Char.h"
+#include "User.h"
 
 // ====================================================================
 // Tests for CheckValidChar
@@ -92,4 +97,52 @@ TEST(LoginRegister, CheckLegalName_ExactMax)
 TEST(LoginRegister, CheckLegalName_WithinRange)
 {
     EXPECT_STREQ(check_legal_name("hello"), "");
+}
+
+// ====================================================================
+// Tests for init_new_char（新角色初始档案，make_body 与新人分支共用）
+// ====================================================================
+
+// age 必须在 setup_char 之前给定为 14：一旦缺省，setup_human_base_attrs 会把
+// 它随机成 15~44，setup_human_max_hp 于是按随机 age、且 level 此刻尚未写入
+// （按 0）算出虚高的 max_hp，setup_char 又把 hp 按这个 max_hp 补满——角色会
+// 带着 hp > 实际上限上线，要等心跳 heal_up 才被压回。
+// 用 max_hp 恰为 300 反证 age 没被随机（随机时它会落在 300~940）。
+TEST(LoginRegister, InitNewChar_FixesAgeBeforeSetupChar)
+{
+    CUser me;
+    init_new_char(me, "测试角色", "1001", "男性", 21, 21, 21, 21);
+
+    EXPECT_EQ(me.query("age"), 14) << "age 必须给定，不能落进随机缺省";
+    EXPECT_EQ(me.query("max_hp"), 300) << "age=14 且 level 未设 → 300 + 0*21*3";
+    EXPECT_EQ(me.query("hp"), 300) << "hp 按 max_hp 补满，不得被虚高的上限抬高";
+    EXPECT_LE(me.query("hp"), me.query("max_hp")) << "hp <= max_hp 不变量";
+    EXPECT_EQ(me.query("eff_hp"), 300);
+}
+
+// make_body 的起手值：起手经验、等级、称号、性别、起始地，以及 setup_char
+// 兜底补出的种族。
+TEST(LoginRegister, InitNewChar_SetsMakeBodyStartValues)
+{
+    CUser me;
+    init_new_char(me, "测试角色", "1002", "女性", 21, 21, 21, 21);
+
+    EXPECT_EQ(me.query("combat_exp"), 0) << "起手经验为 0，不预置经验";
+    EXPECT_EQ(me.query("level"), 1);
+    EXPECT_STREQ(me.querystr("title"), "普通百姓");
+    EXPECT_STREQ(me.querystr("gender"), "女性");
+    EXPECT_STREQ(me.querystr("race"), "人类");
+    EXPECT_GT(strlen(me.querystr("start_city")), 0) << "起始地必须给定";
+}
+
+// 登录时 level 已定为 1 → max_hp 重算为 363；已存在的 hp 不得悬在新上限之上
+TEST(LoginRegister, InitNewChar_SecondSetupKeepsHpWithinMax)
+{
+    CUser me;
+    init_new_char(me, "测试角色", "1003", "男性", 21, 21, 21, 21);
+
+    setup_char(&me);  // 模拟登录时的重算
+
+    EXPECT_EQ(me.query("max_hp"), 363) << "level=1 → 300 + 1*21*3";
+    EXPECT_LE(me.query("hp"), me.query("max_hp")) << "上限重算后 hp 不得越界";
 }

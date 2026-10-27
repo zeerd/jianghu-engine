@@ -30,7 +30,7 @@ void CAutoFight::auto_fight(CChar* me, CChar* obj, std::string type)
         func = start_aggressive;
 
     // Don't let NPC autofight NPC.
-    if (!userp(me) && !userp(obj)) return;
+    if (!is_user(me) && !is_user(obj)) return;
 
     if (me->query_temp("looking_for_trouble")) return;
     me->set_temp("looking_for_trouble", 1);
@@ -58,11 +58,11 @@ void CAutoFight::start_berserk(CContainer* ob, int32_t target, int32_t param2)
     shen = 0 - me->query("repute");
     message_vision("$N用一种异样的眼神扫视著在场的每一个人。", me);
 
-    if (!userp(me) || me->query("mp") > (g_utils.random(shen) + shen) / 10)
+    if (!is_user(me) || me->query("mp") > (g_utils.random(shen) + shen) / 10)
         return;
     // 如果是npc或者内力大于shen的一个随机变化范围除于10，也就是说shen相比较内力而言太底了
     // 不能压制住杀气！
-    if (shen > me->query("score") && !wizardp(obj)) {
+    if (shen > me->query("score") && !is_wizard(obj)) {
         message_vision(
             snprintf(msg, 255, "$N对著$n喝道：%s看你实在很不顺眼，去死吧。",
                      query_self_rude(me)),

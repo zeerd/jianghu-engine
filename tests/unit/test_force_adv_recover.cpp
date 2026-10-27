@@ -300,7 +300,7 @@ CLuaSkill* MakeBasicForce()
 
 TEST_F(ForceAdvRecoverTest, HitOb_UserAttacker_DeductsMpAndAccruesBonus)
 {
-    auto* me = new StateRecordingUser();  // userp → 先扣 mp_factor
+    auto* me = new StateRecordingUser();  // er → 先扣 mp_factor
     me->set_name("内家", "fo_me1");
     me->set("mp", (long)900);
     me->set("mp_factor", (long)30);

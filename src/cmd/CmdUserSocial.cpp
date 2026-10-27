@@ -6,7 +6,7 @@ int CCmdUser::talk(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_talk的场景使用Talk命令
     CContainer* env = me->environment();
-    if ((env->query("no_talk") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_talk") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止和人说话。");
 
     CChar* who;
@@ -14,7 +14,7 @@ int CCmdUser::talk(CChar* me, int32_t target, char* arg)
 
     if (!(who = get_room_char(me, target)))
         return notify_fail("你要和谁讲话，看清楚点！");
-    if (!living(who) || who == me) return notify_fail("对方显然无法和你讲话。");
+    if (!is_living(who) || who == me) return notify_fail("对方显然无法和你讲话。");
 
     notify_fail("对方并不愿意理你。");
     if (me->is_fighting() || who->is_fighting()) {
@@ -335,7 +335,7 @@ int CCmdUser::invite(CChar* me, int32_t target, char* arg)
 {
     // 禁止在设置为no_invite的场景使用Talk命令
     CContainer* env = me->environment();
-    if ((env->query("no_invite") || env->query("no_all")) && !wizardp(me))
+    if ((env->query("no_invite") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止邀请他人。");
 
     CChar* who;
@@ -402,7 +402,7 @@ int CCmdUser::recruit_exp(CChar* me, int32_t target, char* arg)
 
     const char* master = me->id(1);
 
-    if (wizardp(me)) {
+    if (is_wizard(me)) {
         CChar* who;
 
         if (!(who = get_room_char(me, target)) && !(who = find_player(target)))
@@ -467,7 +467,7 @@ int CCmdUser::mv(CChar* me, int32_t target, char* arg)
     for (auto val : *t) {
         obj = val;
         if (obj == me) continue;
-        if (userp(obj))  // 是玩家
+        if (is_user(obj))  // 是玩家
             static_cast<CUser*>(obj)->location_object(me);
     }
 
@@ -479,7 +479,7 @@ int CCmdUser::loc(CChar* me, int32_t target, char* arg)
 {
     int32_t x, y;
 
-    if (!userp(me)) return 0;
+    if (!is_user(me)) return 0;
 
     sscanf(arg, "%d %d", &x, &y);
     set_live_point(me, x, y);

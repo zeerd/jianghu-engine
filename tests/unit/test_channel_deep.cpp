@@ -182,7 +182,7 @@ TEST_F(ChatChannelDeepTest, NonUser_BypassesUserChecks)
     c.set_name("npc", "npc1");
     c.move(&env);
 
-    // CChar is not IS_USER, so userp=false -> skips all user gates
+    // CChar is not IS_USER, so er=false -> skips all user gates
     // Should succeed (return 1) on a normal channel
     EXPECT_EQ(cc.do_channel(&c, nullptr, "chat", "hello from npc"), 1);
 
@@ -459,7 +459,7 @@ TEST_F(ChatChannelDeepTest, NonCharacter_UsesChannelId)
     ob.set_name("chanobj", "chanobj1");
     ob.set("channel_id", "频道精灵");
 
-    // Non-character -> tempChar path, not userp -> bypasses user checks
+    // Non-character -> tempChar path, not er -> bypasses user checks
     EXPECT_EQ(cc.do_channel(&ob, nullptr, "chat", "hello from object"), 1);
 }
 
