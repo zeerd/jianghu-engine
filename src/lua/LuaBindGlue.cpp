@@ -312,9 +312,25 @@ int l_base_handle_action(lua_State* L)
 
     const char* arg = luaL_optstring(L, 4, "");
 
+    // 与 l_base_do_talk 同构：按 CLuaNpcT 各具体类型逐一非虚调用基类
+    // handle_action（银行/镜像等脚本里 base_handle_action 同样需要覆盖到）
+    if (CLuaVendor* n = dynamic_cast<CLuaVendor*>(obj)) {
+        lua_pushinteger(L, n->base_handle_action((char*)comm, me, (char*)arg));
+        return 1;
+    }
+
+    if (CLuaBankOwner* n = dynamic_cast<CLuaBankOwner*>(obj)) {
+        lua_pushinteger(L, n->base_handle_action((char*)comm, me, (char*)arg));
+        return 1;
+    }
+
+    if (CLuaMirrorNpc* n = dynamic_cast<CLuaMirrorNpc*>(obj)) {
+        lua_pushinteger(L, n->base_handle_action((char*)comm, me, (char*)arg));
+        return 1;
+    }
+
     if (CLuaNpc* n = dynamic_cast<CLuaNpc*>(obj)) {
         lua_pushinteger(L, n->base_handle_action((char*)comm, me, (char*)arg));
-
         return 1;
     }
 

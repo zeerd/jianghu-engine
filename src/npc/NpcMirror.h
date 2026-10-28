@@ -135,9 +135,6 @@ void make_mirror(CChar* me, int diff)
     set_temp("apply/dodge", me->query_temp("apply/dodge") * diff / 10);
     set_temp("apply/parry", me->query_temp("apply/parry") * diff / 10);
 
-    // 设置怪物名姓
-    set_name(me->querystr_temp("fool/name"));
-
     // 设置怪物的法术
     map_skill("force", "magic");
 

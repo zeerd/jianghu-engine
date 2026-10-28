@@ -140,7 +140,7 @@ long db_register_account(const char* name, const char* passwd,
         // 起手值列与 init_new_char 同源（NEW_CHAR_*）：在首次登录建档之前，
         // 账号行的年龄/等级也应是新角色的真实起手值，而不是列默认的 0。
         // 经验保持缺省 0；cc_savedata 仍按设计由首次登录的新人分支建立
-        //（见 verify_user）。
+        // （见 verify_user）。
         std::string sql
             = "insert into jianghudb (cc_name, cc_passwd, cc_email, cc_gender, "
               "cc_str, cc_int, cc_con, cc_dex, cc_age, cc_level) values ('"

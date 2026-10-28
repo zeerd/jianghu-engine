@@ -1064,7 +1064,7 @@ TEST_F(HouseTest, Give_ToYongrenOk_RentItemGuarded)
 TEST_F(HouseTest, ServantAcceptObject_AcceptsRentItemOnly)
 {
     ScopedSampleScript script("npc/monster_yongren.lua",
-                              "lua-sample/npc/monster_yongren.lua");
+                              "lua-default/npc/monster_yongren.lua");
     ASSERT_TRUE(script.ok()) << "样本仆役脚本未就位: " << script.file();
 
     h->set("owner", "owner1");

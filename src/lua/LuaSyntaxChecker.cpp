@@ -106,9 +106,9 @@ namespace {
 enum TokKind { LT_NAME, LT_STR, LT_NUM, LT_OP, LT_KW };
 
 struct LexTok {
-    TokKind kind;
+    TokKind kind = LT_NAME;
     std::string text;
-    int line;
+    int line = 0;
 };
 
 // 源码经 load_file_as_gbk 统一为 GBK。GBK 双字节的尾字节可落在 0x40-0x7E，
@@ -630,7 +630,7 @@ void analyze_scope(const std::vector<LexTok>& toks, FileScan& fs)
 
 struct Violation {
     std::string key;  // 基线条目（B:<file>:<lit> / A:<name> / M:<name>）
-    int line;
+    int line = 0;
     std::string detail;
 };
 
@@ -857,10 +857,10 @@ struct FileOutcome {
 
 // 待全量 script_defs 收集完成后消解的候选
 struct Cand {
-    size_t file_idx;
-    int line;
+    size_t file_idx = 0;
+    int line        = 0;
     std::string name;
-    bool method;
+    bool method = false;
 };
 
 bool violation_less(const Violation& a, const Violation& b)

@@ -8,7 +8,10 @@ require("data.rank").install(hooks)
 require("data.quest").install(hooks)
 
 -- 新角色起步本金（金）
-local START_MONEY = 60000
+-- 取值偏大：住宅区地价随住户数走阶梯（见 resident_base HOUSE_PRICES，最低档
+-- 亦达 50 万），而首个置业者登记后 policy 地价会被 set_house 的 Load 覆盖、
+-- 后续置业者回落到阶梯价——起步本金需足以支付，避免 E2E 第二次置业「现金不足」。
+local START_MONEY = 10000000
 
 -- hooks.setup_human(me)
 --   调用点：C++ setup_human 末尾（属性/气血/分支/体重之后）。注册与每次登录
@@ -16,8 +19,12 @@ local START_MONEY = 60000
 --   发放起步本金：新角色靠它购物、置业、存款，自立门户。
 --   只作用于玩家：青云子、老李头等 NPC 同为人类 race，也会走到此钩子。
 function hooks.setup_human(me)
-    if not is_user(me) then return end
-    if me:query("start_money") ~= 0 then return end
+    if not is_user(me) then
+        return
+    end
+    if me:query("start_money") ~= 0 then
+        return
+    end
     pay_player(me, START_MONEY)
     me:set("start_money", 1)
 end

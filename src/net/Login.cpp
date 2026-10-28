@@ -6,6 +6,7 @@
 #include "User.h"
 #include "Npc.h"
 #include "Room.h"
+#include "GameInit.h"
 #include "CmdHandle.h"
 #include "Channel.h"
 #include "Skill.h"
@@ -80,7 +81,7 @@ void setup_guest_user(CUser* me)
 
     me->set_name("游客", gid);
     me->set("gender", "男性");
-    me->set("age", 14);
+    me->set("age", g_start_age);
     me->set("str", 10);
     me->set("int", 10);
     me->set("con", 10);

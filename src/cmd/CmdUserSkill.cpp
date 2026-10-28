@@ -2,19 +2,6 @@
 #include "../skill/Skill.h"
 #include "../interfaces/IClientObject.h"
 
-int CCmdUser::info(CChar* me, int32_t target, char* arg)
-{
-    me->flush_my_info();
-    return 1;
-}
-
-// 得到某物的物品列表 item #obj
-int CCmdUser::item(CChar* me, int32_t target, char* arg)
-{
-    me->flush_my_equip();
-    return 1;
-}
-
 // skill
 // 查看who的技能。
 int CCmdUser::skill(CChar* me, int32_t target, char* arg)

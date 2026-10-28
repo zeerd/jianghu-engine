@@ -1,3 +1,7 @@
 // Minimal resource script for application icon only
 #include <windows.h>
+// 必须带上 resource.h：否则 IDR_MAINFRAME 未定义，RC 会把它当成字符串名，
+// 而代码里用 MAKEINTRESOURCE(128) 查不到 → LoadIcon 返回 NULL
+// （托盘图标透明、标题栏无图标）。
+#include "src/resource.h"
 IDR_MAINFRAME ICON "mud.ico"

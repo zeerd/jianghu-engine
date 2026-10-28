@@ -7,11 +7,14 @@
 //  - 满血时 chat_msg_combat 不做动作直接返回
 //  - chat_msg 有概率遁走并自毁
 //  - die 找到凶手先发奖励再自毁，找不到凶手仅自毁
+//  - 样本脚本 lua-sample/npc/sample_wooden_dummy.lua（type="mirror"）的
+//    do_talk 两条分支与它自己接管的 die（见文件末尾的 SampleWoodenDummyTest）
 //
 // Build+Run: .\run-coverage.ps1
 #include "pch.h"
 
 #include <cstdint>
+#include <memory>
 
 #include "Char.h"
 #include "Container.h"
@@ -19,15 +22,19 @@
 #include "Item.h"
 #include "Npc.h"
 #include "NpcMirror.h"
+#include "NpcMgr.h"
 #include "Room.h"
 #include "User.h"
 #include "LuaBindDecls.h"  // l_make_mirror
 #include "LuaBind.h"       // lua_bind_push_object
 #include "test_lua_env.h"
+#include "test_sample_script.h"  // ScopedSampleScript（暂存样本脚本原文）
+#include "test_npc_cleanup.h"    // discard_npc
 #include "test_state_recorder.h"
 #include "mock/mock_itemmgr.h"
 
 extern MAP2USER g_user_list;
+extern char g_notify_fail_msg[512];
 
 namespace {
 
@@ -91,14 +98,13 @@ TEST_F(NpcMirrorTest, MakeMirror_ScalesPlayerStateAndArmsItself)
     player.set("str", (long)20);
     player.set_skill("unarmed", 50);
     player.set_skill("sword", 30);
-    player.set_temp("fool/name", "镜像怪");
 
     CNpcMirror mirror;
     mirror.set_name("镜像", "mirror_npc");
     mirror.set("infinity", 1);
     mirror.make_mirror(&player, 5);
 
-    EXPECT_STREQ(mirror.name(), "镜像怪");
+    EXPECT_STREQ(mirror.name(), "镜像");
     EXPECT_EQ(mirror.query("level"), 15);
     EXPECT_EQ(mirror.query("max_hp"), 500);
     EXPECT_EQ(mirror.query("hp"), mirror.query("max_hp"));
@@ -270,7 +276,6 @@ TEST_F(NpcMirrorTest, MakeMirrorBindFullArgsScalesPlayer)
     player.set("str", (long)20);
     player.set_skill("unarmed", 50);
     player.set_skill("sword", 30);
-    player.set_temp("fool/name", "愚者");
 
     CNpcMirror mirror;
     mirror.set_name("镜妖", "bind_mirror");
@@ -289,4 +294,103 @@ TEST_F(NpcMirrorTest, MakeMirrorBindFullArgsScalesPlayer)
         << "属性同步(46-54 全程)";
     ASSERT_NE(g_last_factory_item, nullptr) << "镜像武器已造";
     EXPECT_EQ(g_last_factory_item->environment(), &mirror);
+}
+
+// ====================================================================
+// 样本脚本契约：lua-sample/npc/sample_wooden_dummy.lua（type="mirror"），
+// 半山腰的练功木人。单测脚本根不含 lua-sample，用共享夹具把样本原文暂存进
+// 脚本根、用完即删（引擎按内容 hash 自动重载）。
+// setUp 断言动态类型：type="mirror" 必须分派到 CNpcMirror 基类，否则
+// make_mirror 的绑定守卫会把对练分支整个拒下。
+// ====================================================================
+class SampleWoodenDummyTest : public NpcMirrorTest {
+protected:
+    void SetUp() override
+    {
+        NpcMirrorTest::SetUp();
+
+        script = std::make_unique<ScopedSampleScript>(
+            "npc/sample_wooden_dummy.lua",
+            "lua-sample/npc/sample_wooden_dummy.lua");
+        ASSERT_TRUE(script->ok()) << "样本脚本未就位: " << script->file();
+
+        dummy = load_npc("sample_wooden_dummy");
+        ASSERT_NE(dummy, nullptr);
+        ASSERT_NE(dynamic_cast<CNpcMirror*>(dummy), nullptr)
+            << "type=\"mirror\" 没分派到 CNpcMirror 基类";
+        dummy->move(&env);
+    }
+
+    void TearDown() override
+    {
+        // 走过 die 的用例已把 dummy 置空（自毁的实例由延迟销毁队列回收）
+        if (dummy && g_npc_list.count(dummy->object_id())) discard_npc(dummy);
+        dummy = nullptr;
+        script.reset();
+        NpcMirrorTest::TearDown();
+    }
+
+    CNpc* dummy = nullptr;
+    std::unique_ptr<ScopedSampleScript> script;
+};
+
+// 对练：按 diff=8 抄走挑战者状态，且把 make_mirror 写空的名字改回来
+TEST_F(SampleWoodenDummyTest, SparringTalk_CopiesChallengerAndKeepsName)
+{
+    StateRecordingUser challenger;
+    challenger.set_name("挑战者", "dummy_challenger");
+    challenger.move(&env);
+    challenger.set("level", (long)10);
+    challenger.set("max_hp", (long)800);
+    challenger.set("max_mp", (long)400);
+    challenger.set_skill("unarmed", 40);
+    challenger.set_skill("dodge", 30);
+    challenger.clear();
+
+    char ask[] = "对练";
+    EXPECT_EQ(1, dummy->do_talk(&challenger, ask));
+
+    EXPECT_EQ(dummy->query("max_hp"), 640) << "气血按 8/10 缩放";
+    EXPECT_EQ(dummy->query("level"), 8) << "等级按 8/10 缩放";
+    EXPECT_EQ(dummy->query_skill("unarmed", 1), 32) << "技能按 8/10 缩放";
+    EXPECT_STREQ(dummy->name(), "练功木人")
+        << "make_mirror 不设置名字，脚本负责 set_name ";
+    EXPECT_TRUE(challenger.has("照着你的起手式摆开了门户"))
+        << "对练应答走 say(msg, me)，只投递给问话人";
+
+    challenger.move(nullptr);
+}
+
+// 其余问话交回引擎通用流程：脚本没注册询问 → notify_fail，木人状态不动
+TEST_F(SampleWoodenDummyTest, OtherTalk_FallsBackToInquiryFlow)
+{
+    CChar asker;
+    asker.set_name("闲人", "dummy_asker");
+    asker.move(&env);
+
+    char ask[] = "闲聊";
+    EXPECT_EQ(0, dummy->do_talk(&asker, ask));
+    EXPECT_STREQ(g_notify_fail_msg, "对方并不愿意理你。");
+    EXPECT_STREQ(dummy->name(), "练功木人") << "回退分支不该动木人的状态";
+
+    asker.move(nullptr);
+}
+
+// 死亡：脚本自己接管 die —— 散成一地木头并自毁，不是基类的「化为灰烬」
+TEST_F(SampleWoodenDummyTest, Die_CollapsesIntoTimberAndDestroys)
+{
+    StateRecordingUser witness;
+    witness.set_name("旁观", "dummy_witness");
+    witness.move(&env);
+    witness.clear();
+
+    const int32_t id = dummy->object_id();
+    dummy->die();
+    dummy = nullptr;  // 已自毁，交延迟销毁队列回收
+
+    EXPECT_EQ(g_last_destruct_object, id) << "被打散即自毁";
+    EXPECT_TRUE(witness.has("噼里啪啦散成了一堆木头"))
+        << "房间播报走 message_vision，同房旁观玩家收得到";
+
+    witness.move(nullptr);
 }

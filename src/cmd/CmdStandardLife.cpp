@@ -489,7 +489,8 @@ int CCmdStandard::tell(CChar* me, int32_t target, char* arg)
 
     snprintf(key, 80, "notell/%s", me->querystr("id"));
 
-    if (!is_wizard(me) && (who->query_temp(key) || who->query_temp("notell/all")))
+    if (!is_wizard(me)
+        && (who->query_temp(key) || who->query_temp("notell/all")))
         return notify_fail("%s不接受你的悄悄话。", who->name(1));
 
     if (!g_channel.check_channel_msg(me, "tell", arg, 0)) return 0;

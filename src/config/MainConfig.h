@@ -7,7 +7,18 @@
 
 #pragma once
 
-#define MAIN_VERSION "GS20251028"
+// MAIN_VERSION 优先取构建前由 tools/gen-version.ps1 生成的 VersionAuto.h
+// （格式 GS<commit日期>-<短commit>，如 GS20251028-6514d63）。
+// 未运行生成步骤（如 IDE 直接编译、非 git 环境）时回退到下方固定值。
+#if defined(__has_include)
+#if __has_include("VersionAuto.h")
+#include "VersionAuto.h"
+#endif
+#endif
+
+#ifndef MAIN_VERSION
+#define MAIN_VERSION "GS20251028-dev"
+#endif
 
 #define MAIN_NAME g_server_name
 

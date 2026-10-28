@@ -45,8 +45,6 @@ private:
     CMDMAP m_cmd;
 
     // ---- 技能/信息 ----
-    static int info(CChar* me, int32_t target, char* arg);
-    static int item(CChar* me, int32_t target, char* arg);
     static int skill(CChar* me, int32_t target, char* arg);
     static int download_skill(CChar* me, int32_t target, char* arg);
     static int download_object(CChar* me, int32_t target, char* arg);

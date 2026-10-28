@@ -100,18 +100,10 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 
 | 场景 | 文件 | 说明 |
 |------|------|------|
-| 青云城住宅区 | `room/sample_resident.lua` | `type = "resident"`（自动装配属区逻辑）；`resident="青云"` 是城名；山脚有门可进 |
+| 青云城住宅区 | `room/sample_resident.lua` | `type = "resident"`（自动装配属区逻辑）；`resident="青云"` 是城名；山脚有门可进；驻守月老（`sample_marriage`）演示结婚/离婚 |
 | 宅院仆役 | `npc/monster_yongren.lua` | 引擎建房时按固定基名 `monster_yongren` 载入，替房主看家拦人 |
+| 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
 
-**置产政策**（住宅区房间 dbase 的 `policy` 子映射，缺省由 `room/resident_base.lua` 提供）：
-
-| 字段 | 含义 | 缺省 | 本区取值 |
-|------|------|----------|----------|
-| `policy/min_age` | 准予置产的最低年龄 | 16 | 14（青云城是市井小城，不问年齿） |
-| `policy/house_price` | 本区地价（金） | 阶梯价（住户越多越贵） | 5000（小镇地价低廉） |
-
-> 门槛与地价属于**数据集规则**：同一条街上可以有不同年龄门槛与地价，
-> 故作为房间自声明字段，由通用居民区逻辑读取，缺省值不变。
 
 **房屋逻辑通用、玩家不写脚本**：房间名以 `house_` 开头即由引擎建成前缀
 动态房，加载 `room/house_base.lua`（租借品看管与外人指令截获拆在其子模块
@@ -126,7 +118,8 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | NPC | 文件 | 说明 |
 |-----|------|------|
 | 老李头（向导） | `npc/sample_guide.lua` | 聊天NPC，随机自言自语；在山顶随机刷出"奇怪的树"（树箱）；身兼任务发起人（`data/quest.lua`） |
-| 杂货老板（商人） | `npc/sample_vendor.lua` | 出售武器、秘籍、药品、茶壶、棋子等 |
+| 杂货老板（商人） | `npc/sample_vendor.lua` | 出售武器、秘籍、药品、茶壶、棋子等；`/ask 交易` 菜单索取交易文书 |
+| 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
 
 ### 茶棚（山脚分支）
 
@@ -139,12 +132,23 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | NPC | 文件 | 说明 |
 |-----|------|------|
 | 青云子（师父） | `npc/sample_master.lua` | 门派"青云门"祖师，可拜师学武 |
+| 练功木人 | `npc/sample_wooden_dummy.lua` | `type = "mirror"` 镜像NPC：`/ask 对练` 照挑战者复制自己，被打散即自毁、随房间 reset 复生 |
 
 **师父机制**（参照 `lua/npc/class` 下的NPC）：
 - 使用 `create_family()` 创建门派
 - 使用 `recognize_apprentice()` 判断收徒条件
 - 使用 `DownLoad()` 自动教授师父会的技能
 - 师父会什么就教什么，不使用预定义列表
+
+**镜像NPC机制**（基类 `src/npc/NpcMirror.h`，类型分派 `src/engine/SetupObjects.cpp`）：
+- NPC 脚本声明 `type = "mirror"`，引擎即按 `CLuaMirrorNpc`（`CNpcMirror` 基类）创建
+- `self:make_mirror(me, diff)` 把 `me` 的技能、技能映射、激发、先天属性、气血内力
+  与历练等级整套按 `diff / 10` 抄到 NPC 身上，并照抄来的技击技能配一把「木刺」——
+  木人的「对练」由此而来：`/t 练功木人` + `/ask 对练`，它当场变成「八成的你」
+- `make_mirror` 末尾按 `me` 的 `fool/name` 给 NPC 改名，玩家没有这个临时字段时
+  写进来的是空串，所以脚本抄完必须把自己的名字写回去
+- 木人不设 `chat_chance`（避开基类 `chat_msg` 的概率遁走自毁），并自定义 `die`
+  把「化为灰烬」换成散成一地木头；死亡不走 `die_base`，故不掉尸体、不结算 NK 经验
 
 ### 山顶
 
@@ -208,6 +212,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
  │     (水源fill)      │               │              │
  向导+商人            师父（学技能）    守门喽啰        小喽啰+大当家（战斗）
  箱子(剑/币/药)        自动出绝招     (副本门→大厅)
+                       练功木人(对练)
  随机树箱(经验果)
  └→ 住宅区（申请成为居民 → 置产 → 搬进自家宅院）
 ```
@@ -221,9 +226,11 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | 山脚 | `room/sample_mountain_foot.lua` | 向导+商人，箱子 |
 | 山脚茶棚 | `room/sample_tea_stall.lua` | 水源fill |
 | 山脚钱庄 | `room/sample_bank.lua` | 钱庄老板（存取款/贷款） |
-| 住宅区 | `room/sample_resident.lua` | type=resident，申请成为居民 → 置产 → 搬家 |
+| 住宅区 | `room/sample_resident.lua` | type=resident，申请成为居民 → 置产 → 搬家；驻守月老 |
 | 宅院仆役 | `npc/monster_yongren.lua` | 房屋自带仆役，基名固定为 monster_yongren |
-| 半山腰 | `room/sample_mountain_mid.lua` | 师父NPC |
+| 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
+| 半山腰 | `room/sample_mountain_mid.lua` | 师父NPC + 练功木人 |
+| 练功木人 | `npc/sample_wooden_dummy.lua` | type=mirror 镜像NPC：`/ask 对练` 照挑战者复制自己 |
 | 山顶 | `room/sample_mountain_top.lua` | 副本入口，山鸡练级点 |
 | 山鸡 | `npc/sample_pheasant.lua` | 1级练级怪，击杀奖 10000 经验（hooks.kill_bonus） |
 | sample 挂点 | `data/hooks.lua` | script_root 的 hooks 实现（kill_bonus + 称谓/任务规则安装） |

@@ -7,6 +7,7 @@
 #include "Global.h"
 #include "User.h"
 #include "Room.h"
+#include "GameInit.h"
 #include "Channel.h"
 #include "RegisterHall.h"
 #include "Sql.h"
@@ -202,7 +203,7 @@ void CUser::update_age()
     }
     add("mud_age", g_current_time - last_age_set);
     last_age_set = g_current_time;
-    set("age", 14 + query("mud_age") / (172800 / 2));  // 24小时一岁
+    set("age", g_start_age + query("mud_age") / (172800 / 2));  // 24小时一岁
 }
 
 // 用户发呆秒数

@@ -1,22 +1,23 @@
-# channel_and_banword.sce — 频道年龄门槛 → 新手频道回显 → 社交表情 → 频道禁词
+# channel_and_banword.sce — 频道发言回显 → 新手频道回显 → 社交表情 → 频道禁词
 #
 # 覆盖：
-#   ChatChannel 的年龄检查（新角色 age=14，游龄 24 小时一岁，非 newbie 频道
-#     一律拒绝）；`.tune new` 是客户端本地切频道，切后纯文本以 new 前缀直发，
-#     断言服务端回显「：<内容>」——仅断言「未被拒」不够：发言可能被静默丢弃，
-#     无回显也无拒绝文案，故必须看到回显才算过；
+#   ChatChannel 的发言链路与回显（`.tune new` 是客户端本地切频道，切后纯文本
+#     以 new 前缀直发，断言服务端回显「：<内容>」——仅断言「未被拒」不够：
+#     发言可能被静默丢弃，无回显也无拒绝文案，故必须看到回显才算过；
+#     「年纪太小」年龄门槛（age<15）在 config 的 start_age=16 下不可达，已改由
+#     单测 test_channel_deep.cpp 覆盖，需 E2E 低龄分支时另起低 start_age 服务）；
 #   表情系统（EmoteSystem 的 myself 版私发 / others 版房间播报）；
 #   频道禁词（lua-sample/data/chanbanword → check_channel_msg → lstrchr 逐字匹配）。
 #
 # 判定与并行说明：
-#   · 「年纪太小」「不文明字眼」是拒绝回执，只由本道的纯文本发言触发
+#   · 「不文明字眼」是拒绝回执，只由本道的纯文本发言触发
 #     （其余各道的 cmd 一律以 / 开头，不会走聊天频道）；
 #   · 面包屑式的「鬼脸」断言前必须先 clear，否则会用上一次表情的旧回执误满足。
 #   · 「：<内容>」回显带本道独有文案，别的账号发不出同样的句子。
 
 clear
 cmd 大家好，我是来测试的。
-wait text 年纪太小 timeout=10000
+wait text ：大家好，我是来测试的。 timeout=10000
 sleep 600
 
 cmd .tune new

@@ -146,6 +146,7 @@
     <ClCompile Include="test_equip.cpp" />
     <ClCompile Include="test_house.cpp" />
     <ClCompile Include="test_login_flow.cpp" />
+    <ClCompile Include="test_main_config.cpp" />
     <ClCompile Include="test_resident_lua.cpp" />
     <ClCompile Include="test_resident_lua_flow.cpp" />
     <ClCompile Include="test_stacking.cpp" />
@@ -239,6 +240,7 @@
     <ClCompile Include="test_treasure.cpp" />
     <ClCompile Include="test_cmd_wizard_dice.cpp" />
     <ClCompile Include="test_cmd_gate.cpp" />
+    <ClCompile Include="test_cmd_party_dispatch.cpp" />
     <ClCompile Include="test_cmd_unknown_log.cpp" />
     <ClCompile Include="test_cmd_lua_command.cpp" />
     <ClCompile Include="test_lua_hook.cpp" />

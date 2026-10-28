@@ -267,10 +267,25 @@ int CCmdHandle::command(char* Command, CChar* me)
             LOG_TRACE("来自%s(%s)：%s", me->name(1), me->id(1), Command);
     }
 
+    // 数字目标解析结果留档：who 下面会被 emote 判定清零，而未知命令
+    // 日志要靠它说清 target=[11] 到底指哪个对象
+    const std::string target_name = who ? who->name(1) : "";
+
     // 判断是否emote
     if (who && !who->is_character()) who = 0;
 
-    if (g_channel.do_channel(me, static_cast<CChar*>(who), Comm, arg)) return 1;
+    // 「party」一词身兼两职：组队指令 CCmdUser::party 与门派频道动词，
+    // 且下面 do_channel 先于 handlecommand 执行。区分点是消息体：
+    //   组队邀请靠 /t 目标、无消息体（arg 为空）→ 必须跳过频道交给 handlecommand；
+    //   门派发言带消息体（arg 非空）→ 走 do_channel 频道广播。
+    // 若不区分，do_channel 对空消息静默 return 1（ChatChannel do_channel 第 5 步）
+    // 会吞掉组队指令，CCmdUser::party 永不执行（原库组队名 pary、频道名 party
+    // 本不冲突，jianghu 把组队改名为 party 才撞车）。
+    const bool is_party_team_cmd =
+        (strcmp(Comm, "party") == 0 && arg[0] == '\0');
+    if (!is_party_team_cmd
+        && g_channel.do_channel(me, static_cast<CChar*>(who), Comm, arg))
+        return 1;
 
     if (handlecommand(Comm, me, target, arg)) return 1;
 
@@ -285,10 +300,15 @@ int CCmdHandle::command(char* Command, CChar* me)
                          SEND_WAIT_IMMEDIATE);
     }
     else {
-        // 调试用：把原始整行（命令词 + 目标 +
-        // 参数）落日志，便于排查拼写与参数问题
-        LOG_WARN("未知的命令 raw=[%s] cmd=[%s] target=[%s] arg=[%s]", Command,
-                 Comm, Tar, arg);
+        // 调试用：把发送者（名字(id)@房间）与原始整行（命令词 + 目标 +
+        // 参数）落日志，便于排查拼写与参数问题；数字目标能解析出对象时
+        // 附上对象名，否则纯数字 ID 脱离当时场景无从对照
+        std::string tgt = Tar;
+        if (!target_name.empty()) tgt += "(" + target_name + ")";
+        LOG_WARN(
+            "未知的命令 来自%s(%s)@%s raw=[%s] cmd=[%s] target=[%s] arg=[%s]",
+            me->name(1), me->id(1), where->name(1), Command, Comm, tgt.c_str(),
+            arg);
         tell_object(me, "未知的命令。");
     }
 

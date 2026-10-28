@@ -5,6 +5,7 @@
 #include "Global.h"
 #include "User.h"
 #include "Char.h"
+#include "GameInit.h"
 #include "LoginRegister.h"
 #include "LoginAuth.h"
 #include "Sql.h"
@@ -74,7 +75,7 @@ void init_new_char(CUser& me, const char* name, const char* id,
 {
     me.set_name(name, id);
     me.set("gender", gender);
-    me.set("age", NEW_CHAR_AGE);
+    me.set("age", g_start_age);
 
     me.set("str", str);
     me.set("con", con);

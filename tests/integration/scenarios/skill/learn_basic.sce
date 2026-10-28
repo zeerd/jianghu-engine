@@ -55,7 +55,8 @@ wait text 进步了 timeout=10000
 sleep 600
 
 # 三次请教共扣 300 气，此刻当前气血必然不满——这正是后面「睡觉补 hp」要对照的起点
-wait attr hp < 489 timeout=10000
+# （对照值取升级后的 3 级上限 531，与 skill/levelup_rest.sce 睡醒断言配对）
+wait attr hp < 531 timeout=10000
 cmd .skills
 
 # 气血已被三次请教扣到 0，而 study 要 hp > cost（force 没配 jing_cost，cost 触底为 5）

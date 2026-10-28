@@ -3,8 +3,10 @@
 //
 // 契约：整条分发链（房间/物件截获 → 频道 → C++ 三表 → Lua 命令 →
 // emote）都没接住 且没有 notify_fail
-// 文案时，命令入口回玩家「未知的命令。」、返回 0，并把原始整行 （命令词 + 目标
-// + 参数）以 WARN 级别写进日志，供排查拼写与参数问题。
+// 文案时，命令入口回玩家「未知的命令。」、返回 0，并把发送者（名字(id)@房间）
+// 与原始整行（命令词 + 目标 + 参数）以 WARN 级别写进日志；数字目标若能解析
+// 出房间/身上对象，目标段附带对象名（target=[11(对象名)]），供排查拼写与
+// 参数问题——数字 ID 脱离当时场景无从对照，不记发送者与对象名等于没记。
 //
 // 现有覆盖为什么抓不住：test_cmd_gate.cpp 只断言返回值与 g_notify_fail_msg，
 // 从不读日志落盘内容；这行日志被删掉、只记命令词不记参数、或级别被改成
@@ -19,6 +21,7 @@
 
 #include "Char.h"
 #include "Global.h"
+#include "Item.h"
 #include "Logger.h"
 #include "Room.h"
 #include "test_lua_env.h"
@@ -89,7 +92,8 @@ protected:
 
 }  // namespace
 
-// 未知命令：返回 0、无 notify_fail 文案，且原始整行（含参数）以 WARN 落日志
+// 未知命令：返回 0、无 notify_fail 文案，且发送者 + 原始整行（含参数）
+// 以 WARN 落日志
 TEST_F(CommandUnknownLogTest, UnknownCommand_WarnLogsFullLine)
 {
     logger_set_level(LOG_LVL_WARN);
@@ -104,6 +108,34 @@ TEST_F(CommandUnknownLogTest, UnknownCommand_WarnLogsFullLine)
         << "原始整行未按 WARN 落日志: " << LogFile();
     EXPECT_NE(content.find("target=[foo] arg=[bar]"), std::string::npos)
         << "命令词/目标/参数拆分结果未一并记录";
+    EXPECT_NE(content.find("(unk_me)@"), std::string::npos)
+        << "发送者名字(id)@房间 未记入日志，无从知道是谁敲的命令: "
+        << LogFile();
+}
+
+// 数字目标能解析出对象时，日志附带对象名——数字 ID 脱离当时场景无从对照
+TEST_F(CommandUnknownLogTest, UnknownCommand_NumericTargetLogsResolvedName)
+{
+    logger_set_level(LOG_LVL_WARN);
+
+    CItem* dummy = new CItem();
+    dummy->set_name("unk_target_dummy", "unk_dummy");
+    dummy->move(room);
+
+    char line[64];
+    snprintf(line, sizeof(line), "zzz_unk_3rd %d bar", dummy->object_id());
+    EXPECT_EQ(0, SendUnknown(line))
+        << "分发链未走到底，未知命令分支没被执行";
+
+    char expect[96];
+    snprintf(expect, sizeof(expect), "target=[%d(unk_target_dummy)]",
+             dummy->object_id());
+    const std::string content = ReadAll(LogFile());
+    EXPECT_NE(content.find(expect), std::string::npos)
+        << "数字目标未解析出对象名一并落日志: " << LogFile();
+
+    dummy->move(nullptr);
+    delete dummy;
 }
 
 // 级别高于 WARN（ERROR/FATAL）时不再落这行，级别契约的反向对照

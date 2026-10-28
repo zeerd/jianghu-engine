@@ -211,7 +211,6 @@ RMT 走私，交易留痕可征税。
 ❌ **死代码与有壳无货的接线** — ⚠️ **部分修复（2026-10-24）**：
 - `alarm_loop` / `g_heart_beat_flag`（`HeartBeat.cpp:66-72`）无任何调用者
   （`docs\architecture\engine-core-architecture.md` 亦独立标记）。**仍存在**。
-- `CCmdUser::info`/`item` handler 已实现但从未注册进 `CmdUserInit.cpp`。**仍存在**。
 - ~~巫师授权表里 `reward_money`、`tail` 有条目无 handler；`recruit_exp`、
   `print_mapping` 有 handler 无授权门槛~~ ✅ **已修复**：`CmdWizardInit.cpp`
   改为**单源三元组表**（命令字 + handler + grant 同表生成，与

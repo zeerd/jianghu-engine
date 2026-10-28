@@ -175,7 +175,8 @@ MAP2USER* CContainer::get_users(const char* channel, MAP2USER* list)
     if (!this) return list;
 
     for (auto obj2 : m_item_list) {
-        if (is_user(obj2) && !static_cast<CUser*>(obj2)->refuse_channel(channel))
+        if (is_user(obj2)
+            && !static_cast<CUser*>(obj2)->refuse_channel(channel))
             (*list)[obj2->object_id()] = static_cast<CUser*>(obj2);
     }
 

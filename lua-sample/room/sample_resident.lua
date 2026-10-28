@@ -34,6 +34,8 @@ return {
         self:set("no_fight", 1)
         set_policy(self)
 
+        self:add_npc("sample_marriage", 1)
+
         self:set(
             "long",
             "沿街是一排青砖小院，门楣上贴着各家的名帖。院里传来扫叶的沙沙声，"

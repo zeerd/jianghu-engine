@@ -164,9 +164,12 @@
       <Culture>0x0804</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- 库搜索目录：本次构建的 $(OutDir) 必须排第一。裸名 jianghu_core.lib 若
+         先被解析到 $(SolutionDir)\bin\ 下的旧副本，用 /p:OutDir=bin\e2e\ 的
+         集成测试就会链到陈旧核心库（改了 src/ 却不生效，极难排查）。 -->
+    <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AssemblyDebug />
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -214,9 +217,12 @@
       <Culture>0x0804</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- 库搜索目录：本次构建的 $(OutDir) 必须排第一。裸名 jianghu_core.lib 若
+         先被解析到 $(SolutionDir)\bin\ 下的旧副本，用 /p:OutDir=bin\e2e\ 的
+         集成测试就会链到陈旧核心库（改了 src/ 却不生效，极难排查）。 -->
+    <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AssemblyDebug>
       </AssemblyDebug>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -264,10 +270,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -312,10 +318,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -360,10 +366,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_01.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -408,10 +414,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_01.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -504,4 +510,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <Target Name="GenerateVersionHeader" BeforeTargets="PrepareForBuild">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)tools\gen-version.ps1&quot;" />
+  </Target>
 </Project>

@@ -141,12 +141,13 @@ char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
     if (str.length()) {
         char tmp[512];
         strncpy(msg, str.c_str(), 512);
-        replace_string(msg, "$N",
-                       who ? who
-                           : (is_user(me) ? snprintf(tmp, 255, "%s(%s)",
-                                                   me->name(), me->id())
-                                        : snprintf(tmp, 255, "%s", me->name())),
-                       512);
+        replace_string(
+            msg, "$N",
+            who ? who
+                : (is_user(me)
+                       ? snprintf(tmp, 255, "%s(%s)", me->name(), me->id())
+                       : snprintf(tmp, 255, "%s", me->name())),
+            512);
         replace_string(msg, "$P", gender_pronoun(my_gender), 512);
         replace_string(msg, "$S", query_self(me), 512);
         replace_string(msg, "$s", query_self_rude(me), 512);

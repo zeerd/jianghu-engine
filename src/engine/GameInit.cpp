@@ -37,6 +37,7 @@ char g_server_name[64]   = "金剑江湖";
 char g_server_dbname[64] = "game";
 char g_start_room[128]   = "rk";
 int g_ip_limit           = 30;
+int g_start_age          = 14;  // 新角色初始年龄（config [server] start_age）
 
 //---------------------------------------------------------
 // 时间变量定义
@@ -93,6 +94,8 @@ int init_game(const char* ipaddress, const char* name, const char* password)
     strncpy(g_start_room, tmp_room.c_str(), sizeof(g_start_room) - 1);
 
     g_ip_limit = ini_get_int("server", "ip_limit", 30);
+
+    g_start_age = ini_get_int("server", "start_age", 14);
 
     logger_set_level(logger_level_from_str(ini_get("log", "level", "trace")));
     logger_set_path(ini_get("log", "path", "log"));

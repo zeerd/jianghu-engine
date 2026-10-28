@@ -160,7 +160,8 @@ void message_channel(const char* channel, const char* msg, CChar* me,
         replace_string(str2, "$N", my_name, 512);
         replace_string(str2, "$n", gender_self(your_gender), 512);
 
-        if (is_user(you) && !(static_cast<CChar*>(you)->refuse_channel(channel)))
+        if (is_user(you)
+            && !(static_cast<CChar*>(you)->refuse_channel(channel)))
             tell_object(you, str2);
 
         replace_string(str1, "$p", gender_pronoun(your_gender), 512);

@@ -6,7 +6,6 @@
 
 local resident_base = {}
 
--- 缺省购房年龄门槛，属区可用 policy/min_age 覆盖
 local DEFAULT_HOUSE_MIN_AGE = 16
 
 -- 缺省单点容量；属区在 create 里 set("capacity", N) 即可声明本点上限
@@ -98,11 +97,7 @@ end
 
 -- 购房年龄门槛
 function resident_base.house_min_age(self)
-    local min_age = self:query("policy/min_age")
-    if min_age <= 0 then
-        return DEFAULT_HOUSE_MIN_AGE
-    end
-    return min_age
+    return DEFAULT_HOUSE_MIN_AGE
 end
 
 -- 写入/注销住户登记。登记表按户主 id 分片，字段为 name/short/owner/time

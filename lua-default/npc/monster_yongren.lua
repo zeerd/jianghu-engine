@@ -16,7 +16,6 @@ function n.create(self)
     self:set_name("仆人", "man")
 
     self:set("gender", "女性")
-    self:set("icon", GIRL1)
 
     self:set("age", 20)
     self:set("per", 18 + random(15))

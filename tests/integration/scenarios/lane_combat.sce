@@ -22,6 +22,7 @@ include common/apprentice.sce
 include combat/levelup_heal.sce
 include combat/force_for_exercise.sce
 include combat/exercise_max_mp.sce
+include combat/halt_exercise.sce
 include combat/learn_throwing.sce
 include combat/treebox.sce
 include combat/sneak_and_battle.sce

@@ -14,7 +14,8 @@ int CCmdUser::talk(CChar* me, int32_t target, char* arg)
 
     if (!(who = get_room_char(me, target)))
         return notify_fail("你要和谁讲话，看清楚点！");
-    if (!is_living(who) || who == me) return notify_fail("对方显然无法和你讲话。");
+    if (!is_living(who) || who == me)
+        return notify_fail("对方显然无法和你讲话。");
 
     notify_fail("对方并不愿意理你。");
     if (me->is_fighting() || who->is_fighting()) {
