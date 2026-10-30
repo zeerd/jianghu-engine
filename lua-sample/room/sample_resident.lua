@@ -7,9 +7,9 @@
 --   3. 缴银登记房屋，登记后本区菜单里出现「回家」，可进入自己的宅院；
 --   4. 查看本区住户名单、卖掉名下房产迁出本城。
 --
--- 本脚本只声明场景与政策：type = "resident" 即住宅区，购房登记、管理费
--- 结算、住户名录与卖房迁出由引擎在脚本加载期自动装配
--- room/resident_base 提供（无需 require + install）。
+-- 本脚本声明场景与政策：type = "resident" 即住宅区；购房登记、管理费
+-- 结算、住户名录与卖房迁出由 require 进来的 room/resident_base 装配
+-- （return 前调 install，见下）提供。
 --
 -- 置产政策写在 policy 子映射里（缺席时用 resident_base 的缺省值）：
 --   policy/min_age      准予置产的最低年龄（缺省 16）
@@ -23,7 +23,7 @@ local function set_policy(self)
     self:set("policy/house_price", 5000)
 end
 
-return {
+return resident_base.install({
     type = "resident",
     name = "青云城住宅区",
 
@@ -49,4 +49,4 @@ return {
         resident_base.setup(self)
         set_policy(self)
     end,
-}
+})

@@ -3,7 +3,7 @@
 # 与 trade_a.sce 配对并行。B 对 A（摊主）执行：
 #   listgoods（C++ CmdUserVendor::list_goods，菜单含 A 的定价商品）
 #   → menu 选购（$0buy $1 <obj>，wire buy <A_id> <obj_id>）
-#   → 错误分支：买不存在商品 / 金币不足（茶壶定价 2 亿 > B 现金 1000 万）
+#   → 错误分支：买不存在商品 / 金币不足（酒壶定价 2 亿 > B 现金 1000 万）
 #   → A 下架后 listgoods 落空商品分支（「你对…的商品似乎不感兴趣。」私发）。
 #
 # 注：B 在 give 段已收到过 A 赠的一包金创药，背包 item 条件无法区分新购，
@@ -34,15 +34,15 @@ clear
 cmd /buy 999999
 wait text 对方不打算卖给你 timeout=10000
 
-# --- 错误分支：金币不足（茶壶定价 2 亿，B 现金不够 → 摸摸口袋分支） ----------
+# --- 错误分支：金币不足（酒壶定价 2 亿，B 现金不够 → 摸摸口袋分支） ----------
 clear
 cmd /listgoods
 wait menu timeout=10000
-menu 茶壶
+menu 酒壶
 wait text 摸摸口袋 timeout=10000
 
-# 回呼 A 下架（A 侧断言「买不起茶壶」）
-cmd /tell 买不起茶壶
+# 回呼 A 下架（A 侧断言「买不起酒壶」）
+cmd /tell 买不起酒壶
 cmd /t 0
 
 # --- 下架复核：A 已撤价 → listgoods 无商品 → 私发「不感兴趣」 ---------------

@@ -49,7 +49,7 @@ virtual int handle_action(char* comm, CChar* me, char* arg, char* tar) = 0;
 - **`CChar::handle_action(4 参)`**（`src/char/CharInterface.cpp:45`）遍历角色背包内的物品，逐个调用其四参 `handle_action`——这是**随身物品截获命令**的机制（例如武器截获 `kill`）。
 - 业务级准入规则（如免战保护）不在 C++ 实现：命令分发器在角色目标截获之前询问
   `hooks.combat_rule("command_gate", actor, target, comm)`，具体状态键由脚本自行约定，见下节调用顺序。
-- **居民区脚本**（`lua-default/room/resident_base.lua` 的 `handle_action`，对 `type = "resident"` 的房间由引擎自动装配）处理房产命令（`enter`/`applyhouse`/…），末尾回退房间基类 `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp:338`）。
+- **居民区脚本**（`lua-default/room/resident_base.lua` 的 `handle_action`，对声明 `type = "resident"` 且脚本自调 `install` 装配的房间）处理房产命令（`enter`/`applyhouse`/…），末尾回退房间基类 `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp:338`）。
 - **房屋脚本**（`lua-default/room/house_base.lua` 的 `handle_action`）截获
   `kill`/`fight`/`cast`/`join` 等，阻止非主人滥用房产，末尾同样回退房间基类
   `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp:338`）。

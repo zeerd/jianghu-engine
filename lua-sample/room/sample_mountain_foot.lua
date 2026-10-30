@@ -16,6 +16,7 @@ return {
         self:add_door("山脚茶棚", "山脚茶棚", "青云山山脚")
         self:add_door("山脚钱庄", "山脚钱庄", "青云山山脚")
         self:add_door("青云城住宅区", "青云城住宅区", "青云山山脚")
+        self:add_door("山脚演武场", "山脚演武场", "青云山山脚")
         self:set("no_fight", 1)
 
         -- 放置箱子（set_name 第二参是 /t 用的英文 id：单参会被构造期的
@@ -28,6 +29,16 @@ return {
         local box2 = self:Add_Box()
         box2:add_object("sample_heal", 3)
         box2:set_name("药箱", "yao xiang")
+
+        -- 锁着的宝箱：演示箱子上锁（Locked 绑定设 status/reason/duration）。
+        -- 铜锁无主（不传 owner，人人可持钥匙试开）；密码与商人卖的钥匙配套
+        -- （key.lua 的 password 同值），开锁走 CBox::handle_action 的钥匙支。
+        -- 箱中一册剑法秘籍，配得上一把锁。
+        local box3 = self:Add_Box()
+        box3:add_object("sample_book_sword", 1)
+        box3:set_name("锁着的箱子", "suo xiang")
+        box3:set("password", 123456)
+        box3:Locked("一把铜锁锈得发红", 0)
 
         self:set(
             "long",

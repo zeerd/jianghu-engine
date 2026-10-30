@@ -16,7 +16,7 @@
 // 生产实现 CItemMgr
 //---------------------------------------------------------
 
-// 外部工厂函数（定义在 SetupObjects.cpp / FBRoom.cpp）
+// 外部工厂函数（定义在 LuaObjects.cpp / FBRoom.cpp）
 std::unique_ptr<CContainer> create_item(string base_name, string unique_id);
 std::unique_ptr<CFB> create_fb(string fb_name);
 

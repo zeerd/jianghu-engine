@@ -28,6 +28,13 @@ return {
         return (usage == "unarmed" or usage == "parry") and 1 or 0
     end,
 
+    -- 组合判定：可与hand_adv组合（教学面：与高级掌法 hand_adv
+    -- 构成双槽空手组合，/prepare 两个方向的加入顺序都成立——引擎只查
+    -- 「后加入者」的 valid_combine，双方声明才双向可组合，详见 hand_adv 同字段注释）。
+    valid_combine = function(self, combo)
+         return (combo == "hand_adv") and 1 or 0
+    end,
+
     valid_learn = function(self, me)
         local basic = me:query_skill("unarmed", 1)
         if basic < 10 then

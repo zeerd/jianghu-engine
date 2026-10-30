@@ -14,6 +14,11 @@
 # 说明：商人库存全服共享且买空即下架（CVendor::do_buy 的 m_amount--），
 #   各道采购量按本道所需核算、合计不超库存（回春丹 200 / 金创药 200 / 铁剑 10）。
 
+# 刚落地（登录/换房）：wait room 只确认 GOTOROOM 已处理，房间对象的 ADDOBJECT
+# 是另一条报文、TCP 分段下可晚一拍到，而 /t 的英文 id 在客户端对象名录里解析——
+# 先 wait object 再定向（本片段虽在 room_look_inquiry 之后，但那是等「老李头」，
+# 与杂货老板是否同批到达取决于分段，直接等本片段要用的对象才确定）
+wait object 杂货老板
 cmd /t huo ji
 cmd /list
 

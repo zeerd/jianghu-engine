@@ -7,7 +7,7 @@
 #include "Room.h"
 #include "FBRegistry.h"
 
-// create_room 定义在 src/engine/SetupObjects.cpp（未进任何头文件，
+// create_room 定义在 src/lua/LuaObjects.cpp（未进任何头文件，
 // RoomMgr.cpp 也是本地声明），这里按同签名声明以便直测工厂分支。
 std::unique_ptr<CRoom> create_room(std::string room_name);
 

@@ -1,0 +1,209 @@
+# CI workflow：
+#   build-and-test ——  1. NuGet 还原（gtest 包还原到仓库根 packages\，与本机构建路径一致）
+#                    2. MSBuild 构建整个解决方案（Release|Win32 —— 生产同构配置，
+#                       一次兜住服务器 / CLI / 测试三个方向的编译错误）
+#                    3. run-coverage.ps1 运行引擎测试 + CLI 测试并采集覆盖率
+#                       （仓库铁律：run-coverage.ps1 是唯一认可的测试运行方式；
+#                       其依赖的 OpenCppCoverage 由本 workflow 自动安装）
+#   e2e              ——  run-integration-tests.ps1 跑七条道的端到端集成测试。
+#                    数据库为 SQLite（tests\integration\e2e.db，服务端启动自动建库建表），
+#                    零外部服务依赖，CI runner 开箱即跑。产出与本机完全一致的
+#                    coverage_report_e2e_sample\ 与各道 lane 日志。
+#   lint             ——  1. Lua 风格检查：stylua --check，范围与 style.ps1 的 stylua
+#                       部分一致（lua-default / lua-sample；自动读取仓库根的 .stylua.toml）
+#                    2. C++ 风格检查：clang-format --dry-run，范围与 style.ps1 的 clang-format
+#                       部分一致（src 的 *.cpp/*.inl/*.h、tests 的 *.cpp/*.h；自动读取仓库根
+#                       的 .clang-format）；暂不卡 PR（见下方启用前提）
+#                    3. cppcheck 静态检查，参数与 run-cppcheck.ps1 一致；仅留结果产物、不卡 PR
+#
+# 启用前提（已满足）：
+#   - 已本地跑过 style.ps1 全量格式化（stylua --check 全绿；存量未格式化的
+#     lua-default/data/hooks.lua 已格式化）
+#   - clang-format 检查暂为非卡点（continue-on-error）：CI 用 runner 预装的
+#     LLVM，版本与本机不同可能产生格式判定差异；先观察一轮，
+#     确认全绿后再考虑移除 continue-on-error 改为硬卡点
+#   - coverage_history/ 被 git 忽略，CI 每轮都是全新 checkout：
+#     run-coverage.ps1 的 delta 首轮为 n/a（无基线），属正常现象；
+#     每轮的 summary.csv 会作为 artifact 上传留档
+#
+# 已知限制：
+#   - e2e job 目前 continue-on-error：服务器关服路径存在存量崩溃（未处理异常 dump，
+#     与 SQLite 切换无关，切换前每次运行同样产生），导致剧本全绿仍整体 FAIL。
+#     该问题修复后应移除 continue-on-error 改为硬卡点。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build, test & coverage
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: packages
+          key: nuget-${{ hashFiles('**/packages.config') }}
+
+      - name: Restore NuGet packages
+        run: nuget restore jianghu.sln
+
+      - name: Build (Release|Win32)
+        run: msbuild jianghu.sln /m /p:Configuration=Release /p:Platform=Win32 /v:minimal /nologo
+
+      - name: Install OpenCppCoverage
+        run: choco install opencppcoverage -y
+
+      - name: Add OpenCppCoverage to PATH
+        run: echo "C:\Program Files\OpenCppCoverage" >> $env:GITHUB_PATH
+
+      # 构建 + 运行两套测试 + 合并覆盖率一步完成，产出
+      # coverage_report\（HTML + Cobertura）与 coverage_history\summary-*.txt
+      - name: Run tests with coverage (run-coverage.ps1)
+        run: .\run-coverage.ps1
+
+      # if: always()：测试失败时也要留下覆盖率/摘要产物供排查
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage_report/
+
+      - name: Upload coverage summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: |
+            coverage_history/summary-*.txt
+            coverage_history/summary.csv
+
+  e2e:
+    name: E2E integration tests (7 lanes)
+    runs-on: windows-latest
+    # 已知存量问题：服务器关服路径崩溃产生 dump，导致剧本全绿仍整体 FAIL
+    # （见文件头「已知限制」）。该问题修复前不卡 PR。
+    continue-on-error: true
+    # runner 比本机慢（尤其 OpenCppCoverage 下加载 PDB），给足上限并防挂死
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: packages
+          key: nuget-${{ hashFiles('**/packages.config') }}
+
+      - name: Restore NuGet packages
+        run: nuget restore jianghu.sln
+
+      - name: Install OpenCppCoverage
+        run: choco install opencppcoverage -y
+
+      - name: Add OpenCppCoverage to PATH
+        run: echo "C:\Program Files\OpenCppCoverage" >> $env:GITHUB_PATH
+
+      # 数据库为 SQLite（tests\integration\e2e.db）：服务端启动自动建库建表，
+      # runner 无需任何外部数据库服务。脚本自建 Release|Win32 的服务器与 CLI
+      # （服务器输出到 bin\e2e\，不与产物冲突）。
+      # -ResetDb：保证每轮从空库起跑，不受工作区残留影响。
+      - name: Run E2E lanes (run-integration-tests.ps1)
+        # runner 慢于本机：OpenCppCoverage 首次加载 PDB 更久，放宽就绪等待；
+        # 单步超时同步放宽，避免时序 flake 在 CI 上放大
+        run: .\run-integration-tests.ps1 -ResetDb -ServerReadyTimeoutSec 600 -StepTimeout 30000
+
+      # if: always()：失败时也要留下各道剧本日志与覆盖率产物供排查
+      # （%TEMP%\e2e_lanes\ 里是各道 lane<N>.log / .report / .vars）
+      - name: Upload lane logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-lane-logs
+          path: ${{ runner.temp }}/e2e_lanes/
+
+      - name: Upload E2E coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-coverage-report
+          path: coverage_report_e2e_sample/
+          if-no-files-found: ignore
+
+  lint:
+    name: Style & static analysis
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install StyLua
+        run: choco install stylua -y
+
+      # 检查模式（--check）：只报告不改写；范围与 style.ps1 一致，
+      # 配置自动读取仓库根的 .stylua.toml
+      - name: StyLua check
+        run: stylua --check lua-default lua-sample
+
+      # clang-format 由 runner 预装的 LLVM 提供；若未来镜像移除，可用
+      # choco install llvm 兜底。配置自动读取仓库根的 .clang-format。
+      # 范围与 style.ps1 一致：src 的 *.cpp/*.inl/*.h、tests 的 *.cpp/*.h。
+      # 逐文件 dry-run 汇总违规清单，而不是循环里直接失败——
+      # 这样一次运行能看到全部违规文件，而不是撞到第一个就停。
+      # continue-on-error：CI 的 LLVM 版本与本机可能不同，暂不卡 PR，
+      # 观察一轮确认全绿后再改为硬卡点（见文件头「启用前提」）
+      - name: clang-format check
+        continue-on-error: true
+        run: |
+          $files = @(Get-ChildItem -Path src -Recurse -Include *.cpp,*.inl,*.h) +
+                   @(Get-ChildItem -Path tests -Recurse -Include *.cpp,*.h)
+          $bad = @()
+          foreach ($f in $files) {
+            clang-format --dry-run -Werror $f.FullName 2>&1 | Out-Null
+            if ($LASTEXITCODE -ne 0) { $bad += $f.FullName }
+          }
+          if ($bad.Count -gt 0) {
+            Write-Host "clang-format 违规（$($bad.Count)/$($files.Count) 个文件）："
+            $bad | ForEach-Object { Write-Host "  $_" }
+            exit 1
+          }
+          Write-Host "clang-format 通过：$($files.Count) 个文件"
+
+      - name: Install cppcheck
+        run: choco install cppcheck -y
+
+      # 参数与 run-cppcheck.ps1 一致（suppress 掉内嵌 sqlite）。
+      # cppcheck 发现源码级问题时退出码非 0，这里仅产出结果文件、不卡 PR；
+      # 结果以 artifact 上传，供人工判读
+      - name: cppcheck
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          cppcheck --enable=warning --suppress=*:3rd\sqlite\* src 2>&1 | Out-File -Encoding utf8 bin\cppcheck.result.txt
+
+      - name: Upload cppcheck result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-result
+          path: bin/cppcheck.result.txt

@@ -214,6 +214,68 @@ TEST_F(ContainerOwnershipTest, EvaluateCombatCallout_Fires)
     c.set_heart_beat(0);
 }
 
+// ====================================================================
+// 析构脱钩不变量（~CContainer）
+//
+// 崩溃根因（关服路径悬空虚调用）：Sql.cpp verify_user 新人分支用**栈上**
+// CUser 建档，hooks.setup_human → pay_player 造出的金币登记进 g_item_list
+// 且 environment 指向该栈对象；建档结束栈对象析构，旧析构器不脱钩，金币
+// 残留全局表、背指针悬空。关服 item_release 遍历到它时 env->is_room() 是
+// 虚调用，落在死栈内存的垃圾 vtable 上 → 野跳转。
+//
+// 修复即类不变量：容器销毁时切断对象层级的两条边（自身从父表摘除、
+// 子物件的 environment 置空）。正常路径（先 move(NULL) 再 delete）两条
+// 边已空、零开销；本组测试钉住「未按调用点纪律销毁」的兜底行为。
+// ====================================================================
+TEST_F(ContainerOwnershipTest, Destructor_DetachesChildEnvironment)
+{
+    CContainer* parent = new CContainer();
+    CContainer* child  = new CContainer();
+    child->move(parent);
+    EXPECT_EQ(parent, child->environment());
+
+    delete parent;  // 直接销毁，未经 clean_up/move(NULL)
+    // 核心不变量：死亡的容器不得留下指向自己的活指针
+    EXPECT_EQ(nullptr, child->environment())
+        << "父销毁后子的 environment 必须置空，否则回收路径虚调用悬空";
+    delete child;
+}
+
+TEST_F(ContainerOwnershipTest, Destructor_UnlinksSelfFromParentList)
+{
+    CContainer* parent = new CContainer();
+    CContainer* child  = new CContainer();
+    child->move(parent);
+    EXPECT_EQ(1u, parent->get_item_list()->size());
+
+    delete child;  // 直接销毁，未经 move(NULL)
+    // 父表不得残留死指针（否则父侧后续遍历是 UAF）
+    EXPECT_EQ(0u, parent->get_item_list()->size())
+        << "子销毁后必须从父的物件表摘除自身";
+    delete parent;
+}
+
+// 完整崩溃复现（关服 item_release 的实际消费路径）：栈对象收下全局表
+// 登记的堆物件，栈对象析构后，模拟 item_release 的判空+虚调用不得悬空。
+TEST_F(ContainerOwnershipTest, Destructor_StackOwnerDeathLeavesNoDanglingEnv)
+{
+    CContainer* orphan = new CContainer();  // 金币：登记在全局表，延迟回收
+    {
+        CContainer stack_owner;  // 栈上建档对象（Sql.cpp 的 CUser me）
+        orphan->move(&stack_owner);
+        EXPECT_EQ(&stack_owner, orphan->environment());
+    }  // 栈对象析构
+
+    // item_release 的消费形态（ItemMgr.cpp:73-74）：
+    CContainer* env = orphan->environment();
+    EXPECT_EQ(nullptr, env) << "栈主死亡后背指针必须已脱钩";
+    if (env != nullptr && env->is_room()) {  // 修复前：此处虚调用野跳转
+        orphan->purge();
+    }
+    orphan->move(NULL);
+    delete orphan;
+}
+
 // ---- destructor releases pending callouts without crashing ----
 TEST_F(ContainerOwnershipTest, DestructorReleasesPendingCallouts)
 {

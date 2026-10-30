@@ -124,7 +124,7 @@ TEST_F(CmdWizardWorldTest, Data_ValidTarget)
 
 TEST_F(CmdWizardWorldTest, CloneNpc_NoDb)
 {
-    // create_npc 有 fn- 回退（SetupObjects.cpp）→ 不存在的名字也能克隆；
+    // create_npc 有 fn- 回退（LuaObjects.cpp）→ 不存在的名字也能克隆；
     // load_npc 前置需要 g_LuaEngine 已初始化（幂等）
     ASSERT_NE(ensure_lua_env(), nullptr);
     int result = CallCloneNpc(me, 0, (char*)"clone_zzz");

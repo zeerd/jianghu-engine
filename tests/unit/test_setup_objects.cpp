@@ -25,7 +25,7 @@
 #include "test_log_hits.h"
 #include "test_lua_env.h"
 
-// Factory declarations (defined in SetupObjects.cpp / db wrappers)
+// Factory declarations (defined in LuaObjects.cpp / db wrappers)
 std::unique_ptr<CSkill> create_skill(string skill_name);
 std::unique_ptr<CCondition> create_condition(string base_name);
 std::unique_ptr<CContainer> create_item(string base_name, string unique_id);

@@ -160,8 +160,10 @@ int CChar::recognize_apprentice(CChar* me) { return 0; }
 
 void CChar::set_leader(CChar* me)
 {
-    if (me == this)
-        LOG_ERROR("set_leader: Cannot set this_object() as leader.");
+    // me == this 是「清除跟随」的惯用法（partyleave/partykick 的收尾、
+    // CmdStandardCombat 的取消跟随都显式用它把队长设回自己），属设计内
+    // 语义而非错误——错误级别会污染服务端错误日志（E2E 日志观测据此判失败）。
+    if (me == this) LOG_DEBUG("set_leader: self as leader (clear follow).");
 
     m_leader = me;
 }

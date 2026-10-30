@@ -198,6 +198,20 @@ TEST_F(CharFamilyTest, LeaderGetSet)
     delete m;
 }
 
+// set_leader(self) 是设计内的「清除跟随」惯用法（partyleave/partykick 收尾、
+// CmdStandardCombat 取消跟随都用它把队长设回自己），不是错误——
+// 曾被误打成 LOG_ERROR 污染服务端错误日志。
+TEST_F(CharFamilyTest, LeaderSelf_ClearsFollow)
+{
+    CChar* m = MakeMaster();
+    CChar* a = new CChar();
+    m->set_leader(a);
+    m->set_leader(m);  // 清除跟随：队长设回自己
+    EXPECT_EQ(m->query_leader(), m);
+    delete a;
+    delete m;
+}
+
 TEST_F(CharFamilyTest, FollowMe_NotLiving)
 {
     CChar* m = MakeMaster();

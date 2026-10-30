@@ -1,8 +1,8 @@
 -- resident_base.lua 居民区通用逻辑
 -- 住宅区的购房登记、管理费结算、住户名录与卖房迁出。
--- 地图脚本只需声明 type = "resident" 并在 create 里 set("resident", 属区名)，
--- 引擎在脚本加载期自动调用 install 装配本模块，脚本无需 require 本模块；
--- 脚本自定义的同名钩子优先（install 只补齐缺失项）。
+-- 地图脚本在 create 里 set("resident", 属区名)，并 require 本模块后调用
+-- install 装配通用行为（见文件尾）；脚本自定义的同名钩子优先
+-- （install 只补齐缺失项）。
 
 local resident_base = {}
 
@@ -685,9 +685,9 @@ function resident_base.handle_action(self, comm, me, arg, tar)
 end
 
 -- 把本模块的行为装入住宅区脚本表（脚本自定义的同名钩子优先）。
--- 由引擎在 type = "resident" 的脚本加载期自动调用（见
--- CLuaEngine::apply_room_class_mixins），地图脚本无需手动调用；
--- 仅脚本内显式装配（如测试夹具）才直接使用本函数。
+-- 地图脚本 require 本模块后，在返回脚本表前调用本函数完成装配：
+--   local resident_base = require("room.resident_base")
+--   return resident_base.install({ type = "resident", ... })
 function resident_base.install(room)
     for name, value in pairs(resident_base) do
         if name ~= "install" and type(value) == "function" then

@@ -22,6 +22,25 @@ int32_t g_object_id = 1;  // 房间，物品，NPC，玩家等物件的统一编
 //==== methods ====
 CContainer::~CContainer()  // 环境毁灭，物品毁灭，但玩家将落入外部空间
 {
+    // 析构脱钩不变量：死亡的容器不得在世界里留下指向自己的活指针。
+    //   对象层级的两条边在析构时静默切断（不走 on_leave——那会发协议
+    //   通知，而析构期对端可能已在回收流程中）：
+    //   1. 从父容器的物件表摘除自身：调用方可能未经 move(NULL) 直接
+    //      delete（如注册建档的栈上临时角色），父表不得残留死指针；
+    //   2. 子物件的 environment 背指针置空：子物件可能仍登记在全局
+    //      g_item_list 等待延迟销毁，其回收路径的虚调用不得落在已死
+    //      内存上（悬空虚调用即野跳转）。
+    //   正常路径（先 move(NULL) 再 delete）两条边均已为空，零额外开销；
+    //   本不变量只兜住「未按调用点纪律销毁」的路径。
+    if (m_environment) {
+        m_environment->m_item_list.remove(this);
+        m_environment = NULL;
+    }
+    for (CContainer* child : m_item_list) {
+        if (child && child->m_environment == this) child->m_environment = NULL;
+    }
+    m_item_list.clear();
+
     m_callout_list.clear();
 }
 

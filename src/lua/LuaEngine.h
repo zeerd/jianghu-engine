@@ -297,13 +297,6 @@ private:
                                     unsigned long contentHash,
                                     const char* errorMsg);
 
-    // 房间类装配：脚本返回表声明 type = "resident" 时，自动把
-    // room/resident_base.lua 混入该表（install 语义：脚本自定义同名钩子
-    // 优先，并设置 resident_area/can_save）。地图脚本因此无需逐文件
-    // require + install。要求栈顶为脚本返回表，返回后栈保持不变；
-    // 装配失败只记日志，不阻断脚本加载。
-    void apply_room_class_mixins();
-
     // 扫描脚本目录树，建立 复合key("type_dir/name") -> 完整路径 映射
     void scan_script_tree();
     // 递归扫描子目录（fromDefault 标记是否来自默认目录）

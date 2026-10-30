@@ -7,7 +7,7 @@
 #
 # 本段只备齐 L1 自己要用的物品：
 #   金创药（商品 5）买 3 包 —— 任务交物 1 包、房屋出租 1 包、卖给出售分支 1 包
-#   茶壶  （商品 9）买 1 把 —— 茶棚段 fill/use
+#   酒壶  （商品 9）买 1 把 —— 茶棚段 fill/use
 # 学艺补气的回春丹、断肠散、传送符、棋子等由各自那道自行购买。
 
 cmd /t huo ji
@@ -19,7 +19,7 @@ wait text 你从杂货老板那里买下了数量1的金创药 timeout=10000
 end
 clear
 cmd /buy 9
-wait text 你从杂货老板那里买下了数量1的茶壶 timeout=10000
+wait text 你从杂货老板那里买下了数量1的酒壶 timeout=10000
 clear
 cmd /sell 金创药
 wait text 你卖掉了数量1的金创药 timeout=10000

@@ -72,7 +72,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | 经验果 | `item/sample_xp.lua` | 使用后增加战斗经验 100000、内力上限 +100（山顶随机树箱掉落） |
 | 断肠散 | `item/sample_poison.lua` | 剧毒：服下即扣气血与气血上限，并挂载「断肠散之毒」状态持续扣血 |
 | 传送符 | `item/sample_teleport.lua` | 弹出菜单选择目的地传送 |
-| 茶壶 | `item/sample_teapot.lua` | liquid 容器，可 fill 装茶、use 饮用 |
+| 酒壶 | `item/sample_teapot.lua` | liquid 容器，可 fill 装茶、use 饮用 |
 
 ## 状态体系（condition）
 
@@ -94,13 +94,13 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 ## 房屋体系（住宅区 + 私宅）
 
 `room/sample_resident.lua` 演示引擎的**居民区**房间：脚本声明
-`type = "resident"` 即完成装配（引擎在脚本加载期自动混入
-`room/resident_base.lua` 的通用逻辑，无需 require + `install`），玩家在住宅区
+`type = "resident"`，并在 return 前调用 `room/resident_base.lua` 的 `install`
+装配通用逻辑（`require` + `install`），玩家在住宅区
 申请成为本城居民，缴银登记房屋后即可「回家」进入自己的宅院。
 
 | 场景 | 文件 | 说明 |
 |------|------|------|
-| 青云城住宅区 | `room/sample_resident.lua` | `type = "resident"`（自动装配属区逻辑）；`resident="青云"` 是城名；山脚有门可进；驻守月老（`sample_marriage`）演示结婚/离婚 |
+| 青云城住宅区 | `room/sample_resident.lua` | `type = "resident"`（脚本自装 `install` 属区逻辑）；`resident="青云"` 是城名；山脚有门可进；驻守月老（`sample_marriage`）演示结婚/离婚 |
 | 宅院仆役 | `npc/monster_yongren.lua` | 引擎建房时按固定基名 `monster_yongren` 载入，替房主看家拦人 |
 | 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
 
@@ -118,7 +118,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | NPC | 文件 | 说明 |
 |-----|------|------|
 | 老李头（向导） | `npc/sample_guide.lua` | 聊天NPC，随机自言自语；在山顶随机刷出"奇怪的树"（树箱）；身兼任务发起人（`data/quest.lua`） |
-| 杂货老板（商人） | `npc/sample_vendor.lua` | 出售武器、秘籍、药品、茶壶、棋子等；`/ask 交易` 菜单索取交易文书 |
+| 杂货老板（商人） | `npc/sample_vendor.lua` | 出售武器、秘籍、药品、酒壶、棋子等；`/ask 交易` 菜单索取交易文书 |
 | 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
 
 ### 茶棚（山脚分支）

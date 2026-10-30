@@ -20,4 +20,5 @@ include social/poison_and_cure.sce
 include social/look_and_emote.sce
 include social/bank.sce
 include social/channel_and_banword.sce
+include social/vote.sce
 include social/tune.sce

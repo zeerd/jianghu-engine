@@ -37,6 +37,10 @@ function npc.create(self)
     self:set_skill("force_adv", 500)
     self:set_skill("unarmed", 500)
     self:set_skill("unarmed_adv", 500)
+    -- 基本/高级掌法：空手组合（双槽 prepare 一次两招）的教学面——
+    -- 徒弟学齐 unarmed_adv + hand_adv、enable 到两个空手槽后 /prepare 组合
+    self:set_skill("hand", 500)
+    self:set_skill("hand_adv", 500)
     self:set_skill("parry", 500)
     self:set_skill("parry_adv", 500)
     self:set_skill("dodge", 500)

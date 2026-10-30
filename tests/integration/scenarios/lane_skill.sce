@@ -22,4 +22,18 @@ include skill/learn_force.sce
 include skill/learn_sword.sce
 include skill/enforce_disabled.sce
 include skill/enable_practice.sce
+# 剑气三连（§6 拍板 B 重开条款：adv≥60 + 战斗中 mp≥100 由巫师供能）：
+#   必须在 enable_practice 之后（sword 已 enable，cast 前置），
+#   在 prepare_combine 之前（后者卸铁剑——/cast sword 查「使用的武器不对」），
+#   木人先切磋（threshold 不死）后由 prepare_combine 击散，顺序不可倒。
+include skill/sword_qi.sce
+# 空手组合（一次两招）：请求 L9 供能 → 卸剑 → enable 双空手槽 → prepare
+# 成功分支 → 打木人断言双击。必须在 enable_practice 之后（其 prepare 拒绝
+# 分支先建立「pmap 为空」的前提与反面断言），在 skill_admin 之前（abandon
+# 收口在道尾，其后不接任何交互）。
+include skill/prepare_combine.sce
+# 激励术（一放一收 + 心跳到期）：请求 L9 供能 mp≥100 后连施三次。
+#   必须在 enable_practice 之后（force_adv 已 enable——cast 前置），
+#   在 skill_admin 之前（abandon 收口在道尾，其后不接任何交互）。
+include skill/powerup.sce
 include skill/skill_admin.sce

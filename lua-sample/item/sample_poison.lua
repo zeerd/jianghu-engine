@@ -13,6 +13,7 @@ return {
         self:set("unit", "包")
         self:set("long", "这是一包剧毒的断肠散，通体乌黑，散发着刺鼻的气味。")
         self:set("value", 0)
+        self:set("poison_supply", 2)
     end,
 
     -- 声明可使用：客户端据此显示「使用」选项，use 命令也据此放行
@@ -49,8 +50,11 @@ return {
         message_vision("$N脸色一变，显然毒性发作了！", me)
 
         -- 挂载「断肠散之毒」状态：条件脚本见 condition/sample_poison.lua。
-        -- duration 的单位是心跳拍数（每拍约 5~9 秒），2 拍后毒性自行散去。
-        me:apply_condition("sample_poison", 2, 0)
+        -- duration 的单位是心跳拍数（每拍约 5~9 秒），每包贡献 poison_supply 拍，
+        -- 多包叠加，喝越多毒性越久。
+        local current = me:query_condition("sample_poison")
+        local add = self:query("poison_supply") or 2  -- 每包毒药贡献的时长
+        me:apply_condition("sample_poison", current + add, 0)
 
         me:FlushMyInfo()
 

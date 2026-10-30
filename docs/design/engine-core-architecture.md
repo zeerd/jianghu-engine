@@ -126,7 +126,7 @@ verified-by: pending（待作者确认 Open Questions）
   `"type_dir/bareName"` 复合键缓存于 `LUA_REGISTRYINDEX`，默认根脚本可被用户根同名覆盖
   （`LuaEngine.cpp:656-758`、`scan_script_tree` `353-397`）。
 - **对象 → 脚本的接线**：工厂 `create_npc/create_item/create_room/create_fb`
-  （`src/engine/SetupObjects.cpp:63-274`）在脚本存在时实例化 `CLuaNpcT<T>` / `CLuaItemT<T>` /
+  （`src/lua/LuaObjects.cpp:63-274`）在脚本存在时实例化 `CLuaNpcT<T>` / `CLuaItemT<T>` /
   `CLuaRoomT<T>` / `CLuaSkill` 模板包装，否则走纯 C++ + DB 装载。
   包装类**重写虚函数** → `lua_rawgeti` 取脚本表 → `lua_getfield` 取方法 → `lua_pcall`；
   函数缺失则**回落 C++ 基类实现**（典型形态见 `src/lua/LuaNpc.inl:233-267`）。
@@ -202,7 +202,7 @@ verified-by: pending（待作者确认 Open Questions）
 
 - `src/main.cpp` —— Win32 入口、窗口与定时器、`WM_DESTROY` 优雅关服（信号 IOCP 退出并 10 s join）
 - `src/net/ServerSockHandler.cpp` / `ServerSockWorker.cpp` / `GateRecvDispatch.cpp` / `GateInfo.cpp` —— IOCP 与线程模型
-- `src/engine/HeartBeat.cpp` / `GameInit.cpp` / `SetupObjects.cpp` —— 心跳、启动装配、对象工厂
+- `src/engine/HeartBeat.cpp` / `GameInit.cpp` / `LuaObjects.cpp` —— 心跳、启动装配、对象工厂
 - `src/cmd/CmdHandle.cpp` —— 命令分派链
 - `src/object/CObject.h` / `Container.h` / `ContainerDbase.cpp` / `ContainerMisc.cpp` —— 属性袋与序列化
 - `src/interfaces/*.h` —— 5 个 mixin 契约（**唯一写下了契约的地方**，其余靠约定）

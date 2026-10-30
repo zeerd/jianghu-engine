@@ -5,6 +5,8 @@ return {
     create = function(self)
         self:set_name("高级内功")
         -- add_magic(name, displayName, mp, ap, target, validCast, luaFuncName)
+        -- 激励术：对自身施放，战斗中可用（非敌意，不挂 PK 标记）
+        self:add_magic("powerup", "激励术", 50, 100, CAST_TO_ME, CAST_IN_BOTH, "do_powerup", 0)
         -- 自疗术：对自身施放，战斗中可用（非敌意，不挂 PK 标记）
         self:add_magic("heal", "自疗术", 50, 100, CAST_TO_ME, CAST_IN_BOTH, "do_heal", 0)
         -- 狮子吼：波及全场的攻击性震慑，属敌意行为
@@ -25,6 +27,45 @@ return {
 
     practice_skill = function(self, me)
         return notify_fail("高级内功只能用请教的来增加熟练度。")
+    end,
+
+    -- do_powerup(self, me, target)：激励术——一放一收：无激励时开始（记账式
+    -- 临时增益，心跳到期自动回扣），已在激励中再施展即提前收功（解约回扣）。
+    do_powerup = function(self, me, target)
+        if not target or target:object_id() ~= me:object_id() then
+            return notify_fail("你只能用先天气功来提升自己的战斗力。")
+        end
+
+        -- 已在激励中：提前收功。remove_powerup 在 me（角色）上调用而非 self——
+        -- 该绑定收 CContainer，技能对象不是容器。silence=1 免发到期提示，
+        -- 收功回执另行 message_vision（与到期提示文案区分开）。
+        if me:querymap_temp("powerup") then
+            me:remove_powerup(1)
+            message_vision("$N将真气收回丹田，解除了激励。", me)
+            return 1
+        end
+
+        if me:query("mp") < 100 then
+            return notify_fail("你的内力不够。")
+        end
+
+        local skill = me:query_skill("force")
+        me:add("mp", -50)
+        me:receive_damage("hp", 0)
+        message_vision("$N微一凝神，运起高级内功，足底尘土泛起，全身真气冲关欲出。", me)
+
+        self:start_powerup(
+            me,
+            skill,
+            skill // 3,
+            skill // 3,
+            "你的高级内功运行完毕，将内力收回丹田。"
+        )
+
+        if me:is_fighting() then
+            me:start_busy(3)
+        end
+        return 1
     end,
 
     -- 自疗术

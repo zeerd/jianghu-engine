@@ -87,7 +87,13 @@ function liquid_base.do_use(self, me, target)
     end
 
     -- This allows customization of drinking effect.
-    if self:query("liquid/drink_func") then
+    -- ⚠ Lua 真值陷阱（lua.instructions 首条铁律，2026-10-31 修复）：do_fill 会把
+    -- drink_func 置 0 表示「无自定义效果」，而 `if 0 then` 在 Lua 中恒真——原写法
+    -- 使 fill 过的容器永远短路在此，下面的 alcohol/xx_poison 醉酒毒酒分支永不可达。
+    -- 判定必须显式排除 0：nil（从未设置）与 0（fill 显式清除）都走通用效果，
+    -- 只有真函数名/表（自定义效果）才短路。
+    local drink_func = self:query("liquid/drink_func")
+    if drink_func and drink_func ~= 0 then
         return 1
     end
 
@@ -128,7 +134,10 @@ function liquid_base.do_fill(self, me)
 
     local w_name = env:querystr("resource/water_name")
     local w_type = env:querystr("resource/water_type")
-    if w_name and #w_name > 0 and w_type and #w_type > 0 and env:query("resource/drunk_supply") ~= 0 then
+    -- 命名门槛只看 water_name/water_type：水源叫「清茶」还是「清水」与其
+    -- 是否致醉（drunk_supply）是两个独立属性——把命名耦合在醉酒供给上，
+    -- 会让不醉人的水源（茶棚清茶）永远只能叫清水。
+    if w_name and #w_name > 0 and w_type and #w_type > 0 then
         liquid_name = w_name
         liquid_type = w_type
         ds = env:query("resource/drunk_supply")

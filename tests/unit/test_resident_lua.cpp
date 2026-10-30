@@ -1,9 +1,10 @@
 // test_resident_lua.cpp — 居民区 Lua 化（lua-default/room/resident_base.lua）
 // 的查询、菜单与命令分发契约。
 //
-// 属区脚本 fixture_resident_room.lua（显式 install）与
-// fixture_resident_auto.lua（type = "resident" 由引擎自动装配）承载；
-// 房屋由前缀动态房脚本 room/house_base.lua 承载。
+// 属区脚本 fixture_resident_room.lua（脚本自装配 install）承载；
+// fixture_resident_no_install.lua 声明 type = "resident" 却不 install，
+// 作引擎不再自动混入的反向回归；房屋由前缀动态房脚本 room/house_base.lua
+// 承载。
 // Build+Run: .\run-coverage.ps1
 #include "pch.h"
 
@@ -42,31 +43,33 @@ TEST_F(fixture, InstallKeepsScriptOverrides)
 }
 
 // =====================================================================
-// 自动装配：type = "resident" 的房间脚本无需 require + install
+// 自装配边界：引擎不再按 type 自动混入，装配只由脚本 install 完成
 // =====================================================================
-TEST_F(fixture, ResidentTypeRoomGetsMixinWithoutInstall)
+TEST_F(fixture, ResidentTypeWithoutInstallGetsNoMixin)
 {
-    // 脚本只声明 type = "resident"，不调 install：引擎在加载期装配
-    CLuaRoom room("fixture_resident_auto");
+    // 脚本声明 type = "resident" 但不调 install：引擎不自动装配，
+    // 属区钩子与 resident_area / can_save 均不出现（自装配的反向回归）
+    CLuaRoom room("fixture_resident_no_install");
     room.create();
 
-    EXPECT_EQ(1, room.query_attr(CMainObject::CAN_SAVE));
-    EXPECT_EQ(1, room.query_attr(CMainObject::IS_RESIDENT));
+    EXPECT_EQ(0, room.query_attr(CMainObject::CAN_SAVE));
+    EXPECT_EQ(0, room.query_attr(CMainObject::IS_RESIDENT));
+    EXPECT_EQ(1, room.query_attr(CMainObject::IS_ROOM));
     EXPECT_STREQ("装配城", room.querystr("resident"));
     EXPECT_STREQ("新砌的粉墙围着一排小院。", room.querystr("long"));
 
-    // 属区行为随装配生效：do_look 出现本区申请菜单
+    // 无属区行为：do_look 不出现本区申请菜单
     recording_char me;
     me.set("id", "stranger1");
     me.move(&room);
-    EXPECT_EQ(1, room.do_look(&me));
-    EXPECT_TRUE(me.has("申请成为装配城居民")) << dump_msgs(me);
+    room.do_look(&me);
+    EXPECT_FALSE(me.has("申请成为装配城居民")) << dump_msgs(me);
     me.move(nullptr);
 }
 
-TEST_F(fixture, PlainRoomTypeSkipsMixin)
+TEST_F(fixture, PlainRoomIsNotResident)
 {
-    // type ~= "resident" 的普通房间不装配：resident_area 只由 install 设置
+    // 普通房间不声明属区：resident_area 只由脚本 install 设置
     CLuaRoom room("fixture_blank_room");
     room.create();
 
@@ -74,54 +77,14 @@ TEST_F(fixture, PlainRoomTypeSkipsMixin)
     EXPECT_EQ(1, room.query_attr(CMainObject::IS_ROOM));
 }
 
-TEST_F(fixture, ResidentTypeRoomRemixinOnReload)
+TEST_F(fixture, SelfInstalledRoomKeepsMixinOnReload)
 {
-    // 热重载与首载走同一装配入口：重载出的全新脚本表同样带上属区行为
-    // （若重载路径漏装，resident_area 缺席 → 本断言为 false）
+    // 自装配脚本经热重载后仍带属区行为（脚本重跑即重新 install）
     CLuaEngine* engine = CLuaEngine::instance();
-    EXPECT_NE(LUA_NOREF,
-              engine->reload_script_by_name("fixture_resident_auto"));
-    EXPECT_TRUE(engine->get_script_bool_field("fixture_resident_auto",
+    EXPECT_NE(LUA_NOREF, engine->reload_script_by_name("fixture_resident_room"));
+    EXPECT_TRUE(engine->get_script_bool_field("fixture_resident_room",
                                               LUA_SCRIPT_ROOM, "resident_area"))
-        << "重载后的脚本表未被装配";
-}
-
-TEST_F(fixture, ResidentMixinFailureDoesNotBreakRoomLoad)
-{
-    // 真实故障场景：require 不可用时装配失败只记日志，房间仍可加载
-    // 过程：摘 require → 重载 resident 房间 → 表加载成功但未装配
-    //       → 恢复 require → 再次重载 → 装配恢复
-    CLuaEngine* engine = CLuaEngine::instance();
-    lua_State* L       = engine->get_state();
-
-    // 1) 保存原 require
-    lua_getglobal(L, "require");
-    int saved_require_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-
-    // 2) 摘 require
-    lua_pushnil(L);
-    lua_setglobal(L, "require");
-
-    // 3) 触发重载（走装配 helper）
-    EXPECT_NE(LUA_NOREF,
-              engine->reload_script_by_name("fixture_resident_auto"));
-
-    // 4) 装配失败 → resident_area 为 false（错误分支被执行，覆盖率入账）
-    EXPECT_FALSE(engine->get_script_bool_field(
-        "fixture_resident_auto", LUA_SCRIPT_ROOM, "resident_area"))
-        << "装配失败应导致 resident_area 缺席";
-
-    // 5) 恢复 require
-    lua_rawgeti(L, LUA_REGISTRYINDEX, saved_require_ref);
-    lua_setglobal(L, "require");
-    luaL_unref(L, LUA_REGISTRYINDEX, saved_require_ref);
-
-    // 6) 再次重载 → 装配恢复
-    EXPECT_NE(LUA_NOREF,
-              engine->reload_script_by_name("fixture_resident_auto"));
-    EXPECT_TRUE(engine->get_script_bool_field("fixture_resident_auto",
-                                              LUA_SCRIPT_ROOM, "resident_area"))
-        << "恢复 require 后装配应重新生效";
+        << "重载后的脚本表未装配属区行为";
 }
 
 TEST_F(fixture, OverdueDaysFromRegisterTime)

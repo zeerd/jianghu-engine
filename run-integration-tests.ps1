@@ -14,8 +14,10 @@
 #      资源上互斥，其余全靠服务器并发推进——墙钟时间约为最长的一道而非各道之和；
 #   4. 在 OpenCppCoverage 下采集 src 行覆盖，导出 Cobertura / HTML / binary；
 #      所有道打的是同一个服务器进程，覆盖率天然合并，无需额外聚合；
-#      统计时按叶子文件名跳过 LuaSyntaxChecker.cpp 与 CmdWizard*.cpp（巫师指令），
-#      口径对齐 run-coverage.ps1 的 $excludedFiles。
+#      统计时按叶子文件名跳过 LuaSyntaxChecker.cpp 等结构性不可达文件
+#      （口径对齐 run-coverage.ps1 的 $excludedFiles；CmdWizard* 已因 L9
+#      巫师道落地而移出排除表——保持清单可见，但 2026-11-01 决策**不追求
+#      巫师命令覆盖度**：以 §6 决策认领，不设逐条消化目标）。
 #   5. 在控制台输出各道结果、行覆盖率与「未命中函数」清单；清单过长时只报数字，
 #      完整清单写入 coverage_history\e2e-sample-unhit-functions.txt；
 #   6. 任一道失败即整体失败：只输出各道结果与失败原因，不展示覆盖率与未命中
@@ -71,14 +73,21 @@ param(
     [int]$HeartbeatSec = 10,
     # 控制台最多逐条打印多少个未命中函数；超出则只报数字
     [int]$UnhitListLimit = 60,
-    # 并行的账号（道）数。剧本按功能域拆成 7 条道（L1~L4 互不干扰 + L5/L6
-    # 配对互动道 + L7 观战道单向依附 L5；配对与依附关系都必须同时启用），
-    # 每道一个账号，同时注册、同时开跑；
+    # 并行的账号（道）数。剧本按功能域拆成 10 条道（L1~L4 互不干扰 + L5/L6
+    # 配对互动道 + L7 观战道单向依附 L5 + L8 山贼试炼单向依附 L3 的错峰信号
+    # + L9 巫师服务道（账号自举、不注册）+ L10 练功道（N4 自 L3 拆出）；
+    # 配对与依附关系都必须同时启用），每道一个账号，同时注册、同时开跑；
     # 调小会缩短并行度并丢掉未启用道的覆盖。
-    [int]$Workers = 7,
+    [int]$Workers = 10,
     # 耗时监控：本次剧本执行总耗时较前次同类通过运行增加超过该秒数时，
-    # 归因是否新增场景导致，并探索拆分（移道 / 新增道）的可能性
-    [int]$DurationRegressionSec = 10
+    # 归因是否新增场景导致，并探索拆分（移道 / 新增道）的可能性。
+    # （Δ 归因是纯诊断；通过与否看下面的绝对预算）
+    [int]$DurationRegressionSec = 10,
+    # 剧本执行总耗时（注册 + 各道并行墙钟）的**绝对预算**。超预算即高声告警
+    # （不判 FAIL——预算是护栏不是门禁）。相对基线的 Δ≤N 门禁已废除：滑动基线
+    # 每次放行 N 秒、单调爬升无上限；绝对预算把「合法」钉死为代码里的常数，
+    # 调整必须改本默认值走 diff 评审，留下显式记录。
+    [int]$DurationBudgetSec = 420
 )
 
 $ErrorActionPreference = "Stop"
@@ -107,6 +116,9 @@ $ReportDir = Join-Path $RepoRoot "coverage_report_e2e_sample"
 $CovBin = Join-Path $RepoRoot "coverage_history\e2e_sample.cov"
 $SummaryFile = Join-Path $RepoRoot "coverage_history\summary-e2e-sample.txt"
 $UnhitFile = Join-Path $RepoRoot "coverage_history\e2e-sample-unhit-functions.txt"
+# N3 分段：已认领（决策归档）清单——命中的归「§6 决策认领」段，其余归「待推进」段。
+# 新增甄别归档时往该文件追加一行（格式=清单原行）；对应 design §6 全部决策条目。
+$ClaimedFile = Join-Path $RepoRoot "coverage_history\e2e-unhit-claimed.txt"
 # 耗时历史：每次 PASS 追加一条 JSON（各阶段耗时 + 各道场景清单），供与前次对比归因
 $TimingHistoryFile = Join-Path $RepoRoot "coverage_history\e2e-timing-history.jsonl"
 $TimingKeepCount = 50
@@ -118,18 +130,39 @@ $OccExe = "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe"
 # 改这里即可增删道（Scripts 对应 scenarios\ 下的 lane*.sce）。
 $Lanes = @(
     @{ Id = 1; Desc = "山脚基础+房屋"; Script = "lane_foot.sce" },
-    @{ Id = 2; Desc = "武学链"; Script = "lane_skill.sce" },
-    @{ Id = 3; Desc = "山顶战斗尾"; Script = "lane_combat.sce" },
+    @{ Id = 2; Desc = "武学链"; Script = "lane_skill.sce"; WizardId = 9 },
+    @{ Id = 3; Desc = "山顶战斗尾"; Script = "lane_combat.sce"; WizardId = 9 },
     @{ Id = 4; Desc = "社交生活"; Script = "lane_social.sce" },
     # L5/L6 是配对互动道（PeerId 互相指认）：注册阶段把对方角色名写进对方
     # vars（peer 键），剧本以 $peer 会合后做玩家互动（组队/私聊/赠送/交易等）。
     # L5 的 WitnessId=7 指向观战道：L5 vars 收 spectator 键（对方角色名），
     # 注册后同样互注 spectator_acct——pk/fight 段跨房 tell 开战信号用。
-    @{ Id = 5; Desc = "互动A"; Script = "lane_interaction_a.sce"; PeerId = 6; WitnessId = 7 },
-    @{ Id = 6; Desc = "互动B"; Script = "lane_interaction_b.sce"; PeerId = 5 },
+    # Gender 是注册性别（register.sce 的 menu $gender）：wakeup2 双人同睡要求
+    # 异性，故配对道 L5=男性 / L6=女性；其余道不声明，注入时默认男性。
+    @{ Id = 5; Desc = "互动A"; Script = "lane_interaction_a.sce"; PeerId = 6; WitnessId = 7; Gender = "男性"; WizardId = 9 },
+    @{ Id = 6; Desc = "互动B"; Script = "lane_interaction_b.sce"; PeerId = 5; Gender = "女性" },
     # L7 观战道（PeerId=5 单向依附 L5）：L5/L6 打 PK 与死亡链时它待在
     # 会合房间房外，做比试房观战（guard）与战斗房加入（join）。
-    @{ Id = 7; Desc = "观战"; Script = "lane_spectate.sce"; PeerId = 5 }
+    @{ Id = 7; Desc = "观战"; Script = "lane_spectate.sce"; PeerId = 5 },
+    # L8 山贼试炼（PeerId=3 单向依附 L3）：黑风寨是全局单例副本，本道先入
+    # 打山贼（l_receive_wound 反噬 + l_perform_action 随机出招的唯一触发面），
+    # 打完（或败退回山脚）tell L3「黑风寨已清」，L3 收到才进寨——两道零
+    # 同时开战窗口（§2.4）。Attrs 是注册天赋四维（10~30/总和 84）：本道取
+    # str10 int14 con30 dex30——con30 把 max_hp 拉到 1260（10 级），配合战前
+    # 金创顶 eff，吃出约 34 秒的战斗窗口（反震 97% + 山贼出招 ≈99% 的触发面）。
+    @{ Id = 8; Desc = "山贼试炼"; Script = "lane_raid.sce"; PeerId = 3; Attrs = "10 14 30 30"; WizardId = 9 },
+    # L9 巫师服务道：账号随服务端自举（cc_id=1 巫师一号，ensure_wizard_accounts
+    # 随启动建号），不走注册流程——NoRegister：vars 直写 acct=1、pass 取
+    # config [wizard] password（缺省 12345678，与 Sql.cpp 同缺省）。需求道
+    # （L8/L5/L3）声明 WizardId=9 声明依赖，启动校验同 PeerId/WitnessId。
+    @{ Id = 9; Desc = "巫师服务"; Script = "lane_wizard.sce"; NoRegister = $true },
+    # L10 练功道（N4 L3 拆分产物）：承接原 L3 的五段练功/学习任务——
+    # upgrade 门槛链（levelup_heal）、force 链（force_for_exercise）、两轮收工
+    # 打坐（exercise_max_mp）、halt 保 mp（halt_exercise）、收工不抬升补全
+    # （exercise_no_raise，L9 供大上限）、throwing 链（learn_throwing）。
+    # L2 已 288s 放不下 +130s，故开新道（§3.3「不足则评估新练功道」）；
+    # 约 190s，非关键路径。WizardId=9：no_raise 段要巫师 call set max_mp。
+    @{ Id = 10; Desc = "练功"; Script = "lane_train.sce"; WizardId = 9 }
 )
 
 if ($Workers -lt 1) { $Workers = 1 }
@@ -141,13 +174,17 @@ if ($Workers -lt $Lanes.Count) {
 
 # 配对互动道必须成对启用：L5/L6 互为 peer，只启用一半会因找不到对方角色名
 # 而在会合片段超时，这里提前给出明确报错。同理，L5 依赖观战道 L7（spectator
-# 注入 + PK 段信号）、L7 依赖 L5（peer 注入），任何一半缺位都在此拦下。
+# 注入 + PK 段信号）、L7 依赖 L5（peer 注入），L8 依赖 L3（错峰信号的 tell 目标），
+# 任何一半缺位都在此拦下。
 foreach ($lane in $ActiveLanes) {
     if ($lane.PeerId -and -not (@($ActiveLanes | Where-Object { $_.Id -eq $lane.PeerId }) | Select-Object -First 1)) {
         throw "道 L$($lane.Id)（$($lane.Script)）依赖配对道 L$($lane.PeerId)（peer 互注），但 L$($lane.PeerId) 未启用：请把 -Workers 调到 $(@($Lanes | Where-Object { $_.Id -eq $lane.PeerId }) | Select-Object -First 1 | ForEach-Object { $_.Id }) 及以上。"
     }
     if ($lane.WitnessId -and -not (@($ActiveLanes | Where-Object { $_.Id -eq $lane.WitnessId }) | Select-Object -First 1)) {
         throw "道 L$($lane.Id)（$($lane.Script)）依赖观战道 L$($lane.WitnessId)（spectator 注入与 PK 段信号），但 L$($lane.WitnessId) 未启用：请把 -Workers 调到 $($lane.WitnessId) 及以上。"
+    }
+    if ($lane.WizardId -and -not (@($ActiveLanes | Where-Object { $_.Id -eq $lane.WizardId }) | Select-Object -First 1)) {
+        throw "道 L$($lane.Id)（$($lane.Script)）依赖巫师服务道 L$($lane.WizardId)（巫师账号改定属性/技能），但 L$($lane.WizardId) 未启用：请把 -Workers 调到 $($lane.WizardId) 及以上。"
     }
 }
 
@@ -280,11 +317,29 @@ function ConvertTo-SrcRelative {
     return $FileName
 }
 
-# 统计覆盖率时跳过的文件（叶子名，支持通配符）——口径对齐 run-coverage.ps1 的
-# $excludedFiles：E2E 走不到也不该走到的代码不进分母/未命中清单。
+# 统计覆盖率时跳过的文件（叶子名，支持通配符）——口径对齐 design §6 明确不测清单：
+# 「E2E 走不到也不该走到的代码不进分母/未命中清单」。只排**整文件结构性不可达**的：
+#   · LuaSyntaxChecker：剧本不触发；
+#   · SnoopSystem：仅服务巫师 snoop 命令（§6 并入巫师行），剧本暂无 snoop 面；
+#   · MySqlDb：E2E 用 SQLite，MySQL 后端走不到（run-coverage 侧同名排除）；
+#   · CreateDump：正常轮不触发崩溃过滤器（run-coverage 侧同名排除）；
+#   · AutoFight：§6——E2E 无合法触发面（vendetta/berserk 无设置者、aggressive 只在
+#     L3 独占副本且不撞面），4 函数全 0。
+# CmdWizard* 已移出本表（N4 L9 巫师道落地）：巫师命令由 L9 真实执行（full/set_skill/
+# call…），整文件排除不再诚实；其未覆盖的巫师函数（reboot/ban/snoop/clone…）进
+# 未命中清单保持可见——**不追求覆盖度**（2026-11-01 决策，design §6 巫师行）：
+# 巫师命令是服务协议的工具面，N4 引入 L9 的对象是协议本身；服务链自然用到的
+# full/set_skill/call 已覆盖属副产品，余 38 条不设消化目标、不计欠账。
+# 反向边界（**不排**）：Channel.cpp、main.cpp、HeartBeat.cpp、Logger.cpp、
+# CmdUserSocial.cpp、CReward.cpp 只有**个别不测分支**（snoop 查询、托盘 UI、alarm、
+# run_id、nullify_vote、victim_penalty），文件主体被 E2E 真实走到——整文件排会剔掉
+# 诚实的命中；这些保留分母，其不测性在未命中清单里以 §6 决策认领表达。
 $script:CoverageSkipPatterns = @(
     "LuaSyntaxChecker.cpp",   # Lua 语法检查器：剧本不触发
-    "CmdWizard*.cpp"          # 巫师指令：剧本不覆盖
+    "SnoopSystem.cpp",        # 巫师 snoop 域（§6 并入巫师行）：整文件仅服务 snoop
+    "MySqlDb.cpp",            # MySQL 后端：E2E 用 SQLite（§6）
+    "CreateDump.cpp",         # 崩溃过滤器：正常轮不触发（§6，单测口径同名排除）
+    "AutoFight.cpp"           # §6：E2E 无合法触发面，4 函数全 0
 )
 
 function Test-CoverageSkippedFile {
@@ -572,16 +627,44 @@ if ($ResetDb) {
 # "e2e"(3) + 6 位十六进制(6) + 1 位道序号(1) = 10 字节。同轮内各道靠末位道序号
 # 互不重名，跨轮靠 6 位时间片段避免与历史账号撞名（重名会注册失败）。
 $RunHex = '{0:x6}' -f ([DateTime]::UtcNow.Ticks -band 0xFFFFFF)
+# L9 巫师道密码：取 config [wizard] password（缺省 12345678，与服务端
+# Sql.cpp ensure_wizard_accounts 同缺省），只在 config 有 [wizard] 节时读它
+$wizardPass = "12345678"
+$inWizardSection = $false
+foreach ($cfgLine in Get-Content -LiteralPath $ConfPath) {
+    if ($cfgLine -match '^\s*\[([^\]]+)\]') { $inWizardSection = ($Matches[1] -eq 'wizard') }
+    elseif ($inWizardSection -and $cfgLine -match '^\s*password\s*=\s*(.+?)\s*$') { $wizardPass = $Matches[1] }
+}
 foreach ($lane in $ActiveLanes) {
-    $lane.Name = "e2e$RunHex$($lane.Id)"
-    $lane.Email = "e2e$RunHex$($lane.Id)@example.com"
+    if (-not $lane.NoRegister) {
+        $lane.Name = "e2e$RunHex$($lane.Id)"
+        $lane.Email = "e2e$RunHex$($lane.Id)@example.com"
+    }
+    else {
+        # 巫师道：角色名固定「巫师一号」（服务端自举），无注册流程
+        $lane.Name = "巫师一号"
+    }
     $lane.RegReport = Join-Path $WorkDir ("lane{0}.register.report" -f $lane.Id)
     $lane.Status = "fail"
     $lane.Steps = 0
     $lane.Reason = ""
     $lane.Result = $null
-    "name=$($lane.Name)`npass=e2e1234`nemail=$($lane.Email)" |
-        Set-Content -Encoding ASCII $lane.VarsFile
+    $gender = if ($lane.Gender) { $lane.Gender } else { "男性" }
+    $attrs = if ($lane.Attrs) { $lane.Attrs } else { "21 21 21 21" }
+    # 无 BOM UTF-8：gender 含中文（女性），ASCII 会损坏为 ??；BOM 会毁掉首行
+    # key（CLI load_vars 按原始字节切 '='，BOM 拼进 "name" 使 $name 替换失效）。
+    # 后续 peer/peer_acct 追加是纯 ASCII，与本文件字节兼容；CLI save_vars 重写
+    # 时同样不带 BOM，全链编码一致。
+    # NoRegister（L9 巫师道）：账号自举，vars 直写 acct=1 + 巫师密码，
+    # 剧本以 common/login.sce 的 login $acct $pass 直接登录。
+    $varsText = if ($lane.NoRegister) {
+        "acct=1`npass=$wizardPass`n"
+    }
+    else {
+        "name=$($lane.Name)`npass=e2e1234`nemail=$($lane.Email)`ngender=$gender`nattrs=$attrs`n"
+    }
+    [System.IO.File]::WriteAllText($lane.VarsFile, $varsText,
+        (New-Object System.Text.UTF8Encoding($false)))
 }
 
 # 配对互动道 peer 注入：把对方角色名写进本道 vars（peer 键），剧本以 $peer 引用。
@@ -606,12 +689,21 @@ foreach ($lane in $ActiveLanes) {
 # ===========================================================================
 
 $serverProc = $null
+$serverRun = $null
 $occRun = $null
 $status = "fail"
 $failReason = ""
 # 崩溃检测基线：本次运行启动服务器前仓库根已有的 dump 文件集合。
 # $null 表示快照没做成（服务器未启动），此时跳过崩溃检测。
 $dumpsBefore = $null
+# 服务端日志观测基线：启动前 tests/integration/log\ 各日志文件的字节偏移。
+# 停服后只扫本次新增区间，避免把上一轮的错误算进本轮。
+# $null = 快照没做成（服务器未启动），跳过扫描——同 $dumpsBefore 的语义。
+$serverLogOffsets = $null
+$ServerLogDir = Join-Path $RepoRoot "tests\integration\log"
+$LogAllowFile = Join-Path $IntDir "log-allowlist.txt"
+# 服务端日志扫描的 summary 行（finally 里产出，$lines 创建后并入报告）。
+$srvLogSummary = $null
 # 旧 dump 归档目录（仓库根 crash_dumps\）：启动前把上一轮遗留 dump 挪进去；
 # 本轮新产生的 dump 绝不挪动，原地留在仓库根供查看。
 $OldDumpArchive = Join-Path $RepoRoot "crash_dumps"
@@ -750,6 +842,72 @@ function Show-LaneTail($result, [int]$lines) {
 }
 
 # ===========================================================================
+# 服务端日志观测（轨道 L）
+# ===========================================================================
+# 剧本断言的是「客户端收到了什么」；服务端自己报的错是另一双眼睛——Lua 异常、
+# 命令处理失败、DB 错误都只落在服务端日志里。这里在停服后扫本次运行新增的
+# 日志区间：
+#   · 未登记的 ERROR/FATAL = 本轮引入的服务端侧故障 → 判 FAIL（与崩溃 dump
+#     检测同级：剧本全绿但服务端报错同样是矛盾信号）；
+#   · 已登记的（故意负测等预期产物）静默，签名登记在 tests/integration/
+#     log-allowlist.txt（每行：签名<TAB>归属场景/理由，# 起头为注释）；
+#   · WARN 仅按函数聚合计数入报告，不判失败（地图边界类告警噪音大）。
+# 签名匹配对「去掉 [LEVEL] (时间戳) 前缀后的消息体」做子串匹配：签名应带
+# 变量锚点（如 wrongpass、house_），既覆盖该类预期、又不放过同类中的真异常。
+function Get-ServerLogIssues {
+    param([hashtable]$Offsets, [string]$AllowFile)
+
+    $allow = @()
+    if (Test-Path -LiteralPath $AllowFile) {
+        foreach ($line in (Get-Content -LiteralPath $AllowFile -Encoding UTF8)) {
+            $t = $line.Trim()
+            if ($t -eq '' -or $t.StartsWith('#')) { continue }
+            $sig = ($t -split "`t", 2)[0].Trim()
+            if ($sig -ne '') { $allow += $sig }
+        }
+    }
+
+    $unknown = New-Object System.Collections.ArrayList
+    $warnByFunc = @{}
+    $errTotal = 0
+    foreach ($f in @(Get-ChildItem -LiteralPath $ServerLogDir -Filter "*.txt" -File -ErrorAction SilentlyContinue)) {
+        $start = 0
+        if ($Offsets.ContainsKey($f.Name)) { $start = [long]$Offsets[$f.Name] }
+        if ($f.Length -le $start) { continue }
+        # 文件被服务器以 append 模式写、只读共享打开：用 FileStream 按偏移读增量，
+        # 不把整个历史文件读进来（跨天旧错误不算进本轮）。
+        $fs = [System.IO.File]::Open($f.FullName, 'Open', 'Read', 'ReadWrite')
+        try {
+            $null = $fs.Seek($start, 'Begin')
+            $sr = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::UTF8)
+            $content = $sr.ReadToEnd()
+            $sr.Close()
+        }
+        finally { $fs.Dispose() }
+
+        foreach ($line in ($content -split "`r?`n")) {
+            if ($line -match '^\[(ERROR|FATAL)\s*\]') {
+                $errTotal++
+                $msg = ($line -replace '^\[\w+\s*\]\s*\([^)]*\)\s*', '')
+                $hit = $false
+                foreach ($sig in $allow) { if ($msg.Contains($sig)) { $hit = $true; break } }
+                if (-not $hit) { [void]$unknown.Add($line) }
+            }
+            elseif ($line -match '^\[WARN\s*\]') {
+                $m = [regex]::Match($line, '^\[WARN\s*\]\s*\([^)]*\)\s*(\w+):')
+                $fn = if ($m.Success) { $m.Groups[1].Value } else { '?' }
+                $warnByFunc[$fn] = [int]$warnByFunc[$fn] + 1
+            }
+        }
+    }
+    return [pscustomobject]@{
+        Unknown  = @($unknown)
+        ErrTotal = $errTotal
+        WarnByFn = $warnByFunc
+    }
+}
+
+# ===========================================================================
 # 耗时监控（文首第 8 条）
 # ===========================================================================
 
@@ -825,12 +983,14 @@ function Get-TimingReport {
     param(
         [Parameter(Mandatory)]$Cur,
         $Prev,
-        [Parameter(Mandatory)][int]$ThresholdSec
+        [Parameter(Mandatory)][int]$ThresholdSec,
+        [Parameter(Mandatory)][int]$BudgetSec
     )
 
     $out = New-Object System.Collections.ArrayList
     $regressed = $false
     $causedByNew = $false
+    $overBudget = $false
 
     $regCur = [int]$Cur.reg_sec
     $laneCur = [int]$Cur.lane_sec
@@ -841,9 +1001,28 @@ function Get-TimingReport {
     [void]$out.Add(("本次总耗时（剧本执行）: {0}s = 注册 {1}s + 各道并行 {2}s" -f $curExec, $regCur, $laneCur))
     [void]$out.Add(("  构建 {0} ｜ 起服 {1} ｜ 覆盖率导出 {2}（不计入对比）" -f $buildTxt, $readyTxt, $exportTxt))
 
+    # --- 绝对预算三行硬指标（预算是唯一的通过标尺；Δ 归因在其后，纯诊断） ---
+    $headroom = $BudgetSec - $curExec
+    $overBudget = $curExec -gt $BudgetSec
+    [void]$out.Add(("预算 {0}s / 实测 {1}s / 余量 {2}{3}s" -f $BudgetSec, $curExec,
+            $(if ($headroom -ge 0) { "+" } else { "" }), $headroom))
+
+    # 关键路径与非关键路径吸收能力：墙钟 = 注册 + 最长道，把「加片段往哪放」
+    # 的余量显式化——新增场景只要不落关键路径，吸收能力内加满也不动墙钟。
+    $critLane = @($Cur.lanes | Sort-Object { -[int]$_.sec }) | Select-Object -First 1
+    $otherMax = 0
+    foreach ($l in @($Cur.lanes)) {
+        if ([int]$l.id -ne [int]$critLane.id -and [int]$l.sec -gt $otherMax) {
+            $otherMax = [int]$l.sec
+        }
+    }
+    [void]$out.Add(("关键路径: L{0} {1} {2}s ｜ 次长道 {3}s ｜ 非关键路径可承接约 {4}s 新增而不改墙钟" -f `
+            $critLane.id, $critLane.desc, $critLane.sec, $otherMax,
+            ([int]$critLane.sec - $otherMax)))
+
     if ($null -eq $Prev) {
         [void]$out.Add("无同类基线（首次运行或 workers/覆盖率/dbg/step-timeout 变更），本次已记为基线。")
-        return [pscustomobject]@{ Lines = @($out); Regression = $false; CausedByNewScenario = $false }
+        return [pscustomobject]@{ Lines = @($out); Regression = $false; CausedByNewScenario = $false; OverBudget = $overBudget }
     }
 
     $regPrev = [int]$Prev.reg_sec
@@ -854,11 +1033,11 @@ function Get-TimingReport {
 
     [void]$out.Add(("前次总耗时（{0}，同配置）: {1}s = 注册 {2}s + 各道并行 {3}s" -f `
             $Prev.time, $prevExec, $regPrev, $lanePrev))
-    [void]$out.Add(("Δ 总耗时              : {0}{1}s（阈值 {2}s）" -f $sign, $delta, $ThresholdSec))
+    [void]$out.Add(("Δ 总耗时（诊断，非门禁）: {0}{1}s（参考阈值 {2}s）" -f $sign, $delta, $ThresholdSec))
 
     if ($delta -le $ThresholdSec) {
-        [void]$out.Add("Δ 未超过阈值，无需归因。")
-        return [pscustomobject]@{ Lines = @($out); Regression = $false; CausedByNewScenario = $false }
+        [void]$out.Add("Δ 未超过参考阈值，无需归因。")
+        return [pscustomobject]@{ Lines = @($out); Regression = $false; CausedByNewScenario = $false; OverBudget = $overBudget }
     }
     $regressed = $true
 
@@ -915,7 +1094,7 @@ function Get-TimingReport {
         else {
             [void]$out.Add("  各道步数亦无变化 → 疑为环境波动（服务器/网络/覆盖率开销），建议复跑确认。")
         }
-        return [pscustomobject]@{ Lines = @($out); Regression = $true; CausedByNewScenario = $false }
+        return [pscustomobject]@{ Lines = @($out); Regression = $true; CausedByNewScenario = $false; OverBudget = $overBudget }
     }
 
     # --- 归因到新增场景 -------------------------------------------------------
@@ -941,7 +1120,7 @@ function Get-TimingReport {
         # 注册阶段新增场景且注册变慢，关键路径道本身没变 → 归因注册
         [void]$out.Add("归因：注册阶段新增场景拉长了注册墙钟（各账号并行跑同一份 register.sce，单账号变长即整体变长）。")
         [void]$out.Add("  → 拆分探索：register.sce 无法按账号拆道；若新增步骤非必需，精简注册流程，或把耗时步骤移出注册（登录后再做）。")
-        return [pscustomobject]@{ Lines = @($out); Regression = $true; CausedByNewScenario = $true }
+        return [pscustomobject]@{ Lines = @($out); Regression = $true; CausedByNewScenario = $true; OverBudget = $overBudget }
     }
 
     if (-not $critCausedGrew) {
@@ -953,7 +1132,7 @@ function Get-TimingReport {
         if ($laneNewOnly.Count -gt 0) {
             [void]$out.Add("  新增场景落在非关键路径道，当前不改变墙钟；拆分它们不会缩短总耗时。")
         }
-        return [pscustomobject]@{ Lines = @($out); Regression = $true; CausedByNewScenario = $false }
+        return [pscustomobject]@{ Lines = @($out); Regression = $true; CausedByNewScenario = $false; OverBudget = $overBudget }
     }
 
     # --- 拆分探索（新增场景在关键路径上） -------------------------------------
@@ -988,7 +1167,7 @@ function Get-TimingReport {
     }
     [void]$out.Add("  ⚠ 拆分前核对：新增场景是否依赖钉给某道的稀缺资源（集成测试指令 §8.4）、/t 目标（§8.5）。")
 
-    return [pscustomobject]@{ Lines = @($out); Regression = $regressed; CausedByNewScenario = $causedByNew }
+    return [pscustomobject]@{ Lines = @($out); Regression = $regressed; CausedByNewScenario = $causedByNew; OverBudget = $overBudget }
 }
 
 try {
@@ -1016,10 +1195,19 @@ try {
     $dumpsBefore = @(Get-ChildItem -Path $RepoRoot -Filter "*.dmp" -File -ErrorAction SilentlyContinue |
             ForEach-Object { $_.FullName })
 
+    # 服务端日志观测基线：记下各日志文件当前长度；停服后只扫此后的增量。
+    # 文件名规则见 Logger.cpp（M-D.txt，月日不补零）——不猜文件名，直接快照
+    # 目录里已有的全部 .txt，兼跨天/跨轮边界。
+    $serverLogOffsets = @{}
+    foreach ($f in @(Get-ChildItem -LiteralPath $ServerLogDir -Filter "*.txt" -File -ErrorAction SilentlyContinue)) {
+        $serverLogOffsets[$f.Name] = $f.Length
+    }
+
     $tServerStart = Get-Date
     if ($NoCoverage) {
-        $serverProc = (Start-HiddenProcess -Exe $ServerExe -WorkingDirectory $RepoRoot `
-                -Arguments @("--config", $ConfPath)).Process
+        $serverRun = Start-HiddenProcess -Exe $ServerExe -WorkingDirectory $RepoRoot `
+            -Arguments @("--config", $ConfPath)
+        $serverProc = $serverRun.Process
     }
     else {
         if (Test-Path $ReportDir) { Remove-Item $ReportDir -Recurse -Force }
@@ -1048,6 +1236,7 @@ try {
     $t0 = Get-Date
     $regItems = @()
     foreach ($lane in $ActiveLanes) {
+        if ($lane.NoRegister) { continue }  # L9 巫师道：账号自举，无注册流程
         $regItems += @{
             Tag       = "L$($lane.Id)"
             Arguments = @("--config", $CliConf,
@@ -1202,6 +1391,63 @@ finally {
         Write-Host "       旧 dump 归档目录：$OldDumpArchive"
     }
 
+    # 服务端日志观测（轨道 L）：剧本全绿但服务端报错同样是矛盾信号。停服后扫
+    # 本次新增日志区间——未登记的 ERROR/FATAL 判 FAIL（与崩溃检测同级）；
+    # 已登记的预期错误（故意负测等）静默；WARN 仅计数入报告。
+    $srvLog = $null
+    if ($null -ne $serverLogOffsets) {
+        try { $srvLog = Get-ServerLogIssues -Offsets $serverLogOffsets -AllowFile $LogAllowFile }
+        catch { Write-Warning "服务端日志扫描失败：$($_.Exception.Message)" }
+    }
+    if ($srvLog) {
+        if ($srvLog.Unknown.Count -gt 0) {
+            $status = "fail"
+            $reason = "服务端日志出现未登记 ERROR/FATAL（$($srvLog.Unknown.Count) 条，非白名单）"
+            if ($failReason) { $failReason = "$failReason；$reason" } else { $failReason = $reason }
+            Write-Warning "服务端日志错误（未在 log-allowlist.txt 登记）："
+            foreach ($u in ($srvLog.Unknown | Select-Object -First 10)) {
+                Write-Host "       $u"
+            }
+            if ($srvLog.Unknown.Count -gt 10) {
+                Write-Host "       （共 $($srvLog.Unknown.Count) 条，仅列前 10；完整日志见 $ServerLogDir）"
+            }
+            Write-Host "       若确属预期（负测等），在 $LogAllowFile 登记其签名。"
+        }
+        $srvWarnCount = 0
+        foreach ($k in @($srvLog.WarnByFn.Keys)) { $srvWarnCount += [int]$srvLog.WarnByFn[$k] }
+        $srvAllowed = $srvLog.ErrTotal - $srvLog.Unknown.Count
+        # 观测器自身要可见：全静默时至少报一行「扫描发生了、多少被白名单吸收」，
+        # 否则无法区分「没有错误」与「没有扫描」。
+        Write-Host ("服务端 ERROR    : {0} 条（白名单吸收 {1}，未登记 {2}）" -f `
+                $srvLog.ErrTotal, $srvAllowed, $srvLog.Unknown.Count)
+        if ($srvWarnCount -gt 0) {
+            $warnSummary = (@($srvLog.WarnByFn.GetEnumerator() | Sort-Object Value -Descending |
+                        ForEach-Object { "$($_.Key)×$($_.Value)" })) -join "、"
+            Write-Host "服务端 WARN    : $srvWarnCount 条（仅报告不判失败：$warnSummary）"
+        }
+        # $lines 在 finally 之后才创建——summary 行先挂独立变量，后面再合并。
+        $srvLogSummary = ("服务端日志：ERROR {0}（白名单 {1}，未登记 {2}），WARN {3}" -f `
+                $srvLog.ErrTotal, $srvAllowed, $srvLog.Unknown.Count, $srvWarnCount)
+    }
+
+    # NoCoverage 模式下服务器 stdout/stderr 此前被异步排空后丢弃——落盘备查。
+    if ($serverRun) {
+        try {
+            [void]$serverRun.StdOut.Wait(5000)
+            [void]$serverRun.StdErr.Wait(5000)
+            $stdoutTxt = $serverRun.StdOut.Result
+            $stderrTxt = $serverRun.StdErr.Result
+            $srvOutFile = Join-Path $WorkDir "server.stdout.log"
+            $srvErrFile = Join-Path $WorkDir "server.stderr.log"
+            if ($stdoutTxt) { Set-Content -LiteralPath $srvOutFile -Value $stdoutTxt -Encoding UTF8 }
+            if ($stderrTxt) { Set-Content -LiteralPath $srvErrFile -Value $stderrTxt -Encoding UTF8 }
+            if ($stdoutTxt -or $stderrTxt) {
+                Write-Host "服务器输出    : $srvOutFile / $srvErrFile"
+            }
+        }
+        catch { Write-Warning "服务器输出落盘失败：$($_.Exception.Message)" }
+    }
+
     if (-not $NoCoverage -and $occRun) {
         Write-Host "-- 等待 OpenCppCoverage 导出报告..."
         $occProc = $occRun.Process
@@ -1317,6 +1563,7 @@ if ($status -eq "pass" -and $null -ne $tRegSec -and $null -ne $tLaneSec) {
         no_coverage      = [bool]$NoCoverage
         dbg              = [bool]$Dbg
         step_timeout     = $StepTimeout
+        budget_sec       = $DurationBudgetSec
         build_sec        = $tBuildSec
         server_ready_sec = $tServerReadySec
         reg_sec          = $tRegSec
@@ -1348,19 +1595,28 @@ if ($status -eq "pass" -and $null -ne $tRegSec -and $null -ne $tLaneSec) {
         $baseline = $h
     }
 
-    $timingReport = Get-TimingReport -Cur $curRecord -Prev $baseline -ThresholdSec $DurationRegressionSec
+    $timingReport = Get-TimingReport -Cur $curRecord -Prev $baseline -ThresholdSec $DurationRegressionSec -BudgetSec $DurationBudgetSec
     $timingLines = @($timingReport.Lines)
     Write-Host ""
     Write-Host "================ 耗时监控 ================"
     foreach ($tl in $timingLines) { Write-Host $tl }
+    if ($timingReport.OverBudget) {
+        # 绝对预算告警：预算是护栏不是门禁（不改状态），但必须吵——滑动基线
+        # 的教训是「每次 +N 都合法、总量单调爬升」，吵是唯一的收敛压力。
+        Write-Host ""
+        Write-Host ("!! 剧本执行总耗时超绝对预算：预算 {0}s，实测 {1}s。" -f $DurationBudgetSec, $curRecord.exec_sec)
+        Write-Host "   预算是代码里的常数（run-integration-tests.ps1 默认值），调整须走 diff 评审；"
+        Write-Host "   收敛手段见报告中的关键路径/吸收能力行与归因拆分建议。"
+    }
     if ($timingReport.Regression) {
         Write-Host ""
-        Write-Host ("!! 总耗时较前次同类运行增长超过阈值 {0}s——归因与拆分探索见上。" -f $DurationRegressionSec)
+        Write-Host ("（总耗时较前次同类运行增长超过参考阈值 {0}s——仅诊断提示，归因与拆分探索见上。）" -f $DurationRegressionSec)
     }
     Add-TimingRecord -Record $curRecord
 }
 
 $lines += "lua-sample E2E：$status"
+if ($srvLogSummary) { $lines += $srvLogSummary }
 if ($failReason) { $lines += "reason=$failReason" }
 $lines += "workers=$($ActiveLanes.Count)"
 foreach ($lane in $ActiveLanes) {
@@ -1393,17 +1649,47 @@ if ($cov) {
 
 if ($fnReport) {
     $unhitList = @($fnReport.UnhitFunctions | Sort-Object File, Start)
+
+    # --- N3 分段（§6 决策认领 vs 待推进）：与 e2e-unhit-claimed.txt 按清单原行匹配 ---
+    $claimedSet = @{}
+    if (Test-Path -LiteralPath $ClaimedFile) {
+        foreach ($c in @(Get-Content -LiteralPath $ClaimedFile -Encoding UTF8 |
+                    Where-Object { $_ -match '^src[\\\/].+?:\d+\s+\S' })) {
+            $claimedSet[$c.Trim()] = $true
+        }
+    }
+    $claimedList = @()
+    $pendingList = @()
+    foreach ($u in $unhitList) {
+        $row = ("{0}:{1}  {2}" -f $u.File, $u.Start, $u.Name)
+        if ($claimedSet.ContainsKey($row.Trim())) { $claimedList += $u } else { $pendingList += $u }
+    }
+
     Write-Host ""
     Write-Host "================ 未命中函数 ==================="
-    Write-Host ("近似统计    : 命中 {0}/{1}，未命中 {2}（扫描 {3} 个文件）" -f `
-            $fnReport.HitFunctions, $fnReport.TotalFunctions, $unhitList.Count, $fnReport.ScannedFiles)
+    Write-Host ("近似统计    : 命中 {0}/{1}，未命中 {2} = §6 决策认领 {3} + 待推进 {4}（扫描 {5} 个文件）" -f `
+            $fnReport.HitFunctions, $fnReport.TotalFunctions, $unhitList.Count, `
+            $claimedList.Count, $pendingList.Count, $fnReport.ScannedFiles)
+    # 「待推进」是唯一真实缺口口径：它就是下一批甄别/补测的全部对象
+    if ($pendingList.Count -gt 0) {
+        Write-Host "待推进缺口  : （真实缺口全名单）"
+        foreach ($u in $pendingList) {
+            Write-Host ("  {0}:{1}  {2}" -f $u.File, $u.Start, $u.Name)
+        }
+    }
 
     $listOut = New-Object System.Collections.ArrayList
-    [void]$listOut.Add("# lua-sample E2E 未命中函数清单（近似）")
+    [void]$listOut.Add("# lua-sample E2E 未命中函数清单（近似，N3 分段）")
     [void]$listOut.Add("# 由 run-integration-tests.ps1 生成，口径与局限见 docs\design\integration-test.md §5.3")
-    [void]$listOut.Add("# 命中 $($fnReport.HitFunctions)/$($fnReport.TotalFunctions)，未命中 $($unhitList.Count)，扫描 $($fnReport.ScannedFiles) 个文件")
+    [void]$listOut.Add("# 命中 $($fnReport.HitFunctions)/$($fnReport.TotalFunctions)，未命中 $($unhitList.Count) = 决策认领 $($claimedList.Count) + 待推进 $($pendingList.Count)，扫描 $($fnReport.ScannedFiles) 个文件")
     [void]$listOut.Add("")
-    foreach ($u in $unhitList) {
+    [void]$listOut.Add("=== 待推进（真实缺口：下批要做的全部对象）===")
+    foreach ($u in $pendingList) {
+        [void]$listOut.Add(("{0}:{1}  {2}" -f $u.File, $u.Start, $u.Name))
+    }
+    [void]$listOut.Add("")
+    [void]$listOut.Add("=== §6 决策认领（design §6 全部条目；新增归档时追加 coverage_history\e2e-unhit-claimed.txt）===")
+    foreach ($u in $claimedList) {
         [void]$listOut.Add(("{0}:{1}  {2}" -f $u.File, $u.Start, $u.Name))
     }
     New-Item -ItemType Directory -Force -Path (Split-Path $UnhitFile) | Out-Null
@@ -1420,8 +1706,9 @@ if ($fnReport) {
     }
 
     $lines += ""
-    $lines += ("未命中函数：{0}/{1}（未命中 {2}，扫描 {3} 个文件）" -f `
-            $fnReport.HitFunctions, $fnReport.TotalFunctions, $unhitList.Count, $fnReport.ScannedFiles)
+    $lines += ("未命中函数：{0}/{1}（未命中 {2} = 决策认领 {3} + 待推进 {4}，扫描 {5} 个文件）" -f `
+            $fnReport.HitFunctions, $fnReport.TotalFunctions, $unhitList.Count, `
+            $claimedList.Count, $pendingList.Count, $fnReport.ScannedFiles)
     $lines += ("  完整清单：$UnhitFile")
 }
 else {

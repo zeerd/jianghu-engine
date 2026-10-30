@@ -1,8 +1,9 @@
 -- sample_poison.lua  断肠散之毒（状态脚本）
 --
--- 示例条件脚本：演示「状态（condition）」机制。
---   1. 物品脚本用 apply_condition("sample_poison", N) 把状态挂到角色身上，
---      引擎随即调用本脚本的 init() 一次（播报中毒）；
+-- 示例条件脚本：演示「状态（condition）」机制——**可叠加的有害条件**。
+--   1. 物品脚本用 apply_condition("sample_poison", 当前值 + poison_supply)
+--      把状态挂到角色身上，引擎随即调用本脚本的 init() 一次（播报中毒）；
+--      多次服用会累加 duration，喝越多毒性越久。
 --   2. 之后每次心跳引擎调用 update_condition()，脚本在这里施加持续伤害，
 --      并把 duration 递减写回；
 --   3. duration 归零时返回 0（不带 CND_CONTINUE），引擎清除该条件项，

@@ -282,7 +282,6 @@
     <ClCompile Include="src\engine\Rank.cpp" />
     <ClCompile Include="src\room\RoomMgr.cpp" />
     <ClCompile Include="src\char\SetupChar.cpp" />
-    <ClCompile Include="src\engine\SetupObjects.cpp" />
     <ClCompile Include="src\user\User.cpp" />
     <ClCompile Include="src\user\UserMgr.cpp" />
     <ClCompile Include="src\config\PartyConfig.cpp" />
@@ -341,6 +340,7 @@
     <ClCompile Include="src\lua\LuaHook.cpp" />
     <ClCompile Include="src\lua\LuaLogin.cpp" />
     <ClCompile Include="src\lua\LuaReload.cpp" />
+    <ClCompile Include="src\lua\LuaObjects.cpp" />
     <ClCompile Include="src\lua\LuaSyntaxChecker.cpp" />
     <!-- net -->
     <ClCompile Include="src\net\GateClient.cpp" />

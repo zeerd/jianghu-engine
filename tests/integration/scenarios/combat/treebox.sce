@@ -5,15 +5,21 @@
 #   （combat_exp +100000、max_mp +100、FlushMyInfo）。
 #
 # ⚠ 并行隔离：树箱全服只刷一只、经验果只有一粒（random/tree 置位后不再重排，
-#   箱子也不随 CRoom::reset 恢复），故取果段只由 L3 一道执行——这 +100 上限
-#   也只有它用得上（偷袭要当前内力 ≥100）。
+#   箱子也不随 CRoom::reset 恢复），故取果段只由 L3 一道执行——N4 拆分后
+#   偷袭 mp 改由 L9 供能，经验果的 +100 上限不再是偷袭前置，但随机刷箱 /
+#   Add_Box / do_use 的世界覆盖仍钉在本道（§3.3 原地不动）。
 #
 # 判定：
 #   · 山顶场景描述私发；`wait object` / `wait menu` 都是每客户端独立状态；
 #   · 断言背包里真多了一粒经验果，再断言本人版服用回执「你吃下一粒经验果」；
 #   · 服下后 FlushMyInfo 会推送 max_mp，用状态断言直接验证上限确实 +100
-#     （上限从第一轮打坐的 1 抬到 101）。
+#     （拆分后本道不再打坐，上限从 0 抬到 100）。
 
+cmd /go 青云山半山腰
+wait room 青云山半山腰
+# 山脚无直达山顶的门（sample_mountain_foot 只 add_door 半山腰/茶棚/钱庄/住宅区），
+# 必须经半山腰中转——旧链的 common/apprentice 恰好先到半山腰，N4 拆分后
+# 本道不再拜师，故显式两跳
 cmd /go 青云山山顶
 wait room 青云山山顶
 
@@ -35,8 +41,8 @@ clear
 cmd /use
 wait text 你吃下一粒经验果 timeout=10000
 wait attr max_mp >= 100 timeout=10000
-# 经验果的 do_use 会 start_busy(2)（sample_xp.lua），后续片段的打坐准入拒 busy，
-# 心跳拍计时只能等时间过拍
+# 经验果的 do_use 会 start_busy(2)（sample_xp.lua），后续 sneak 的 cast 准入
+# 拒 busy（CmdStandardCombat cast 入口），心跳拍计时只能等时间过拍
 sleep 3200
 cmd .info
 cmd /t 0

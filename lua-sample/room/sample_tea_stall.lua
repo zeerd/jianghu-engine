@@ -1,6 +1,5 @@
 -- sample_tea_stall.lua  山脚茶棚
 -- 示例房间：展示 resource/water（fill 装水）和商人 NPC 的用法
-
 return {
     type = "room",
     name = "山脚茶棚",
@@ -12,8 +11,9 @@ return {
         self:set("resource/water", 1)
         self:set("resource/water_name", "清茶")
         self:set("resource/water_type", "tea")
-        self:set("resource/drunk_supply", 3)
-        self:set("resource/fee", 0)
+        -- 茶棚是营业场所，装一壶茶收 10 文茶钱（fee>0 时 liquid_base.do_fill
+        -- 从客人的钱庄存款扣费，分文没有的客人装不了水）
+        self:set("resource/fee", 10)
 
         -- 连接回山脚
         self:add_door("青云山山脚", "青云山山脚", "山脚茶棚")

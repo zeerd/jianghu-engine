@@ -6,6 +6,10 @@
 # 判定：断言本人版成交回执 + 收尾断言背包里确有金创药。
 # 说明：本道起始房间即「青云山山脚」（杂货老板在此），采购后步行去会合房间。
 
+# 刚落地（登录/换房）：wait room 只确认 GOTOROOM 已处理，房间对象的 ADDOBJECT
+# 是另一条报文、TCP 分段下可晚一拍到，而 /t 的英文 id 在客户端对象名录里解析——
+# 先 wait object 再定向，否则 /t 落空（target=0）后续 /buy 全部静默失败
+wait object 杂货老板
 cmd /t huo ji
 cmd /list
 

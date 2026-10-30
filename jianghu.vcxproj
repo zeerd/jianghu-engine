@@ -166,10 +166,10 @@
     <Link>
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <!-- 库搜索目录：本次构建的 $(OutDir) 必须排第一。裸名 jianghu_core.lib 若
-         先被解析到 $(SolutionDir)\bin\ 下的旧副本，用 /p:OutDir=bin\e2e\ 的
-         集成测试就会链到陈旧核心库（改了 src/ 却不生效，极难排查）。 -->
-    <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- 库搜索目录：核心库的唯一副本在 $(SolutionDir)\bin\（ProjectReference 上已
+         剔除 OutDir 传播，e2e 构建不再往 $(OutDir) 里复制第二份），且同一轮构建内
+         先建库后链接，此处解析到的必是新鲜产物，不存在陈旧副本。 -->
+      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AssemblyDebug />
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -219,10 +219,10 @@
     <Link>
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <!-- 库搜索目录：本次构建的 $(OutDir) 必须排第一。裸名 jianghu_core.lib 若
-         先被解析到 $(SolutionDir)\bin\ 下的旧副本，用 /p:OutDir=bin\e2e\ 的
-         集成测试就会链到陈旧核心库（改了 src/ 却不生效，极难排查）。 -->
-    <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- 库搜索目录：核心库的唯一副本在 $(SolutionDir)\bin\（ProjectReference 上已
+         剔除 OutDir 传播，e2e 构建不再往 $(OutDir) 里复制第二份），且同一轮构建内
+         先建库后链接，此处解析到的必是新鲜产物，不存在陈旧副本。 -->
+      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AssemblyDebug>
       </AssemblyDebug>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -443,6 +443,12 @@
   <ItemGroup>
     <ProjectReference Include="jianghu_core.vcxproj">
       <Project>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</Project>
+      <!-- /p:OutDir= 会作为全局属性传给被引用工程，静态库便跟着 exe 换输出目录、
+         产生第二份产物（且 cl 的 /Fd 随之变化，两种构建形态来回切换即整库重编）。
+         exe 需要独立输出目录以避开运行中进程对 exe 的文件锁；.lib 只在链接期使用、
+         无人锁定，不需要隔离——故在此把 OutDir 从引用的全局属性中剔除，
+         核心库永远只落在自己的输出目录。 -->
+      <GlobalPropertiesToRemove>OutDir</GlobalPropertiesToRemove>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

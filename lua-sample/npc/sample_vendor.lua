@@ -31,6 +31,8 @@ function npc.create(self)
     self:carry_good("sample_teleport", 2)
     self:carry_good("sample_teapot", 5)
     self:carry_good("sample_chess", 20)
+    -- 铜钥匙：开山脚那锁着的箱子（password 两处配套，见 key.lua 头注）
+    self:carry_good("key", 5)
 
     -- 自身装备
     self:carry_object("sample_sword_basic"):wear()

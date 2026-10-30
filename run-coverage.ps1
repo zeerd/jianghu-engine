@@ -5,6 +5,7 @@
 #   powershell -File run-coverage.ps1 -CoverageType branch  # branch coverage
 #   powershell -File run-coverage.ps1 -ListNotInstrumented  # also list files absent from the report
 #   powershell -File run-coverage.ps1 -CovKeepCount 3       # 只保留最近 3 份 .cov（0 = 不清理）
+#   powershell -File run-coverage.ps1 -SummaryKeepCount 5   # summary.csv 与 summary-*.txt 各留最近 5 份（0 = 不清理）
 #
 # Requires: OpenCppCoverage (https://github.com/OpenCppCoverage/OpenCppCoverage)
 #           installed and on PATH, or set $OpenCppCoveragePath below.
@@ -19,9 +20,11 @@
 #   4. Exports Cobertura XML for CI
 #   5. Saves binary .cov to coverage_history/ (pruned to newest -CovKeepCount)
 #   6. Appends summary to coverage_history/summary.csv
+#      (pruned to newest -SummaryKeepCount rows; per-run summary txt likewise)
 #   7. Shows coverage delta vs previous run (同配置基线比较)
 #   8. Saves the Coverage Summary text to
 #      coverage_history/summary-<timestamp>.txt
+#      （csv 行与该类 txt 均只保留最近 -SummaryKeepCount 份）
 #
 # 配置说明：覆盖率与验收均在 Release 上采集。历史运行全为 Debug，
 # 切换后首条记录 delta 显示 n/a 并成为新的 Release 基线。
@@ -42,7 +45,12 @@ param(
     # .cov 只是 OpenCppCoverage 的二进制导出（事后合并/重放报告用），
     # delta 比较读的是 summary.csv，与 .cov 无关；因此只保留最近 N 份。
     # 0 = 不清理（保留全部）。
-    [int]$CovKeepCount = 5
+    [int]$CovKeepCount = 5,
+    # summary 历史（csv 行 + 每轮一份的 summary-<时间戳>.txt）只保留最近 N 条/份。
+    # csv 是给人看的趋势记录，delta 只依赖同配置最近一条，条数下限不受影响；
+    # 若某种配置连续被 N 轮其他配置隔开，其基线被清理后下一轮显示 n/a 并重建基线。
+    # 0 = 不清理（保留全部）。
+    [int]$SummaryKeepCount = 5
 )
 
 $ErrorActionPreference = "Stop"
@@ -397,6 +405,29 @@ if ($prevLine) {
 
 $dateStr = Get-Date -Format "yyyy-MM-dd"
 "$dateStr,$linesValid,$linesCovered,$([math]::Round($lineRate, 1).ToString("0.0")),$delta,$method" | Out-File -FilePath $SummaryCsv -Append -Encoding utf8
+
+# --- Step 5.5: Prune old summary history ---
+# csv 与每轮一份的 summary-<时间戳>.txt 都只保留最近 $SummaryKeepCount 条，
+# 避免历史记录无限增长；刚写入的本轮记录在保留窗口内，不受影响。
+if ($SummaryKeepCount -gt 0) {
+    $csvLines = @(Get-Content -LiteralPath $SummaryCsv)
+    if ($csvLines.Count -gt $SummaryKeepCount + 1) {
+        $keep = @($csvLines | Select-Object -First 1) +
+                @($csvLines | Select-Object -Skip 1 | Select-Object -Last $SummaryKeepCount)
+        $keep | Out-File -FilePath $SummaryCsv -Encoding utf8
+        Write-Host ("Pruned {0} old row(s) from summary.csv, kept newest {1}." -f ($csvLines.Count - $keep.Count), $SummaryKeepCount) -ForegroundColor DarkGray
+    }
+    # 只清理本脚本产出的 summary-<时间戳>.txt（时间戳后缀为 _），不碰其他 summary-*.txt
+    # （如 run-integration-tests.ps1 写的 summary-e2e-sample.txt）。
+    $staleLogs = @(Get-ChildItem -Path $HistoryDir -Filter "summary-*.txt" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match "^summary-\d{4}-\d{2}-\d{2}_\d{6}\.txt$" } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -Skip $SummaryKeepCount)
+    foreach ($f in $staleLogs) { Remove-Item -LiteralPath $f.FullName -Force }
+    if ($staleLogs.Count -gt 0) {
+        Write-Host ("Pruned {0} old summary txt file(s), kept newest {1}." -f $staleLogs.Count, $SummaryKeepCount) -ForegroundColor DarkGray
+    }
+}
 
 # --- Step 6: Show delta ---
 $deltaColor = if ($delta.StartsWith("+") -and $delta -ne "+0.0") { "Green" }

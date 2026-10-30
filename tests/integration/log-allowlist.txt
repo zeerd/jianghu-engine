@@ -1,0 +1,26 @@
+# 服务端日志白名单（run-integration-tests.ps1 服务端日志观测用）
+#
+# 登记规则（新增负测/预期服务端报错时必须同步登记，见集成测试指令 §3.3）：
+#   每行：签名<TAB>归属场景/理由（TAB 分隔）；# 起头为注释。
+#   签名对「去掉 [LEVEL] (时间戳) 前缀后的消息体」做子串匹配——
+#   必须锚定变量部分（wrongpass、house_ 等），使其只命中预期类、
+#   不遮蔽同类中的真异常（真丢档/真 DB 故障带不同变量值，照常 FAIL）。
+# 未登记的 ERROR/FATAL 一律判整轮 FAIL；WARN 不走本表（只计数入报告）。
+#
+# L4 account.sce 密码错误负测：/password wrongpass … 故意用字面量 wrongpass 试错，
+# verify_user 必报「passwd:wrongpass … store null」——负测的正向证明。
+# 锚定 wrongpass 字面量：真故障带真实密码，不会命中本签名。
+passwd:wrongpass store null
+	
+L4 account.sce 密码错误负测（wrongpass 分支）
+#
+# per-owner 房屋实例首建回退（house/apply.sce、interaction/invite_a.sce 置业）：
+# 首次置业时 load_room("house_<房名>_<acct>") 库中尚无该行 → 标准房间回退 +
+# 房内箱 db_load_container 随之失败；首建后即落库，同账号二次加载不再触发。
+# 锚定 house_ 前缀：其他房间的缺失（配置错/脚本改名）不带此前缀，照常 FAIL。
+create_room: 没有该房间house_
+	
+house/apply.sce 置业首建：per-owner 房间库中无行的预期回退
+db_load_container failed for house_
+	
+house/apply.sce 置业首建：房内箱随房间首建的预期失败

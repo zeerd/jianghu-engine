@@ -13,6 +13,10 @@ user = root
 password = root
 name = game
 
+[wizard]
+; 默认的巫师密码，仅在首次创建数据库时使用一次
+password 12345678
+
 [server]
 port = 6600
 name = 金剑江湖

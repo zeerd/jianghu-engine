@@ -7,10 +7,10 @@
 #     → `menu <商品>` + `menuinput <价>`；撤价同路径输 0——全程无需硬编码 obj_id；
 #   3) 售卖：由 B 侧 listgoods+buy 完成（C++ CmdUserVendor::buy），A 断言
 #     message_vision 本人版（$n 渲染为「你」）与货款金额；
-#   4) 下架：茶壶走「定价超 B 现金 → 买不动」错误分支后撤价，
+#   4) 下架：酒壶走「定价超 B 现金 → 买不动」错误分支后撤价，
 #     B 复核 listgoods 落空商品分支。
 #
-# 商品归属（§8.4③）：金创药/茶壶为本道自购待售品，不碰任何钉给唯一道的资源。
+# 商品归属（§8.4③）：金创药/酒壶为本道自购待售品，不碰任何钉给唯一道的资源。
 
 cmd /t 0
 cmd /go 青云山山脚
@@ -27,12 +27,12 @@ menu 索取一份交易文书
 wait text 递给你一份交易文书 timeout=10000
 wait item 贸易文书 timeout=10000
 
-# --- 采购待售商品：金创药（正常成交） + 茶壶（高定价走金币不足分支） --------
+# --- 采购待售商品：金创药（正常成交） + 酒壶（高定价走金币不足分支） --------
 clear
 cmd /buy 5
 wait text 你从杂货老板那里买下了数量1的金创药 timeout=10000
 cmd /buy 9
-wait text 你从杂货老板那里买下了数量1的茶壶 timeout=10000
+wait text 你从杂货老板那里买下了数量1的酒壶 timeout=10000
 cmd /t 0
 
 # --- 定价：金创药 100 --------------------------------------------------------
@@ -47,14 +47,14 @@ menuinput 100
 wait text 完成定价 timeout=10000
 wait text 金创药 ：100 timeout=10000
 
-# --- 定价：茶壶 2 亿（超 B 现金，供买方走金币不足分支） ----------------------
+# --- 定价：酒壶 2 亿（超 B 现金，供买方走金币不足分支） ----------------------
 clear
 cmd /use
 wait menu timeout=10000
-menu 茶壶
+menu 酒壶
 menuinput 200000000
 wait text 完成定价 timeout=10000
-wait text 茶壶 ：200000000 timeout=10000
+wait text 酒壶 ：200000000 timeout=10000
 cmd /t 0
 
 # --- 通知 B 开买（单一同步信号覆盖两件商品的定价完成） ----------------------
@@ -66,15 +66,15 @@ cmd /t 0
 wait text 从你那里买下了金创药 timeout=30000
 wait text 付给你数量100 timeout=10000
 
-# B 买茶壶失败（金币不足）→ 回呼信号
-wait text 买不起茶壶 timeout=30000
+# B 买酒壶失败（金币不足）→ 回呼信号
+wait text 买不起酒壶 timeout=30000
 
-# --- 下架：撤茶壶定价（菜单路径 menuinput 0，tell 私发「取消出售。」） ------
+# --- 下架：撤酒壶定价（菜单路径 menuinput 0，tell 私发「取消出售。」） ------
 cmd /t trade
 clear
 cmd /use
 wait menu timeout=10000
-menu 茶壶
+menu 酒壶
 menuinput 0
 wait text 取消出售 timeout=10000
 cmd /t 0

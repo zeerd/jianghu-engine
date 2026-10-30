@@ -21,3 +21,8 @@ if me:query_temp("sucked") ~= 0 then
 if me:Query(IS_LIVING) == 0 then   -- 数值为 0（false 语义）
 if me:Query(IS_LIVING) ~= 0 then   -- 数值非 0（true 语义）
 ```
+> **教材实物案例（2026-10-31 修复）**：`lua-default/item/liquid_base.lua` 的 `do_use`
+> 曾写 `if self:query("liquid/drink_func") then`，而 `do_fill` 用 `drink_func = 0`
+> 表示「无自定义效果」——`if 0 then` 恒真使 fill 过的容器永远短路，alcohol/xx_poison
+> 醉酒毒酒分支结构性不可达（E2E 茶棚片段首次上马即撞上）。判定必须显式
+> `~= 0`：nil 与 0 都走通用分支。
