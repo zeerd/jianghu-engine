@@ -38,6 +38,20 @@ void on_send_online(CUser* me)
 {
     // 通知自己上线状态
     me->notify_online(me);
+
+    // 花名册交换（/t 玩家数字 ID 全服跨房间解析的依据）：直接服务端互推
+    // DOWNUSER（U/N/I 字段：会话号/姓名/数字账号）写入双方客户端在线表——
+    // 不走 SENDUSER→downloaduser 往返，避免批量登录时的 downloaduser 命令
+    // 突发撞上 per-user 限流。任何登录次序下，登录完成即互相可见；
+    // 下线由 CUser::notify_offline 广播 SENDUSER O=0 按 UID 摘除。
+    for (iterator_user p = g_user_list.begin(); p != g_user_list.end(); p++) {
+        CUser* obj = p->second;
+        if (obj == me) continue;
+        if (obj->query_temp("net_dead")) continue;
+
+        obj->receive_user_info(me);  // 对端在线表 ← 本人资料
+        me->receive_user_info(obj);  // 本人在线表 ← 对端资料
+    }
 }
 
 // 通过帐号查找在线玩家

@@ -7,4 +7,3 @@
 wait menu timeout=60000
 menu 接受
 wait text 你接受了邀请 timeout=15000
-sleep 400

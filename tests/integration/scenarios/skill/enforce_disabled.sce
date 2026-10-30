@@ -16,4 +16,3 @@ cmd /t 0
 clear
 cmd /enforce 1
 wait text 你必须先 enable 一种内功 timeout=10000
-sleep 400

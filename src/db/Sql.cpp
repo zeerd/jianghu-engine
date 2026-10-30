@@ -262,7 +262,7 @@ bool verify_user(const char* userid, char* passwd)
                 return false;
             }
 
-            // 判断四属性值是否合法（与 make_body 同口径）
+            // 判断四属性值是否合法（单项 10~30，总和不得超过 84）
             if (str < 10 || str > 30) {
                 notify_fail("力量值非法。");
                 return false;
@@ -289,9 +289,9 @@ bool verify_user(const char* userid, char* passwd)
             }
 
             CUser me;
-            // 与 make_body 共用同一份初始档案：age=14 必须早于 setup_char、
-            // combat_exp/level 是起手值。缺了它们，新人会带着随机 age 算出的
-            // 虚高 max_hp 上线，hp 也一并被抬到上限之上。
+            // 走 init_new_char 建档：起手 age 必须早于 setup_char——缺了它，
+            // 新人会带着随机 age 算出的虚高 max_hp 上线，hp 也一并被抬到
+            // 上限之上。
             init_new_char(me, row[1].c_str(), userid, row[10].c_str(), str, con,
                           intel, dex);
             me.set("combat_exp", 0);

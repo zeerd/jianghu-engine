@@ -16,7 +16,6 @@
 
 cmd /go 青云山山顶
 wait room 青云山山顶
-sleep 800
 
 clear
 cmd /look
@@ -25,18 +24,19 @@ wait text 山顶前方有一座山寨 timeout=10000
 # 随机树箱：概率性刷新（脚本 1/10 每 5 秒重掷，刷出即停）
 wait object 一个奇怪的树 timeout=240000
 cmd /t 0
-cmd /t 一个奇怪的树
+cmd /t tree
 cmd /look
 wait menu
 menu 经验果
 wait item 经验果 timeout=10000
-sleep 800
 
-cmd /t 经验果
+cmd /t jing yan dan
 clear
 cmd /use
 wait text 你吃下一粒经验果 timeout=10000
 wait attr max_mp >= 100 timeout=10000
-sleep 3000
+# 经验果的 do_use 会 start_busy(2)（sample_xp.lua），后续片段的打坐准入拒 busy，
+# 心跳拍计时只能等时间过拍
+sleep 3200
 cmd .info
 cmd /t 0

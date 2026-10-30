@@ -8,33 +8,31 @@
 #
 # 判定：首件断言本人专属成交回执，收尾断言背包里确有断肠散与传送符。
 
-cmd /t 杂货老板
+# 刚落地山脚：wait room 只确认进房，房间对象的 ADDOBJECT 推送要再晚一拍，
+# 而 /t 的英文 id 在客户端对象名录里解析——先 wait object 再定向
+wait object 杂货老板
+cmd /t huo ji
 cmd /list
-sleep 600
 
 clear
 cmd /buy 7
 wait text 你从杂货老板那里买下了数量1的断肠散 timeout=10000
-sleep 600
 
 repeat 5
 clear
 cmd /buy 5
 wait text 你从杂货老板那里买下了数量1的金创药 timeout=10000
-sleep 600
 end
 
 repeat 8
 clear
 cmd /buy 6
 wait text 你从杂货老板那里买下了数量1的回春丹 timeout=10000
-sleep 600
 end
 
 clear
 cmd /buy 8
 wait text 你从杂货老板那里买下了数量1的传送符 timeout=10000
-sleep 600
 
 wait item 断肠散 timeout=10000
 wait item 传送符 timeout=10000

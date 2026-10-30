@@ -18,9 +18,8 @@ wait text 你一觉醒来 timeout=120000
 cmd .info
 
 wait object 青云子
-cmd /t 青云子
+cmd /t qing yun zi
 clear
 cmd /look
 wait text 是你的师父 timeout=10000
-sleep 500
 cmd /t 0

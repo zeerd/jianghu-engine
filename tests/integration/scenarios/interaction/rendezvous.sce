@@ -17,10 +17,9 @@
 #
 # 超时口径：对方若因登录失败/中途失败停摆，本片段的 `wait object $peer`
 # 会先到期——排查时应先看对端道的日志（疑似对端未到位，见 §9）。
-# timeout 取宽（60s）：两道同时开跑，正常会合在开跑后数秒内完成，
-# 宽余量只用于吸收对端登录/数据库抖动。
+# timeout 取宽（180s）：A 侧会合前要走 pk_prep（起步历练、买剑装备、冲 10 级
+# 约 30s），先到者等后到者；宽余量同时吸收对端登录/数据库抖动。
 
 cmd /go 山脚茶棚
 wait room 山脚茶棚 timeout=30000
-wait object $peer timeout=60000
-sleep 500
+wait object $peer timeout=180000

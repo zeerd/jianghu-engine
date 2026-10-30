@@ -19,17 +19,15 @@
 #
 # ⚠ 目标复位：两个命令都靠 /t 定向，块末必须 /t 0（§8.5）。
 
-cmd /t 铁剑
+cmd /t sample_sword_basic
 clear
 cmd /unwield
 wait text 你将手中的铁剑插回剑鞘 timeout=10000
-sleep 600
 
-cmd /t 茶壶
+cmd /t cha hu
 clear
 cmd /drop
 wait text 你向山脚茶棚里丢下数量1的茶壶 timeout=10000
 # 状态复核：茶壶已从背包落到房间，`object` 条件（房间内对象）出现才算真移出
 wait object 茶壶 timeout=10000
-sleep 600
 cmd /t 0

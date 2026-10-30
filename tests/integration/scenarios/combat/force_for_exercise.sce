@@ -8,69 +8,63 @@
 # 说明：请教一次扣 100 气，按「学 3 次 → 补气一轮」循环；升级与金创药已由
 #   combat/levelup_heal.sce 把气血上限顶到 531，一轮 4 粒补气可支撑下一轮。
 
-cmd /t 青云子
+cmd /t qing yun zi
 
 repeat 3
 clear
 cmd /learn force
 wait text 进步了 timeout=10000
-sleep 600
 end
 
 repeat 4
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
 sleep 3200
 end
 
-cmd /t 青云子
+cmd /t qing yun zi
 repeat 3
 clear
 cmd /learn force
 wait text 进步了 timeout=10000
-sleep 600
 end
 
 repeat 4
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
 sleep 3200
 end
 
-cmd /t 青云子
+cmd /t qing yun zi
 repeat 3
 clear
 cmd /learn force
 wait text 进步了 timeout=10000
-sleep 600
 end
 
 repeat 4
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
 sleep 3200
 end
 
-cmd /t 青云子
+cmd /t qing yun zi
 clear
 cmd /learn force
 wait text 进步了 timeout=10000
-sleep 600
 
 clear
 cmd /learn force_adv
 wait text 进步了 timeout=10000
-sleep 600
 
 # 激发高级内功：把 mp 清零（正是 exercise 0→1 那条分支的前提）
 clear
 cmd /enable force force_adv
 wait text 内力必须重新修炼 timeout=10000
-sleep 600
 cmd /t 0

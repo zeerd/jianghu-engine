@@ -176,7 +176,8 @@ RMT 走私，交易留痕可征税。
 
 ✅ **CLI 无头剧本 E2E**：`tests\integration\scenarios\*.sce` 用
 `wait`/`assert`/`capture` 剧本驱动真实服务器 + 真实客户端，
-覆盖率（~33%）与单测（~94%）互补。**经验**：文字 MUD 的 E2E 天然
+多账号并行七条道，E2E 覆盖率与单测覆盖率互补、各司其职（口径与分工见
+`docs\design\integration-test.md` §5）。**经验**：文字 MUD 的 E2E 天然
 适合文本断言，剧本即回归文档。
 
 ---
@@ -452,13 +453,14 @@ RMT 走私，交易留痕可征税。
 **文档**：
 - README：存在（构建/运行/目录结构）。
 - 协议规范：存在（`docs\protocol.md`，含 Wireshark 解密插件）。
-- 架构文档：存在（`docs\architecture\engine-core-architecture.md`）。
+- 架构文档：存在（`docs\design\engine-core-architecture.md`）。
 - 指令拦截：存在（`docs\handle_action.md`）。
 - 概念文档：即本文档（反向生成）。
 
 **测试资产**：
 - `tests\unit\`：Google Test 引擎单测 + mock 层（链接时替换架构）。
-- `tests\integration\`：CLI 无头剧本 E2E（四部剧本跑同一角色，~460 步）。
+- `tests\integration\`：CLI 无头剧本 E2E（多账号并行七条道；
+  设计见 `docs\design\integration-test.md`）。
 - 门禁：`run-coverage.ps1`（Release 同构 + 覆盖率增量）、
   `run-integration-tests.ps1`（真实服务器 + OpenCppCoverage）。
 

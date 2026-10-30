@@ -18,12 +18,11 @@ cmd /look
 wait text 这里是青云山的山脚 timeout=10000
 wait object 老李头
 
-cmd /t 老李头
+cmd /t lao li
 clear
 cmd /ask 山
 wait text 山顶有一伙山贼盘踞 timeout=10000
 
 clear
 cmd /ask 师父
-sleep 500
 cmd /t 0

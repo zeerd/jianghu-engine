@@ -118,10 +118,6 @@ static int resolve_script_ref(CMainObject* obj)
 
     if (npc) return npc->get_script_ref();
 
-    CLuaMirrorNpc* mirrornpc = dynamic_cast<CLuaMirrorNpc*>(obj);
-
-    if (mirrornpc) return mirrornpc->get_script_ref();
-
     // 房间
 
     CLuaRoom* room = dynamic_cast<CLuaRoom*>(obj);
@@ -313,18 +309,14 @@ int l_base_handle_action(lua_State* L)
     const char* arg = luaL_optstring(L, 4, "");
 
     // 与 l_base_do_talk 同构：按 CLuaNpcT 各具体类型逐一非虚调用基类
-    // handle_action（银行/镜像等脚本里 base_handle_action 同样需要覆盖到）
+    // handle_action（银行/普通 NPC 的脚本里 base_handle_action 同样需要
+    // 覆盖到）
     if (CLuaVendor* n = dynamic_cast<CLuaVendor*>(obj)) {
         lua_pushinteger(L, n->base_handle_action((char*)comm, me, (char*)arg));
         return 1;
     }
 
     if (CLuaBankOwner* n = dynamic_cast<CLuaBankOwner*>(obj)) {
-        lua_pushinteger(L, n->base_handle_action((char*)comm, me, (char*)arg));
-        return 1;
-    }
-
-    if (CLuaMirrorNpc* n = dynamic_cast<CLuaMirrorNpc*>(obj)) {
         lua_pushinteger(L, n->base_handle_action((char*)comm, me, (char*)arg));
         return 1;
     }
@@ -363,12 +355,6 @@ int l_base_do_talk(lua_State* L)
     }
 
     if (CLuaBankOwner* n = dynamic_cast<CLuaBankOwner*>(obj)) {
-        lua_pushinteger(L, n->base_do_talk(me, (char*)ask));
-
-        return 1;
-    }
-
-    if (CLuaMirrorNpc* n = dynamic_cast<CLuaMirrorNpc*>(obj)) {
         lua_pushinteger(L, n->base_do_talk(me, (char*)ask));
 
         return 1;
@@ -419,22 +405,15 @@ int l_handle_action(lua_State* L)
     return 1;
 }
 
-// self:base_create() - 调用基类 create()
-
-// NPC 脚本（CLuaMirrorNpc）在 create 中复用 CNpc::create 的默认实现。
+// self:base_create() - 历史兼容钩子（空实现）。
+// 镜像NPC 类型删除后引擎侧已无分支可调；技能脚本（yunlong/xueshan/
+// xingxiu 等的 create）仍在调用 self:base_create()，摘掉绑定会让它们
+// 报 "attempt to call a nil value"，故保留 no-op。
 
 int l_base_create(lua_State* L)
 
 {
-    CMainObject* obj = get_object(L, 1);
-
-    if (!obj) return 0;
-
-    if (CLuaMirrorNpc* mi = dynamic_cast<CLuaMirrorNpc*>(obj)) {
-        mi->base_create();
-
-        return 0;
-    }
+    get_object(L, 1);  // 参数类型校验，保持与其余 base_* 绑定同口径
 
     return 0;
 }

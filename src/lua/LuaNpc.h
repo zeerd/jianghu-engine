@@ -11,7 +11,6 @@
 #include "BankOwner.h"
 #include "Vendor.h"
 
-#include "NpcMirror.h"
 #include <map>
 #include <set>
 #include <string>
@@ -191,9 +190,6 @@ typedef CLuaNpcT<CVendor>
 typedef CLuaNpcT<CBankOwner>
     CLuaBankOwner;  // type="bankowner"：钱庄老板NPC（CBankOwner
                     // 基类，支持存取款）
-typedef CLuaNpcT<CNpcMirror>
-    CLuaMirrorNpc;  // type="mirror"：镜像NPC（CNpcMirror
-                    // 基类，可制造玩家镜像）
 
 #include "Encoding.h"
 #include "LuaNpc.inl"

@@ -4,8 +4,7 @@
 #   服务端 do_give（玩家收款无阻拦，message_vision + move）。A 侧本人版
 #   「你给<peer>数量1的金创药」；B 侧以背包 item 条件断言物品真实到账（§8.6①）。
 
-cmd /t $peer
+cmd /t $peer_acct
 cmd /give 金创药
 wait text 给$peer数量 timeout=15000
 cmd /t 0
-sleep 400

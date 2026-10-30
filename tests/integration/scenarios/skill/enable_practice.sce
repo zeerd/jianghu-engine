@@ -14,32 +14,26 @@
 clear
 cmd /enable force force_adv
 wait text 内力必须重新修炼 timeout=10000
-sleep 600
 
 clear
 cmd /enable sword sword_adv
 wait text Ok. timeout=10000
-sleep 600
 
 clear
 cmd /enable
 wait text 以下是你目前使用中的特殊技能 timeout=10000
 wait text sword：sword_adv timeout=10000
 wait text force：force_adv timeout=10000
-sleep 600
 
 clear
 cmd /practice force
 wait text 只能用请教的来增加熟练度 timeout=10000
-sleep 600
 
 clear
 cmd /practice sword
 wait text 体力或内力不够 timeout=10000
-sleep 600
 
 clear
 cmd /cast force heal
 wait text 内力不足，无法施展自疗术 timeout=10000
-sleep 600
 cmd /t 0

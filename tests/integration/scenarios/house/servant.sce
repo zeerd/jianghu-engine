@@ -7,7 +7,7 @@
 # 说明：出租物品用金创药——本道自带（见 mountain_foot/buy_sell.sce），不依赖其他道。
 
 clear
-cmd /t 仆人
+cmd /t man
 cmd /talk
 wait text 主人回来了 timeout=10000
 
@@ -16,7 +16,6 @@ wait text 主人回来了 timeout=10000
 menu 改名
 menuinput 阿福
 wait text OK. timeout=10000
-sleep 400
 clear
 cmd /look
 wait text 阿福 timeout=10000
@@ -26,7 +25,6 @@ cmd /talk
 wait menu
 menu 改描述
 menuinput 年轻的女仆
-sleep 400
 clear
 cmd /look
 wait text 年轻的女仆 timeout=10000
@@ -36,12 +34,10 @@ cmd /talk
 wait menu
 menu 设置欢迎客人词
 menuinput 贵客临门
-sleep 400
 cmd /talk
 wait menu
 menu 设置欢迎主人词
 menuinput 恭迎主人回府
-sleep 400
 
 # 仆役出租物品（do_rent → do_value → do_price：定价后物品交仆役代管）
 cmd /talk

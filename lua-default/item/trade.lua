@@ -57,11 +57,11 @@ local function list_trade(self, me)
 
             local msg
             if val ~= 0 then
-                msg = string.format("%s ：%ld", obj:name(), val)
+                msg = string.format("%s ：%d", obj:name(), val)
             else
                 msg = string.format("%s ：<自用>", obj:name())
             end
-            self:AddMenuItem(msg, string.format("$2value $1 %ld $2", obj:object_id()), me)
+            self:AddMenuItem(msg, string.format("$2value $1 %d $2", obj:object_id()), me)
             i = i + 1
         end
     end
@@ -138,8 +138,8 @@ return {
 
             if val > 0 and obj:querystr_temp("trade/owner") == me:id(1) then
                 me:AddMenuItem(
-                    string.format("%s ：%ld", obj:name(), val),
-                    string.format("$0buy %ld %ld", me:object_id(), obj:object_id()),
+                    string.format("%s ：%d", obj:name(), val),
+                    string.format("$0buy %d %d", me:object_id(), obj:object_id()),
                     who
                 )
                 i = i + 1

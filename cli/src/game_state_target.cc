@@ -1,10 +1,17 @@
 #include "game_state.h"
 
-ObjectID GameState::find_target(const std::string &name_or_id) const
+ObjectID GameState::find_target(const std::string &target_key) const
 {
+    // /t 只收 ID（不支持显示名——全服允许重名，名字无法唯一定位目标）：
+    //   玩家      → 数字账号 ID，全服有效（在线表条目经 DOWNUSER 回填，
+    //                无论目标是否同房间）
+    //   NPC/物品等 → 英文 id（对象 dbase"id"，服务器 I= 字段），当前环境
+    //                （所在房间 + 背包）有效
+    // 先按数字 ID 试（会话内对象号 / 在线玩家会话号），再按英文 id 精确匹配。
+
     // 1. Try numeric ID first
     try {
-        ObjectID id = std::stoll(name_or_id);
+        ObjectID id = std::stoll(target_key);
         // Check room objects
         for (const auto &[container, objs] : room_objects_) {
             for (const auto &o : objs) {
@@ -25,35 +32,18 @@ ObjectID GameState::find_target(const std::string &name_or_id) const
     } catch (...) {
     }
 
-    // 2. Try matching by name (display name)
+    // 2. Try matching by English id (dbase "id", 服务器对象信息 I= 字段)
     for (const auto &[container, objs] : room_objects_) {
         for (const auto &o : objs) {
-            if (o.name == name_or_id) return o.id;
+            if (o.internal_id == target_key) return o.id;
         }
     }
     // Check inventory (equipped/worn items)
     for (const auto &o : inventory_) {
-        if (o.name == name_or_id) return o.id;
+        if (o.internal_id == target_key) return o.id;
     }
     for (const auto &u : online_users_) {
-        if (u.name == name_or_id) return u.uid;
-    }
-    // Also check player's own name as an alias
-    if (!player_attr_.name.empty() && player_attr_.name == name_or_id)
-        return player_id_;
-
-    // 3. Try matching by internal_id (account ID)
-    for (const auto &[container, objs] : room_objects_) {
-        for (const auto &o : objs) {
-            if (o.internal_id == name_or_id) return o.id;
-        }
-    }
-    // Check inventory (equipped/worn items)
-    for (const auto &o : inventory_) {
-        if (o.internal_id == name_or_id) return o.id;
-    }
-    for (const auto &u : online_users_) {
-        if (u.internal_id == name_or_id) return u.uid;
+        if (u.internal_id == target_key) return u.uid;
     }
 
     return 0;

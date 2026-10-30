@@ -278,7 +278,6 @@
     <ClCompile Include="src\item\ItemInterface.cpp" />
     <ClCompile Include="src\item\ItemMgr.cpp" />
     <ClCompile Include="src\npc\Npc.cpp" />
-    <ClCompile Include="src\npc\NpcMirror.cpp" />
     <ClCompile Include="src\npc\NpcMgr.cpp" />
     <ClCompile Include="src\engine\Rank.cpp" />
     <ClCompile Include="src\room\RoomMgr.cpp" />
@@ -427,7 +426,6 @@
     <ClInclude Include="src\item\Equip.h" />
     <ClInclude Include="src\item\FightRoom.h" />
     <ClInclude Include="src\item\Money.h" />
-    <ClInclude Include="src\npc\NpcMirror.h" />
     <ClInclude Include="src\item\Vendor.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

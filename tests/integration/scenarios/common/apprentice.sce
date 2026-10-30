@@ -15,7 +15,7 @@ clear
 cmd /look
 wait text 这里是青云山的半山腰 timeout=10000
 
-cmd /t 青云子
+cmd /t qing yun zi
 clear
 cmd /apprentice
 wait text 青云门的弟子 timeout=10000

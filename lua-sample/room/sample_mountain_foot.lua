@@ -18,15 +18,16 @@ return {
         self:add_door("青云城住宅区", "青云城住宅区", "青云山山脚")
         self:set("no_fight", 1)
 
-        -- 放置箱子
+        -- 放置箱子（set_name 第二参是 /t 用的英文 id：单参会被构造期的
+        -- id 回落固化成空串，故两箱各给独立 id，当前房间内可精确定位）
         local box = self:Add_Box()
         box:add_object("sample_sword_basic", 1)
         box:add_object("coin", 60000)
-        box:set_name("木箱")
+        box:set_name("木箱", "mu xiang")
 
         local box2 = self:Add_Box()
         box2:add_object("sample_heal", 3)
-        box2:set_name("药箱")
+        box2:set_name("药箱", "yao xiang")
 
         self:set(
             "long",

@@ -100,10 +100,10 @@ protected:
                  {"D", ""}}));
     }
 
-    // 房间内增加一个已命名对象
+    // 房间内增加一个已命名对象（iid = 英文 id，协议 I= 字段，/t 的合法参数）
     void add_room_object(ObjectID id, const std::string& name,
                          bool is_user = false, bool is_item = false,
-                         int qty = 1)
+                         int qty = 1, const std::string& iid = "")
     {
         state_.handle_message(make_msg(
             11, {{"E", "5001"},
@@ -111,10 +111,13 @@ protected:
                  {"u", is_user ? "1" : "0"},
                  {"i", is_item ? "1" : "0"},
                  {"U", "0"}}));
-        state_.handle_message(make_msg(
-            17, {{"O", std::to_string(id)},
-                 {"N", name},
-                 {"a", std::to_string(qty)}}));
+        GameMessage m17;
+        m17.cmd         = 17;
+        m17.params["O"] = std::to_string(id);
+        m17.params["N"] = name;
+        m17.params["a"] = std::to_string(qty);
+        if (!iid.empty()) m17.params["I"] = iid;
+        state_.handle_message(m17);
     }
 
     // 打开一个单项菜单
@@ -398,12 +401,19 @@ TEST_F(InputProcessorTest, TargetDelegationShowsCurrent)
     EXPECT_NE(cap.str().find("Current target: 0"), std::string::npos);
 }
 
-TEST_F(InputProcessorTest, TargetDelegationSetsByName)
+TEST_F(InputProcessorTest, TargetDelegationSetsById)
 {
-    add_room_object(2001, "店小二", /*is_user=*/true);
+    // /t 只收 ID：房间对象按英文 id 定向（显示名不做参数）
+    add_room_object(2001, "店小二", /*is_user=*/true, /*is_item=*/false, 1,
+                    "xiaoer");
     OutputCapture cap;
+    EXPECT_TRUE(input_.process_line("/t xiaoer"));
+    EXPECT_EQ(state_.target_id(), 2001);
+
+    // 显示名不是 /t 参数：报未找到且保留原目标
     EXPECT_TRUE(input_.process_line("/t 店小二"));
     EXPECT_EQ(state_.target_id(), 2001);
+    EXPECT_NE(cap.str().find("Target not found"), std::string::npos);
 }
 
 TEST_F(InputProcessorTest, LocalTuneShowsChannels)

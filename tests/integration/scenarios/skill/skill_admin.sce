@@ -23,18 +23,15 @@ cmd /t 0
 clear
 cmd /enforce
 wait text 指令格式：enforce timeout=10000
-sleep 400
 
 # force 基础等级约 11 级 → 999 > 等级/2，必撞超限门
 clear
 cmd /enforce 999
 wait text 你只能用0表示不运内力 timeout=10000
-sleep 400
 
 clear
 cmd /enforce 0
 wait text Ok. timeout=10000
-sleep 400
 
 # ---------------------------------------------------------------------------
 # skill 自身查看：回执是 RTNSKILL 协议（无文本行）→ 断言「无拒绝、被识别」
@@ -42,7 +39,6 @@ sleep 400
 clear
 cmd /skill
 wait notext 你无权查看对方技能|未知的命令 timeout=3000
-sleep 400
 
 # ---------------------------------------------------------------------------
 # abandon 三分支：先撞「未 validate」deny，再验证身份，
@@ -52,21 +48,17 @@ sleep 400
 clear
 cmd /abandon literate
 wait text 请先使用 </validate timeout=10000
-sleep 400
 
 clear
 cmd /validate $pass
 wait text 身份验证通过 timeout=10000
-sleep 400
 
 clear
 cmd /abandon nosuchskill
 wait text 你并没有学过这项技能 timeout=10000
-sleep 400
 
 # 成功分支：放弃读书写字（learn_basic 学的），回执经 say→对话渲染
 # ⚠ 放最后：say 置 in_dialog，其后不再有 menu/等待交互
 clear
 cmd /abandon literate
 wait text 你决定放弃继续学习读书写字 timeout=10000
-sleep 400

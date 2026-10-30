@@ -42,8 +42,7 @@ bool CommandHandler::process(const std::string &input)
                                         + std::to_string(state_.target_id())
                                         + "$COM"));
             ui_.add_line(
-                "Usage: /t <id|name|account_id>  — look up by object ID, "
-                "display name, or account ID");
+                "Usage: /t <id>  — player: numeric ID; NPC/item: English id");
             ui_.add_line("       /t 0 or /t clear             — clear target");
         }
         else {
@@ -227,7 +226,7 @@ bool CommandHandler::process_give(const std::string &args_text)
         ui_.add_line(
             "Usage: /give <item_type> [amount]  — choose via /t first");
         ui_.add_line(
-            "  Example: /t npc_name                — select target NPC/PC");
+            "  Example: /t npc_id                   — select target NPC/PC");
         ui_.add_line(
             "           /give gold                 — give 1 coin to target");
         ui_.add_line(
@@ -245,7 +244,7 @@ bool CommandHandler::process_give(const std::string &args_text)
     ObjectID tid = state_.target_id();
     if (tid == 0) {
         ui_.add_line(
-            color::convert("$REDNo target set. Use /t <name_or_id> to select a "
+            color::convert("$REDNo target set. Use /t <id> to select a "
                            "target first.$COM"));
         return true;
     }
@@ -317,7 +316,7 @@ bool CommandHandler::process_sell(const std::string &args_text)
             ObjectID vendor_id = state_.target_id();
             if (vendor_id == 0) {
                 ui_.add_line(color::convert(
-                    "$REDNo vendor target set. Use /t <vendor_name_or_id> to "
+                    "$REDNo vendor target set. Use /t <vendor_id> to "
                     "select a vendor.$COM"));
                 return true;
             }

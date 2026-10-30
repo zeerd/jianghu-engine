@@ -27,18 +27,16 @@
 clear
 cmd /set exercise 120
 wait text 你设置环境变量 timeout=10000
-sleep 400
 
 clear
 cmd /exercise
 wait text 你坐下来运气用功 timeout=10000
 wait text 你运功完毕 timeout=180000
 wait attr mp >= 100 timeout=10000
-sleep 400
 
 # 打坐耗了 120 气，开打前补满
 repeat 4
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
@@ -51,8 +49,7 @@ end
 # kill 是冗余重申，未开战时它补上这一战，两条路径都收敛到 battle → battle_end
 # ---------------------------------------------------------------------------
 wait object 山鸡
-cmd /t 山鸡
-sleep 500
+cmd /t shan ji
 clear
 cmd /cast throwing sneak
 wait text 准备偷袭山鸡 timeout=10000
@@ -61,6 +58,5 @@ sleep 3000
 cmd /kill
 wait battle
 wait battle_end timeout=180000
-sleep 1000
 cmd .info
 cmd /t 0

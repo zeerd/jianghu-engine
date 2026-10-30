@@ -184,6 +184,9 @@ TEST_F(CharFightTest, CmdHitOb_DifferentEnv)
 }
 
 // ---------------- cmd_hit_ob 等级门：玩家互斗需双方 >= 75 级 ----------------
+// 玩家互斗的等级限制是数据集规则（hooks.combat_rule attack_gate，默认声明见
+// lua-default/data/hooks.lua）：两例的拒绝文案由默认数据集给出，规则缺席时
+// C++ 不做任何等级判断。
 static CUser* MakeGateUser(const char* name, const char* id, long level)
 {
     CUser* u = new CUser();
@@ -234,6 +237,40 @@ TEST_F(CharFightTest, CmdHitOb_LevelGate_PassedThenBusyRejected)
     delete victim;
     delete attacker;
     delete room;
+}
+
+// 等级限制纯由数据集给出：规则缺席时同场景的 50 级互斗越过等级判定，直接落到
+// busy 判定——cmd_hit_ob 本身不内置等级门。
+TEST_F(CharFightTest, CmdHitOb_NewbieGateAbsent_AllowsPastGate)
+{
+    lua_State* L = CLuaEngine::instance()->get_state();
+    EXPECT_EQ(luaL_dostring(L, "__orig_cr_lv = hooks.combat_rule;"
+                               "hooks.combat_rule = nil"),
+              LUA_OK);
+
+    CContainer* room = new CContainer();
+    CUser* attacker  = MakeGateUser("刺客", "lv_gate_a3", 50);
+    CUser* victim    = MakeGateUser("路人", "lv_gate_v3", 50);
+    attacker->move(room);
+    victim->move(room);
+    attacker->start_busy(1);
+
+    g_notify_fail_msg[0] = '\0';
+    char arg[]           = "";
+    EXPECT_EQ(attacker->cmd_hit_ob(victim, arg), 0);
+    EXPECT_STREQ(g_notify_fail_msg, "你现在正忙着。")
+        << "规则缺席 → 不做等级判定，落到 busy";
+
+    victim->move(nullptr);
+    attacker->move(nullptr);
+    delete victim;
+    delete attacker;
+    delete room;
+
+    EXPECT_EQ(luaL_dostring(L, "if __orig_cr_lv then "
+                               "hooks.combat_rule = __orig_cr_lv end "
+                               "__orig_cr_lv = nil"),
+              LUA_OK);
 }
 
 // ---------------- CCombatd::fight: 连击链后的追加攻击钩子 ----------------

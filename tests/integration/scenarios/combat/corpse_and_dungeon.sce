@@ -23,18 +23,15 @@ cmd /look
 wait menu
 menu 闯入山寨
 wait room 黑风寨庭院
-sleep 1000
 
 cmd /t 0
 cmd /go 聚义大厅
 wait room 黑风寨大厅
-sleep 1000
 
 wait object 小头目
-cmd /t 黑风寨小头目
+cmd /t xiao tou mu
 cmd /talk
 wait menu
 menu 离开副本
 wait room 青云山山顶
-sleep 800
 cmd /t 0

@@ -1,8 +1,8 @@
-# mirror_dummy.sce — 半山腰：练功木人（type="mirror"，NpcMirror 基类）
+# mirror_dummy.sce — 半山腰：练功木人（镜像NPC，自装配 npc/mirror_base.lua）
 #
 # 覆盖：
 #   lua-sample/npc/sample_wooden_dummy.lua 的 do_talk 两条分支：
-#   · 对练问话 → self:make_mirror(me, 8) 照挑战者抄一遍（脚本中途报错会被
+#   · 对练问话 → mirror_base.make_mirror(self, me, 8) 照挑战者抄一遍（脚本中途报错会被
 #     CLuaNpcT::do_talk 回退给 base_do_talk，本步那句私发应答就不会出现）；
 #   · 其余问话 → base_do_talk → 本脚本未注册询问 → notify_fail 私发。
 #   以及 room/sample_mountain_mid.lua 的 add_npc("sample_wooden_dummy")。
@@ -18,15 +18,13 @@ cmd /t 0
 wait room 青云山半山腰
 wait object 练功木人
 
-cmd /t 练功木人
+cmd /t mu ren
 clear
 cmd /ask 对练
 wait text 照着你的起手式摆开了门户 timeout=10000
-sleep 600
 
 # 非对练问话：脚本交回 base_do_talk，未注册询问 → 私发失败回执
 clear
 cmd /ask 闲聊
 wait text 对方并不愿意理你 timeout=10000
-sleep 600
 cmd /t 0

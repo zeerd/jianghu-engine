@@ -1,7 +1,11 @@
--- hooks.lua — C++ 挂点参考脚本（空实现，仅供查阅）
+-- hooks.lua — C++ 挂点的默认实现（default_script_root 回退数据集）
 --
--- 加载规则：开机按 script_root → default_script_root 逐级回退，先命中者生效。
--- 本文件位于 default_script_root；当 script_root 提供同名文件时以其实现为准。
+-- 加载规则：开机按 script_root → default_script_root 逐级回退，**整文件先命中者生效**
+-- （LuaHook.cpp lua_hook_boot）。本文件位于 default_script_root；当 script_root
+-- 提供同名文件时以其实现为准——届时本文件的默认规则（如下方 attack_gate 的
+-- 75 级新手保护）不生效，等同该世界自行放宽。
+-- 大部分挂点只做参考注释、无实现（缺席 = C++ 照常执行自身默认逻辑）；
+-- 已实现的默认规则见各节标注。
 --
 -- 通用语义：
 --   · 钩子未定义 = 缺席：C++ 照常执行自身默认逻辑，不视为错误；
@@ -92,6 +96,8 @@ require("data.rank").install(hooks)
 --   command_gate：返回 {reason=文案} = 吞掉本次命令并向房间播报文案
 --   （文案按 message_vision 渲染：$N = actor，$n = target）；nil = 放行。
 --   attack_gate：返回 {reason=文案} = 否决出手（notify_fail）；nil = 放行。
+--   调用点：CChar::cmd_hit_ob——kill / fight_ob / AutoFight 等一切动手路径
+--   统一在此询问一次（调用点即出手准入的唯一收拢处）。
 --   guard_response：返回 {yes=true} = 豁免城市守卫召唤；nil = 照常召唤。
 --   kill_settle：返回 {yes=true} = 命中结算（如仇敌递减，PK 奖励加倍）；nil = 未命中。
 --   join_battle：返回 {yes=true} = target 不作为 NPC 方代表（加入筛选跳过该对象）；
@@ -99,6 +105,25 @@ require("data.rank").install(hooks)
 --   pk_reward：PK 结算落地时机（CReward::pk_reward 末尾，kill/guilt、repute
 --   已更新、播报已发）。actor = 击杀者，target = 受害者。返回值不消费，
 --   纯副作用通知：罪行档位、悬捕条件等数据集规则在此实现。
+--
+-- 默认实现：attack_gate —— 玩家互斗的新手保护：双方均为玩家且任一方等级不足
+-- 75 即否决；NPC 不受此限（is_user 双真才判）。出手许可属世界观策略而非引擎机制，
+-- 故写在数据集、由各世界自行声明（本文件是 default_script_root 的默认声明，
+-- script_root 提供同名 hooks.lua 即按其实现）；其余 phase 不表态 = 按 C++ 默认逻辑。
+function hooks.combat_rule(phase, actor, target, detail)
+    if
+        phase == "attack_gate"
+        and actor
+        and target
+        and is_user(actor)
+        and is_user(target)
+        and (actor:query("level") < 75 or target:query("level") < 75)
+    then
+        return { reason = "才入江湖，何必动刀动枪。" }
+    end
+    return nil
+end
+
 --
 -- hooks.kill_bonus(killer, victim, reward)
 --   调用点：CReward::handle_npc_kill_reward，击杀 NPC 的经验按 level*4+100

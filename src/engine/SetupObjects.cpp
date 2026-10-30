@@ -131,8 +131,6 @@ std::unique_ptr<CNpc> create_npc(string npc_name)
             npc = std::make_unique<CLuaVendor>(npc_name.c_str());
         else if (strcmp(stype, "bankowner") == 0)
             npc = std::make_unique<CLuaBankOwner>(npc_name.c_str());
-        else if (strcmp(stype, "mirror") == 0)
-            npc = std::make_unique<CLuaMirrorNpc>(npc_name.c_str());
         else
             npc = std::make_unique<CLuaNpc>(npc_name.c_str());
     }

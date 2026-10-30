@@ -6,74 +6,25 @@ applyTo: '**/tests/integration/**'
 
 # 集成测试指令文件
 
-本文档定义了 `jianghu-engine` 项目的集成测试（E2E 端到端测试）规范、架构、运行方式与覆盖率要求。
+本文档是集成测试的**指令文件**：怎么跑、怎么写剧本、断言纪律、怎么排查。
+架构、道模型、关键契约、覆盖率口径等设计内容见 `docs/design/integration-test.md`。
 
 ---
 
-## 1. 架构概览
+## 1. 架构与设计（指针）
 
-集成测试采用 **真实服务器 + 无头 CLI 客户端 + 剧本驱动** 架构：
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    run-integration-tests.ps1                    │
-│  (构建 → OpenCppCoverage 起服 → 跑剧本 → 优雅关服 → 导出报告)   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-       ┌────────────┐  ┌────────────┐  ┌────────────┐
-       │  服务器    │  │  CLI 客户端 │  │  MySQL     │
-       │ jianghu.exe│  │jianghu_cli │  │ game_e2e_  │
-       │ (Release)  │  │  (Release) │  │  sample    │
-       └────────────┘  └────────────┘  └────────────┘
-              │               │
-              ▼               ▼
-       ┌────────────────────────────────┐
-       │      tests/integration/        │
-       │  config.ini  (专用服务器配置)   │
-       │  cli.conf    (CLI 连接配置)     │
-       │  scenarios/  (剧本文件 *.sce)   │
-       └────────────────────────────────┘
-```
-
-### 关键组件
-
-| 组件 | 说明 |
-|------|------|
-| **入口脚本** | `run-integration-tests.ps1`（仓库根目录） |
-| **服务器配置** | `tests/integration/config.ini` — 独立测试库、独立端口、lua-sample 脚本根 |
-| **CLI 配置** | `tests/integration/cli.conf` — 连接 `127.0.0.1:6611` |
-| **剧本目录** | `tests/integration/scenarios/` — 六条道（lane）各跑一个独立账号，同时并行（L5/L6 为配对互动道） |
-| **覆盖率工具** | OpenCppCoverage（`--optimized_build`，Release PDB 行映射） |
-| **报告产出** | `coverage_report_e2e_sample/` (HTML + Cobertura)、`coverage_history/e2e_sample.cov` |
+架构总览、目录结构、组件职责见 **`docs/design/integration-test.md` §1**。
+一句话版本：真实服务器 + 无头 CLI + 剧本驱动，入口 `run-integration-tests.ps1`，
+专用配置在 `tests/integration/`，覆盖率由 OpenCppCoverage 在同一服务器进程上采集。
 
 ---
 
-## 2. 目录结构
+## 2. 道模型与设计（指针）
 
-```
-tests/
-└── integration/                    # 集成测试（E2E）
-    ├── config.ini                  # 专用服务器配置
-    ├── cli.conf                    # CLI 连接配置
-    └── scenarios/                  # 剧本文件
-        ├── register.sce            # 注册（每道各跑一次，产出 acct）
-        ├── lane_foot.sce           # 道编排：include 串起本道片段
-        ├── lane_skill.sce
-        ├── lane_combat.sce
-        ├── lane_social.sce
-        ├── lane_interaction_a.sce  # 配对互动道（L5/L6，peer 互注）
-        ├── lane_interaction_b.sce
-        ├── common/                 # 各道共用的起手：登录 / 观察问路 / 拜师
-        ├── interaction/            # 互动道片段：会合 / 组队 / 私聊 / 赠送 / 交易
-        ├── mountain_foot/          # 山脚基础：开箱 / 商人 / 任务 / 装备 / 茶棚 / 排行榜
-        ├── provision/              # 各道在山脚自购补给（不共享库存）
-        ├── skill/                  # 武学链：升级睡觉 / 基础与高级请教 / 激发与错误分支
-        ├── combat/                 # 战斗尾：升级补气 / 打坐 / 树箱 / 偷袭 / 尸体与副本
-        ├── social/                 # 社交生活：睡觉观察 / 毒药补药 / 钱庄 / 频道禁词
-        └── house/                  # 房屋：申请入住 / 仆役 / 改名与卖房
-```
+七条道的职责、并行模型、peer/spectator 注入机制、共享世界隔离原则见
+**`docs/design/integration-test.md` §2**；`/t` 目标契约见其 §4；
+服务器配置要点见其 §1.3；覆盖率口径与不测清单见其 §5/§6。
+本文件 §8 的断言纪律与这些设计配套执行，改片段前先读对应设计条目。
 
 ---
 
@@ -102,12 +53,12 @@ tests/
 |------|------|
 | `-SkipBuild` | 跳过 MSBuild，直接使用现有 `bin\jianghu.exe` 与 CLI |
 | `-NoCoverage` | 跳过 OpenCppCoverage，快速调试剧本（不出覆盖率报告） |
-| `-ResetDb` | 运行前重建测试库（需 `mysql.exe` 在 PATH；本机若不在，用 `-MysqlExe <路径>`） |
+| `-ResetDb` | 运行前重建测试库：删 `e2e.db` 库文件，服务端启动自动重建（SQLite，无需外部工具） |
 | `-Dbg` | 给各道 CLI 加 `--dbg`：把服务端报文（RTNINFO/STATE 等）打进 lane 日志，用于查「客户端属性值和服务端对不上」 |
 | `-CliExe <path>` | 指定 CLI 可执行文件路径 |
 | `-StepTimeout <ms>` | 单步 wait/assert 超时（默认 20000） |
 | `-ServerReadyTimeoutSec <sec>` | 服务器就绪等待上限（默认 180） |
-| `-Workers <n>` | 并行账号（道）数，1~6，默认 6；调小会丢掉未启用道的覆盖，且 L5/L6 配对互动道必须成对启用 |
+| `-Workers <n>` | 并行账号（道）数，1~7，默认 7；调小会丢掉未启用道的覆盖，且 L5/L6 配对互动道必须成对启用、L5/L7 观战依附必须同时启用 |
 | `-DurationRegressionSec <sec>` | 耗时回归阈值（默认 10）：本次剧本执行总耗时超前次同类运行超过该秒数时归因并给拆分建议 |
 
 ### 3.3 调试单个剧本
@@ -186,100 +137,28 @@ bin\cli\jianghu_cli.exe --config tests\integration\cli.conf `
 
 ---
 
-## 5. 六条道（lane）的职责与并行模型
+## 5. 七条道（lane）的职责与并行模型（指针）
 
-一次运行**同时创建 N 个账号**（`-Workers`，默认 6）：先并行注册，再并行开跑各自的道。
-每道 = 一个独立账号 + 一个 `lane_*.sce`（用 `include` 串起若干功能片段）。L1~L4 **彼此
-不依赖别的道留下的任何东西**——各道分别注册、分别自购补给、分别推进；L5/L6 是唯一的
-例外：两道**互相依赖对方的角色名**（见下方配对互动道）。
-
-| 道 | 剧本 | 核心覆盖能力 |
-|------|------|--------------|
-| L1 | `lane_foot.sce` | 房间观察 / 向导问答与排行榜 / 开箱取物 / 商人买卖 / 任务 / 装备到右手 / 茶棚 / 住宅区置产到卖房 |
-| L2 | `lane_skill.sce` | 拜师 / 高级技能 valid_learn 两道门槛 / study·enable·prepare·practice 分支 / 升级·补上限·睡觉 / force 与 sword 两线练到高级并激发 |
-| L3 | `lane_combat.sce` | 升级补气 / 内功线与投掷线 / 打坐抬上限 / 树箱经验果 / 偷袭山鸡 / 尸体腐烂 / 副本进出 |
-| L4 | `lane_social.sce` | 睡觉恢复 / 观察师父 / 毒药与补药数值对照 / 传送符 / 观察与说话作揖 / 钱庄数额 / 频道年龄与禁词 |
-| L5 | `lane_interaction_a.sce` | 配对互动 A：与 L6 会合后覆盖组队 / 私聊屏蔽 / 定向说话表情 / 赠送 / 做客邀请 / 婚姻 / 摆摊交易（P3）与 PK 死亡链（P4） |
-| L6 | `lane_interaction_b.sce` | 配对互动 B：响应方——接受组队 / 回私聊 / 购买 A 的商品等 |
-
-**配对互动道（L5/L6）的 peer 机制**：`run-integration-tests.ps1` 在注册阶段把两道的
-角色名互相写入对方 vars 文件的 `peer` 键（如 L5 的 vars 含 `peer=e2e<runhex>6`），
-剧本一律用 `$peer` 引用，**禁止硬编码对方角色名**（runhex 每轮都变）。会合片段
-`interaction/rendezvous.sce` 用「`wait room` + `wait object $peer`（宽 timeout）」
-松同步——服务端 `on_enter` 双向推 ADDOBJECT，后到者进门瞬间双方同时满足条件。
-两道必须成对启用（`-Workers` ≥ 6，或同时选中 5、6），只启用一半脚本会直接报错。
-
-**⚠ 共享世界的隔离原则**：世界里稀缺且不可再生的资源必须**钉给唯一一道**——
-山脚木箱与药箱（L1）、山顶树箱经验果与山鸡与副本（L3）、排行榜房间播报（L1）、
-断肠散与传送符（L4）；商人库存按各道所需采购、合计不超上限。
-**互动道（L5/L6）不得触碰以上任何钉给唯一道的资源**，会合房间内不做资源操作，
-自购补给走互动道自己的 provision 片段。
-**房间/频道播报型 `wait text`** 会串到同房间其他账号，只能靠两种方式免疫：
-把断言写成**本人版**（`message_vision` 对本人渲染「你…」、对旁人渲染「<名字>…」，
-故取「你…」前缀），或**把该播报钉给唯一一道**（如尸体腐烂、排行榜）。`notify_fail`、
-`tell_object`、`say(msg, me)` 与 `attr`/`item`/`room`/`menu` 类条件天然只与本人相关。
-
-**执行顺序**：`register.sce` 先并行注册出各道的 `acct`，随后各道并行跑自己的片段链。
+七条道（L1~L7）的职责表、并行模型、L5/L6 peer 机制、L7 spectator 机制、
+共享世界的隔离原则、播报免疫方式见 **`docs/design/integration-test.md` §2**。
+动手改片段时的配套纪律：稀缺资源唯一归属见 §8.4③，`/t` 目标复位见 §8.5，
+互动断言七条见 §8.6。
 
 ---
 
-## 6. 服务器配置要点（`config.ini`）
+## 6. 服务器配置要点（指针）
 
-```ini
-[database]
-name = game_e2e_sample    ; 独立测试库，服务端自动建库建表
-
-[server]
-port = 6611               ; 独立端口，避免与开发服务冲突
-start_room = 青云山山脚    ; lua-sample 起始房间
-rate_limit = 0            ; 关闭指令限流，避免边界随机丢弃导致 wait 超时
-
-[lua]
-script_root = lua-sample          ; 被测样本
-default_script_root = lua-default ; 兜底默认脚本
-```
-
-**关键原则**：服务端通过命令行 `--config tests\integration\config.ini` 直接加载，**不再临时改写 `data/config.ini`**。
+`tests/integration/config.ini` 的关键项（独立测试库、独立端口、`rate_limit=0`、
+lua-sample 脚本根）与「命令行 `--config` 直接加载、不改写 `data/config.ini`」
+的原则见 **`docs/design/integration-test.md` §1.3**。
 
 ---
 
-## 7. 覆盖率参考
+## 7. 覆盖率参考（指针）
 
-> **覆盖率只是一个方便的用来确认功能是否被覆盖的手段。** 这是因为恰巧 C++ 支持这么个技术，所以我们拿来用了。它不是铁律。毕竟我们没办法拿到 Lua 覆盖率。真正用来确认功能覆盖度的永远是设计和代码自身，不是覆盖率数字。
-
-### 7.1 采集配置
-
-```powershell
-# OpenCppCoverage 关键参数（run-integration-tests.ps1 内部）
---modules bin\jianghu.exe          # 被测模块
---sources src\*                    # 仅统计 src/
---optimized_build                  # 必加：生产是 Release /O2
---working_dir <仓库根>             # 让服务器读到相对路径配置
---export_type html:coverage_report_e2e_sample
---export_type cobertura:coverage_report_e2e_sample\coverage.xml
---export_type binary:coverage_history\e2e_sample.cov
-```
-
-### 7.2 覆盖率参考指标（非硬性门槛）
-
-| 指标 | 说明 |
-|------|------|
-| **行覆盖率** | 参考上一次提交（`coverage_history/summary-e2e-sample.txt` 的 `delta`），大幅下降需排查原因 |
-| **新增代码** | 应有对应剧本步骤覆盖，以确认功能可跑通 |
-| **修改代码** | 应确保修改分支被剧本触达，以确认改动生效 |
-| **报告附带** | 提交时附上覆盖率报告截图或关键数据，供参考 |
-
-### 7.3 覆盖率缺口认知（来自 PoC 验证）
-
-> **E2E 覆盖率约 33%（单测 94%），缺口是系统性的，不是操作姿势问题。**
->
-> E2E **无法覆盖**的典型功能（需单测兜底）：
-> - 巫师命令（`CmdWizard*.cpp`）
-> - 组队/夫妻/互教/互给（多客户端）
-> - 副本管理、住宅系统（部分）
-> - 物品命令（`get/give/use/drop/wield` 等边界分支）
-> - 持久化/数据库层（`Sql*.cpp`、`SqliteDb.cpp`）
-> - 心跳/连接管理（单测已覆盖）
+覆盖率的定位（参考手段、非通过门槛）、OpenCppCoverage 采集配置、参考指标、
+未命中函数清单的口径与局限、缺口认知与明确不测清单见
+**`docs/design/integration-test.md` §5/§6**。
 
 ---
 
@@ -289,9 +168,27 @@ default_script_root = lua-default ; 兜底默认脚本
 
 1. **先在手工交互模式验证**流程可跑通
 2. **记录每一步的服务端输出**（`wait text`/`wait menu` 依赖精确文本）
-3. **添加 `sleep` 节流**（网络/心跳/数据库延迟），建议 500-1000ms
+3. **同步一律用 `wait`**（20ms 轮询 + 超时），不要靠 `sleep` 赌时序
 4. **设置合理 `timeout`**（默认 20s，复杂交互可加大）
 5. **使用 `capture` 抓取动态值**（账号 id、物品 id 等）
+
+#### sleep 的合法用途（`rate_limit=0` 之后仍必须用 sleep 的场景）
+
+服务端命令限流虽已关闭（`config.ini` 的 `rate_limit=0`），但 `sleep` 并非因此失效——
+它等的从来不是限流，而是**心跳驱动的游戏内计时**。服务端心跳 1 秒一拍
+（`HeartBeat.cpp` 的 `alarm_loop`），Lua 的 `start_busy(n)` 以心跳为单位计时
+（`start_busy(2)` ≈ 2 秒 busy），busy 期间几乎所有命令被 `is_busy()` 拒绝
+（「你现在正忙着呢」）。所以：
+
+- **唯一合法用途**：等 `start_busy` / 心跳脚本效果（吃药补血、打坐、经验果、
+  尸体腐烂等跨拍生效的效果）走完。这类 sleep 的下限由 busy 时长/心跳拍数决定，
+  症状是下一条命令被 `is_busy()` 拒——`wait` 等不到「忙完了」这种状态，只能等时间。
+- **禁止**：`wait` 成功后再 `sleep`「缓冲」——`wait` 已完成同步，纯属白等；
+  `cmd` 后直接 `sleep` 再 `menu`/`capture`——`menu`/`capture` 是 fail-fast 步骤，
+  应改写为先 `wait menu`/`wait text` 兜住，而不是用 sleep 赌回包时机；
+  `cmd`→`sleep`→`wait` 模式里的 sleep——`wait` 的轮询已覆盖，删掉即可。
+- **`sleep` 不能代替 `wait`**：`wait` 是条件同步（等到为止），`sleep` 是盲等
+  （睡够就走）。盲等要么早了（竞态）要么晚了（白费时长）。
 
 ### 8.2 修改现有剧本
 
@@ -303,7 +200,7 @@ default_script_root = lua-default ; 兜底默认脚本
 
 - ❌ 在剧本中硬编码动态值（账号 id、物品 id、随机房间名）
 - ❌ 省略 `wait` 直接 `cmd`（竞态导致不稳定）
-- ❌ 使用 `sleep` 代替 `wait`（除非纯节流）
+- ❌ 使用 `sleep` 代替 `wait`；`wait` 成功后再加 `sleep`「缓冲」（见 8.1 的 sleep 纪律）
 - ❌ 剧本之间有隐性依赖（除显式变量传递外）
 - ❌ 在 `lua-sample` 目录下放测试脚手架（剧本、配置、脚本一律在 `tests/integration/`）
 - ❌ 样本(lua-sample)是教材，不是测试夹具。禁止为了测试目的在sample中添加异常逻辑。
@@ -332,8 +229,9 @@ default_script_root = lua-default ; 兜底默认脚本
 
 ### 8.5 `/t` 目标是隐式状态（改片段时最容易踩）
 
-- 目标由 `/t <名>` 设定、`/t 0` 清除，**一直保持到下一条 `/t` 为止**；片段之间不会重置，
-  被 `include` 串起来后更是跨片段生效。
+- 目标由 `/t <ID>` 设定、`/t 0` 清除，**一直保持到下一条 `/t` 为止**；片段之间不会重置，
+  被 `include` 串起来后更是跨片段生效。**`/t` 只收 ID**：玩家=数字账号 ID（全服跨房间）、
+  NPC/物品=英文 id（当前房间/背包）；显示名允许重名、不作目标（见 §8.6⑥）。
 - 命令对目标的要求各不相同，必须对上号：
   | 命令 | 需要的目标 | 目标不对时的回执 |
   |---|---|---|
@@ -341,14 +239,14 @@ default_script_root = lua-default ; 兜底默认脚本
   | `study` | **自己背包里的物件**（`get_self_object`） | `你要读什么？` |
   | `use` / `give` / `wield` / `sell` | **物品** | （静默失败或回错分支文案） |
   | `practice` / `enable` / `prepare` / `upgrade` / `sleep` / `exercise` | 不使用目标 | — |
-- ⚠ 往已有片段**插入会改目标的步骤**时（例如「学高级剑法前先 `/t 铁剑` + `/wield`」），
-  必须在插入块的末尾把目标切回原对象，否则后续命令会拿到错目标。典型症状：
-  `你要向谁请教？`、`你要读什么？`。
+- ⚠ 往已有片段**插入会改目标的步骤**时（例如「学高级剑法前先 `/t sample_sword_basic`
+  + `/wield`」），必须在插入块的末尾把目标切回原对象，否则后续命令会拿到错目标。
+  典型症状：`你要向谁请教？`、`你要读什么？`。
 - ⚠ **高级技能 `valid_learn` 常带武器前置**：`sword_adv` 要手持剑、`throw_adv` 要手持暗器
   （`force_adv` 不要）。所以哪道要学哪条高级技能线，哪道就必须**自己买武器并在请教前装备**——
   木箱那把铁剑归 L1，别的道不能指望它。
 
-### 8.6 互动断言纪律（L5/L6 配对道新增/改动片段必过这五条）
+### 8.6 互动断言纪律（L5/L6/L7 互动道新增/改动片段必过这七条）
 
 多客户端互动让「别人发的命令产生我这边的输出」成为常态，断言纪律在 §8.4 之上加严：
 
@@ -366,6 +264,24 @@ default_script_root = lua-default ; 兜底默认脚本
 5. **稀缺资源归属**：互动道（L5/L6）不得采购/使用钉给唯一道的稀缺资源（木箱药箱、
    树箱经验果、山鸡、排行榜、断肠散、传送符）；互动双方要消耗的资源（如赠送的物品、
    摆摊的商品）由**互动道自己**的 provision 片段购买，声明写进道头注释。
+6. **`/t <ID>` 只收 ID，不收显示名**（显示名允许重名、无法唯一定位）：
+   - **玩家**：数字账号 ID（如 `/t 1396`、剧本用 `$peer_acct`），**全服有效、
+     跨房间可用**——登录时服务端双向交换花名册（SENDUSER → 客户端自动
+     downloaduser → DOWNUSER 回填账号进在线表），下线按 UID 广播 O=0 清理；
+   - **NPC/物品等对象**：英文 id（对象 dbase"id"，即脚本 `set_name` 第二参；
+     单参 set_name 回落 base_name），**当前环境有效**（所在房间 + 背包）；
+   - `$peer`（角色名）仅用于**文本断言**（§8.6② 的含对方名渲染），
+     一律不得作 `/t` 参数——剧本定向对方统一 `/t $peer_acct`
+     （`run-integration-tests.ps1` 注册后互注到各道 vars）。
+   同步手段：跨房间呼叫用 `/t $peer_acct` + `tell`；等待类步骤仍优先
+   自触发（对方离房触发条件再回房）与宽 timeout 收敛的房间播报。
+7. **`clear` 不得抹掉跨道信号**：`clear` 只用来清「本道自己命令的旧回执」，
+   且不得落在「对方的广播/tell 可能已到达」与「消费它的 wait」之间——对端
+   跑得比本道快时，跨道播报会先进本道缓冲，中途一条 `clear` 就把它抹掉，
+   后面的 wait 干等超时且**播报永不重发**（实锤：pair 收尾的 clear 抹掉提前
+   到达的离婚播报 → L5/L6/L7 三道连锁红）。信号消费方要么该段全程不 clear，
+   要么保证 wait 先于信号可能到达的时刻启动；发送方不知道对端进度，
+   别把次序寄托在「对方应该还没那么快」上。
 
 ---
 
@@ -375,7 +291,7 @@ default_script_root = lua-default ; 兜底默认脚本
 |------|----------|----------|
 | `wait text` 超时 | 服务端输出文本变更、编码问题、限流丢弃指令 | 1. 查服务端日志 `log/` 2. 确认 `rate_limit=0` 3. 对比实际输出与剧本期望文本 |
 | `wait menu` 超时 | 菜单未弹出、菜单项文本变更 | 1. 手工复现 2. 检查 Lua 脚本 `do_talk`/`menu` 分支 |
-| `login` 失败 | 数据库未就绪、账号冲突、密码错误 | 1. 检查 MySQL 服务 2. `-ResetDb` 重建 3. 确认 `vars.txt` 变量正确 |
+| `login` 失败 | 数据库未就绪、账号冲突、密码错误 | 1. `-ResetDb` 重建库文件 2. 确认 `vars.txt` 变量正确 |
 | 服务器启动超时（180s） | PDB 加载慢、端口被占用、配置错误 | 1. `netstat -ano \| findstr 6611` 2. 检查 `config.ini` 路径 3. 手工起服看报错 |
 | 覆盖率报告为空/异常 | 未加 `--optimized_build`、PDB 与 exe 不匹配、源码路径错 | 1. 确认同一次构建的 exe+pdb 2. `--sources src\*` 3. 重新构建 |
 | CLI 连不上 | 端口错、host 错、服务器未就绪 | 1. 检查 `cli.conf` 2. 确认服务器日志有 `Listen on 6611` |
@@ -383,7 +299,8 @@ default_script_root = lua-default ; 兜底默认脚本
 | `…必须手持剑类武器…学习高级…` | 高级技能 `valid_learn` 的武器前置没满足 | 1. 查该技能的 `valid_learn` 2. 确认本道 provision 有买、请教前有 `/wield` |
 | `attr …` 超时 | 状态确实没到位，或改动后**没同步到客户端** | 1. 失败原因已附「（当前 名=值）」2. 拿当前值对比期望即可区分两种原因 |
 | 配对道 `wait object $peer` 超时 | **疑似对端未到位**：对端登录失败/中途失败停摆，或本道自己先失败没走到会合 | 1. 先看对端道的日志（`%TEMP%\e2e_lanes\lane<对端Id>.log`）2. 对端报告的 reason/失败行 3. 两边都正常再查会合房间名与 `$peer` 变量注入 |
-| 失败原因「服务器崩溃（未处理异常）」 | 服务器在关服路径（`WM_DESTROY`→等工作线程）崩溃；dump 由 `CCreateDump` 写出 | 1. dump 已移到 `%TEMP%\e2e_lanes\crash_dumps\` 2. 用 `bin\jianghu.pdb` + WinDbg/cdb 分析 3. 崩溃发生在剧本判定之后，剧本本身可能是绿的，别只看剧本结果 |
+| 观战道（L7）`wait text 比试开打/第二轮开打` 超时，或 L5 等 `比试观战完毕` 超时 | **疑似信号对端未到位**：L5 未发开战信号（比试/kill 段没跑到）或 L7 登录/移动停摆 | 1. 对端日志（L7 等信号看 `lane5.log`，L5 等回信号看 `lane7.log`）2. L7 是否已在山脚茶棚（`wait room` 行）3. `$spectator_acct`/`$peer_acct` 注入是否齐全（启动校验已拦一半未启用的情形） |
+| 失败原因「服务器崩溃（未处理异常）」 | 服务器在关服路径（`WM_DESTROY`→等工作线程）崩溃；dump 由 `CCreateDump` 写出 | 1. 本轮新 dump **原地留在仓库根**（脚本会打印完整路径，不会挪走）；上一轮的旧 dump 已归档到仓库根 `crash_dumps\` 2. 用 `bin\jianghu.pdb` + WinDbg/cdb 分析 3. 崩溃发生在剧本判定之后，剧本本身可能是绿的，别只看剧本结果 |
 
 ---
 
@@ -393,7 +310,7 @@ default_script_root = lua-default ; 兜底默认脚本
 - [ ] 修改了交互流程/命令语法 → 同步更新剧本步骤
 - [ ] 新增了 lua-sample 功能 → 在对应剧本添加覆盖步骤
 - [ ] 往已有片段插入了会改 `/t` 目标的步骤 → 在块末尾把目标切回原对象（见 8.5）
-- [ ] 改动 L5/L6 配对道片段 → 过互动断言纪律五条（私发优先 / 含对方名 / 会合房间 / 超时排查对端 / 资源归属，见 8.6）
+- [ ] 改动 L5/L6 配对道或 L7 观战道片段 → 过互动断言纪律七条（私发优先 / 含对方名 / 会合房间 / 超时排查对端 / 资源归属 / `/t` 只用 ID / `clear` 不抹跨道信号，见 8.6）；L5↔L7 互为开战信号两端（`WitnessId`/`PeerId`），一方超时先查对端日志（§9）
 - [ ] 某道要学高级技能线 → 本道 provision 自购对应武器，并在请教前 `/wield`（见 8.5）
 - [ ] 运行 `.\run-integration-tests.ps1` 全绿（含「服务器崩溃」检测——剧本绿但服务器崩了同样算失败）
 - [ ] 新增场景后总耗时较前次同类运行增长 > 10s → 看「耗时监控」的归因与拆分建议，评估是否拆道（见 3.4）

@@ -11,11 +11,10 @@
 #
 # 说明：铁剑取自山脚木箱（mountain_foot/open_boxes.sce），故本段只属于 L1。
 
-cmd /t 铁剑
+cmd /t sample_sword_basic
 clear
 cmd /wield
 wait text 抽出一柄 timeout=10000
 wait wield 铁剑 右手 timeout=10000
-sleep 600
 cmd .info
 cmd /t 0

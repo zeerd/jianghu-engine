@@ -25,7 +25,7 @@
 # 先钉住百分比计算的基数，基线一漂后面所有断言都失去意义
 wait attr max_hp == 405 timeout=10000
 
-cmd /t 断肠散
+cmd /t sample_poison
 clear
 cmd /use
 wait text 毒性发作了 timeout=10000
@@ -36,7 +36,6 @@ wait text 毒性渐渐散去 timeout=90000
 # 两段伤害都已落地：当前气血与有效上限都被压下去了
 wait attr hp < 405 timeout=10000
 wait attr eff_hp < 405 timeout=10000
-sleep 4500
 
 # 金创药补的是**气血上限**（eff_hp）：单次最多补 100，而 eff_hp 起点可能还
 # 滞后于 max_hp（注册/升级时序，实测 342），断肠散再扣 10%（40）→ 一次未必
@@ -44,7 +43,7 @@ sleep 4500
 # 补满后再断言 405 才站得住。
 repeat 4
 clear
-cmd /t 金创药
+cmd /t jin chuang yao
 cmd /use
 wait text 你吃下一包金创药|你现在不需要用金创药 timeout=10000
 sleep 3200
@@ -54,7 +53,7 @@ wait attr eff_hp >= 405 timeout=10000
 # 回春丹补的是**当前气血**（hp）：补到 hp = eff_hp；毒伤深浅随心跳时序浮动，
 # 故按「重复服用直到补满」的循环写，而写死粒数
 repeat 5
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
@@ -63,29 +62,27 @@ end
 wait attr hp >= 405 timeout=10000
 
 # 上限与当前都已补满 → 两条拒绝分支才成立，此时的拒绝才证明「补到位了」
-cmd /t 金创药
+cmd /t jin chuang yao
 clear
 cmd /use
 wait text 不需要用金创药 timeout=10000
 wait attr eff_hp >= 405 timeout=10000
 
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 不需要用回春丹 timeout=10000
 wait attr hp >= 405 timeout=10000
-sleep 500
 
 # ---------------------------------------------------------------------------
 # 传送符：look 弹使用菜单 → 选目的地（半山腰 → 山脚，衔接后续生活段）
 # ---------------------------------------------------------------------------
-cmd /t 传送符
+cmd /t chuan song fu
 cmd /look
 wait menu
 menu 使用传送符
 wait menu
 menu 传送至「山脚」
 wait room 青云山山脚
-sleep 800
 cmd .info
 cmd /t 0

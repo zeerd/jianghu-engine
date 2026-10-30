@@ -4,6 +4,13 @@
 -- 本文件位于 script_root，覆盖 lua-default/data/hooks.lua 参考脚本；
 -- 未在此实现的挂点仍按“缺席 = C++ 默认逻辑”生效。
 -- 通用语义与各挂点签名见 lua-default/data/hooks.lua 的注释。
+--
+-- 出手准入（hooks.combat_rule attack_gate）：本世界不设新手门槛——能否对他人
+--   动手属世界观策略，由数据集声明；引擎只在 CChar::cmd_hit_ob 询问本钩子，
+--   各世界按「hooks.lua 整文件先命中者生效」各自给规则。sample 世界由此放行
+--   任何存活对象相互出手；出手后果（PK 罪恶值、城市守卫、死亡惩罚）仍由引擎
+--   与数据集照常结算。要给本世界设门槛，在本文件实现 hooks.combat_rule 即可
+--   （写法见 lua-default/data/hooks.lua）。
 require("data.rank").install(hooks)
 require("data.quest").install(hooks)
 

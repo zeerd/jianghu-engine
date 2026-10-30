@@ -358,14 +358,15 @@ TEST_F(CmdStandardCombatTest, Halt_NotFighting)
     EXPECT_EQ(result, 0);
 }
 
-TEST_F(CmdStandardCombatTest, Kill_AttackGatePassesForCorpsVictim)
+// 玩家互斗的出手准入：用例内未改写 attack_gate，默认数据集（lua-default）的
+// 75 级新手保护在 CChar::cmd_hit_ob 拒绝本次 kill——kill 命令层不自行询问准入，
+// 一切动手路径在 cmd_hit_ob 过同一道闸。
+TEST_F(CmdStandardCombatTest, Kill_DefaultNewbieGate_Rejected)
 {
     ensure_lua_env();
 
     CUser* killer = MakeGateUser("杀手", "kill_gate_k2", 50);
     CUser* victim = MakeGateUser("帮众", "kill_gate_v2", 50);
-    victim->set("corps/id", "kill_gate_corps");
-    victim->set("corps/rank", "帮众");
     killer->move(room);
     victim->move(room);
     // 玩家进房会挂 client/loading 等客户端回执，未回执即对 present(id) 不可见
@@ -376,7 +377,7 @@ TEST_F(CmdStandardCombatTest, Kill_AttackGatePassesForCorpsVictim)
     int result           = CallKill(killer, victim->object_id(), (char*)"");
     EXPECT_EQ(result, 0);
     EXPECT_STREQ(g_notify_fail_msg, "才入江湖，何必动刀动枪。")
-        << "帮众不受良民保护，准入门放行后由等级门拒绝";
+        << "默认数据集按等级拒绝未达标的新手互斗";
 
     victim->move(nullptr);
     killer->move(nullptr);

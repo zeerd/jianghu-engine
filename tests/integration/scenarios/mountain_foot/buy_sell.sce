@@ -10,21 +10,17 @@
 #   茶壶  （商品 9）买 1 把 —— 茶棚段 fill/use
 # 学艺补气的回春丹、断肠散、传送符、棋子等由各自那道自行购买。
 
-cmd /t 杂货老板
+cmd /t huo ji
 cmd /list
-sleep 600
 repeat 3
 clear
 cmd /buy 5
 wait text 你从杂货老板那里买下了数量1的金创药 timeout=10000
-sleep 600
 end
 clear
 cmd /buy 9
 wait text 你从杂货老板那里买下了数量1的茶壶 timeout=10000
-sleep 600
 clear
 cmd /sell 金创药
 wait text 你卖掉了数量1的金创药 timeout=10000
-sleep 600
 cmd /t 0

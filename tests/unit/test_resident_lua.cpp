@@ -146,17 +146,6 @@ TEST_F(fixture, HousePriceScalesWithHouseCount)
     EXPECT_EQ(13000000, call_script("house_price"));
 }
 
-TEST_F(fixture, HousePriceHonorsPolicyFixedPrice)
-{
-    // 属区声明固定地价时按声明值（数据集自定地价，缺省阶梯价不生效）
-    resident_->set("policy/house_price", 5000L);
-    EXPECT_EQ(5000, call_script("house_price"));
-
-    // 声明值不随住户数变化
-    add_house_entries(10);
-    EXPECT_EQ(5000, call_script("house_price"));
-}
-
 TEST_F(fixture, HouseMinAgeFixedAtDefault)
 {
     EXPECT_EQ(16, call_script("house_min_age"));
@@ -280,25 +269,6 @@ TEST_F(fixture, ApplyhouseGuardsAndMenu)
     EXPECT_EQ(1, call_script("applyhouse", {object_arg(&adult)}));
     EXPECT_TRUE(adult.has("申请单人间"));
     EXPECT_TRUE(adult.has("申请双人套房"));
-}
-
-TEST_F(fixture, ApplyhouseIgnoresPolicyMinAge)
-{
-    // 门槛已固定：属区即便声明 policy/min_age，也不再放行低龄置产
-    resident_->set("policy/min_age", 14L);
-
-    recording_char teen;
-    teen.set("id", "teen1");
-    teen.set("age", 14L);
-    EXPECT_EQ(1, call_script("applyhouse", {object_arg(&teen)}));
-    EXPECT_TRUE(teen.has("你还没成年")) << dump_msgs(teen);
-    EXPECT_FALSE(teen.has("申请单人间"));
-
-    recording_char adult;
-    adult.set("id", "adult1");
-    adult.set("age", 16L);
-    EXPECT_EQ(1, call_script("applyhouse", {object_arg(&adult)}));
-    EXPECT_TRUE(adult.has("申请单人间"));
 }
 
 TEST_F(fixture, NeedMoneyHalvesForSingleRoom)

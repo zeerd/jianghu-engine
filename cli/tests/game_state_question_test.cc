@@ -166,15 +166,17 @@ TEST_F(GameStateQuestionTest, FindTargetByNumericId)
     EXPECT_EQ(state_.find_target("8001"), 8001);
 }
 
-TEST_F(GameStateQuestionTest, FindTargetByName)
+TEST_F(GameStateQuestionTest, FindTargetByNameRejected)
 {
+    // /t 不收显示名：房间对象按显示名必须解析不到，英文 id 才是合法参数
     state_.handle_message(make_msg(
         11,
         {{"E", "5001"}, {"T", "8002"}, {"u", "0"}, {"i", "0"}, {"U", "0"}}));
     state_.handle_message(make_msg(
         17, {{"O", "8002"}, {"N", "店小二"}, {"I", "xiaoer"}, {"U", "0"}}));
 
-    EXPECT_EQ(state_.find_target("店小二"), 8002);
+    EXPECT_EQ(state_.find_target("店小二"), 0);
+    EXPECT_EQ(state_.find_target("xiaoer"), 8002);
 }
 
 TEST_F(GameStateQuestionTest, FindTargetByInternalId)
@@ -186,6 +188,39 @@ TEST_F(GameStateQuestionTest, FindTargetByInternalId)
                                         {"t", ""}}));
 
     EXPECT_EQ(state_.find_target("acc_lisi"), 7001);
+}
+
+TEST_F(GameStateQuestionTest, FindTargetByNumericAccountIdViaOnlineTable)
+{
+    // 玩家数字账号 ID 全服解析：房间外玩家仅凭在线表（DOWNUSER 回填）命中；
+    // 数字路径先按会话 uid 试不中，落到内部 id（账号）精确匹配
+    state_.handle_message(make_msg(34, {{"U", "9001"},
+                                        {"N", "路人甲"},
+                                        {"I", "1002"},
+                                        {"r", "1"},
+                                        {"t", ""}}));
+
+    EXPECT_EQ(state_.find_target("1002"), 9001);
+    // 该账号下线（SENDUSER O=0 按 UID 移除）后不再可解析
+    state_.handle_message(make_msg(25, {{"O", "0"}, {"U", "9001"}}));
+    EXPECT_EQ(state_.find_target("1002"), 0);
+}
+
+TEST_F(GameStateQuestionTest, UserListMergeKeepsProfileFields)
+{
+    // /who 的 USERLIST（仅会话号、分页）必须以**合并**方式更新在线表：
+    // 已知条目的姓名/账号字段不得被清掉（/t 数字账号解析依赖 internal_id），
+    // 同时补进名单里的新 uid
+    state_.handle_message(make_msg(34, {{"U", "7001"},
+                                        {"N", "李四"},
+                                        {"I", "1396"},
+                                        {"r", "5"},
+                                        {"t", ""}}));
+    state_.handle_message(
+        make_msg(33, {{"n", "2"}, {"i0", "7001"}, {"i1", "8001"}}));
+
+    EXPECT_EQ(state_.find_target("1396"), 7001) << "已知条目账号字段应保留";
+    EXPECT_EQ(state_.find_target("8001"), 8001) << "新 uid 应补进在线表";
 }
 
 TEST_F(GameStateQuestionTest, FindTargetPlayerSelf)
@@ -203,8 +238,9 @@ TEST_F(GameStateQuestionTest, FindTargetPlayerSelf)
     auto out
         = gs.handle_message(make_msg(15, {{"T", "1001"}, {"p", "玩家张三"}}));
 
+    // 自己按数字 ID（player_id / 账号）可解析；显示名不可作 /t 参数
     EXPECT_EQ(gs.find_target("1001"), 1001);
-    EXPECT_EQ(gs.find_target("玩家张三"), 1001);
+    EXPECT_EQ(gs.find_target("玩家张三"), 0);
 }
 
 TEST_F(GameStateQuestionTest, FindTargetNotFound)

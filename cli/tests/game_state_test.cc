@@ -297,6 +297,28 @@ TEST_F(GameStateTest, ReceiveItemWieldPositions)
     EXPECT_EQ(state_.inventory()[0].wield, 2);
 }
 
+// 服务端物品按每 10 件一批下发（CChar::flush_my_equip），批头 B= 为本批首条
+// 的全局编号、条目键沿用全局编号——第二批（B=10 起）必须按偏移解析，
+// 否则第 10 件及之后物品的装备槽位状态会整体丢失。
+TEST_F(GameStateTest, ReceiveItemWieldPositionsHonorBatchOffset)
+{
+    // 第一批（无 B=，默认从 0 起）先落一件
+    state_.handle_message(make_msg(14, {{"I0", "7000"}}));
+    ASSERT_EQ(state_.inventory().size(), 1u);
+
+    // 第二批：B=10，条目键从 I10/E10 开始
+    state_.handle_message(
+        make_msg(14, {{"B", "10"}, {"I10", "7010"}, {"E10", "2"}}));
+
+    ASSERT_EQ(state_.inventory().size(), 2u);
+    const ObjectInfo *sword = nullptr;
+    for (const auto &item : state_.inventory()) {
+        if (item.id == 7010) sword = &item;
+    }
+    ASSERT_NE(sword, nullptr) << "第二批条目不得被丢弃";
+    EXPECT_EQ(sword->wield, 2);
+}
+
 // ==================== C=15 RTNINFO ====================
 
 TEST_F(GameStateTest, ReceivePlayerInfo)

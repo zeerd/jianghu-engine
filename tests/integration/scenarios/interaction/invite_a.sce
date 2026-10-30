@@ -15,11 +15,9 @@ cmd /go 青云山山脚
 wait room 青云山山脚 timeout=15000
 cmd /go 山脚茶棚
 wait room 山脚茶棚 timeout=30000
-sleep 500
 
 # A 邀请 B 做客（A 已是居民），B 收菜单并接受
-cmd /t $peer
+cmd /t $peer_acct
 cmd /invite
 wait text 接受了你的邀请 timeout=40000
 cmd /t 0
-sleep 400

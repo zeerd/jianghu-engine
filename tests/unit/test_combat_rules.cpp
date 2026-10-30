@@ -2,9 +2,11 @@
 // hooks.combat_rule）测试
 //
 // 契约：C++ 只申报引擎时机（phase），规则归属数据集全在 Lua：
-//   attack_gate：dataset 帮派规则——受害者无帮派且 pks<5 → {reason=文案}；
-//   guard_response：受害者命中攻击方总舵 enemy 名单 → {yes=true}；
-//   kill_settle：击杀者总舵 enemy 名单命中 → 递减/删除并 {yes=true}。
+//   attack_gate：默认数据集（lua-default/data/hooks.lua）实现新手保护——
+//   玩家互斗任一方等级 <75 → {reason="才入江湖，何必动刀动枪。"}，NPC 不受此限；
+//   询问点收拢在 CChar::cmd_hit_ob，kill / fight_ob / AutoFight 一切动手路径
+//   统一在此问一次（kill 命令层不自行询问）。
+//   guard_response / kill_settle 由自定义数据集规则给出（本文件用例内改写）。
 // 另验证可扩展性：另一数据集可在同一 phase 追加规则而 C++ 零改动。
 // 钩子缺席回退由 CLuaHookCall 统一保证（call 失败按 nil）。
 //
@@ -51,6 +53,9 @@ protected:
         CUser* u = new CUser();
         u->set_name(name, id);
         u->set("id", id);
+        // 过数据集默认 attack_gate 的 75 级新手门：本套件的用例关心的是
+        // 各自 phase 的规则命中，等级门不希望在此被意外触发。
+        u->set("level", (long)80);
         return u;
     }
 };
@@ -101,6 +106,34 @@ TEST_F(CombatRulesTest, AttackGate_HighPksVictim_Allowed)
     EXPECT_TRUE(combat_rule_reason("attack_gate", me, victim).empty());
 
     delete me;
+    delete victim;
+}
+
+// 默认数据集规则：玩家互斗任一方等级 <75 即否决（lua-default 的 attack_gate 声明）
+TEST_F(CombatRulesTest, AttackGate_DefaultNewbieGate_LowLevelRejected)
+{
+    CUser* me     = MakeUser("生手", "ag_atk4");
+    CUser* victim = MakeUser("新手", "ag_vic4");
+    me->set("level", (long)50);
+
+    EXPECT_EQ(combat_rule_reason("attack_gate", me, victim),
+              "才入江湖，何必动刀动枪。")
+        << "默认规则给出与原硬编码门一致的文案";
+
+    delete me;
+    delete victim;
+}
+
+// 默认规则只管玩家互斗：NPC 进攻玩家不受等级门限制（E2E 的 /kill 山鸡等路径）
+TEST_F(CombatRulesTest, AttackGate_DefaultRule_NpcAttackerAllowed)
+{
+    CUser* victim = MakeUser("行路客", "ag_vic5");
+    CChar* npc    = new CChar();
+    npc->set_name("山鸡", "shiji_t");
+
+    EXPECT_TRUE(combat_rule_reason("attack_gate", npc, victim).empty());
+
+    delete npc;
     delete victim;
 }
 

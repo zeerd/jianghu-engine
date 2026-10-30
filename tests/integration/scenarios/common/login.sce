@@ -10,4 +10,3 @@
 login $acct $pass
 wait login
 wait room 青云山山脚
-sleep 800

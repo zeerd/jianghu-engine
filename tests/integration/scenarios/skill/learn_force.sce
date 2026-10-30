@@ -10,58 +10,54 @@
 # 说明：请教一次扣 100 气（hp），按「补满 → 学几次」循环；每次迭代先 clear，
 #   保证本轮的等待只看本轮的回执，不会被上一轮的旧输出误满足。
 
-cmd /t 青云子
+cmd /t qing yun zi
 
 repeat 3
 clear
 cmd /learn force
 wait text 进步了 timeout=10000
-sleep 600
 end
 
 repeat 4
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
 sleep 3200
 end
 
-cmd /t 青云子
+cmd /t qing yun zi
 repeat 3
 clear
 cmd /learn force
 wait text 进步了 timeout=10000
-sleep 600
 end
 
 repeat 4
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
 sleep 3200
 end
 
-cmd /t 青云子
+cmd /t qing yun zi
 repeat 3
 clear
 cmd /learn force
 wait text 进步了 timeout=10000
-sleep 600
 end
 
 repeat 4
-cmd /t 回春丹
+cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
 sleep 3200
 end
 
-cmd /t 青云子
+cmd /t qing yun zi
 clear
 cmd /learn force_adv
 wait text 进步了 timeout=10000
-sleep 600
 cmd /t 0

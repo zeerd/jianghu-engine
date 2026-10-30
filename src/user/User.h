@@ -30,6 +30,7 @@ public:
     void receive_user_info(CUser* me);
     void send_user_online(int begin, int end, int type = 0);
     void notify_online(CChar* me);
+    void notify_offline();
 
     void location_object(CContainer* obj);
     void do_active();

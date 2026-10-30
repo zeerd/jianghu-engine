@@ -6,8 +6,10 @@
 #      不再临时改写 data\config.ini），独立测试库 + 独立端口；
 #   3. **一次性注册 $Workers 个账号**（并行），再**同时开跑各道剧本**
 #      （scenarios\lane_*.sce，每道一串 include 的功能片段，彼此互不依赖；
-#      例外是 L5/L6 配对互动道：两道在注册阶段互相注入对方角色名
-#      （vars 的 peer 键），会合后做玩家对玩家的互动场景）；
+#      例外是互动道：L5/L6 配对，注册阶段互相注入对方角色名与账号
+#      （vars 的 peer/peer_acct 键）会合后做玩家对玩家的互动；L7 观战道
+#      单向依附 L5（本道 vars 收 peer 键、L5 收 spectator 键），为 L5/L6
+#      的 PK 段提供房外观战/加入的第三方）；
 #      各道分别注册、分别采购、分别推进，只在共享世界里「钉给唯一一道」的
 #      资源上互斥，其余全靠服务器并发推进——墙钟时间约为最长的一道而非各道之和；
 #   4. 在 OpenCppCoverage 下采集 src 行覆盖，导出 Cobertura / HTML / binary；
@@ -18,10 +20,11 @@
 #      完整清单写入 coverage_history\e2e-sample-unhit-functions.txt；
 #   6. 任一道失败即整体失败：只输出各道结果与失败原因，不展示覆盖率与未命中
 #      函数（避免覆盖率刷屏淹没失败信息；报告文件仍会导出，便于排查）。
-#   7. 崩溃检测：启动前快照仓库根 *.dmp，收尾停服后 diff——服务器未处理异常
-#      （关服路径崩溃）会生成新 dump，判定为整体失败并把 dump 移到
-#      %TEMP%\e2e_lanes\crash_dumps\ 留证，避免「剧本全绿、服务器其实崩了」
-#      或 dump 在仓库根无限堆积。
+#   7. 崩溃检测：启动前先把**上一轮遗留**的旧 dump 归档到仓库根 crash_dumps\
+#      （避免在仓库根无限堆积），再快照仓库根 *.dmp，收尾停服后 diff——服务器
+#      未处理异常（关服路径崩溃）会生成新 dump，判定为整体失败。**本轮新产生的
+#      dump 原地留在仓库根**并打印完整路径，绝不挪走：挪到 %TEMP% 会让人看不到
+#      崩溃证据、误以为崩溃已修好（「剧本全绿、服务器其实崩了」同理要防）。
 #   8. 耗时监控：每次 PASS 运行把「剧本执行总耗时」（注册 + 各道并行，不含构建与
 #      覆盖率导出）连同各道耗时/步数/场景清单追加到
 #      coverage_history\e2e-timing-history.jsonl（保留最近 50 条），并与前次同类
@@ -29,7 +32,8 @@
 #      （默认 10 秒）时 diff 各道 include 场景清单归因是否新增场景导致，并按
 #      关键路径估算「移入现有道 / 新增一条道」的拆分收益。
 #
-# 依赖：MSBuild（VS）、OpenCppCoverage、本地 MySQL（服务 "MySQLa"，127.0.0.1:3306）。
+# 依赖：MSBuild（VS）、OpenCppCoverage。数据库为 SQLite（tests\integration\e2e.db），
+#        由服务端启动时自动建库建表，无需任何外部数据库服务。
 #
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File run-integration-tests.ps1
@@ -38,9 +42,10 @@
 #   powershell -ExecutionPolicy Bypass -File run-integration-tests.ps1 -CliExe C:\tmp\jhcli.exe
 #
 # 说明：
-#   - 使用独立测试库（tests\integration\config.ini 的 game_e2e_sample），不污染业务库；
-#     每个账号用唯一角色名，因此无需清库。环境提供 mysql.exe 时可用 -ResetDb 强制重建。
-#   - 覆盖率与「未命中函数」都是近似口径，详见 docs\e2e_sample_test.md。
+#   - 使用独立 SQLite 文件库（tests\integration\config.ini 的 e2e.db），不污染业务库；
+#     每个账号用唯一角色名，因此无需清库。需要全新库时用 -ResetDb 删除库文件，
+#     服务端下次启动自动重建。
+#   - 覆盖率与「未命中函数」都是近似口径，详见 docs\design\integration-test.md §5.3。
 #   - 各道的变量/报告/日志在 %TEMP%\e2e_lanes\（lane<N>.vars/.report/.log）。
 #   - 进程管理只认「监听测试端口的 jianghu」：启动前只回收上次残留的测试服务器，
 #     收尾只停本脚本起的那台，不会按进程名误杀你在其他端口（如 6600）跑的服务器；
@@ -53,12 +58,11 @@ param(
     [switch]$SkipBuild,
     # 跳过 OpenCppCoverage（快速调试剧本，不出覆盖率报告）
     [switch]$NoCoverage,
-    # 运行前重建测试库（需要 mysql.exe 在 PATH 或 -MysqlExe）
+    # 运行前重建测试库：删除 SQLite 库文件（服务端启动自动重建）
     [switch]$ResetDb,
     # 给各道 CLI 加 --dbg：把服务端报文（RTNINFO/STATE 等）打进 lane 日志，
     # 用于定位「客户端属性值和服务端对不上」这类问题
     [switch]$Dbg,
-    [string]$MysqlExe = "mysql",
     # 单个 wait/assert 默认超时（毫秒）
     [int]$StepTimeout = 20000,
     # 等待服务器端口就绪的超时（秒）。首次在 OpenCppCoverage 下加载 PDB 可能较慢
@@ -67,10 +71,11 @@ param(
     [int]$HeartbeatSec = 10,
     # 控制台最多逐条打印多少个未命中函数；超出则只报数字
     [int]$UnhitListLimit = 60,
-    # 并行的账号（道）数。剧本按功能域拆成 6 条道（L1~L4 互不干扰 + L5/L6
-    # 配对互动道，配对两道必须同时启用），每道一个账号，同时注册、同时开跑；
+    # 并行的账号（道）数。剧本按功能域拆成 7 条道（L1~L4 互不干扰 + L5/L6
+    # 配对互动道 + L7 观战道单向依附 L5；配对与依附关系都必须同时启用），
+    # 每道一个账号，同时注册、同时开跑；
     # 调小会缩短并行度并丢掉未启用道的覆盖。
-    [int]$Workers = 6,
+    [int]$Workers = 7,
     # 耗时监控：本次剧本执行总耗时较前次同类通过运行增加超过该秒数时，
     # 归因是否新增场景导致，并探索拆分（移道 / 新增道）的可能性
     [int]$DurationRegressionSec = 10
@@ -117,9 +122,14 @@ $Lanes = @(
     @{ Id = 3; Desc = "山顶战斗尾"; Script = "lane_combat.sce" },
     @{ Id = 4; Desc = "社交生活"; Script = "lane_social.sce" },
     # L5/L6 是配对互动道（PeerId 互相指认）：注册阶段把对方角色名写进对方
-    # vars（peer 键），剧本用 $peer 会合后做玩家互动（组队/私聊/赠送/交易等）。
-    @{ Id = 5; Desc = "互动A"; Script = "lane_interaction_a.sce"; PeerId = 6 },
-    @{ Id = 6; Desc = "互动B"; Script = "lane_interaction_b.sce"; PeerId = 5 }
+    # vars（peer 键），剧本以 $peer 会合后做玩家互动（组队/私聊/赠送/交易等）。
+    # L5 的 WitnessId=7 指向观战道：L5 vars 收 spectator 键（对方角色名），
+    # 注册后同样互注 spectator_acct——pk/fight 段跨房 tell 开战信号用。
+    @{ Id = 5; Desc = "互动A"; Script = "lane_interaction_a.sce"; PeerId = 6; WitnessId = 7 },
+    @{ Id = 6; Desc = "互动B"; Script = "lane_interaction_b.sce"; PeerId = 5 },
+    # L7 观战道（PeerId=5 单向依附 L5）：L5/L6 打 PK 与死亡链时它待在
+    # 会合房间房外，做比试房观战（guard）与战斗房加入（join）。
+    @{ Id = 7; Desc = "观战"; Script = "lane_spectate.sce"; PeerId = 5 }
 )
 
 if ($Workers -lt 1) { $Workers = 1 }
@@ -130,10 +140,14 @@ if ($Workers -lt $Lanes.Count) {
 }
 
 # 配对互动道必须成对启用：L5/L6 互为 peer，只启用一半会因找不到对方角色名
-# 而在会合片段超时，这里提前给出明确报错。
+# 而在会合片段超时，这里提前给出明确报错。同理，L5 依赖观战道 L7（spectator
+# 注入 + PK 段信号）、L7 依赖 L5（peer 注入），任何一半缺位都在此拦下。
 foreach ($lane in $ActiveLanes) {
     if ($lane.PeerId -and -not (@($ActiveLanes | Where-Object { $_.Id -eq $lane.PeerId }) | Select-Object -First 1)) {
         throw "道 L$($lane.Id)（$($lane.Script)）依赖配对道 L$($lane.PeerId)（peer 互注），但 L$($lane.PeerId) 未启用：请把 -Workers 调到 $(@($Lanes | Where-Object { $_.Id -eq $lane.PeerId }) | Select-Object -First 1 | ForEach-Object { $_.Id }) 及以上。"
+    }
+    if ($lane.WitnessId -and -not (@($ActiveLanes | Where-Object { $_.Id -eq $lane.WitnessId }) | Select-Object -First 1)) {
+        throw "道 L$($lane.Id)（$($lane.Script)）依赖观战道 L$($lane.WitnessId)（spectator 注入与 PK 段信号），但 L$($lane.WitnessId) 未启用：请把 -Workers 调到 $($lane.WitnessId) 及以上。"
     }
 }
 
@@ -495,14 +509,18 @@ foreach ($p in @($ConfPath, $CliConf, $ServerProj)) {
 }
 
 $Port = [int](Get-IniValue $ConfPath "server" "port")
-$DbName = Get-IniValue $ConfPath "database" "name"
-if ($DbName -eq "") { throw "无法从 $ConfPath 解析 [database] name" }
+$DbType = Get-IniValue $ConfPath "database" "type"
+if ($DbType -ne "sqlite") { throw "$ConfPath 的 [database] type 必须为 sqlite（E2E 已不依赖外部数据库服务），当前：'$DbType'" }
+$DbPath = Get-IniValue $ConfPath "database" "path"
+if ($DbPath -eq "") { throw "无法从 $ConfPath 解析 [database] path" }
+# config 里的 path 相对仓库根（服务器以仓库根为工作目录启动）；脚本侧拼成绝对路径
+if (-not [System.IO.Path]::IsPathRooted($DbPath)) { $DbPath = Join-Path $RepoRoot ($DbPath -replace "/", "\") }
 if ($CliExe -eq "") { $CliExe = Join-Path $RepoRoot "bin\cli\jianghu_cli.exe" }
 
 Write-Host "== lua-sample 集成测试（单人主线 E2E）=="
 Write-Host "repo     : $RepoRoot"
 Write-Host "config   : $ConfPath"
-Write-Host "port     : $Port   db: $DbName"
+Write-Host "port     : $Port   db: sqlite $DbPath"
 
 # --- 构建 -------------------------------------------------------------------
 if (-not $SkipBuild) {
@@ -518,9 +536,11 @@ if (-not $SkipBuild) {
     New-Item -ItemType Directory -Force -Path $E2EDir | Out-Null
     & $msb $ServerProj /p:Configuration=Release /p:Platform=Win32 "/p:OutDir=$E2EDir\\" /nologo /verbosity:minimal
     if ($LASTEXITCODE -ne 0) { throw "构建失败：$ServerProj" }
-    # 服务端运行期依赖的 DLL（如 libmySQL.dll）随 exe 带到 bin\e2e\。
-    # 只在目标缺失时复制：bin\e2e\ 可能残留上一次未退净的服务器（占着 DLL，
-    # 脚本稍后在服务启动阶段按测试端口定向回收），此时 DLL 已在、无需强写。
+    # 虽然 E2E 数据库走 SQLite（sqlite3 静态编入），但 jianghu.exe 仍隐式链接
+    # libmysql.lib（非 delay-load），进程启动时加载器就要求 libmySQL.dll 在场——
+    # 故 bin\*.dll 仍随 exe 带到 bin\e2e\。只在目标缺失时复制：bin\e2e\ 可能残留
+    # 上一次未退净的服务器（占着 DLL，脚本稍后在服务启动阶段按测试端口定向回收），
+    # 此时 DLL 已在、无需强写。
     foreach ($dll in Get-ChildItem (Join-Path $RepoRoot "bin\*.dll") -ErrorAction SilentlyContinue) {
         $dst = Join-Path $E2EDir $dll.Name
         if (-not (Test-Path $dst)) {
@@ -538,10 +558,13 @@ if (-not $NoCoverage -and -not (Test-Path $OccExe)) {
 }
 
 # --- 数据库（可选重建） -----------------------------------------------------
+# SQLite 的「重建库」= 删库文件（连带 WAL/SHM 附属文件），服务端启动时
+# sqlite3_open_v2 自动重建、prepare_tables 自动建表播种，无需任何外部工具。
 if ($ResetDb) {
-    Write-Host "-- 重建测试库 $DbName"
-    & $MysqlExe -h 127.0.0.1 -u root -proot -e "DROP DATABASE IF EXISTS $DbName; CREATE DATABASE $DbName DEFAULT CHARACTER SET utf8;"
-    if ($LASTEXITCODE -ne 0) { Write-Warning "mysql 重建库失败，改用唯一角色名策略继续。" }
+    Write-Host "-- 重建测试库 $DbPath"
+    foreach ($f in @($DbPath, "$DbPath-wal", "$DbPath-shm")) {
+        if (Test-Path $f) { Remove-Item -Force $f }
+    }
 }
 
 # --- 生成各道的 vars（唯一角色名 + 邮箱） --------------------------------------
@@ -570,6 +593,14 @@ foreach ($lane in $ActiveLanes) {
     Add-Content -Encoding ASCII $lane.VarsFile "peer=$($peerLane.Name)"
 }
 
+# 观战道 spectator 注入：把 L7 角色名写进依赖道（L5）的 vars（spectator 键），
+# 与 peer 同机制同阶段；剧本以 $spectator / $spectator_acct 做跨房开战信号。
+foreach ($lane in $ActiveLanes) {
+    if (-not $lane.WitnessId) { continue }
+    $witLane = @($ActiveLanes | Where-Object { $_.Id -eq $lane.WitnessId }) | Select-Object -First 1
+    Add-Content -Encoding ASCII $lane.VarsFile "spectator=$($witLane.Name)"
+}
+
 # ===========================================================================
 # 运行
 # ===========================================================================
@@ -581,6 +612,9 @@ $failReason = ""
 # 崩溃检测基线：本次运行启动服务器前仓库根已有的 dump 文件集合。
 # $null 表示快照没做成（服务器未启动），此时跳过崩溃检测。
 $dumpsBefore = $null
+# 旧 dump 归档目录（仓库根 crash_dumps\）：启动前把上一轮遗留 dump 挪进去；
+# 本轮新产生的 dump 绝不挪动，原地留在仓库根供查看。
+$OldDumpArchive = Join-Path $RepoRoot "crash_dumps"
 
 # 事件 action 跑在独立 runspace：只把行塞进本道自己的共享队列，不直接刷屏——
 # 多道并行时逐行打印会互相穿插淹没控制台。进度改由各道心跳汇报，完整输出落盘
@@ -964,7 +998,21 @@ try {
     Start-Sleep -Seconds 1
 
     # 崩溃检测：服务器的未处理异常过滤器（CCreateDump）会往工作目录（仓库根）写
-    # "[时间]dumpfile.dmp"。记下运行前已有的 dump，收尾停服后 diff——新增的即崩溃证据。
+    # "[时间]dumpfile.dmp"。先把上一轮遗留的旧 dump 归档到仓库根 crash_dumps\
+    # （在仓库里，看得见；也避免在仓库根无限堆积），再快照当前集合——收尾停服后
+    # diff，新增的即本次崩溃证据。
+    $oldDumps = @(Get-ChildItem -Path $RepoRoot -Filter "*.dmp" -File -ErrorAction SilentlyContinue)
+    if ($oldDumps.Count -gt 0) {
+        New-Item -ItemType Directory -Force -Path $OldDumpArchive | Out-Null
+        foreach ($d in $oldDumps) {
+            try {
+                Move-Item -LiteralPath $d.FullName -Destination (Join-Path $OldDumpArchive $d.Name) -Force
+            }
+            catch {
+                Write-Warning "归档旧 dump 失败（保留原地）：$($d.FullName) — $($_.Exception.Message)"
+            }
+        }
+    }
     $dumpsBefore = @(Get-ChildItem -Path $RepoRoot -Filter "*.dmp" -File -ErrorAction SilentlyContinue |
             ForEach-Object { $_.FullName })
 
@@ -1024,6 +1072,41 @@ try {
     }
     Write-Host "-- $($ActiveLanes.Count) 个账号注册完成"
     $tRegSec = [int]((Get-Date) - $t0).TotalSeconds
+
+    # 注册完成后回读各道 acct，向配对两道互注 peer_acct（对方数字账号 ID）。
+    # /t 只收 ID：玩家=数字账号 ID（全服有效、跨房间），NPC/物品=英文 id
+    # （当前环境）；显示名允许重名、不作目标——$peer 仅保留给文本断言，
+    # 剧本定向对方一律 /t $peer_acct。
+    foreach ($lane in $ActiveLanes) {
+        if (-not $lane.PeerId) { continue }
+        $peerLane = @($ActiveLanes | Where-Object { $_.Id -eq $lane.PeerId }) | Select-Object -First 1
+        $peerAcct = $null
+        if (Test-Path $peerLane.VarsFile) {
+            $m = Select-String -Path $peerLane.VarsFile -Pattern '^acct=(.+)$' |
+                Select-Object -Last 1
+            if ($m) { $peerAcct = $m.Matches[0].Groups[1].Value.Trim() }
+        }
+        if (-not $peerAcct) {
+            throw "注册后未取到 L$($peerLane.Id) 的 acct（$($peerLane.VarsFile)），无法注入 peer_acct"
+        }
+        Add-Content -Encoding ASCII $lane.VarsFile "peer_acct=$peerAcct"
+    }
+
+    # 观战道 spectator_acct 注入（同上）：L5 的 fight/pk 段跨房 tell 开战信号
+    foreach ($lane in $ActiveLanes) {
+        if (-not $lane.WitnessId) { continue }
+        $witLane = @($ActiveLanes | Where-Object { $_.Id -eq $lane.WitnessId }) | Select-Object -First 1
+        $witAcct = $null
+        if (Test-Path $witLane.VarsFile) {
+            $m = Select-String -Path $witLane.VarsFile -Pattern '^acct=(.+)$' |
+                Select-Object -Last 1
+            if ($m) { $witAcct = $m.Matches[0].Groups[1].Value.Trim() }
+        }
+        if (-not $witAcct) {
+            throw "注册后未取到 L$($witLane.Id) 的 acct（$($witLane.VarsFile)），无法注入 spectator_acct"
+        }
+        Add-Content -Encoding ASCII $lane.VarsFile "spectator_acct=$witAcct"
+    }
 
     # --- 阶段 2：并行开跑各道 -------------------------------------------------
     Write-Host "-- 阶段 2：并行开跑 $($ActiveLanes.Count) 条道"
@@ -1100,30 +1183,23 @@ finally {
     # 崩溃检测：停服后 diff dump 快照。崩溃发生在关服路径（WM_DESTROY →
     # wait_for_all_worker_threads 期间工作线程仍在跑），剧本结果此时早已判定，
     # 不在这里检查就会「剧本全绿、服务器其实崩了」。
-    # 新增的 dump 移到 %TEMP%\e2e_lanes\crash_dumps 留证，不留在仓库根堆积。
+    # 新 dump **原地留在仓库根**，只打印完整路径——挪走（如挪到 %TEMP%）会让人
+    # 找不到崩溃证据、误以为崩溃已修好。旧 dump 已在启动前归档到 crash_dumps\。
     $crashDumps = @()
     if ($null -ne $dumpsBefore) {
         $crashDumps = @(Get-ChildItem -Path $RepoRoot -Filter "*.dmp" -File -ErrorAction SilentlyContinue |
                 Where-Object { $dumpsBefore -notcontains $_.FullName })
     }
     if ($crashDumps.Count -gt 0) {
-        $crashDumpDir = Join-Path $WorkDir "crash_dumps"
-        New-Item -ItemType Directory -Force -Path $crashDumpDir | Out-Null
-        $keptDumps = @()
-        foreach ($d in $crashDumps) {
-            $dst = Join-Path $crashDumpDir $d.Name
-            try {
-                Move-Item -LiteralPath $d.FullName -Destination $dst -Force
-                $keptDumps += $dst
-            }
-            catch { $keptDumps += $d.FullName }
-        }
-        $dumpNames = ($crashDumps | ForEach-Object { $_.Name }) -join "、"
         $status = "fail"
-        $reason = "服务器崩溃（未处理异常），新增 dump: $dumpNames"
+        $reason = "服务器崩溃（未处理异常），新增 dump: " +
+        (($crashDumps | ForEach-Object { $_.FullName }) -join "、")
         if ($failReason) { $failReason = "$failReason；$reason" } else { $failReason = $reason }
-        Write-Warning "服务器崩溃！dump 已移到 $crashDumpDir"
-        Write-Host ("       {0}" -f $dumpNames)
+        Write-Warning "服务器崩溃！新 dump 保留在仓库根（未移动）："
+        foreach ($d in $crashDumps) {
+            Write-Host ("       {0}（{1:N0} 字节，写于 {2}）" -f $d.FullName, $d.Length, $d.LastWriteTime)
+        }
+        Write-Host "       旧 dump 归档目录：$OldDumpArchive"
     }
 
     if (-not $NoCoverage -and $occRun) {
@@ -1324,7 +1400,7 @@ if ($fnReport) {
 
     $listOut = New-Object System.Collections.ArrayList
     [void]$listOut.Add("# lua-sample E2E 未命中函数清单（近似）")
-    [void]$listOut.Add("# 由 run-integration-tests.ps1 生成，口径与局限见 docs\e2e_sample_test.md")
+    [void]$listOut.Add("# 由 run-integration-tests.ps1 生成，口径与局限见 docs\design\integration-test.md §5.3")
     [void]$listOut.Add("# 命中 $($fnReport.HitFunctions)/$($fnReport.TotalFunctions)，未命中 $($unhitList.Count)，扫描 $($fnReport.ScannedFiles) 个文件")
     [void]$listOut.Add("")
     foreach ($u in $unhitList) {

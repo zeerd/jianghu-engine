@@ -7,4 +7,3 @@ wait text 对你说道 timeout=20000
 
 # A 的鬼脸表情（B 收目标渲染「<A名>对着你顽皮地做了个鬼脸」）
 wait text 鬼脸 timeout=10000
-sleep 400

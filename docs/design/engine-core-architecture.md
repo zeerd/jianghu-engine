@@ -395,12 +395,14 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 - **单元测试**：`tests/unit/tests.vcxproj`，静态库 `jianghu_core.lib` + 链接期 mock
   （`mock_db.cpp`、`mock_itemmgr.cpp`、`mock_net.cpp`、`mock_database.h`）；
   真实 Lua 链接，脚本测试只针对 `lua-default` 与 `lua-sample`。
-- **E2E**：`run-integration-tests.ps1` 起真实服务器 + 无头 CLI + **多账号并行的四条道**
-  （`register.sce` 先并行注册，再并行跑 `lane_foot` / `lane_skill` / `lane_combat` /
-  `lane_social`——每道一个独立账号，`include` 串起各自的剧本片段）。
+- **E2E**：`run-integration-tests.ps1` 起真实服务器 + 无头 CLI + **多账号并行的七条道**
+  （`register.sce` 先并行注册，再并行跑各 `lane_*.sce`——每道一个独立账号，
+  `include` 串起各自的剧本片段；L5/L6 配对互动、L7 观战依附 L5）。
+  道模型、隔离原则与覆盖率口径的设计见 `docs/design/integration-test.md`。
 - **唯一认可的验证入口**：仓库根 `.\run-coverage.ps1`（`Release|Win32`，
   绝对禁止 Debug —— Debug 与 Release 不是同一个被测对象）。
-- Coverage：门槛 75% 及格 / 90% 良好；E2E 行覆盖约 33%（缺口是系统性的，由单测兜底）。
+- Coverage：门槛 75% 及格 / 90% 良好；E2E 行覆盖无数字门槛（参考手段，
+  缺口是系统性的，由单测兜底——口径见 `docs/design/integration-test.md` §5）。
 
 ---
 
@@ -408,7 +410,9 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 
 **How We Know This Works**:
 
-- ✅ E2E 四部剧本（约 460 步，覆盖注册 / 主线 / 社交 / 住宅）在真实服务器上跑通。
+- ✅ E2E 多账号并行剧本（七条道，覆盖注册 / 主线 / 技能 / 战斗 /
+  社交 / 多客户端互动 / PK 与观战）在真实服务器上跑通（设计见
+  `docs/design/integration-test.md`）。
 - ✅ 单测覆盖率门槛与 `coverage_history/summary.csv` 的 delta 门禁长期在执行。
 - ✅ 命令链、脚本链、持久化链都有直接单测（`test_db_layer`、`test_sqlite_integration`、
   `test_smoke` 等），说明 seam 是真实可用的，不是纸面设计。

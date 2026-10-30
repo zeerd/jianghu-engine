@@ -8,22 +8,19 @@
 #   全服只有一份。因此开箱段只由 L1 一道执行；其余各道不碰箱子，
 #   改从商人购买所需物品，各靠启动本金自给自足。
 
-cmd /t 木箱
+cmd /t mu xiang
 cmd /look
 wait menu
 menu 铁剑
 wait item 铁剑 timeout=10000
-sleep 600
-cmd /t 木箱
+cmd /t mu xiang
 cmd /look
 wait menu
 menu 金币
 wait item 金币 timeout=10000
-sleep 600
-cmd /t 药箱
+cmd /t yao xiang
 cmd /look
 wait menu
 menu 金创药
 wait item 金创药 timeout=10000
-sleep 600
 cmd /t 0

@@ -15,6 +15,8 @@
 extern void close_client(uint32_t serial);
 extern int send_to_client(int object_id, uint32_t serial, const char* msg);
 extern void open_client(uint32_t id, int32_t user);
+// 关服标志（net/ServerSockHandler.cpp 定义）：关服路径不广播下线
+extern bool g_terminated;
 
 //---------------------------------------------------------
 // Construction/Destruction
@@ -157,6 +159,10 @@ void CUser::offline(int flag)
     }
 
     if (!query_temp("net_dead")) {
+        // 首次转 net_dead：向其他在线玩家广播本人下线（在线表按 UID 清理）。
+        // 关服路径（user_release）由 notify_offline 内部的 g_terminated 拦下。
+        notify_offline();
+
         if (!flag) {
             close_client(query_temp("client/serial"));
             delete_temp("client/serial");
@@ -252,6 +258,25 @@ void CUser::notify_online(CChar* me)
     snprintf(msg, 255, "&C=%d&O=1&U=%ld&", SENDUSER, me->object_id());
 
     send_command(msg, SEND_WAIT_BUFFERED);
+}
+
+// 通知所有其他在线玩家：本人已下线（SENDUSER O=0）。
+// 对端客户端据 UID 从在线表移除——/t <数字ID> 跨房间解析的清理路径。
+// 关服路径（g_terminated）不发：此时对端连接已进入回收流程。
+void CUser::notify_offline()
+{
+    if (g_terminated) return;
+
+    char msg[255];
+    snprintf(msg, 255, "&C=%d&O=0&U=%ld&", SENDUSER, object_id());
+
+    MAP2USER* list = users();
+    for (iterator_user p = list->begin(); p != list->end(); p++) {
+        CUser* obj = p->second;
+        if (obj == this) continue;
+        if (obj->query_temp("net_dead")) continue;
+        obj->send_command(msg, SEND_WAIT_BUFFERED);
+    }
 }
 
 // 通知用户me的资料 在线玩家信息 倒序 type = 0 NORMAL type = 1 本派 type = 2

@@ -19,7 +19,6 @@
 clear
 cmd /set exercise 10
 wait text 你设置环境变量 timeout=10000
-sleep 400
 
 clear
 cmd /exercise
@@ -27,4 +26,3 @@ wait text 你坐下来运气用功 timeout=10000
 wait text 你运功完毕 timeout=60000
 wait text 内力增加了 timeout=10000
 wait attr max_mp >= 1 timeout=10000
-sleep 400

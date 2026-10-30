@@ -6,9 +6,8 @@
 #   附带覆盖 CChar::relay_say 玩家版（对玩家定向说话会调用，玩家版为空函数，
 #   无可断言文案，仅计覆盖率——老李头 NPC 版已由 L2 覆盖）。
 
-cmd /t $peer
+# 两条命令同一连接顺序送达，B 侧按序断言，无需节流。
+cmd /t $peer_acct
 cmd /say 你好呀朋友
-sleep 300
 cmd /face
 cmd /t 0
-sleep 400

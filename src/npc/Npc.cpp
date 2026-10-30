@@ -358,19 +358,19 @@ int l_wield_ownered_item(lua_State* L)
     return 0;
 }
 
-// self:perform_action(magic, target)
+// self:perform_action(magic, target) -> 1 出手成功 / 0 失败
+// 回传 CNpc::perform_action 的结果：脚本据「招式是否真的出手」分流后续
+// 行为（如低血自救：heal 失败继续吃药）。守卫路径同样回 0（不推 nil，
+// 免得脚本的 `~= 0` 判断把守卫失败当成成功）。
 int l_perform_action(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
-    CNpc* npc = dynamic_cast<CNpc*>(obj);
-    if (!npc) return 0;
+    CNpc* npc        = obj ? dynamic_cast<CNpc*>(obj) : NULL;
 
     const char* magic = luaL_checkstring(L, 2);
     int target        = (int)luaL_optinteger(L, 3, 1);
-    npc->perform_action((char*)magic, target);
-    return 0;
+    lua_pushinteger(L, npc ? npc->perform_action((char*)magic, target) : 0);
+    return 1;
 }
 
 // self:set_inquiry(ask, answer, topic) - 预置回答
@@ -392,9 +392,6 @@ int l_set_inquiry(lua_State* L)
     if (CLuaNpc* npc = dynamic_cast<CLuaNpc*>(obj)) {
         npc->set_inquiry(askBuf, ansBuf, topic ? topBuf : NULL);
     }
-    else if (CLuaMirrorNpc* npc = dynamic_cast<CLuaMirrorNpc*>(obj)) {
-        npc->set_inquiry(askBuf, ansBuf, topic ? topBuf : NULL);
-    }
     return 0;
 }
 
@@ -414,9 +411,6 @@ int l_set_inquiry_func(lua_State* L)
         topBuf[sizeof(topBuf) - 1] = 0;
     }
     if (CLuaNpc* npc = dynamic_cast<CLuaNpc*>(obj)) {
-        npc->set_inquiry_func(askBuf, funcName, topic ? topBuf : NULL);
-    }
-    else if (CLuaMirrorNpc* npc = dynamic_cast<CLuaMirrorNpc*>(obj)) {
         npc->set_inquiry_func(askBuf, funcName, topic ? topBuf : NULL);
     }
     return 0;

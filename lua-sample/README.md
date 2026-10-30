@@ -132,7 +132,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | NPC | 文件 | 说明 |
 |-----|------|------|
 | 青云子（师父） | `npc/sample_master.lua` | 门派"青云门"祖师，可拜师学武 |
-| 练功木人 | `npc/sample_wooden_dummy.lua` | `type = "mirror"` 镜像NPC：`/ask 对练` 照挑战者复制自己，被打散即自毁、随房间 reset 复生 |
+| 练功木人 | `npc/sample_wooden_dummy.lua` | 镜像NPC（自装配 `npc/mirror_base.lua`）：`/ask 对练` 照挑战者复制自己，被打散即自毁、随房间 reset 复生 |
 
 **师父机制**（参照 `lua/npc/class` 下的NPC）：
 - 使用 `create_family()` 创建门派
@@ -140,14 +140,20 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 - 使用 `DownLoad()` 自动教授师父会的技能
 - 师父会什么就教什么，不使用预定义列表
 
-**镜像NPC机制**（基类 `src/npc/NpcMirror.h`，类型分派 `src/engine/SetupObjects.cpp`）：
-- NPC 脚本声明 `type = "mirror"`，引擎即按 `CLuaMirrorNpc`（`CNpcMirror` 基类）创建
-- `self:make_mirror(me, diff)` 把 `me` 的技能、技能映射、激发、先天属性、气血内力
-  与历练等级整套按 `diff / 10` 抄到 NPC 身上，并照抄来的技击技能配一把「木刺」——
-  木人的「对练」由此而来：`/t 练功木人` + `/ask 对练`，它当场变成「八成的你」
-- `make_mirror` 末尾按 `me` 的 `fool/name` 给 NPC 改名，玩家没有这个临时字段时
-  写进来的是空串，所以脚本抄完必须把自己的名字写回去
-- 木人不设 `chat_chance`（避开基类 `chat_msg` 的概率遁走自毁），并自定义 `die`
+**镜像NPC机制**（行为来自 `lua-default/npc/mirror_base.lua`，无引擎类型）：
+- 镜像NPC 就是普通脚本 NPC：脚本自己 `require("npc.mirror_base")`，并在文件
+  末尾调 `mirror_base.install(npc)` 把缺省钩子（`die` / `chat_msg` /
+  `chat_msg_combat` / `reward_killer`）装进自己的脚本表——模块按脚本根
+  优先、`lua-default` 兜底（`lua-default` 是简版，只引用基本技能、不配武器）
+- install 只补脚本未定义的钩子：必须在全部脚本定义**之后**调用，
+  脚本自定义的同名函数即接管（如木人的 `die`）
+- `mirror_base.make_mirror(self, me, diff)`（经模块引用调用，不是 `self:` 方法）
+  把 `me` 的技能、技能映射、激发、先天属性、气血内力与历练等级整套按 `diff / 10`
+  抄到 NPC 身上——木人的「对练」由此而来：`/t 练功木人` + `/ask 对练`，
+  它当场变成「八成的你」
+- `make_mirror` 不设置名字，脚本抄完必须把自己的名字写回来，
+  否则 `/t` 与房间识别从此认不出它
+- 木人不设 `chat_chance`（避开装配来的 `chat_msg` 概率遁走自毁），并自定义 `die`
   把「化为灰烬」换成散成一地木头；死亡不走 `die_base`，故不掉尸体、不结算 NK 经验
 
 ### 山顶

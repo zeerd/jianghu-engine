@@ -185,14 +185,14 @@ TEST_F(BindGlueTest, BaseDispatchersRealTypes)
         EXPECT_EQ(1, CallRetCount(l_base_do_talk, 3)) << "Npc 支(361,362)";
     }
 
-    // ---- l_base_create：MirrorNpc 分支（技能侧不再提供该钩子） ----
+    // ---- l_base_create：历史兼容空钩子（镜像类型删除后无任何分支） ----
     {
-        CLuaMirrorNpc m("mk2");
-        lua_bind_push_object(L, &m);
-        EXPECT_EQ(0, CallRetCount(l_base_create, 1)) << "MirrorNpc create";
+        CLuaNpc n("t_quiet_npc");
+        lua_bind_push_object(L, &n);
+        EXPECT_EQ(0, CallRetCount(l_base_create, 1)) << "NPC 也是 no-op";
     }
     {
-        // 技能对象走不到任何分支：钩子对技能不再生效（返回 0）
+        // 技能脚本仍在调用 self:base_create()：钩子对技能同样无分支（返回 0）
         CLuaSkill s("force");
         lua_bind_push_object(L, &s);
         EXPECT_EQ(0, CallRetCount(l_base_create, 1)) << "Skill 不再支持";

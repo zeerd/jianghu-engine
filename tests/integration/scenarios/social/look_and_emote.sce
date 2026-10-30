@@ -13,18 +13,17 @@
 #     是 tell_object 私发；且只有本道发 /say 触发它。
 #
 # 前置：本道已由 social/poison_and_cure.sce 的传送符回到青云山山脚。
-
-cmd /t 杂货老板
+# 传送落地后的对象推送晚于 wait room 一拍，先 wait object 再 /t 英文 id。
+wait object 杂货老板
+cmd /t huo ji
 clear
 cmd /look
 wait text 武功看起来 timeout=10000
-sleep 500
 
-cmd /t 老李头
+cmd /t lao li
 clear
 cmd /look
 wait text 打量了你一番 timeout=10000
-sleep 500
 
 # 老李头对「本道的定向说话」作答回礼——这是 lua-sample/npc/sample_guide.lua
 # 提供的 relay_say 钩子（脚本接管「玩家对我说话」），由它调用引擎的 do_emote
@@ -32,5 +31,4 @@ sleep 500
 clear
 cmd /say 你好
 wait text 躬身作了个揖 timeout=10000
-sleep 500
 cmd /t 0

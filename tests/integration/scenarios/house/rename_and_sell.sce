@@ -27,7 +27,6 @@ cmd /look
 wait menu
 menu 修改房间描述
 menuinput 竹影横窗两宜
-sleep 800
 clear
 cmd /look
 wait text 竹影横窗两宜 timeout=10000
@@ -86,7 +85,6 @@ wait text 目前价值 timeout=10000
 wait menu
 menu 决定卖了
 wait text 你卖掉了 timeout=10000
-sleep 600
 clear
 cmd /look
 wait text 住宅区。目前这里 timeout=10000

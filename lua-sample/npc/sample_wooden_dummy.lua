@@ -1,5 +1,7 @@
 -- sample_wooden_dummy.lua  半山腰练功木人
--- 示例NPC：展示 type="mirror" 镜像NPC（CNpcMirror 基类，见 src/npc/NpcMirror.h），
+-- 示例NPC：展示镜像NPC——脚本自己 require 镜像基模块 npc/mirror_base.lua
+-- 并在文件末尾 install 进本脚本表（缺省钩子 die/chat_msg/chat_msg_combat
+-- 随装配补齐），镜像不是引擎类型，就是普通脚本 NPC 加一次模块装配，
 -- 顺带讲清「NPC 问答该走哪条入口」：标准做法是注册询问，本文件故意改用 do_talk，
 -- 两者的分工与参考对象分列如下。
 --
@@ -32,15 +34,17 @@
 --   故对练分支由本脚本全权负责，其余问话回退时任务钩子仍有机会接管。
 --
 -- 三、对练（/t 练功木人 + /ask 对练）做了什么
---   self:make_mirror(me, diff) 把 me 的技能、技能映射、激发、先天属性、气血内力
---   与历练等级整套按 diff / 10 抄到木人身上（NpcMirror.h 的 make_mirror），并照
---   抄来的技击技能配一把「木刺」——木人当场变成「八成的你」，可以拿来回合对练。
+--   require 来的镜像基模块 make_mirror(self, me, diff) 把 me 的技能、技能映射、
+--   激发、先天属性、气血内力与历练等级整套按 diff / 10 抄到木人身上——
+--   木人当场变成「八成的你」，可以拿来回合对练（简版基模块不配武器，
+--   原版会照抄来的技击技能配一把「木刺」）。
 --   抄的时候有两个坑，写在这儿免得改脚本的人踩：
 --     1. make_mirror 不命名，脚本必须自行 set_name 设置，
 --        否则 /t 练功木人 从此认不出它；
---     2. CNpcMirror 的 chat_msg 每次有 1/10 概率「遁走自毁」、die 是「惨叫一声，
+--     2. 镜像基模块的 chat_msg 每次有 1/10 概率「遁走自毁」、die 是「惨叫一声，
 --        化为灰烬」，都是镜像怪的台词：本脚本不设 chat_chance（心跳派发不到
---        chat_msg），并自己接管 die（见文件末尾）。
+--        chat_msg），并自己接管 die（见文件末尾）——install 放在文件末尾，
+--        脚本自己定义的钩子优先、基模块只补缺。
 --
 -- 四、平时与死后
 --   平时它只是一截挨打的木头：attitude 不是 aggressive，CChar::init 的自动仇恨
@@ -49,7 +53,11 @@
 --   随之清零；不走 die_base 意味着不掉尸体、也不结算 NK 经验。
 
 local npc = {}
-npc.type = "mirror"
+
+-- 镜像行为的来源：本脚本自己装配基模块——缺省钩子（die/chat_msg/
+-- chat_msg_combat）install 进脚本表，make_mirror 经模块引用调用
+-- （self: 认不到脚本函数）
+local mirror_base = require("npc.mirror_base")
 
 -- 对练倍率：make_mirror 的 diff 取 1~20，实际倍率 = diff / 10
 local SPARRING_DIFF = 8
@@ -103,7 +111,7 @@ function npc.do_talk(self, me, ask)
         return self:base_do_talk(me, ask)
     end
 
-    self:make_mirror(me, SPARRING_DIFF)
+    mirror_base.make_mirror(self, me, SPARRING_DIFF)
     -- make_mirror 不设置名字，脚本自行 set_name
     self:set_name("练功木人", "mu ren")
 
@@ -122,5 +130,9 @@ function npc.die(self)
     message_vision("$N的关节一松，噼里啪啦散成了一堆木头。", self)
     destruct(self)
 end
+
+-- 装配镜像缺省钩子：必须放在全部脚本定义之后——install 只补缺失项，
+-- 自己定义过的（如上面的 die）不被覆盖
+mirror_base.install(npc)
 
 return npc

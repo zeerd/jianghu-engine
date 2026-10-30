@@ -18,13 +18,11 @@
 clear
 cmd 大家好，我是来测试的。
 wait text ：大家好，我是来测试的。 timeout=10000
-sleep 600
 
 cmd .tune new
 clear
 cmd 我在新手频道和大家打招呼。
 wait text ：我在新手频道和大家打招呼。 timeout=10000
-sleep 600
 
 # ---------------------------------------------------------------------------
 # 社交表情：无目标走 myself 版、带目标走 myself_target 版，都是本人私发
@@ -32,13 +30,11 @@ sleep 600
 clear
 cmd /face
 wait text 鬼脸 timeout=10000
-sleep 600
 
-cmd /t 老李头
+cmd /t lao li
 clear
 cmd /face
 wait text 鬼脸 timeout=10000
-sleep 600
 cmd /t 0
 
 # ---------------------------------------------------------------------------
@@ -48,4 +44,3 @@ cmd /t 0
 clear
 cmd 我偏要说混蛋二字
 wait text 不文明字眼 timeout=10000
-sleep 600

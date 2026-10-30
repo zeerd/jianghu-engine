@@ -17,6 +17,7 @@
 #include "Combatd.h"
 #include "CombatCalc.h"
 #include "CombatAnnounce.h"
+#include "CombatRules.h"
 #include "AutoFight.h"
 #include "CombatConfig.h"
 #include "Money.h"
@@ -210,9 +211,12 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
 
     if (env != who->environment()) return 0;  // 不在同一场景中
 
-    if (is_user(this) && is_user(who)
-        && (query("level") < 75 || who->query("level") < 75))
-        return notify_fail("才入江湖，何必动刀动枪。");
+    // 出手准入：C++ 只申报时机，规则归数据集（hooks.combat_rule attack_gate，
+    // 各 phase 签名与语义见 lua-default/data/hooks.lua）。kill / fight_ob /
+    // AutoFight 等一切动手路径都经 cmd_hit_ob，询问点在此收拢、只问一次；
+    // 某世界是否允许出手（如新手保护）由 script_root 数据集声明。
+    std::string gate = combat_rule_reason("attack_gate", this, who);
+    if (!gate.empty()) return notify_fail("%s", gate.c_str());
 
     if (who->query_attr(CChar::IS_CORPSE)) return 0;
     if (env->query_attr(CChar::IS_FIGHTROOM)) {

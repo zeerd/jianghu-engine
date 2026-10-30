@@ -15,9 +15,8 @@
 cmd /go 山脚钱庄
 wait room 山脚钱庄
 wait object 钱庄老板
-sleep 500
 
-cmd /t 钱庄老板
+cmd /t lao ban
 clear
 cmd /balance
 wait text 你现在没有存款 timeout=10000

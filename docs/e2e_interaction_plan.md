@@ -85,7 +85,10 @@
 
 - [x] **peer 变量注入**：`run-integration-tests.ps1` 注册阶段已生成全部角色名，
       把 `peer=对方角色名` 写进配对两道的 vars 文件（复用现有 vars 机制，无需改 CLI；
-      `$Lanes` 新增 `PeerId` 互指字段，只启用一半配对道时启动即报错）
+      `$Lanes` 新增 `PeerId` 互指字段，只启用一半配对道时启动即报错）。
+      **后续演进（/t 契约修正时）**：注册后再回读 acct 互注 `peer_acct=对方数字
+      账号 ID`——`/t` 只收 ID（玩家=数字账号 ID 全服跨房间；NPC/物品=英文 id
+      当前环境），`$peer` 仅保留给文本断言
 - [x] **会合同步验证**：会合房间定「山脚茶棚」（暴露面最小：仅 L1 装水片段短暂经过、
       断言全为本人版）；`interaction/rendezvous.sce`：双方 `wait room` +
       `wait object $peer`（object 条件覆盖玩家，服务端 on_enter 双向推 ADDOBJECT）+
@@ -98,6 +101,8 @@
       + §5 配对 peer 机制 + §9 对端未到位排查行）：
       ① 私发通道（tell/菜单/notify_fail）优先；② 房间版断言必须含对方角色名（runhex 天然唯一）；
       ③ 会合房间避开其他道动线；④ 一方超时失败信息要写明"疑似对端未到位"；⑤ 稀缺资源归属
+      ——**后续演进（P3 末 /t 契约修正）**：§8.6 现为六条，新增 ⑥「`/t` 只收 ID」；
+      §5 peer 机制补 `peer_acct`（数字账号 ID，供 /t 定向）
 - [x] 互动道稀缺资源归属声明（写进 `lane_interaction_a/b.sce` 头注释与 §8.6 ⑤：
       互动道不得触碰木箱/药箱/树箱/山鸡/排行榜等钉给唯一道的资源）
 
@@ -116,51 +121,154 @@
 **决策（默认）**：方案 A——新增 L5/L6 配对互动道与四道并行。
 若 P2 验证发现并行耦合抖动不可接受，退方案 B：四道通过后串行跑互动阶段。
 
+> **状态（2026-10-29 核实并更新）**：组队全链 / 私聊屏蔽 / 定向说话表情 /
+> 玩家间赠送 / 做客邀请 **五段已实现**——片段在 `interaction/{party,tell,
+> say_emote,give,invite}_{a,b}.sce`，已挂入 `lane_interaction_a/b.sce`；
+> 最近三轮 6 道运行全 PASS（2026-10-29 01:14 / 01:26 含覆盖率轮 / 10:46，
+> L5 113 步、L6 59 步）。**剩余**：结婚/离婚 + `pair` 夫妻组队、摆摊交易、
+> 个别错误分支（邀请自己）。原勾选状态全部为 `[ ]` 系前任漏更，本节已按
+> 实际覆盖逐条改为 `[x]` 并注明片段与断言方式。
+
 ### 组队全链（覆盖 `CmdUserParty.cpp` 177 LOC，当前 0 命中）
-- [ ] `party`：A 邀请 B，B `wait menu` + `menu 接受…`，断言双方私发回执
-- [ ] `partylist`：队长查在线队员
-- [ ] `partyfollow`：B 开启/取消组队跟随
-- [ ] `fight` 战斗内跟随行为（`auto_follow_fight` 配置已开）
-- [ ] `partyleave`：B 主动离队，断言双方收到取消播报（本人版）
-- [ ] `partykick`：A 踢 B，再重新组队恢复
-- [ ] **错误分支**：对未邀请者 `/accept_party`、已在队中再邀请、邀请自己
+- [x] `party`：A 邀请 B，B `wait menu` + `menu 接受…`，断言双方私发回执
+      （`party_a.sce` step1「接受了你的组队邀请」/ `party_b.sce`「你接受了组队邀请」）
+- [x] `partylist`：队长查在线队员（`party_a.sce`「你所处队伍中有以下成员」+「成员」；
+      松同步：B 接受后保持在队中，等 A 私发信号「可以离队了」才开始跟随+离队，
+      避免 partylist 与 partyleave 竞态）
+- [x] `partyfollow`：B 开启/取消组队跟随（`party_b.sce`「决定跟随」/「组队跟随」）
+- [x] `fight` 战斗内跟随行为（`auto_follow_fight` 配对跟随进战斗）——**决策收口**：
+      两条拖入分支（好友随战入队 / 师徒链邀请）已由单测钉住
+      （`test_fightroom_team` 的 join_team 友随战与 master chain 用例）；
+      E2E 不引入：把组队/夫妻状态拖进 PK 战斗房会让入队方落入两队籍
+      （`join_team` 无跨队去重），破坏赢家账号的确定性——P4 的 PK 段在
+      组队解散后的干净状态下进行（见 §4）
+- [x] `partyleave`：B 主动离队，断言双方收到取消播报（本人版「你取消了与」/
+      私发「<名>取消了与你的组队」，`party_a/b.sce`）
+- [x] `partykick`：A 踢 B，再重新组队恢复（`party_a.sce` 二段组队 + 「你取消与」；
+      两处 `clear` 清旧回执防假匹配）
+- [x] **错误分支**（部分）：已在队中再邀请（「对方已经接受了你的邀请」，A）+
+      对未邀请者 `/accept_party`（「对方并没有邀请你」，B，放在队伍解散后避免竞态）
+- [x] **错误分支**：邀请自己（`party_a.sce` 末尾 `/t $acct`（CLI 解析为自身
+      player_id）+ `/party` →「你对自己说：算了还是自己邀请自己吧。」）
 
 ### 私聊与屏蔽
-- [ ] `tell`：A 私聊 B，双方断言【私聊】私发回执
-- [ ] `refuse_tell` + `tell` 拒绝分支：B 屏蔽 A → A 收到「不接受你的悄悄话」
-- [ ] `listen` / `refuse`：屏蔽开关的恢复与再验证
+- [x] `tell`：A 私聊 B，双方断言【私聊】私发回执（`tell_a/b.sce` 六步握手；
+      信号用反方向 tell 与房间版 say，`refusetell` 只拦 A→B 方向、互不干扰）
+- [x] `refusetell` + `tell` 拒绝分支：B 屏蔽 A → A 收到「不接受你的悄悄话」
+      （命令实名为 `refusetell`/`wantlisten`，注册表 `CmdUserInit.cpp`，
+      原计划写的 `refuse`/`listen` 是函数名不是命令名）
+- [x] `wantlisten`：屏蔽恢复与再验证（B「你开始收听」→ A 再发「悄悄话丙」成功；
+      第三次 `clear` 清旧「你告诉」确保断的是真成功）
 
 ### 定向说话/表情（玩家对玩家）
-- [ ] `say` 定向版：A `/t B` + `/say …`，B 断言「对你说」版渲染
-- [ ] `relay_say` 玩家版：B 对 A 的定向说话产生反应（现只覆盖 NPC 老李头）
-- [ ] `do_emote` 玩家版：A 向 B 发表情，B 断言送达
+- [x] `say` 定向版：A `/t B` + `/say …`，B 断言「对你说道」版渲染（`say_emote_a/b.sce`）
+- [x] `relay_say` 玩家版：随定向 say 顺带触发（玩家版为空函数、无可断言文案，
+      仅计覆盖率；老李头 NPC 版已由 L2 覆盖）
+- [x] `do_emote` 玩家版：A 向 B 发 `face` 鬼脸，B 断言目标渲染「对着你顽皮地做了个鬼脸」
 
 ### 玩家间赠送
-- [ ] `give`/`do_give` 用户分支：A `/t 物品` + `/give B`，B 断言 `item` 条件出现
+- [x] `give`/`do_give` 用户分支：A `/t B` + `/give 金创药`（CLI give 助手），
+      A 断言本人版「给$peer数量」，B 以背包 `item` 条件断言真实到账（§8.6①，
+      `give_a/b.sce`；金创药由 L5 自己 provision 购买，见 `interaction_provision_a.sce`）
 
 ### 做客邀请
-- [ ] `invite`：互动道**自行置业**（复用 `house/apply.sce`，不依赖 L1 状态）→ A 邀请 B
-- [ ] `accept`：B 接受邀请，断言双方回执
+- [x] `invite`：互动道**自行置业**（`invite_a.sce` include `house/apply.sce`，
+      不依赖 L1 状态；房名「雅室」为 per-owner 实例不冲突），置业后步行回茶棚邀请
+- [x] `accept`：B 接受邀请，断言双方回执（`invite_b.sce` 宽 timeout 等置业+步行）
 
 ### 结婚/离婚（住宅区月老，`sample_marriage.lua`）
-- [ ] `marry`：A 给月老钱领「婚姻登记表」→ A `/use` 签名 → 交给同房间的 B `/use` 签名 → 断言双方 `couple` 映射建立 + `message_vision` 播报
-- [ ] `marry` 错误分支：已婚拒绝领表/签名 → 自己重复签名 → 签名人不在场 → 对方已婚 → 金额不足；签名逾时淡去（`fade_sign`）
-- [ ] `divorce`：A 离婚咨询 → 确认菜单 → 断言双方 `couple` 删除 + `couple_betray+1` + 房间播报
-- [ ] `divorce` 错误分支：未婚拒绝 / 伴侣离线 / 取消确认
+> **实现方式已变更**：引擎没有 `/marry` 玩家命令；结婚走「付款领**婚姻登记表**
+> → 双方两段签名」（`lua-sample/item/sample_marriage_form.lua`，签名记在物品
+> 自身上、`fade_sign` 120s 逾时淡去；「和谁结婚」由物品字段+房间在场承载，
+> 不要发明 `marry_target` 玩家状态）。月老 `sample_marriage.lua` 挂在
+> `sample_resident.lua`（青云城住宅区）。
+
+- [x] `marry`：`interaction/marriage_a/b.sce`——A `/give 金币 100` 月老领表 →
+      A `/use` 签名 → `/give` 交 B → **B 持表走到山脚触发「签名人不在这儿」驳回**
+      → 回房再 `/use` 完成第二签（B 的不在场回呼是**跨房间 tell 实证**：
+      `/t $peer_acct` 按数字账号 ID 全服定向——花名册交换失效时该步即红；
+      同房间定向一律 `/t <ID>`，见 §8.6⑥；收敛点是 couple 建立的房间播报，
+      第二签者视角「你与<对方>…」、第一签者视角「<对方>与你…」）
+- [x] `marry` 错误分支：已婚拒绝领表 / 自己重复签名 / 签名人不在场 / 金额不足
+      （1 金币交付 → accept_object 落「非百金」return 0 → do_give 拒收）；
+      `fade_sign` 120s 超出 E2E 节奏不测（教材语义自明）
+- [x] `divorce`：`interaction/divorce_a/b.sce`——月老菜单「离婚登记」→ 确认菜单
+      →「我决心已下」→ 双方断言 `message_vision` 播报 + A `/pair` 落「这不太合适吧？」
+      （间接断言 couple 已删）
+- [x] `divorce` 错误分支：未婚拒绝（结婚前先做）/ 取消确认（「再考虑考虑」，
+      无副作用由后续 pair 仍失败间接复核）；伴侣离线分支需一方 `/quit`、
+      破坏配对道结构，不测（决策记录）
 
 ### 摆摊交易（`list_goods`/`buy`）——trade.lua 已实现 `trade/value` 入口
-- [ ] **摊主定价**：互动道 A 使用贸易文书 `/use trade` → `value <obj_id> <price>` 给多件物品定价，断言 `tell_object`「完成定价！」+ 再次 `list_trade` 看到价格
-- [ ] `list_goods`：互动道 B `/t A` + `/list_goods`，断言菜单出现 A 的定价商品列表
-- [ ] `buy`：B `menu 购买 <商品>`，断言双方私发回执 + B `item` 条件获得物品 + A 金币增加
-- [ ] **错误分支**：买不存在商品 / 买已售罄 / 金币不足 / 对非摊主 `list_goods` / 非玩家摊主
-- [ ] **摊主下架**：A `value <obj_id> 0` 取消出售，B 再次 `list_goods` 不再出现
+> **实现中修复教材 bug**：`lua-default/item/trade.lua` 的 `string.format` 用了
+> C 风格 `%ld`——Lua 不支持，`list_trade` 一进就抛「invalid conversion '%l'」、
+> `/use` 全线失败（该脚本此前从未被任何测试执行过）。已改 `%d`（4 处）。
+> 这是教材正确性 bug，非测试特判。
+
+- [x] **摊主定价**：`interaction/trade_a.sce`——A `/ask 交易` 山脚商人领文书 →
+      `/use 贸易文书`（自用分支）→ `menu <商品>` + `menuinput <价>`（菜单路径
+      `$2value $1 <obj> $2`，全程无需硬编码 obj_id）→ 断言「完成定价！」+
+      重开菜单行「金创药 ：100」
+- [x] `listgoods`：B `/t A` + `/listgoods` → 菜单选购（`$0buy $1 <obj>`）
+- [x] `buy`：双方 `message_vision` 本人版（买方「你从<peer>那里买下了…」、
+      卖方「从你那里买下了…付给你数量100」含定价金额）
+- [x] **错误分支**：买不存在商品（`/buy 999999`→「对方不打算卖给你」）/
+      金币不足（茶壶定价 2 亿 →「摸摸口袋」）/ 对无定价摊主 `listgoods`
+      （下架后空商品分支「商品似乎不感兴趣」）
+- [x] **摊主下架**：文书菜单对该商品 `menuinput 0`（「取消出售。」）→
+      B 复核 `listgoods` 落空分支
 
 ### P3 验收
-- [ ] 6 道并行全绿，连续跑 ≥3 次无抖动
-- [ ] `CmdUserParty.cpp` 全部函数命中（未命中清单中该文件清零）
-- [ ] `pair`（夫妻）：依赖 `couple/id`
-- [ ] 摆摊相关 C++ 函数（`CmdStandardItem::list_goods`/`buy` 等）命中
-- [ ] delta ≥ 0
+- [x] 6 道并行全绿，连续 ≥3 次——**2026-10-30 达成**：run6（NoCoverage）、
+      run7（带覆盖率，**整轮状态 PASS、无关服崩溃**——插桩改变时序，竞态未触发）、
+      run8（NoCoverage）三轮 L1 288 / L2 496 / L3 519 / L4 331 / **L5 262 /
+      L6 135 步**全 PASS 且步数完全一致（零抖动），总耗时 391s（Δ-2s 无回归）；
+      run6/run8 的整轮 FAIL 仅由下方「关服路径崩溃」独有因素导致（道判定全绿）
+- [x] `CmdUserParty.cpp` 全部函数命中——**E2E 未命中清单已清零**（run7 核对
+      `e2e-sample-unhit-functions.txt`：CmdUserParty / CmdUserVendor 均 0 条）；
+      单测合并口径 177/177 = 100%
+- [x] `pair`（夫妻）：`interaction/pair_a/b.sce`——⚠ pair 邀请菜单里是硬编码
+      `accept_party`（不带夫妻标记），B 须关菜单后直发 `/accept_pair` 才能覆盖
+      夫妻版接受函数；`pairlist`/`pairfollow`/`pairkick`/`pairleave` 全覆盖
+      （pairleave 走被踢后的「你并没有加入别人的队伍」错误分支）
+- [x] 摆摊相关 C++ 函数（`list_goods`/`buy`）——E2E 未命中清单清零 +
+      单测口径 34/34 = 100%
+- [x] delta ≥ 0——单测口径 +0.0%（2026-10-30 run-coverage，252 用例全过）；
+      E2E 口径（run7）：行覆盖率 **59.4%（9108/15335）**，较 P1 末 57.5% 再 +1.9pt，
+      未命中函数 **359 → 338（-21）**，cmd 目录 56.3%
+
+### /t 契约修正（P3 收尾追加，2026-10-30）
+> 契约与服务端/CLI 配套已定稿并写入 `docs/design/integration-test.md` §4，
+> 此处只留落地记录。
+- **剧本**：108 处 `/t <名>` 全量迁移为 ID（NPC/物品英文 id 字典 + `$peer_acct`）；
+  `run-integration-tests.ps1` 注册后互注 `peer_acct`（`$peer` 仅留文本断言）；
+  教材 `sample_mountain_foot.lua` 箱子补独立 id（`mu xiang`/`yao xiang`——单参
+  `set_name` 会把 id 固化成空串）。
+- **实证**：`marriage_b.sce` 在山脚（跨房间）`/t $peer_acct` + `/tell` 回呼、
+  A 侧断言到达；`run-coverage.ps1` 257 用例全过、delta +0.1%；
+  E2E 六道全 PASS（L5 264 / L6 141 步）。纪律与机制写入指令文件 §8.6⑥ / §5 peer 机制。
+
+### ⚠ 遗留阻塞（非 P3 引入，独立生产 bug）：关服路径崩溃
+- 现象：**所有道 PASS 后**，服务器在关服收尾阶段抛未处理异常（0xC0000005
+  **取指型故障**，故障地址每次不同——野函数指针/悬空虚调用特征），脚本判 FAIL。
+- 定位（2026-10-30）：
+  - **30 秒确定性复现**：全新账号登录后静置 → WM_CLOSE 优雅关服 → 必崩；
+    仅游客在线则不崩——触发条件是「有真实用户在 `g_user_list` 中走
+    `user_release`」。
+  - 崩溃线程 = `main_worker_thread`（`g_terminated` 置位后在工作线程执行
+    `exit_game()`：user_release→npc_release→item_release→room_release）；
+    栈上有 `CMapping::to_json`（dbase 序列化）等帧（/OPT:ICF 下符号有折叠，
+    仅供参考）。
+  - 引入窗口：最后一次绿跑（10-29 10:46，源码 48ebbb2）之后、提交 3dc928d
+    （10-29 23:40）的树之间——注意 3dc928d 同时修了 vcxproj 库搜索顺序
+    （`$(OutDir)` 优先），此前 E2E 可能链到 `bin\` 旧 `jianghu_core.lib，
+    故更早的「绿」未必反映当时源码。
+  - **时序依赖**：同树的带覆盖率轮（OpenCppCoverage 插桩、进程更慢）
+    **不崩**——竞态型 UAF 的又一佐证；NoCoverage 轮 6/6 必崩。
+  - dump 在仓库根/`crash_dumps\`；分析工具（读 dump + PDB 符号化）：
+    `%TEMP%\opencode\dumpwalk\dumpwalk.exe <dump>`（须用系统 dbghelp）。
+- 处置：**独立生产 bug 修复**（需设计级修复 + 单测），不并入 P3；
+  在修复落地前，E2E 全绿判定需人工区分「道全 PASS + 仅关服崩溃」。
 
 ---
 
@@ -168,19 +276,119 @@
 
 前置：P3 稳定。PK 段风险高（死亡状态、战利品、惩罚），放最后。
 
-- [ ] `fight` 玩家切磋：A `/t B` + `/fight`，覆盖 `pending/fight` 与 `do_bishi`→CFightRoom
-      比试房间链（FightRoom.cpp 多函数 0 命中）
-- [ ] `join_battle` / `guard`：第三方观战与加入（可借第 3 个互动账号或复用道）
-- [ ] `follow` / `halt`：跟随取消与战斗中断
-- [ ] `kill` 玩家 PK：覆盖 `CReward::pk_reward/victim_lose/victim_penalty`、
-      `AutoFight`（hatred/vendetta 触发条件）、`ready_pk`
-- [ ] 死亡→复活链：`l_die`/`l_revive`/`l_unconcious`（P1 遗留项在此收口）
-- [ ] PK 后状态清理：确认惩罚/战利品不影响后续道（互动道独占，风险可控）
+> **状态（2026-10-30 实施）**：本阶段先解决了一处**出手准入的架构双轨问题**
+> （`CCmdStandard::kill` 与 `CChar::cmd_hit_ob` 两处准入并存），按 CombatRules
+> 既有契约统一为 `cmd_hit_ob` 单一询问 `attack_gate`——设计裁定已写入
+> `docs/design/integration-test.md` §3。由此 `kill` 玩家 PK、死亡链、
+> `join_battle` 成功分支在 E2E 变为可达。道编排新增 **L7 观战道**（`lane_spectate.sce`，
+> L5 `WitnessId=7` / L7 `PeerId=5` 双向注入 `spectator*`/`peer*` 四键），
+> `-Workers` 默认 6→7（Workers 变更 → 耗时历史记新基线）。
+
+### fight 玩家切磋（A↔B，`interaction/fight_a.sce` / `fight_b.sce`）
+- [x] `fight`：A `/t $peer_acct` + `/fight` 落 `pending/fight`（双端私发挑战语）→
+      B 回 `/fight` → `do_bishi` → threshold 比试房（回合推进 / AP 累积 /
+      双端进战）→ A `/halt`「跳出战圈」→ `end_fight` 双方回茶棚
+- [x] kill 拒绝分支：比试房内 A `/kill` B →「不能在观战中暗中偷袭」
+      （B 已挂 `fight/is_fighting`）
+- 决策：比试打到 50% 血触发 `is_defeated` 的耗时取决于无技能对殴的伤害节奏，
+  不作 E2E 断言（`test_bind_fightroom` HeartBeatBishiYield 等单测已钉该分支），
+  收场走可确定的「跳出战圈」
+
+### join_battle / guard（第三方 = 新增 L7 观战道，`interaction/spectate.sce`）
+- [x] `guard`：L7 收 A 跨房 tell 信号 → `/t fight_room` + `/guard` 真进比试房
+      （本人版「你加入观战」）→ `/halt` 观战退出（「你离开了…」）
+- [x] `join_battle`：PK 战斗房（非 threshold）`can_join` 通过 →「<名>加入战队0」
+      + `CUser::ready_pk`（L7 入队）
+
+### follow / halt（`interaction/fight_a.sce`）
+- [x] `follow` 开（双端房间版渲染）与 `/t $acct` 取消（私发「取消跟随！」）
+- [x] `halt` 三分支：不忙拒绝（notify_fail）/ 比试 threshold「跳出战圈」/
+      L7 观战退出；忙碌中断由 L3 打坐段覆盖（P1 既有）
+
+### kill 玩家 PK（`interaction/pk_a.sce` / `pk_b.sce`）
+- [x] **PK 前置（P4 迭代定稿：「赢家 10 级、输家 1 级，只打在赢家账号上」）**：
+      `interaction/pk_prep.sce`（仅 L5）——起步历练 5 万
+      （`common/room_look_inquiry`，按 reward/exp 每号一次）→ 自购青锋剑
+      （商品 2，`apply/damage=30`）并装备 → `/upgrade`×9 冲到 **10 级**
+      （`level2_exp(10)=7500`，5 万绰绰有余；对 1 级输家差 9，压在
+      `couple_level_diff=10` 之内不伤婚姻段）。**刻意不学技能**：sword 每级
+      只 +skill/4 伤害却要师父/回春丹/气血三重耦合——收益最小、面最大，弃用；
+      L7 观战道完全退出准备（零采购零学艺），准备对其余道的耦合只剩
+      「商人多卖 1 柄剑」。命中杠杆：ap=combat_exp/2≈5万 vs 徒手 dp=0 必中，
+      单拍 ~48 → 1 级 342 气血的 B ≈ 7 拍（A 单挑 30s 内）。
+      迭代中另修 CLI 真 bug：RTNITEM 分批下发（每 10 件、批头 `B=` 为全局
+      偏移），客户端原从 0 解析导致**第二批整体丢弃**——第 10 件起的物品
+      装备状态永远收不到（`wait wield` 连败两轮的根因，`cli/tests`
+      `ReceiveItemWieldPositionsHonorBatchOffset` 钉住）。
+- [x] 成功路径：A `/kill` B → 非 threshold 战斗房（`begin_fight(0)`）→
+      `ready_pk` → 结算 `victim_lose` → `handle_pk_reward` → `pk_reward`。
+      **收敛点（实测后修正）**：pk 私发「你PK玩家…」只到**致命一击者**，
+      而最后一击落在 A 还是观战道是随机的——不能押；改为双侧确定断言：
+      A 断房版死亡播报（`<B>死了。`，die() 首行、战斗房内三方必达），
+      B 断 `handle_pk_reward` 的 rumor 尾（`杀了，损失`）——**执行序上
+      rumor 在 `pk_reward` 之后**，断到即证整条 PK 结算链跑完。
+      实测致死 251s（闪避/招架损耗 + 昏迷后 eff_hp 慢穿底），各 wait 窗口
+      按 360s/60s 放宽——首版 240s 曾以 9~11s 之差让 A/C 超时先退、
+      死讯发给已离线者翻车（服务器日志 `handle_pk_reward 13:03:29`
+      晚于 A 断线 `13:03:20`）
+- [x] `CFightRoom::do_flee`：B 死亡结算后 A `/halt` 逃离（非 threshold、AP 已
+      500 封顶）；L7 入队后**不撤场**——全程留队双打，把致死从单挑 ~160s 压到
+      ~100s，散场由 `end_fight` 请出（收尾断言走 `do_leave_team` 私发
+      「此次战斗耗时」；单人 405 气血对殴推算见 pk_b 头注）
+- [x] `CReward::victim_penalty`：**决策已定（不测，单测兜底）**——需要「NPC 击杀玩家」
+      或无凶手死亡。样本世界可
+      战斗房间的 NPC 全部钉给唯一道（半山腰木人/师父=L2、银行=L4、山顶山鸡与
+      副本山贼=L3），互动道没有可输的对手。决策：**不为测试挪动资源归属**
+      （§8.6⑤），由单测兜底（`test_reward` KillerReward_NpcSlaysUser_PenaltyApplied）
+- [x] `AutoFight` hatred/vendetta/aggressive/berserk：**决策已定（不测，单测 18 例兜底）**
+      ——hatred 需「打过 NPC 后
+      再次撞面」、aggressive 的进取型 NPC 只在副本（L3 独占进出）、vendetta
+      教材无人设置 `vendetta_mark`、berserk 无触发源——E2E 没有合法触发面。
+      决策：**不测**（单测 18 例已覆盖分支，`test_auto_fight`）
+
+### 死亡→复活链（P1 遗留项在此收口）
+- [x] B 侧自然链：战斗中 `hp<0` 而 `eff_hp` 未穿底（伤口按 ~25% 拍率削 eff_hp、
+      hp 每拍都掉，先昏迷）→ `CChar::unconcious`（置 `block_msg/all` **之前**
+      私发「你的眼前一黑…」）→ 下一拍 `hp<0` 且非存活 → `CChar::die`（user 分支
+      先 `revive(quiet=1)` 解 block、清队私发「此次战斗耗时」、迁 `start_city`
+      = 青云山山脚、`hp=1`/`eff_hp=max_hp/2`）
+- [x] 断言纪律：B 全取私发/本人状态（`你的眼前一黑` / `此次战斗耗时` /
+      `battle_end` / `attr hp <= 1` / `wait room`）；`<名>死了。` 房间播报在
+      block 期间会被拦，双端都不依赖
+- [x] `l_die`/`l_revive`/`l_unconcious`（Lua 绑定）：教材无调用方，属 §6
+      「教材未调用」类，不为测试加调用；其 C++ 对应物由本链覆盖
+      （`CChar::die/unconcious/revive` 此前已被 L3 山鸡链命中，本链补 user 分支）
+
+### PK 后状态清理
+- [x] 尸体随 `end_fight` 落茶棚，120 拍腐烂只发本房间（腐烂断言钉在 L3 山顶，
+      彼时各道均已收工）；PK 频道文案（行凶杀死 / 被…杀了）已 grep 全部道无
+      同子串断言；B 死亡迁 `start_city`、A 撤出即散房，均处互动道链尾，
+      不触碰任何钉给唯一道的资源
+
+### 实施期修复的跨道竞态（round9，教训固化为 §8.6⑦）
+- A 曾快于 B 完成离婚：播报「与你解除了夫妻关系」先到 B 缓冲，被 B 的 pair 收尾
+  `clear` 抹掉 → divorce_b 干等超时 → A（等不到买药）/L7（等不到开战信号）连锁红。
+  修复：pair_b 收尾块移除 `clear`（该 wait 的 needle 只可能由本命令产生，无需清旧）；
+  规则固化为 §8.6⑦「`clear` 不得抹掉跨道信号」。（CLI RTNITEM 分批 bug 见上方
+  PK 前置条目。）
 
 ### P4 验收
-- [ ] 全绿 ×3；死亡账号可正常复活继续或安全下线
-- [ ] `CReward`/`AutoFight`/`FightRoom` 未命中函数显著下降
-- [ ] delta ≥ 0
+- [x] 全绿 ×3：2026-10-30 run10/11/12 连续三轮 **PASS（7/7 道）**，步数
+      L1 288 / L2 496 / L3 519 / L4 331 / L5 379 / L6 165 / L7 28
+      **三轮完全一致（零抖动）**；总耗时 391s / 388s / 391s，Δ≤3s（阈值 10s，
+      workers=7 记为耗时新基线）。死亡账号 B 正常复活：`unconcious → die →
+      revive(quiet)` 后迁 start_city（青云山山脚），走完全部收尾断言
+      （pk_b 165 步含 rumor 收敛与房态迁移）。PK 致死实测 **35 秒**
+      （`此次战斗耗时35秒`；徒手时代 251s）。
+- [x] `CReward`/`FightRoom` 未命中函数显著下降：CReward 4 → 2（`victim_lose`、
+      `pk_reward` 清零，剩 `victim_penalty`、`l_killer_reward`——上方决策类）；
+      FightRoom 的 `can_join`、`do_flee` 清零（剩 `l_*` 绑定与 `get_team_count`
+      ——教材未调用类）；`fight`/`guard`/`join_battle`/`follow`/`ready_pk`/
+      `do_bishi` 全部从未命中清单清零。E2E 未命中 338 → **321（-17）**，
+      行覆盖 59.4% → **61.2%**（combat 45%→55.3%、cmd 56.3%→60.6%、
+      user 68.1%→71.6%）。AutoFight×4 与 `is_defeated`/`l_*` 残留为已记录的决策项。
+- [x] delta ≥ 0：单测口径 `run-coverage` **Delta +0.0%**（引擎 2154 + CLI 258
+      用例全过，含 CLI 批次修复新用例）；E2E 口径 59.4% → 61.2%（+1.8pt）。
 
 ---
 
@@ -191,13 +399,16 @@
       否则记录为"需长期运营账号，E2E 不测"
 - [ ] `mv`/`loc`：评估客户端协议类覆盖价值，低则记录不测
 - [ ] `info`/`item` 死代码去留落地（P1 遗留）
-- [ ] 补写 `docs/e2e_sample_test.md`（未命中清单头部引用了该文件但文件不存在），
-      或改 `run-integration-tests.ps1` 中的引用
+- [x] ~~补写 `docs/e2e_sample_test.md`~~ **销账**：未命中清单的口径与局限已并入
+      `docs/design/integration-test.md` §5.3，`run-integration-tests.ps1` 两处引用已改指该文档，不再新建该文件
 - [ ] 覆盖率回归：对比基线，未命中函数总数与 cmd 目录覆盖率记录在案
 
 ---
 
 ## 6. 明确不测清单（决策记录）
+
+> 完整清单与理由已定稿于 `docs/design/integration-test.md` §6（含 victim_penalty、
+> AutoFight、auto_follow_fight 等后续追加的决策项）。此节仅存当时的基线快照：
 
 | 项 | 理由 |
 |---|---|
@@ -211,7 +422,7 @@
 
 ## 7. 总验收（全部阶段完成后）
 
-- [ ] `.\run-integration-tests.ps1` 全绿（6 道并行）
+- [ ] `.\run-integration-tests.ps1` 全绿（7 道并行）
 - [ ] `summary.csv` 每阶段 delta ≥ 0
 - [ ] 未命中函数：458 → 目标 ≤ 330（达成后在此记录实际值：____）
 - [ ] cmd 目录行覆盖率：25.5% → 目标 ≥ 35%（记录实际值：____）

@@ -1,8 +1,8 @@
 // test_loginregister.cpp - Unit tests for LoginRegister functions
 //
 // Covers: CheckValidChar, check_legal_name (C++ fallback path),
-//         init_new_char（新角色初始档案；落库不在本文件——make_body 的
-//         save_to_server 依赖 DB）。
+//         init_new_char（新角色初始档案；落库不在本文件——save_to_server
+//         依赖 DB）。
 //
 #include "pch.h"
 
@@ -100,7 +100,7 @@ TEST(LoginRegister, CheckLegalName_WithinRange)
 }
 
 // ====================================================================
-// Tests for init_new_char（新角色初始档案，make_body 与新人分支共用）
+// Tests for init_new_char（新角色初始档案：首次登录新人分支的建档入口）
 // ====================================================================
 
 // age 必须在 setup_char 之前给定为 14：一旦缺省，setup_human_base_attrs 会把
@@ -120,9 +120,9 @@ TEST(LoginRegister, InitNewChar_FixesAgeBeforeSetupChar)
     EXPECT_EQ(me.query("eff_hp"), 300);
 }
 
-// make_body 的起手值：起手经验、等级、称号、性别、起始地，以及 setup_char
+// 新角色起手值：起手经验为 0、等级、称号、性别、起始地，以及 setup_char
 // 兜底补出的种族。
-TEST(LoginRegister, InitNewChar_SetsMakeBodyStartValues)
+TEST(LoginRegister, InitNewChar_SetsStartValues)
 {
     CUser me;
     init_new_char(me, "测试角色", "1002", "女性", 21, 21, 21, 21);

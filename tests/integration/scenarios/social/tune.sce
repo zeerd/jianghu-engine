@@ -7,9 +7,7 @@
 clear
 cmd /tune chat
 wait text 关闭chat频道 timeout=10000
-sleep 400
 
 clear
 cmd /tune chat
 wait text 要打开某个频道只要用该频道说话即可 timeout=10000
-sleep 400

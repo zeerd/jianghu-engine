@@ -17,7 +17,6 @@
 clear
 cmd /set exercise 10
 wait text 你设置环境变量 timeout=10000
-sleep 400
 
 clear
 cmd /exercise
@@ -28,4 +27,3 @@ wait text 你把正在运行的真气强行压回丹田 timeout=10000
 
 # 中止后未收工 → 抬上限的分支不触发，max_mp 仍是 1
 wait attr max_mp <= 1 timeout=10000
-sleep 400

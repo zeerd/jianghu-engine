@@ -34,6 +34,7 @@ jianghu.ncb
 **/tests/x64/
 /tests/unit/log/
 /tests/integration/log/
+/tests/integration/e2e.db*
 /x64
 /Release
 /Debug
@@ -41,6 +42,7 @@ jianghu.ncb
 /x64/Debug
 /coverage_report*
 /coverage_history*
+/crash_dumps/
 /src/config/VersionAuto.h
 /jianghu/x64
 /test

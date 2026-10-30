@@ -19,6 +19,7 @@
 #include "test_lua_env.h"
 
 extern IDatabase* g_db;
+extern int g_start_age;  // 起手年龄，与注册 INSERT 的 cc_age 同源
 
 namespace {
 
@@ -73,8 +74,9 @@ TEST_F(DbRegisterAccountTest, Success_InsertsRowAndReturnsNextId)
     EXPECT_TRUE(db->ExecutedContaining("21, 21, 21, 21")) << "四维入库";
     EXPECT_TRUE(db->ExecutedContaining("cc_age, cc_level"))
         << "起手年龄/等级两列入库";
-    EXPECT_TRUE(db->ExecutedContaining(", 14, 1)"))
-        << "起手年龄/等级与 make_body 同源（14 / 1）；经验保持缺省 0";
+    EXPECT_TRUE(db->ExecutedContaining(", " + std::to_string(g_start_age)
+                                       + ", 1)"))
+        << "起手年龄与建档同源（g_start_age）；等级1；经验保持缺省 0";
 }
 
 TEST_F(DbRegisterAccountTest, Success_NoNameDeduplication)

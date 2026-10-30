@@ -8,20 +8,17 @@
 wait text 悄悄话甲 timeout=20000
 
 # 2) B 屏蔽 A（refusetell），回执 A（B→A tell 不受屏蔽方向影响）
-cmd /t $peer
+cmd /t $peer_acct
 cmd /refusetell
 wait text 你拒绝收听 timeout=10000
 cmd /tell 已屏蔽
-sleep 400
 
 # 3) B 等 A 的房间版 say，恢复收听（wantlisten），回执 A
 wait text 解除屏蔽 timeout=25000
 cmd /wantlisten
 wait text 你开始收听 timeout=10000
 cmd /tell 已恢复
-sleep 400
 
 # 4) B 收到 A 的悄悄话丙
 wait text 悄悄话丙 timeout=25000
 cmd /t 0
-sleep 400

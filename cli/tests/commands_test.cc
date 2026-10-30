@@ -83,9 +83,10 @@ protected:
     }
 
     // 房间内增加一个已命名对象（NPC/玩家/地面物品）
+    // iid = 对象英文 id（dbase"id"，协议 I= 字段）——/t 的合法参数
     void add_room_object(ObjectID id, const std::string& name,
                          bool is_user = false, bool is_item = false,
-                         int qty = 1)
+                         int qty = 1, const std::string& iid = "")
     {
         state_.handle_message(make_msg(
             11, {{"E", "5001"},
@@ -93,10 +94,13 @@ protected:
                  {"u", is_user ? "1" : "0"},
                  {"i", is_item ? "1" : "0"},
                  {"U", "0"}}));
-        state_.handle_message(make_msg(
-            17, {{"O", std::to_string(id)},
-                 {"N", name},
-                 {"a", std::to_string(qty)}}));
+        GameMessage m17;
+        m17.cmd             = 17;
+        m17.params["O"]     = std::to_string(id);
+        m17.params["N"]     = name;
+        m17.params["a"]     = std::to_string(qty);
+        if (!iid.empty()) m17.params["I"] = iid;
+        state_.handle_message(m17);
     }
 
     // 背包中增加一个物品
@@ -199,13 +203,57 @@ TEST_F(CommandHandlerTest, TargetAccountIdResolvesToPlayerId)
     EXPECT_EQ(state_.target_id(), 1001);
 }
 
-TEST_F(CommandHandlerTest, TargetDisplayNameFindsRoomObject)
+TEST_F(CommandHandlerTest, TargetEnglishIdFindsRoomObject)
 {
-    add_room_object(3001, "铁匠", /*is_user=*/true);
+    // /t 只收 ID：房间 NPC 按英文 id（dbase"id" / 协议 I= 字段）解析
+    add_room_object(3001, "铁匠", /*is_user=*/true, /*is_item=*/false, 1,
+                    "tie jiang");
     OutputCapture cap;
-    EXPECT_TRUE(handler_.process("__target__铁匠"));
+    EXPECT_TRUE(handler_.process("__target__tie jiang"));
     EXPECT_EQ(state_.target_id(), 3001);
     EXPECT_NE(cap.str().find("Target set to 3001"), std::string::npos);
+}
+
+TEST_F(CommandHandlerTest, TargetDisplayNameRejected)
+{
+    // 显示名不是 /t 参数（全服允许重名）：按名定向必须失败
+    add_room_object(3001, "铁匠", /*is_user=*/true, /*is_item=*/false, 1,
+                    "tie jiang");
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("__target__铁匠"));
+    EXPECT_EQ(state_.target_id(), 0);
+    EXPECT_NE(cap.str().find("Target not found"), std::string::npos);
+}
+
+TEST_F(CommandHandlerTest, TargetPlayerAccountIdResolvesCrossRoom)
+{
+    // 玩家数字账号 ID 全服有效：在线表条目（DOWNUSER 回填）即可解析，
+    // 即使该玩家不在当前房间
+    state_.handle_message(make_msg(34, {{"U", "7001"},
+                                        {"N", "路人甲"},
+                                        {"I", "1396"},
+                                        {"r", "1"},
+                                        {"t", ""}}));
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("__target__1396"));
+    EXPECT_EQ(state_.target_id(), 7001);
+}
+
+TEST_F(CommandHandlerTest, TargetResolvedAfterOfflineRemoved)
+{
+    // SENDUSER O=0（下线广播）按 UID 从在线表移除 → 该账号 ID 不再可解析
+    state_.handle_message(make_msg(34, {{"U", "7001"},
+                                        {"N", "路人甲"},
+                                        {"I", "1396"},
+                                        {"r", "1"},
+                                        {"t", ""}}));
+    EXPECT_EQ(state_.find_target("1396"), 7001);
+
+    state_.handle_message(make_msg(25, {{"O", "0"}, {"U", "7001"}}));
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("__target__1396"));
+    EXPECT_EQ(state_.target_id(), 0);
+    EXPECT_NE(cap.str().find("Target not found"), std::string::npos);
 }
 
 TEST_F(CommandHandlerTest, TargetNotFoundKeepsZero)
@@ -218,9 +266,11 @@ TEST_F(CommandHandlerTest, TargetNotFoundKeepsZero)
 
 TEST_F(CommandHandlerTest, TargetArgAfterSpaceIsJoined)
 {
-    add_room_object(3001, "铁匠 大锤", /*is_user=*/true);
+    // 含空格的英文 id（/t 后整串都是参数）
+    add_room_object(3001, "铁匠 大锤", /*is_user=*/true, /*is_item=*/false, 1,
+                    "tie jiang da chui");
     OutputCapture cap;
-    EXPECT_TRUE(handler_.process("__target__铁匠 大锤"));
+    EXPECT_TRUE(handler_.process("__target__tie jiang da chui"));
     EXPECT_EQ(state_.target_id(), 3001);
 }
 
@@ -362,26 +412,31 @@ TEST_F(CommandHandlerTest, SellMatchesInternalId)
 
 TEST_F(CommandHandlerTest, GetFromBuildsWireFormat)
 {
-    add_room_object(500, "铁剑", /*is_user=*/false, /*is_item=*/true);
-    add_room_object(600, "木箱", /*is_user=*/false, /*is_item=*/true);
+    // get 助手经 find_target 解析（/t 契约：只收 ID）——物品/容器用英文 id
+    add_room_object(500, "铁剑", /*is_user=*/false, /*is_item=*/true, 1,
+                    "sample_sword_basic");
+    add_room_object(600, "木箱", /*is_user=*/false, /*is_item=*/true, 1,
+                    "mu xiang");
     OutputCapture cap;
-    EXPECT_TRUE(handler_.process("get 铁剑 from 木箱"));
+    EXPECT_TRUE(handler_.process("get sample_sword_basic from mu xiang"));
     EXPECT_EQ(conn_.last_command(), "1001 get 500 from 600\t");
 }
 
 TEST_F(CommandHandlerTest, GetFromItemNotFound)
 {
-    add_room_object(600, "木箱", /*is_user=*/false, /*is_item=*/true);
+    add_room_object(600, "木箱", /*is_user=*/false, /*is_item=*/true, 1,
+                    "mu xiang");
     OutputCapture cap;
-    EXPECT_TRUE(handler_.process("get 火焰刀 from 木箱"));
+    EXPECT_TRUE(handler_.process("get 火焰刀 from mu xiang"));
     EXPECT_NE(cap.str().find("Item not found: 火焰刀"), std::string::npos);
 }
 
 TEST_F(CommandHandlerTest, GetFromContainerNotFound)
 {
-    add_room_object(500, "铁剑", /*is_user=*/false, /*is_item=*/true);
+    add_room_object(500, "铁剑", /*is_user=*/false, /*is_item=*/true, 1,
+                    "sample_sword_basic");
     OutputCapture cap;
-    EXPECT_TRUE(handler_.process("get 铁剑 from 保险柜"));
+    EXPECT_TRUE(handler_.process("get sample_sword_basic from 保险柜"));
     EXPECT_NE(cap.str().find("Container not found"), std::string::npos);
 }
 

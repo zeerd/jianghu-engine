@@ -7,7 +7,7 @@
 #   5) B 恢复后回执「已恢复」（B→A tell）  6) A 再告诉 B（成功）
 
 # 1) A 私聊 B（成功）
-cmd /t $peer
+cmd /t $peer_acct
 cmd /tell 悄悄话甲
 wait text 你告诉 timeout=10000
 
@@ -20,7 +20,6 @@ wait text 不接受你的悄悄话 timeout=10000
 
 # 4) A 房间版 say 通知 B 解除（refuse_tell 不拦 say/chat）
 cmd /say 解除屏蔽
-sleep 600
 
 # 5) 等 B 恢复后回执
 wait text 已恢复 timeout=20000
@@ -30,4 +29,3 @@ clear
 cmd /tell 悄悄话丙
 wait text 你告诉 timeout=10000
 cmd /t 0
-sleep 400

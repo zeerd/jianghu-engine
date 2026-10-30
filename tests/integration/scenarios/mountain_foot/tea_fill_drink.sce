@@ -17,19 +17,17 @@ clear
 cmd /look
 wait text 这里可以给容器装水 timeout=10000
 
-cmd /t 茶壶
+cmd /t cha hu
 clear
 cmd /fill
 wait text 你将茶壶装满清茶 timeout=10000
-sleep 600
 
-cmd /t 茶壶
+cmd /t cha hu
 clear
 cmd /use
 wait text 你拿起茶壶咕噜噜地喝了几口清茶 timeout=10000
-sleep 600
 
-cmd /t 茶壶
+cmd /t cha hu
 clear
 cmd /look
 wait text 里面装了七、八分满的清茶 timeout=10000

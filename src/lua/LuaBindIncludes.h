@@ -30,7 +30,6 @@
 #include "FBRoom.h"
 #include "FightRoom.h"
 #include "Money.h"
-#include "NpcMirror.h"
 #include "LuaItem.h"
 #include "LuaNpc.h"
 #include "LuaRoom.h"

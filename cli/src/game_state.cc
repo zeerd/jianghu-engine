@@ -161,7 +161,10 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
         // 14: RTNITEM — player's unified item list (all items with wield pos)
         case 14: {
             DBG("RTNITEM: " << msg.to_string());
-            int idx = 0;
+            // 分批下发：服务端每 10 件一批，头部 B= 是本批首条的全局编号
+            // （CChar::flush_my_equip），条目键 I/E 也用全局编号——解析必须
+            // 从 B= 起步，否则后续批次因首键对不上而被整体跳过。
+            int idx = static_cast<int>(msg.get_int("B", 0));
             while (true) {
                 std::string ikey = "I" + std::to_string(idx);
                 std::string ekey = "E" + std::to_string(idx);
@@ -415,15 +418,26 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             break;
         }
 
-        // 25: SENDUSER
+        // 25: SENDUSER — 玩家上线/下线通告
         case 25: {
             DBG("SENDUSER message: " << msg.to_string());
             bool online = (msg.get_int("O") != 0);
             int64_t uid = msg.get_int("U");
             if (online && player_id_ != 0) {
+                // 上线：拉取对方资料（DOWNUSER 回填姓名/账号进在线表，
+                // /t <数字ID> 跨房间解析即依赖该表）
                 conn_.send_command_utf8(std::to_string(player_id_)
                                         + " downloaduser " + std::to_string(uid)
                                         + "\t");
+            }
+            else if (!online) {
+                // 下线：按 UID 从在线表移除（UID 会话内唯一，重名不影响）
+                online_users_.erase(
+                    std::remove_if(online_users_.begin(), online_users_.end(),
+                                   [uid](const OnlineUser &u) {
+                                       return u.uid == uid;
+                                   }),
+                    online_users_.end());
             }
             break;
         }
@@ -532,17 +546,29 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             break;
         }
 
-        // 33: USERLIST
+        // 33: USERLIST（/who 的在线名单，分页、仅会话号）
         case 33: {
-            online_users_.clear();
+            // 合并而非清空：已知条目保留姓名/账号字段（/t 数字账号
+            // 解析依赖 internal_id），只补进新 uid——名单摘除统一由
+            // SENDUSER O=0（下线广播）负责
             int count = static_cast<int>(msg.get_int("n", 0));
             for (int i = 0; i < count; ++i) {
                 std::string key = "i" + std::to_string(i);
                 if (!msg.has(key)) break;
-                OnlineUser user;
-                user.uid   = msg.get_int(key);
-                user.level = 0;
-                online_users_.push_back(user);
+                ObjectID uid = msg.get_int(key);
+                bool found = false;
+                for (const auto &u : online_users_) {
+                    if (u.uid == uid) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    OnlineUser user;
+                    user.uid   = uid;
+                    user.level = 0;
+                    online_users_.push_back(user);
+                }
             }
             break;
         }

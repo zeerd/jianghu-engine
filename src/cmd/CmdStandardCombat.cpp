@@ -23,10 +23,8 @@ int CCmdStandard::kill(CChar* me, int32_t target, char* arg)  // 记仇的
     }
 
     if (is_user(me) && is_user(who)) {
-        // 出手准入：任一数据集规则反对即拒绝（规则内容与归属全在 Lua）
-        std::string gate = combat_rule_reason("attack_gate", me, who);
-        if (!gate.empty()) return notify_fail("%s", gate.c_str());
-
+        // 出手准入的唯一询问点在 CChar::cmd_hit_ob（attack_gate 数据集规则）：
+        // 本命令与 fight_ob 同源过闸，这里不重复询问。
         if (who->query_temp("fight/is_fighting")) {
             return notify_fail("不能在观战中暗中偷袭。");
         }

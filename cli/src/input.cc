@@ -112,7 +112,7 @@ void InputProcessor::show_help_text()
     ui_.add_line(".chars   — list all characters (NPCs + players)");
     ui_.add_line(".doors    — 查看所处区域及明显的出口信息。");
     ui_.add_line(".items    — list items on the ground");
-    ui_.add_line("Target:   /t <id|name> — set, /t — show, /t 0 — clear");
+    ui_.add_line("Target:   /t <id> — set, /t — show, /t 0 — clear");
     ui_.add_line("Channels: .tune — show current, .tune <name> to switch");
     ui_.add_line("Give:     /give <item_name> [amount] — give item to target");
     ui_.add_line(

@@ -14,7 +14,7 @@ wait login
 wait room 游戏大厅
 wait object 注册专员
 
-cmd /t 注册专员
+cmd /t zhu ce
 cmd /talk
 wait menu
 menu 与注册专员谈

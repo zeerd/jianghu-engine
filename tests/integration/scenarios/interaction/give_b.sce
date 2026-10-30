@@ -4,4 +4,3 @@
 #   不依赖 message_vision 房间版回执。
 
 wait item 金创药 timeout=20000
-sleep 400

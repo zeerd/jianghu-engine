@@ -137,8 +137,9 @@ long db_register_account(const char* name, const char* passwd,
         std::string esc_name  = sql_escape_literal(name);
         std::string esc_email = sql_escape_literal(email);
 
-        // 起手值列与 init_new_char 同源（NEW_CHAR_*）：在首次登录建档之前，
-        // 账号行的年龄/等级也应是新角色的真实起手值，而不是列默认的 0。
+        // 起手值列与建档（init_new_char）同源：年龄取 config 的 g_start_age、
+        // 等级取 NEW_CHAR_LEVEL——在首次登录建档之前，账号行的年龄/等级就应是
+        // 新角色的真实起手值，而不是列默认的 0。
         // 经验保持缺省 0；cc_savedata 仍按设计由首次登录的新人分支建立
         // （见 verify_user）。
         std::string sql
@@ -148,7 +149,7 @@ long db_register_account(const char* name, const char* passwd,
               + esc_email + "', '" + sql_escape_literal(gender) + "', "
               + std::to_string(str) + ", " + std::to_string(intel) + ", "
               + std::to_string(con) + ", " + std::to_string(dex) + ", "
-              + std::to_string(NEW_CHAR_AGE) + ", "
+              + std::to_string(g_start_age) + ", "
               + std::to_string(NEW_CHAR_LEVEL) + ")";
         if (g_db->execute(sql.c_str()) != 0) {
             LOG_ERROR("db_register_account: insert fail! %s", g_db->error());

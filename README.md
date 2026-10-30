@@ -174,7 +174,7 @@ OpenCppCoverage）。Debug 构建的引擎测试内置 `TestConfigGate`，运行
 .\run-coverage.ps1 -CoverageType branch
 ```
 
-集成测试一键运行（需本地 MySQL 服务 "MySQLa" 与 OpenCppCoverage）：
+集成测试一键运行（SQLite 文件库，零外部服务依赖；需 OpenCppCoverage）：
 ```powershell
 .\run-integration-tests.ps1
 ```

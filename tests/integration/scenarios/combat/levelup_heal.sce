@@ -18,7 +18,6 @@ repeat 2
 clear
 cmd /upgrade
 wait text 升级成功 timeout=10000
-sleep 600
 end
 
 # 升级抬高了最大上限，有效上限仍停在升级前的 405
@@ -26,11 +25,11 @@ wait attr max_hp >= 531 timeout=10000
 wait attr eff_hp < 531 timeout=10000
 
 repeat 2
-cmd /t 金创药
+cmd /t jin chuang yao
 clear
 cmd /use
 wait text 你吃下一包金创药 timeout=10000
-sleep 5500
+sleep 3200
 end
 
 # 有效上限追平最大上限：升级造成的缺口被补满

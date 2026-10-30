@@ -32,7 +32,6 @@
 clear
 cmd /save
 wait text 档案储存完毕 timeout=10000
-sleep 400
 
 # ---------------------------------------------------------------------------
 # 改密链（顺序即状态依赖，见头注释）
@@ -41,37 +40,31 @@ sleep 400
 clear
 cmd /password wrongpass e2enewpass9
 wait text 与原密码不符，不能设置新密码 timeout=10000
-sleep 400
 
 # 旧密码对但暗码不匹配（新号暗码为空）→ verify_password 失败
 clear
 cmd /password $pass wrongverify
 wait text 身份验证未通过 timeout=10000
-sleep 400
 
 # 两段式第一段：单参走空暗码校验通过
 clear
 cmd /password $pass
 wait text 旧密码检测通过 timeout=10000
-sleep 400
 
 # 第二段：设新密码（≥5 字符）
 clear
 cmd /password e2enewpass9
 wait text 修改密码成功 timeout=10000
-sleep 400
 
 # verifypass 失败分支：暗码太短
 clear
 cmd /verifypass ab
 wait text 暗码不能少于5个字元 timeout=10000
-sleep 400
 
 # verifypass 成功：单参设暗码
 clear
 cmd /verifypass e2esecret1
 wait text 修改暗码成功 timeout=10000
-sleep 400
 
 # validate 失败分支：密码错 / 暗码错
 # ⚠ 密码已在上面改成 e2enewpass9，$pass 变量已过期——
@@ -79,18 +72,15 @@ sleep 400
 clear
 cmd /validate wrongpass e2esecret1
 wait text 密码不符，不能进行进一步的命令操作 timeout=10000
-sleep 400
 
 clear
 cmd /validate e2enewpass9 wrongsecret
 wait text 暗码不符，不能进行进一步的命令操作 timeout=10000
-sleep 400
 
 # validate 成功（密码已是 e2enewpass9）
 clear
 cmd /validate e2enewpass9 e2esecret1
 wait text 身份验证通过 timeout=10000
-sleep 400
 
 # ---------------------------------------------------------------------------
 # —— 后段：无 DB 写区（安全放后，见头注释时序纪律）——
@@ -99,7 +89,6 @@ sleep 400
 clear
 cmd /mudage
 wait text 你已经为金剑江湖奋斗 timeout=10000
-sleep 400
 
 # ---------------------------------------------------------------------------
 # nickname：4 个中文字（GBK 8 字节）落在 check_legal_name 的 2~12 字节窗口内
@@ -107,7 +96,6 @@ sleep 400
 clear
 cmd /nickname 金剑大侠
 wait text 你改变绰号为“金剑大侠” timeout=10000
-sleep 400
 
 # ---------------------------------------------------------------------------
 # set / unset 配对：先设 wimpy 再清掉（unset 只回 Ok.，靠 clear 隔离唯一）
@@ -115,12 +103,10 @@ sleep 400
 clear
 cmd /set wimpy 30
 wait text 你设置环境变量：wimpy 为 30 timeout=10000
-sleep 400
 
 clear
 cmd /unset wimpy
 wait text Ok. timeout=10000
-sleep 400
 
 # ---------------------------------------------------------------------------
 # refuse 四分支：无设置 → 关一条 → 列表 → none 恢复
@@ -128,32 +114,27 @@ sleep 400
 clear
 cmd /refuse
 wait text 你目前没有设置任何信息通道 timeout=10000
-sleep 400
 
 clear
 cmd /refuse practice
 wait text 关闭了practice的信息通道 timeout=10000
-sleep 400
 
 clear
 cmd /refuse
 wait text 你目前已经关闭的信息通道有 timeout=10000
-sleep 400
 
 clear
 cmd /refuse none
 wait text 信息通道恢复正常 timeout=10000
-sleep 400
 
 # ---------------------------------------------------------------------------
 # skill 拒绝分支：老李头非师父/非亲属，is_relative=0 且 recognize_apprentice=0
 # ⚠ /t 用完立即复位
 # ---------------------------------------------------------------------------
-cmd /t 老李头
+cmd /t lao li
 clear
 cmd /skill
 wait text 你无权查看对方技能 timeout=10000
-sleep 400
 cmd /t 0
 
 # ---------------------------------------------------------------------------
@@ -162,4 +143,3 @@ cmd /t 0
 clear
 cmd /who
 wait notext 未知的命令 timeout=3000
-sleep 400

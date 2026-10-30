@@ -6,13 +6,11 @@
 # 判定：断言本人版成交回执 + 收尾断言背包里确有金创药。
 # 说明：本道起始房间即「青云山山脚」（杂货老板在此），采购后步行去会合房间。
 
-cmd /t 杂货老板
+cmd /t huo ji
 cmd /list
-sleep 600
 
 clear
 cmd /buy 5
 wait text 你从杂货老板那里买下了数量1的金创药 timeout=10000
 wait item 金创药 timeout=10000
-sleep 400
 cmd /t 0
