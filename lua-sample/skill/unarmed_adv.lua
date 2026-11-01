@@ -32,7 +32,7 @@ return {
     -- 构成双槽空手组合，/prepare 两个方向的加入顺序都成立——引擎只查
     -- 「后加入者」的 valid_combine，双方声明才双向可组合，详见 hand_adv 同字段注释）。
     valid_combine = function(self, combo)
-         return (combo == "hand_adv") and 1 or 0
+        return (combo == "hand_adv") and 1 or 0
     end,
 
     valid_learn = function(self, me)

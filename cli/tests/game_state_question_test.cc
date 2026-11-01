@@ -190,6 +190,21 @@ TEST_F(GameStateQuestionTest, FindTargetByInternalId)
     EXPECT_EQ(state_.find_target("acc_lisi"), 7001);
 }
 
+TEST_F(GameStateQuestionTest, FindTargetEnglishIdPrefersInventoryOnAmbiguity)
+{
+    // 同名异物：房间视角残留同名对象时，先认自己背包里的原件（§4 契约——
+    // 房间视角的同名对象可能是他人/遗留物，/use 这类命令只认自己背包）
+    state_.handle_message(make_msg(
+        11, {{"E", "5001"}, {"T", "603"}, {"u", "0"}, {"i", "0"}, {"U", "0"}}));
+    state_.handle_message(make_msg(
+        17, {{"O", "603"}, {"N", "贸易文书"}, {"I", "trade"}, {"U", "0"}}));
+    state_.handle_message(make_msg(14, {{"B", "0"}, {"I0", "785"}, {"E0", "0"}}));
+    state_.handle_message(make_msg(
+        17, {{"O", "785"}, {"N", "贸易文书"}, {"I", "trade"}, {"U", "0"}}));
+
+    EXPECT_EQ(state_.find_target("trade"), 785);
+}
+
 TEST_F(GameStateQuestionTest, FindTargetByNumericAccountIdViaOnlineTable)
 {
     // 玩家数字账号 ID 全服解析：房间外玩家仅凭在线表（DOWNUSER 回填）命中；

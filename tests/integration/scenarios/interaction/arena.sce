@@ -1,6 +1,6 @@
 # arena.sce — 山脚演武场：脚本驱动引擎战斗房的完整一条龙
 #
-# 覆盖（§6 FightRoom 认领段重开，12 条收益）：
+# 覆盖（原认领段重开，FightRoom 12 条收益）：
 #   lua 侧建房链（sample_arena_master.lua do_talk）：
 #     l_is_fight_room（验型）→ l_can_join（验名额）→ l_set_single（单人比试）
 #     → l_join_team ×2（双方入队）→ l_begin_fight（开打）

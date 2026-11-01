@@ -22,10 +22,13 @@ include skill/learn_force.sce
 include skill/learn_sword.sce
 include skill/enforce_disabled.sce
 include skill/enable_practice.sce
-# 剑气三连（§6 拍板 B 重开条款：adv≥60 + 战斗中 mp≥100 由巫师供能）：
+# 剑气三连（adv≥60 + mp≥100 由巫师供能）：
 #   必须在 enable_practice 之后（sword 已 enable，cast 前置），
 #   在 prepare_combine 之前（后者卸铁剑——/cast sword 查「使用的武器不对」），
 #   木人先切磋（threshold 不死）后由 prepare_combine 击散，顺序不可倒。
+#   本段的空手半边会 /enable hand hand_adv + /prepare hand_adv，段尾
+#   /prepare none 把 pmap 还成空——prepare_combine 的两技能 /prepare 只在
+#   pmap 为空时走成功分支，借完即还是它的前置。
 include skill/sword_qi.sce
 # 空手组合（一次两招）：请求 L9 供能 → 卸剑 → enable 双空手槽 → prepare
 # 成功分支 → 打木人断言双击。必须在 enable_practice 之后（其 prepare 拒绝

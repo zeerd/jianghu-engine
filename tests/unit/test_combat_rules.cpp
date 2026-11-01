@@ -3,10 +3,10 @@
 //
 // 契约：C++ 只申报引擎时机（phase），规则归属数据集全在 Lua：
 //   attack_gate：默认数据集（lua-default/data/hooks.lua）实现新手保护——
-//   玩家互斗任一方等级 <75 → {reason="才入江湖，何必动刀动枪。"}，NPC 不受此限；
-//   询问点收拢在 CChar::cmd_hit_ob，kill / fight_ob / AutoFight 一切动手路径
-//   统一在此问一次（kill 命令层不自行询问）。
-//   guard_response / kill_settle 由自定义数据集规则给出（本文件用例内改写）。
+//   玩家互斗任一方等级 <75 → {reason="才入江湖，何必动刀动枪。"}，NPC
+//   不受此限； 询问点收拢在 CChar::cmd_hit_ob，kill / fight_ob / AutoFight
+//   一切动手路径 统一在此问一次（kill 命令层不自行询问）。 guard_response /
+//   kill_settle 由自定义数据集规则给出（本文件用例内改写）。
 // 另验证可扩展性：另一数据集可在同一 phase 追加规则而 C++ 零改动。
 // 钩子缺席回退由 CLuaHookCall 统一保证（call 失败按 nil）。
 //
@@ -109,7 +109,8 @@ TEST_F(CombatRulesTest, AttackGate_HighPksVictim_Allowed)
     delete victim;
 }
 
-// 默认数据集规则：玩家互斗任一方等级 <75 即否决（lua-default 的 attack_gate 声明）
+// 默认数据集规则：玩家互斗任一方等级 <75 即否决（lua-default 的 attack_gate
+// 声明）
 TEST_F(CombatRulesTest, AttackGate_DefaultNewbieGate_LowLevelRejected)
 {
     CUser* me     = MakeUser("生手", "ag_atk4");

@@ -95,7 +95,9 @@ implementation-status: fully implemented
 
 **③ 攻击管线（12 阶段）** — `CAttack::execute`（`src\combat\Attack.cpp:25-66`）
 1. `select_skill` — 依武器 `skill_type`，否则备用招式表（两套徒手准备时按
-   `action_flag` 交替），否则 `unarmed`。
+   `action_flag` 交替），否则 `unarmed`；脚本显式指定徒手种类时（`combat_attack_unarmed`
+   的 `skill` 参）**该种类即攻击位**——AP、伤害与熟练提升按它结算，招式表取该种类
+   激发的技能，与「普通攻击按 prepare 槽位定攻击位」同语义。
 2. `retrieve_action` — 取该招式动作表（Lua `query_action` 返回
    `{action, dodge, parry, damage}` 四修正值）。
 3. `validate_force` — 内功匹配（`valid_force`）；不匹配 ⇒ `damage_ratio /= 2; force_ratio = 0`

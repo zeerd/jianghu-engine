@@ -88,7 +88,8 @@ protected:
 
     // 玩家受害者：录制投递；玩家互斗的等级限制是数据集规则
     // （hooks.combat_rule attack_gate）：玩家进攻方需 >=75 级才通过默认规则，
-    // NPC 进攻方不受此限。搬入房间后代答 client/loading，否则 present() 视其不可见。
+    // NPC 进攻方不受此限。搬入房间后代答 client/loading，否则 present()
+    // 视其不可见。
     StateRecordingUser* MakeVictim(const char* name, const char* id,
                                    long level = 0)
     {

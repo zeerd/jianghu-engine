@@ -244,8 +244,9 @@ TEST_F(CharFightTest, CmdHitOb_LevelGate_PassedThenBusyRejected)
 TEST_F(CharFightTest, CmdHitOb_NewbieGateAbsent_AllowsPastGate)
 {
     lua_State* L = CLuaEngine::instance()->get_state();
-    EXPECT_EQ(luaL_dostring(L, "__orig_cr_lv = hooks.combat_rule;"
-                               "hooks.combat_rule = nil"),
+    EXPECT_EQ(luaL_dostring(L,
+                            "__orig_cr_lv = hooks.combat_rule;"
+                            "hooks.combat_rule = nil"),
               LUA_OK);
 
     CContainer* room = new CContainer();
@@ -267,9 +268,10 @@ TEST_F(CharFightTest, CmdHitOb_NewbieGateAbsent_AllowsPastGate)
     delete attacker;
     delete room;
 
-    EXPECT_EQ(luaL_dostring(L, "if __orig_cr_lv then "
-                               "hooks.combat_rule = __orig_cr_lv end "
-                               "__orig_cr_lv = nil"),
+    EXPECT_EQ(luaL_dostring(L,
+                            "if __orig_cr_lv then "
+                            "hooks.combat_rule = __orig_cr_lv end "
+                            "__orig_cr_lv = nil"),
               LUA_OK);
 }
 

@@ -81,7 +81,8 @@ TEST_F(fixture, SelfInstalledRoomKeepsMixinOnReload)
 {
     // 自装配脚本经热重载后仍带属区行为（脚本重跑即重新 install）
     CLuaEngine* engine = CLuaEngine::instance();
-    EXPECT_NE(LUA_NOREF, engine->reload_script_by_name("fixture_resident_room"));
+    EXPECT_NE(LUA_NOREF,
+              engine->reload_script_by_name("fixture_resident_room"));
     EXPECT_TRUE(engine->get_script_bool_field("fixture_resident_room",
                                               LUA_SCRIPT_ROOM, "resident_area"))
         << "重载后的脚本表未装配属区行为";

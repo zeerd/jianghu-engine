@@ -16,6 +16,15 @@ CommandHandler::CommandHandler(GameState &state, Connection &conn,
 {
 }
 
+// 去除首尾空白：复合命令（get from / drop into / use on）切分参数共用
+static std::string trim_ws(const std::string &s)
+{
+    size_t a = s.find_first_not_of(" \t");
+    if (a == std::string::npos) return std::string();
+    size_t b = s.find_last_not_of(" \t");
+    return s.substr(a, b - a + 1);
+}
+
 bool CommandHandler::process(const std::string &input)
 {
     if (input.empty()) return false;
@@ -107,14 +116,8 @@ bool CommandHandler::process(const std::string &input)
     if (cmd == "get") {
         size_t pos = args.find(" from ");
         if (pos != std::string::npos) {
-            auto trim = [](const std::string &s) {
-                size_t a = s.find_first_not_of(" \t");
-                if (a == std::string::npos) return std::string();
-                size_t b = s.find_last_not_of(" \t");
-                return s.substr(a, b - a + 1);
-            };
-            std::string item_name      = trim(args.substr(0, pos));
-            std::string container_name = trim(args.substr(pos + 6));
+            std::string item_name      = trim_ws(args.substr(0, pos));
+            std::string container_name = trim_ws(args.substr(pos + 6));
 
             ObjectID item_id = item_name.empty()
                                    ? 0
@@ -139,6 +142,75 @@ bool CommandHandler::process(const std::string &input)
             std::string wire = std::to_string(state_.player_id()) + " get "
                                + std::to_string(item_id) + " from "
                                + std::to_string(box_id) + "\t";
+            ui_.add_line("Cmd: " + wire + "\n");
+            return conn_.send_command_utf8(wire);
+        }
+    }
+
+    // /drop <item> into <container> — 把物品放进容器（柜子等）。
+    // 服务端语义：drop <item_id> <arg>；arg 逐段解析为
+    // 「x y 标记 容器id [数量]」——容器 id 必须落在第 4 段，
+    // x/y 给 0 表示沿用丢弃者自身坐标（服务端 !x||!y 回落分支）。
+    if (cmd == "drop") {
+        size_t pos = args.find(" into ");
+        if (pos != std::string::npos) {
+            std::string item_name      = trim_ws(args.substr(0, pos));
+            std::string container_name = trim_ws(args.substr(pos + 6));
+
+            ObjectID item_id
+                = item_name.empty() ? 0 : state_.find_target(item_name);
+            ObjectID box_id = container_name.empty()
+                                  ? 0
+                                  : state_.find_target(container_name);
+
+            if (item_id == 0) {
+                ui_.add_line(color::convert(
+                    "$REDItem not found: " + item_name + "$COM"));
+                return true;
+            }
+            if (box_id == 0) {
+                ui_.add_line(color::convert(
+                    "$REDContainer not found: " + container_name + "$COM"));
+                return true;
+            }
+
+            std::string wire = std::to_string(state_.player_id()) + " drop "
+                               + std::to_string(item_id) + " 0 0 into "
+                               + std::to_string(box_id) + "\t";
+            ui_.add_line("Cmd: " + wire + "\n");
+            return conn_.send_command_utf8(wire);
+        }
+    }
+
+    // /use <item> on <target> — 对指定目标使用背包物品（钥匙开锁等）。
+    // 服务端语义：use <item_id> <arg>；arg 取首个空格之后为目标 id
+    // （analyse_string 故 on 不可省），英文 id 须在本侧解析成对象号。
+    if (cmd == "use") {
+        size_t pos = args.find(" on ");
+        if (pos != std::string::npos) {
+            std::string item_name   = trim_ws(args.substr(0, pos));
+            std::string target_name = trim_ws(args.substr(pos + 4));
+
+            ObjectID item_id
+                = item_name.empty() ? 0 : state_.find_target(item_name);
+            ObjectID tgt_id = target_name.empty()
+                                  ? 0
+                                  : state_.find_target(target_name);
+
+            if (item_id == 0) {
+                ui_.add_line(color::convert(
+                    "$REDItem not found: " + item_name + "$COM"));
+                return true;
+            }
+            if (tgt_id == 0) {
+                ui_.add_line(color::convert(
+                    "$REDTarget not found: " + target_name + "$COM"));
+                return true;
+            }
+
+            std::string wire = std::to_string(state_.player_id()) + " use "
+                               + std::to_string(item_id) + " on "
+                               + std::to_string(tgt_id) + "\t";
             ui_.add_line("Cmd: " + wire + "\n");
             return conn_.send_command_utf8(wire);
         }

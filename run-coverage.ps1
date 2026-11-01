@@ -119,7 +119,11 @@ if (-not (Test-Path $msbuildExe)) {
 Write-Host "Using MSBuild: $msbuildExe" -ForegroundColor DarkGray
 
 # 引擎测试与 CLI 测试分别构建，共享同一 Release|Win32 配置。
-$testProjects = @( "tests\unit\tests.vcxproj", "cli\tests\jianghu_cli_tests.vcxproj" )
+# 工程路径拼成绝对路径：msbuild 按当前目录解析相对路径，脚本不应依赖调用方 CWD。
+$testProjects = @(
+    (Join-Path $RootDir "tests\unit\tests.vcxproj"),
+    (Join-Path $RootDir "cli\tests\jianghu_cli_tests.vcxproj")
+)
 foreach ($proj in $testProjects) {
     $msbuildArgs = @(
         $proj,
@@ -152,13 +156,17 @@ if ($CoverageType -eq "branch") {
 
 # 第一次：只跑引擎测试，导出二进制覆盖率。
 $engineCov = Join-Path $CoverageDir "engine.cov"
+# 参数一律传纯值，不手工包引号：PowerShell 调用原生程序时会按需自动加引号。
+# 手工写入的 `"` 在 Windows PowerShell 5.1 下会被命令行解析顺手吃掉（侥幸可用），
+# 但 GitHub Actions 默认 shell 是 pwsh 7（Standard 参数传递），引号会作为字面量送达子进程，
+# 使 OpenCppCoverage 收到带引号的路径而报 Working directory does not exist。
 $engineCovArgs = $branchArg + @(
-    "--sources", "`"$sourcePath\*`"",
-    "--modules", "`"$TestExe`"",
-    "--working_dir", "`"$RootDir`"",
+    "--sources", "$sourcePath\*",
+    "--modules", $TestExe,
+    "--working_dir", $RootDir,
     "--export_type", "binary:$engineCov",
     "--"
-) + @("`"$TestExe`"")
+) + @($TestExe)
 
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
@@ -172,16 +180,16 @@ if ($LASTEXITCODE -ne 0) {
 # 第二次：跑 CLI 测试，并以 --input_coverage 合并引擎的覆盖率，
 # 使最终 HTML/Cobertura/二进制报告同时包含两套测试的结果。
 $covArgs = $branchArg + @(
-    "--sources", "`"$sourcePath\*`"",
-    "--sources", "`"$cliSourcePath\*`"",
-    "--modules", "`"$CliTestExe`"",
-    "--working_dir", "`"$RootDir`"",
-    "--input_coverage", "`"$engineCov`"",
+    "--sources", "$sourcePath\*",
+    "--sources", "$cliSourcePath\*",
+    "--modules", $CliTestExe,
+    "--working_dir", $RootDir,
+    "--input_coverage", $engineCov,
     "--export_type", "html:$CoverageDir",
     "--export_type", "cobertura:$CoverageDir\coverage.xml",
     "--export_type", "binary:$CovBinary",
     "--"
-) + @("`"$CliTestExe`"")
+) + @($CliTestExe)
 
 $ErrorActionPreference = "Continue"
 & $OpenCppCoveragePath @covArgs

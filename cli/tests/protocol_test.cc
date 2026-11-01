@@ -45,6 +45,15 @@ TEST(Protocol, ParseMessageBadCmdValueBecomesZero)
     EXPECT_EQ(msg->cmd, 0);
 }
 
+TEST(Protocol, ParseMessageKeepsEqualsInsideValue)
+{
+    // 值内的 '=' 属正文：首个 '=' 只做分隔，其余原样保留，且不影响后续参数
+    auto msg = protocol::parse_message("&C=19&M=query a=1&N=x=2&\t");
+    ASSERT_TRUE(msg.has_value());
+    EXPECT_EQ(msg->get("M"), "query a=1");
+    EXPECT_EQ(msg->get("N"), "x=2");
+}
+
 // ==================== command / immediate ====================
 
 TEST(Protocol, CommandJoinsArgsAndTerminates)

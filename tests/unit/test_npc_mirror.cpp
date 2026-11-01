@@ -30,7 +30,7 @@
 #include "NpcMgr.h"
 #include "Room.h"
 #include "User.h"
-#include "LuaBind.h"       // lua_bind_push_object
+#include "LuaBind.h"  // lua_bind_push_object
 #include "test_lua_env.h"
 #include "test_sample_script.h"  // ScopedSampleScript（暂存样本脚本原文）
 #include "test_npc_cleanup.h"    // discard_npc
@@ -51,8 +51,8 @@ protected:
     void SetUp() override
     {
         ensure_lua_env();
-        saved_mgr   = g_item_mgr;
-        g_item_mgr  = &item_mgr;
+        saved_mgr  = g_item_mgr;
+        g_item_mgr = &item_mgr;
         env.set("infinity", 1);
     }
 
@@ -260,8 +260,7 @@ TEST_F(NpcMirrorTest, Die_WithoutKillerDestroysOnly)
 
     EXPECT_EQ(g_last_destruct_object, id);
     EXPECT_TRUE(witness.has("惨叫一声，化为灰烬"));
-    EXPECT_FALSE(witness.has("奖励"))
-        << "认不得凶手时不该发出任何奖励动静";
+    EXPECT_FALSE(witness.has("奖励")) << "认不得凶手时不该发出任何奖励动静";
 
     witness.move(nullptr);
 }

@@ -99,6 +99,11 @@ void CAttack::select_skill(AttackContext& ctx)
             ctx.attack_skill = ctx.attack_type;
     }
     else {
+        // 脚本指定的徒手种类就是本次攻击的攻击位：AP、伤害与熟练提升按它
+        // 结算，与普通攻击取 prepare 槽位同语义；否则空手种类只决定招式表，
+        // 独掌一路（手线火候足、基本拳脚没练）的火候会白练。
+        ctx.attack_type = ctx.base_skill;
+
         const char* mapped = ctx.me->query_skill_mapped(ctx.base_skill);
         if (mapped && mapped[0])
             ctx.attack_skill = mapped;

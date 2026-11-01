@@ -16,6 +16,11 @@
 //   以及钩子契约本身：缺席回落、部分字段写回、七个实参、时序在引擎
 //   倍率规则（内功校验）之后。
 //
+// 三、直驱 select_skill，锚定攻击位（attack_type）的来源：脚本显式指定的
+//   徒手种类即本次攻击的攻击位——AP 与伤害基数都按它结算，招式表仍取该
+//   种类激发的技能；缺了这条锚，空手种类只决定招式表，攻击位掉回空手兜底
+//   类别，独掌一路（手法火候足、基本拳脚没练）的火候白练。
+//
 // 随机门控说明（确定性策略）：
 //   - 招架判定 urandom(ap+pp) < pp：ap=0 恒成立（招架成功）；
 //     ap=1e12 仅 rand()==0（1/32768）时意外成功 -> 循环重试
@@ -31,6 +36,7 @@
 
 #include "Attack.h"
 #include "Char.h"
+#include "CombatCalc.h"  // skill_power（攻击位 → AP 的 oracle）
 #include "Container.h"
 #include "Item.h"
 #include "LuaEngine.h"
@@ -48,6 +54,10 @@ static constexpr int kResultParry = -2;
 // friend struct：访问 CAttack 的 private 管线阶段
 // ====================================================================
 struct AttackTestPeer {
+    static void call_select_skill(CAttack& attack, AttackContext& ctx)
+    {
+        attack.select_skill(ctx);
+    }
     static void call_resolve_parry(CAttack& attack, AttackContext& ctx)
     {
         attack.resolve_parry(ctx);
@@ -776,6 +786,63 @@ TEST_F(AttackDeepTest, ResolveDodgeBranchMatrix)
     ASSERT_NE(ctx3.dodge_msg, nullptr) << "action 行回填(215)";
     EXPECT_NE(ctx3.dodge_msg[0], '\0');
 }
+
+// ====================================================================
+// select_skill：脚本显式指定的徒手种类即攻击位（attack_type）
+// ====================================================================
+TEST_F(AttackDeepTest, SelectSkillExplicitBaseSkill_BecomesAttackType)
+{
+    me.set_skill("hand", 300);
+    // 只登记激发映射：组合合法性由 enable 命令层校验，这里测的是解析
+    me.query_skill_map()->set("hand", "strike");
+
+    AttackContext ctx;
+    ctx.me         = &me;
+    ctx.victim     = &victim;
+    ctx.base_skill = "hand";
+    AttackTestPeer::call_select_skill(attack, ctx);
+
+    EXPECT_EQ(ctx.attack_type, "hand") << "攻击位 = 脚本指定的手种类";
+    EXPECT_EQ(ctx.attack_skill, "strike") << "招式表取该种类激发的技能";
+}
+
+TEST_F(AttackDeepTest, ExplicitBaseSkill_ApScaledByThatSkill)
+{
+    me.set_skill("hand", 300);   // 手法火候
+    me.set_skill("unarmed", 5);  // 基本拳脚几乎没练
+
+    AttackContext ctx;
+    ctx.me         = &me;
+    ctx.victim     = &victim;
+    ctx.base_skill = "hand";
+    AttackTestPeer::call_select_skill(attack, ctx);
+    AttackTestPeer::call_resolve_dodge(attack, ctx);
+
+    EXPECT_NEAR(CCombatCalc::skill_power(&me, "hand", SKILL_USAGE_ATTACK),
+                ctx.ap, 0.01)
+        << "AP 按攻击位（手法）结算";
+    EXPECT_NE(ctx.ap,
+              CCombatCalc::skill_power(&me, "unarmed", SKILL_USAGE_ATTACK))
+        << "不落到空手兜底类别";
+}
+
+TEST_F(AttackDeepTest, ExplicitBaseSkill_DamageScaledByThatSkill)
+{
+    // leg 是空手种类但不在 query_unarmed 的取大集合里：力道 bonus 因而为 0，
+    // 伤害只可能来自「基数 = query_skill(攻击位)/4」这条链——正是本条要锚的
+    me.set_skill("leg", 400);
+
+    AttackContext ctx;
+    ctx.me         = &me;
+    ctx.victim     = &victim;
+    ctx.base_skill = "leg";
+    AttackTestPeer::call_select_skill(attack, ctx);
+    EXPECT_EQ(ctx.attack_skill, "leg") << "没激发就按基础种类本身取招式表";
+
+    AttackTestPeer::call_calculate_damage(attack, ctx);
+    EXPECT_GT(ctx.damage, 0) << "伤害基数取指定种类，不是缺位的基本拳脚";
+}
+
 TEST_F(AttackDeepTest, SendVerboseDebugBothSidesAndDamageStates)
 {
     me.set("grant", (long)60);

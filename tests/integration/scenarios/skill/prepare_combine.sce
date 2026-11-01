@@ -16,7 +16,9 @@
 # 前置状态（本道既有）：
 #   · sword 已 enable 且铁剑在手（learn_sword 段）→ 必须先卸：连击只在
 #     空手时触发，且持武器时 attack_type 走武器技能、prepare 槽被忽略；
-#   · enable_practice 段的 /prepare force sword 已撞过拒绝分支，pmap 为空；
+#   · enable_practice 段的 /prepare force sword 已撞过拒绝分支，且
+#     sword_qi 段借过 pmap（enable+prepare 掌法）后已 /prepare none 还空，
+#     两段共同保证此刻 pmap 为空；
 #   · 练功木人是 mirror_dummy 段 /ask 对练后的镜像（约八成的早期本道），
 #     hp 低、无武器空手迎战，一两回合打不散，足够三段文本在同场出现。
 #
@@ -85,3 +87,14 @@ wait text 力劈华山 timeout=60000
 wait text 连续快攻 timeout=60000
 wait battle_end timeout=120000
 cmd /t 0
+
+# --- 单技准备的收与放（与本段的组合成功、enable_practice 的组合拒绝凑齐三面） --
+# 战罢空手组合还挂在双槽上：先整组收回，再只准备一招——同一套前置
+# （hand 槽已激发、pmap 起手为空）下，单技与组合两条路都走通才算准备体系完整。
+# 整组收回的回执要断在下一次 clear 之前，否则看的就不是这一步的回执。
+clear
+cmd /prepare none
+wait text 取消全部技能准备 timeout=10000
+clear
+cmd /prepare hand_adv
+wait text 完成技能准备 timeout=10000

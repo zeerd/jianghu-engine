@@ -144,7 +144,11 @@ std::optional<GameMessage> parse_message(const std::string &raw)
             in_key = true;
         }
         else if (c == '=') {
-            in_key = false;
+            // 首个 '=' 是 key/value 分隔；值内再出现的 '=' 属消息正文，原样收进 val
+            if (in_key)
+                in_key = false;
+            else
+                val += c;
         }
         else {
             append_char(c);

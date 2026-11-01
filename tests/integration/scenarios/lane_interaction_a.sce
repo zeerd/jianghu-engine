@@ -8,7 +8,8 @@
 # 片段链：登录 → PK 前置（pk_prep：起步历练 + 青锋剑 + 冲 10 级，赢家账号
 #   专属）→ 会合 → 组队 → 私聊 → 说话表情 → 赠送 → 做客 → 结婚 → 夫妻组队
 #   → 离婚 → 摆摊交易 → 双人同睡（sleep：wakeup2 男性分支，醒后重挥剑）
-#   → 切磋（fight/follow/halt）→ 玩家 PK 与死亡链（pk_*）。
+#   → 切磋（fight/follow/halt）→ 玩家 PK 与死亡链（pk_*）
+#   → 属区卖房收口（sell_own_house：本道置业只为做客邀请，链尾直卖、登记册每轮净 0）。
 #   marriage/pair/divorce/trade/pk 前置依次依赖：pair 要 couple、divorce 要
 #   couple、trade 双方需同房间；pk 段依赖观战道（L7）在线接信号，链内自有
 #   步行与 tell 同步。
@@ -51,3 +52,7 @@ include interaction/sleep_a.sce
 include interaction/pk_prep.sce
 include interaction/fight_a.sce
 include interaction/pk_a.sce
+
+# 链尾收口：回属区直卖自家宅院 → 住宅区登记册每轮净 0（见片段头注；名额攒满
+# 会让全轮置产入口消失，即 house/apply.sce 的「申请成为青云居民」菜单项不见）
+include house/sell_own_house.sce

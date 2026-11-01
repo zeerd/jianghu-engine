@@ -53,7 +53,7 @@ return {
         -- duration 的单位是心跳拍数（每拍约 5~9 秒），每包贡献 poison_supply 拍，
         -- 多包叠加，喝越多毒性越久。
         local current = me:query_condition("sample_poison")
-        local add = self:query("poison_supply") or 2  -- 每包毒药贡献的时长
+        local add = self:query("poison_supply") or 2 -- 每包毒药贡献的时长
         me:apply_condition("sample_poison", current + add, 0)
 
         me:FlushMyInfo()
