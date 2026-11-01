@@ -1,9 +1,10 @@
 // test_cmd_party_dispatch.cpp — 组队命令 party 与门派频道撞名的分发修复
 //
-// 「party」一词身兼两职：组队指令 CCmdUser::party（写 party/invite、发邀请菜单）
-// 与门派频道动词（ChatChannel channels["party"]）。CCmdHandle::command 里
-// do_channel(273) 先于 handlecommand(275) 执行，而组队邀请靠 /t 目标、无消息体
-// —— do_channel 对空消息在 ChatChannel 第 5 步静默 return 1，会吞掉整条组队指令，
+// 「party」一词身兼两职：组队指令 CCmdUser::party（写
+// party/invite、发邀请菜单） 与门派频道动词（ChatChannel
+// channels["party"]）。CCmdHandle::command 里 do_channel(273) 先于
+// handlecommand(275) 执行，而组队邀请靠 /t 目标、无消息体 —— do_channel
+// 对空消息在 ChatChannel 第 5 步静默 return 1，会吞掉整条组队指令，
 // CCmdUser::party 永不执行（原库组队名 pary、频道名 party 本不冲突，jianghu 把
 // 组队改名为 party 才撞车）。
 //
@@ -11,8 +12,8 @@
 // handlecommand；带消息体的 party 仍是门派发言走频道。
 //
 // 本测走完整 CCmdHandle::command（含 do_channel，经 CChar::command 入口），
-// 断言空消息的 party 真被执行到 CCmdUser::party（party/invite 被写入被邀请者），
-// 即不再被频道吞掉——修复的回归锚点。
+// 断言空消息的 party 真被执行到 CCmdUser::party（party/invite
+// 被写入被邀请者）， 即不再被频道吞掉——修复的回归锚点。
 //
 // Build+Run: .\run-coverage.ps1
 #include "pch.h"
@@ -33,8 +34,8 @@ namespace {
 
 class PartyDispatchTest : public ::testing::Test {
 protected:
-    CRoom* room           = nullptr;
-    StateRecordingUser* me = nullptr;
+    CRoom* room              = nullptr;
+    StateRecordingUser* me   = nullptr;
     StateRecordingUser* peer = nullptr;
 
     void SetUp() override
@@ -81,7 +82,8 @@ protected:
         delete room;
     }
 
-    // 完整命令分发链（CCmdHandle::command：角色目标拦截 → do_channel → handlecommand）
+    // 完整命令分发链（CCmdHandle::command：角色目标拦截 → do_channel →
+    // handlecommand）
     int Send(const char* line)
     {
         char buf[128];
@@ -92,8 +94,9 @@ protected:
 
 }  // namespace
 
-// 空消息体的 party = 组队邀请：必须越过门派频道 do_channel、落到 CCmdUser::party，
-// 写入 party/invite（证明组队指令真的执行，没被频道吞掉——修复回归锚点）。
+// 空消息体的 party = 组队邀请：必须越过门派频道 do_channel、落到
+// CCmdUser::party， 写入
+// party/invite（证明组队指令真的执行，没被频道吞掉——修复回归锚点）。
 TEST_F(PartyDispatchTest, EmptyArgParty_RunsTeamCommand_NotSwallowedByChannel)
 {
     char buf[64];
@@ -104,13 +107,12 @@ TEST_F(PartyDispatchTest, EmptyArgParty_RunsTeamCommand_NotSwallowedByChannel)
     EXPECT_EQ(1, ret) << "组队邀请应成功返回 1";
     EXPECT_STREQ(peer->querystr("id"), me->querystr_temp("party/invite"))
         << "party/invite 应记录被邀请者 id（CCmdUser::party 确已执行）";
-    EXPECT_EQ(std::string::npos,
-              std::string(g_notify_fail_msg).find("门派"))
+    EXPECT_EQ(std::string::npos, std::string(g_notify_fail_msg).find("门派"))
         << "不应落进门派频道的「未入门派」失败分支";
 }
 
 // 空消息体、目标无效（不在房间）：仍落到 CCmdUser::party，由其自身 notify_fail
-//（你要邀请谁）——证明空消息总是进组队命令，而非被频道吞掉。
+// （你要邀请谁）——证明空消息总是进组队命令，而非被频道吞掉。
 TEST_F(PartyDispatchTest, EmptyArgParty_MissTarget_FailsInsideTeamCommand)
 {
     int ret = me->command((char*)"party 999999");

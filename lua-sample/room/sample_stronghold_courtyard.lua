@@ -33,6 +33,13 @@ return {
                 self:add_npc("sample_bandit_low")
             end
             self:set("spawned", 1)
+            -- 守卫落位向全房播报：这是「此处发生了某事」的无主角环境事件，
+            -- 用 tell_room 原文送达在场者；若是「某人做了某事」则该用
+            -- message_vision（有主角、按视角渲染「你/名字」）——两者成对示范
+            tell_room(
+                self,
+                "两名守门喽啰从墙后转出，提着生锈的钢刀堵住了通往聚义大厅的路。"
+            )
         end
     end,
 }

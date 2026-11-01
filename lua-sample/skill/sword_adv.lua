@@ -1,5 +1,6 @@
 -- sword_adv.lua  高级剑法
--- 示例技能：展示高级剑法，含剑气三连绝招
+-- 示例技能：展示高级剑法，含剑气三连绝招——剑招与掌招交替的组合绝招
+-- （武器半边 + 空手半边，两半各有独立前置，缺一即整招不发）
 
 return {
     create = function(self)
@@ -76,7 +77,11 @@ return {
         return 1
     end,
 
-    -- 剑气三连
+    -- do_qi(self, me, target)：剑气三连——剑招与掌招交替的组合绝招
+    --   武器半边走 combat_attack（按手中武器的 skill_type 取招），
+    --   空手半边走 combat_attack_unarmed（攻击位即 hand 槽：招式与力道都取
+    --   自激发到 hand 的技能，没激发就只剩基础手法的巴掌）。两半各有独立前置，
+    --   缺一即整招不发。
     do_qi = function(self, me, target)
         if not target or not target:is_character() then
             return notify_fail("只能对战斗中的对手使用。")
@@ -88,17 +93,52 @@ return {
             return notify_fail("你的内力不足，无法施展剑气三连。")
         end
 
-        message_vision("$N运足内力，将真气灌注剑身，连刺三道凌厉的剑气！", me)
+        -- 武器半边：手里必须是剑，且基本剑法要有火候——否则起手与收尾
+        --   两记落不到 sword_adv 的出招表上
+        local weapon = me:query_weapon()
+        if not weapon or weapon:querystr("skill_type") ~= "sword" then
+            return notify_fail("你手里没有剑，无法施展剑气三连。")
+        end
+        if me:query_skill("sword", 1) < 10 then
+            return notify_fail("你的基本剑法火候不够，无法施展剑气三连。")
+        end
 
-        -- 第一剑
-        combat_attack(me, target, TYPE_QUICK)
-        -- 第二剑
-        combat_attack(me, target, TYPE_QUICK)
-        -- 第三剑
-        combat_attack(me, target, TYPE_QUICK)
+        -- 空手半边：掌法要有火候底子，且必须既激发（enable 到 hand 槽——
+        --   combat_attack_unarmed 以 hand 为攻击位取招与力道）又准备
+        --   （prepare，组合绝招要求空手招已上槽），缺一即整招不发
+        if me:query_skill("hand_adv", 1) < 10 then
+            return notify_fail("你的掌法火候不够，无法施展剑气三连。")
+        end
+        if me:query_skill_mapped("hand") ~= "hand_adv" then
+            return notify_fail("你没有激发高级掌法，不能在剑招中夹杂使用剑气三连。")
+        end
+        if me:query_skill_prepared("hand") ~= "hand_adv" then
+            return notify_fail("你没有准备好高级掌法，不能在剑招中夹杂使用剑气三连。")
+        end
+
+        local palm_level = me:query_skill("hand_adv", 1)
 
         me:add("mp", -100)
-        me:start_busy(random(2))
+        -- 绝招运劲：三击期间出手抬升（按掌法火候计），收招回扣
+        me:add_temp("apply/attack", palm_level // 4)
+
+        -- 第一击：武器招
+        message_vision("$N运足内力，将真气灌注剑身，第一剑疾刺而出！", me, target)
+        combat_attack(me, target, TYPE_QUICK)
+
+        -- 第二击：空手招（str 临时加成只包这一击，随即回扣）
+        message_vision("$N弃剑换掌，右掌蓄劲拍向$n的胸口！", me, target)
+        me:add_temp("apply/str", palm_level // 4)
+        combat_attack_unarmed(me, target, "hand", TYPE_QUICK)
+        me:add_temp("apply/str", -(palm_level // 4))
+
+        -- 第三击：回到武器招
+        message_vision("$N弃掌换剑，长剑回环又是一道剑气！", me, target)
+        combat_attack(me, target, TYPE_QUICK)
+
+        me:add_temp("apply/attack", -(palm_level // 4))
+        -- 收招硬直：绝招的收势代价，心跳拍计时（1 拍 ≈ 1 秒）
+        me:start_busy(1 + random(2))
         return 1
     end,
 }

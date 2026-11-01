@@ -41,7 +41,7 @@ return {
     -- 技能」的 valid_combine——所以想让两个方向的 /prepare 顺序都成立，
     -- 双方技能都必须声明本字段（unarmed_adv 侧同样声明）。
     valid_combine = function(self, combo)
-         return (combo == "unarmed_adv") and 1 or 0
+        return (combo == "unarmed_adv") and 1 or 0
     end,
 
     practice_skill = function(self, me)

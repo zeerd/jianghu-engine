@@ -1,6 +1,6 @@
 # vote.sce — L4（社交道）：频道投票入口与计票链
 #
-# 覆盖（P5 收口批次，裁定见 design §6 vote 行）：CCmdUser::vote 的**入口/门槛/计票/去重**分支
+# 覆盖（P5 收口批次，裁定见 design §6「单机 E2E 结构性不可达」行）：CCmdUser::vote 的**入口/门槛/计票/去重**分支
 #   + determine_total / counting 的同 IP 去重逻辑：
 #   · level 门槛负测：VOTE_LEVEL_LIMIT=5，新号 level=1 →「你等级不到5级…」
 #     （age 门槛 VOTE_AGE_LIMIT=15 在 config start_age=16 下不可达——与

@@ -117,7 +117,8 @@ $CovBin = Join-Path $RepoRoot "coverage_history\e2e_sample.cov"
 $SummaryFile = Join-Path $RepoRoot "coverage_history\summary-e2e-sample.txt"
 $UnhitFile = Join-Path $RepoRoot "coverage_history\e2e-sample-unhit-functions.txt"
 # N3 分段：已认领（决策归档）清单——命中的归「§6 决策认领」段，其余归「待推进」段。
-# 新增甄别归档时往该文件追加一行（格式=清单原行）；对应 design §6 全部决策条目。
+# 新增甄别归档时往该文件追加一行（格式=清单原行）；逐函数明细只进本清单（阶段工具），
+# design §6 只承载域级裁定。
 $ClaimedFile = Join-Path $RepoRoot "coverage_history\e2e-unhit-claimed.txt"
 # 耗时历史：每次 PASS 追加一条 JSON（各阶段耗时 + 各道场景清单），供与前次对比归因
 $TimingHistoryFile = Join-Path $RepoRoot "coverage_history\e2e-timing-history.jsonl"
@@ -1688,7 +1689,7 @@ if ($fnReport) {
         [void]$listOut.Add(("{0}:{1}  {2}" -f $u.File, $u.Start, $u.Name))
     }
     [void]$listOut.Add("")
-    [void]$listOut.Add("=== §6 决策认领（design §6 全部条目；新增归档时追加 coverage_history\e2e-unhit-claimed.txt）===")
+    [void]$listOut.Add("=== §6 决策认领（已按 design §6 域级裁定认领；新增归档时追加 coverage_history\e2e-unhit-claimed.txt）===")
     foreach ($u in $claimedList) {
         [void]$listOut.Add(("{0}:{1}  {2}" -f $u.File, $u.Start, $u.Name))
     }

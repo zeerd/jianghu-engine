@@ -96,7 +96,8 @@ static bool g_tray_added = false;
 // 默认图标——绝不能以 NULL 图标注册托盘（那样会是个透明的空图标）。
 static HICON load_app_icon()
 {
-    HICON icon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_MAINFRAME));
+    HICON icon
+        = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_MAINFRAME));
     if (!icon) {
         icon = LoadIcon(NULL, IDI_APPLICATION);
     }
@@ -106,7 +107,7 @@ static HICON load_app_icon()
 // 添加托盘图标（窗口创建成功后调用）
 static void tray_icon_add(HWND hWnd)
 {
-    NOTIFYICONDATA nid = {0};
+    NOTIFYICONDATA nid   = {0};
     nid.cbSize           = sizeof(nid);
     nid.hWnd             = hWnd;
     nid.uID              = TRAY_ICON_ID;
@@ -125,9 +126,9 @@ static void tray_icon_remove()
         return;
     }
     NOTIFYICONDATA nid = {0};
-    nid.cbSize = sizeof(nid);
-    nid.hWnd   = g_hWnd;
-    nid.uID    = TRAY_ICON_ID;
+    nid.cbSize         = sizeof(nid);
+    nid.hWnd           = g_hWnd;
+    nid.uID            = TRAY_ICON_ID;
     Shell_NotifyIcon(NIM_DELETE, &nid);
     g_tray_added = false;
 }
@@ -164,7 +165,8 @@ static void tray_icon_menu(HWND hWnd)
 
     if (cmd == 1) {
         tray_icon_restore(hWnd);
-    } else if (cmd == 2) {
+    }
+    else if (cmd == 2) {
         PostMessage(hWnd, WM_CLOSE, 0, 0);
     }
 }

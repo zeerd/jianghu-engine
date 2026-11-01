@@ -33,14 +33,15 @@ ObjectID GameState::find_target(const std::string &target_key) const
     }
 
     // 2. Try matching by English id (dbase "id", 服务器对象信息 I= 字段)
+    // 背包优先：房间视角可能残留与背包同名的他物/遗留对象，英文 id 同名多义时
+    // 以自己背包里的为准
+    for (const auto &o : inventory_) {
+        if (o.internal_id == target_key) return o.id;
+    }
     for (const auto &[container, objs] : room_objects_) {
         for (const auto &o : objs) {
             if (o.internal_id == target_key) return o.id;
         }
-    }
-    // Check inventory (equipped/worn items)
-    for (const auto &o : inventory_) {
-        if (o.internal_id == target_key) return o.id;
     }
     for (const auto &u : online_users_) {
         if (u.internal_id == target_key) return u.uid;

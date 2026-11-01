@@ -276,13 +276,13 @@ int CCmdHandle::command(char* Command, CChar* me)
 
     // 「party」一词身兼两职：组队指令 CCmdUser::party 与门派频道动词，
     // 且下面 do_channel 先于 handlecommand 执行。区分点是消息体：
-    //   组队邀请靠 /t 目标、无消息体（arg 为空）→ 必须跳过频道交给 handlecommand；
-    //   门派发言带消息体（arg 非空）→ 走 do_channel 频道广播。
-    // 若不区分，do_channel 对空消息静默 return 1（ChatChannel do_channel 第 5 步）
-    // 会吞掉组队指令，CCmdUser::party 永不执行（原库组队名 pary、频道名 party
-    // 本不冲突，jianghu 把组队改名为 party 才撞车）。
-    const bool is_party_team_cmd =
-        (strcmp(Comm, "party") == 0 && arg[0] == '\0');
+    //   组队邀请靠 /t 目标、无消息体（arg 为空）→ 必须跳过频道交给
+    //   handlecommand； 门派发言带消息体（arg 非空）→ 走 do_channel 频道广播。
+    // 若不区分，do_channel 对空消息静默 return 1（ChatChannel do_channel 第 5
+    // 步） 会吞掉组队指令，CCmdUser::party 永不执行（原库组队名 pary、频道名
+    // party 本不冲突，jianghu 把组队改名为 party 才撞车）。
+    const bool is_party_team_cmd
+        = (strcmp(Comm, "party") == 0 && arg[0] == '\0');
     if (!is_party_team_cmd
         && g_channel.do_channel(me, static_cast<CChar*>(who), Comm, arg))
         return 1;

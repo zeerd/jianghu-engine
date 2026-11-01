@@ -49,6 +49,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # libmySQL.dll（MySQL Connector/C）不入库（.gitignore /libmySQL.dll），
+      # 从仓库 Release asset 直链下载到仓库根：单测（OpenCppCoverage
+      # --working_dir 仓库根）与 e2e 服务器（WorkingDirectory 仓库根）的
+      # DLL 搜索路径都覆盖工作目录，与本机开发布局一致。
+      # TODO 占位 URL：asset 上传后替换为真实地址。
+      - name: Download libmySQL.dll (Release asset)
+        run: |
+          curl -fsSL -o libmySQL.dll https://github.com/zeerd/jianghu-engine/releases/download/mysql-lib-5.5.13/libmySQL.dll
+          if ((Get-Item libmySQL.dll).Length -lt 1MB) {
+            Write-Error "libmySQL.dll download failed (file too small, likely an error page)"
+            exit 1
+          }
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
@@ -104,6 +117,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # 同 build-and-test：libmySQL.dll 不入库，从 Release asset 下载到仓库根
+      # （e2e 服务器 WorkingDirectory = 仓库根，DLL 搜索路径覆盖工作目录）。
+      # TODO 占位 URL：asset 上传后替换为真实地址。
+      - name: Download libmySQL.dll (Release asset)
+        run: |
+          curl -fsSL -o libmySQL.dll https://github.com/zeerd/jianghu-engine/releases/download/mysql-lib-5.5.13/libmySQL.dll
+          if ((Get-Item libmySQL.dll).Length -lt 1MB) {
+            Write-Error "libmySQL.dll download failed (file too small, likely an error page)"
+            exit 1
+          }
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2

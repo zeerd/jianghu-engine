@@ -124,8 +124,7 @@ TEST_F(CommandUnknownLogTest, UnknownCommand_NumericTargetLogsResolvedName)
 
     char line[64];
     snprintf(line, sizeof(line), "zzz_unk_3rd %d bar", dummy->object_id());
-    EXPECT_EQ(0, SendUnknown(line))
-        << "分发链未走到底，未知命令分支没被执行";
+    EXPECT_EQ(0, SendUnknown(line)) << "分发链未走到底，未知命令分支没被执行";
 
     char expect[96];
     snprintf(expect, sizeof(expect), "target=[%d(unk_target_dummy)]",

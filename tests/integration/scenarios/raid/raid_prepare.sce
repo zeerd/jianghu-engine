@@ -3,7 +3,7 @@
 # 覆盖目标（2026-11-01 破障实测修订）：原「`l_receive_wound` 反噬分支」目标
 # **已判结构性不可达、列入不测**（force.lua:39-41 的 mp_you ≤ 3mp 封顶使
 # damage<0 恒不成立——⌊3mp/100⌋ ≤ ⌊mp/30⌋ 恒且 factor ≥ 1 → damage ≥ 1；
-# 旧分析「山贼 mp500 → 0+1-5=-4<0」漏看了封顶，推导见 design §6 拍板 B 行）。
+# 旧分析「山贼 mp500 → 0+1-5=-4<0」漏看了封顶）。
 # 现行覆盖对象：Attack.cpp:364 force hit_ob 三闸的正常 ≥0 分支（mp_factor、
 # mp≥factor、force 激发——本段供能链保证三闸全开）、enable 换功清 mp 分支、
 # enforce 命令本身。

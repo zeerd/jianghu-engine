@@ -446,3 +446,79 @@ TEST_F(CommandHandlerTest, GetWithoutFromFallsThroughToGeneric)
     EXPECT_TRUE(handler_.process("get sword"));
     EXPECT_EQ(conn_.last_command(), "1001 get 0 sword\t");
 }
+
+// ==================== drop ... into ... ====================
+
+TEST_F(CommandHandlerTest, DropIntoBuildsWireFormat)
+{
+    // drop 助手经 find_target 解析（/t 契约：只收 ID）——物品用英文 id、
+    // 容器同理；服务端 arg 要求容器 id 落第 4 段，前两段给 0 走坐标回落
+    add_inventory_item(500, "金创药", "jin chuang yao");
+    add_room_object(600, "柜子", /*is_user=*/false, /*is_item=*/true, 1,
+                    "box");
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("drop jin chuang yao into box"));
+    EXPECT_EQ(conn_.last_command(), "1001 drop 500 0 0 into 600\t");
+}
+
+TEST_F(CommandHandlerTest, DropIntoItemNotFound)
+{
+    add_room_object(600, "柜子", /*is_user=*/false, /*is_item=*/true, 1,
+                    "box");
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("drop 火焰刀 into box"));
+    EXPECT_NE(cap.str().find("Item not found: 火焰刀"), std::string::npos);
+}
+
+TEST_F(CommandHandlerTest, DropIntoContainerNotFound)
+{
+    add_inventory_item(500, "金创药", "jin chuang yao");
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("drop jin chuang yao into 保险柜"));
+    EXPECT_NE(cap.str().find("Container not found"), std::string::npos);
+}
+
+TEST_F(CommandHandlerTest, DropWithoutIntoFallsThroughToGeneric)
+{
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("drop sword"));
+    EXPECT_EQ(conn_.last_command(), "1001 drop 0 sword\t");
+}
+
+// ==================== use ... on ... ====================
+
+TEST_F(CommandHandlerTest, UseOnBuildsWireFormat)
+{
+    // use 助手：target=背包物品、arg 携带 on 标记 + 目标数字 id
+    // （服务端取首空格之后为目标 id，英文 id 须本侧解析）
+    add_inventory_item(500, "铜钥匙", "yao shi");
+    add_room_object(600, "锁着的箱子", /*is_user=*/false, /*is_item=*/true, 1,
+                    "suo xiang");
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("use yao shi on suo xiang"));
+    EXPECT_EQ(conn_.last_command(), "1001 use 500 on 600\t");
+}
+
+TEST_F(CommandHandlerTest, UseOnItemNotFound)
+{
+    add_room_object(600, "锁着的箱子", /*is_user=*/false, /*is_item=*/true, 1,
+                    "suo xiang");
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("use 火焰刀 on suo xiang"));
+    EXPECT_NE(cap.str().find("Item not found: 火焰刀"), std::string::npos);
+}
+
+TEST_F(CommandHandlerTest, UseOnTargetNotFound)
+{
+    add_inventory_item(500, "铜钥匙", "yao shi");
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("use yao shi on 保险柜"));
+    EXPECT_NE(cap.str().find("Target not found"), std::string::npos);
+}
+
+TEST_F(CommandHandlerTest, UseWithoutOnFallsThroughToGeneric)
+{
+    OutputCapture cap;
+    EXPECT_TRUE(handler_.process("use sword"));
+    EXPECT_EQ(conn_.last_command(), "1001 use 0 sword\t");
+}

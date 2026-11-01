@@ -73,11 +73,12 @@ Get-ChildItem -Path lua-sample -Recurse -Include *.lua | ForEach-Object { stylua
 ```cmd
 jianghu.exe --check-lua [--config <ini>] [--dir <path>] [--baseline <file>] [--write-baseline] <file.lua> ...
 ```
-- `--config <ini>`：可选，指定配置文件路径（默认 `data/config.ini`）
+- `--config <ini>`：可选，指定配置文件路径（默认 `tests/integration/config.ini`）
 - `--dir <path>`：可选，校验该目录下全部 `.lua` 文件；目录不存在、或目录里一个 `.lua` 都没有，直接按失败退出（不许假绿）
 - `--baseline <file>`：可选，豁免基线条目（`A:<全局名>` / `M:<方法名>` / `B:<文件>:<字面量>`），只拦新增；缺省取 `<dir>/check_lua_baseline.txt`
 - `--write-baseline`：把本次发现的违规写入基线（存量清理的引导手段）。违规本身不判失败，但语法错误、文件读不到、require 解析失败仍照常失败
 - `<file.lua> ...`：待校验的 Lua 文件列表（既不给 `--dir` 也无文件参数时，仅输出 usage 并退出）
+
 
 ### 编译
 
@@ -90,7 +91,7 @@ msbuild jianghu.vcxproj /p:Configuration=Debug /p:Platform=Win32 /nologo /verbos
 **jianghu.exe 是 GUI 程序（WinMain 入口），不能直接在 PowerShell 中调用，否则没有输出且无法捕获。必须用以下方式调用：**
 
 ```cmd
-cmd /c "call ""C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars32.bat"" >nul 2>&1 && cd C:\jianghu-engine\bin && .\jianghu.exe --check-lua --config ..\data\config.ini file1.lua file2.lua > C:\jianghu-engine\bin\check_lua_output.txt 2>&1" ; Get-Content C:\jianghu-engine\bin\check_lua_output.txt
+cmd /c "call ""C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars32.bat"" >nul 2>&1 && cd C:\jianghu-engine && bin\jianghu.exe --check-lua --config tests\integration\config.ini --dir lua-sample > bin\check_lua_output.txt 2>&1" ; Get-Content C:\jianghu-engine\bin\check_lua_output.txt
 ```
 
 注：路径中的 `18\Community` 随本机安装的 Visual Studio 版本而变（如 `2022\Community`）。不确定时用 vswhere 查询实际安装路径：

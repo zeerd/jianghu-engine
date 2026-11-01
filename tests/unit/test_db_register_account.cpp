@@ -74,8 +74,8 @@ TEST_F(DbRegisterAccountTest, Success_InsertsRowAndReturnsNextId)
     EXPECT_TRUE(db->ExecutedContaining("21, 21, 21, 21")) << "四维入库";
     EXPECT_TRUE(db->ExecutedContaining("cc_age, cc_level"))
         << "起手年龄/等级两列入库";
-    EXPECT_TRUE(db->ExecutedContaining(", " + std::to_string(g_start_age)
-                                       + ", 1)"))
+    EXPECT_TRUE(
+        db->ExecutedContaining(", " + std::to_string(g_start_age) + ", 1)"))
         << "起手年龄与建档同源（g_start_age）；等级1；经验保持缺省 0";
 }
 

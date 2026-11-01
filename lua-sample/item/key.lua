@@ -5,6 +5,9 @@
 -- 本钥匙开的是山脚 sample_mountain_foot.lua 的锁着的箱子
 -- （password 同为 123456）。教材世界里每把锁配一把钥匙即此意——
 -- 改锁的暗号记得改这里，反之亦然。
+-- 除「对锁着的箱子发 open」开锁外，本文件另带 do_use：
+-- /use 定向锁具即可上锁/开锁（同样按 password 相认），
+-- 演示「物品经 use 对容器施加状态」的走法。
 
 return {
     create = function(self, nFlag)
@@ -14,5 +17,30 @@ return {
         self:set("long", "一把黄铜钥匙，柄上缠着红线——像是开某把锁的原配。")
         self:set("value", 200)
         self:set("password", 123456)
+    end,
+
+    -- 声明可使用：客户端据此显示「使用」选项，use 命令也据此放行
+    Can_Use = function(self)
+        return 1
+    end,
+
+    -- 用钥匙上锁/开锁。与 CBox::handle_action 的钥匙支同规：按 password
+    -- 相认配对——锁不上号的对象（非锁具、别人的锁）一律拒绝，不会对它
+    -- 宣称开锁成功。锁着就打开，开着就锁上，两支各给私发回执。
+    -- status 是字符串字段：query() 恒返回数值（对字符串取 0），须用 querystr。
+    do_use = function(self, me, target)
+        if not target or target:query("password") ~= self:query("password") then
+            return notify_fail("这把钥匙对不上这把锁。")
+        end
+
+        if target:querystr("status") == "locked" then
+            target:UnLocked()
+            tell_object(me, "你用钥匙把锁打开了。")
+            return 1
+        end
+
+        target:Locked("用钥匙锁上的", 0)
+        tell_object(me, "你用钥匙把锁锁上了。")
+        return 1
     end,
 }
