@@ -196,6 +196,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     char config_path[1024] = "";
     const char* resolved_config
         = parse_config_path(lpCmdLine, config_path, sizeof(config_path));
+
+    // 本次运行的日志标识：--log-run-id <id> 让本轮日志单独落在
+    // <log 路径>/M-D-<id>.txt（见 Logger.cpp），同一天内多次运行互不混杂——
+    // 未提供该参数时不设置，日志保持按日文件名，行为与从前一致。
+    char log_run_id[128] = "";
+    if (parse_option_value(lpCmdLine, "log-run-id", log_run_id,
+                           sizeof(log_run_id))) {
+        logger_set_run_id(log_run_id);
+    }
+
     ini_load(resolved_config);
     // 保存实际配置路径，供窗口信息面板显示
     snprintf(g_config_path, sizeof(g_config_path), "%s", resolved_config);

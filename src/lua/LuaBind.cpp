@@ -31,11 +31,6 @@ void lua_bind_push_object(lua_State* L, CMainObject* obj)
     lua_setmetatable(L, -2);
 }
 
-CMainObject* lua_bind_check_object(lua_State* L, int idx)
-{
-    return get_object(L, idx);
-}
-
 // helper used by scattered binds (declared in LuaBindTypes.h)
 CChar* lua_check_char(lua_State* L, int idx)
 {

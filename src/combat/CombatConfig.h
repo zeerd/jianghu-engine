@@ -17,6 +17,9 @@ class CCombatConfig {
 public:
     CCombatConfig();
 
+    // 启动期把 [server] 配置快照进本实例（init_game 调用）
+    void load_ini();
+
     // --- Typed accessors for known config keys ---
     int ip_limit() const { return m_ip_limit; }
     int login_limit() const { return m_login_limit; }

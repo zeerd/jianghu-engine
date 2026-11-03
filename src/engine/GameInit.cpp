@@ -5,6 +5,7 @@
 
 #include "GameInit.h"
 #include "../object/Global.h"
+#include "../combat/CombatConfig.h"
 #include "Channel.h"
 #include "LuaEngine.h"
 #include "LuaBind.h"
@@ -36,15 +37,13 @@ int g_server_port        = 6600;
 char g_server_name[64]   = "金剑江湖";
 char g_server_dbname[64] = "game";
 char g_start_room[128]   = "rk";
-int g_ip_limit           = 30;
 int g_start_age          = 14;  // 新角色初始年龄（config [server] start_age）
 
 //---------------------------------------------------------
 // 时间变量定义
 //---------------------------------------------------------
-int g_current_time;         // 当前时间
-int g_heart_beat_flag = 1;  // 心跳标志
-int g_boot_time;            // 启动时间
+int g_current_time;  // 当前时间
+int g_boot_time;     // 启动时间
 
 //---------------------------------------------------------
 // 初始化 Lua 脚本引擎
@@ -93,9 +92,10 @@ int init_game(const char* ipaddress, const char* name, const char* password)
     std::string tmp_room = utf8_to_gbk(ini_get("server", "start_room", "rk"));
     strncpy(g_start_room, tmp_room.c_str(), sizeof(g_start_room) - 1);
 
-    g_ip_limit = ini_get_int("server", "ip_limit", 30);
-
     g_start_age = ini_get_int("server", "start_age", 14);
+
+    // 启动期配置快照：[server] ip_limit → 登录限流（g_combat_config）
+    g_combat_config.load_ini();
 
     logger_set_level(logger_level_from_str(ini_get("log", "level", "trace")));
     logger_set_path(ini_get("log", "path", "log"));

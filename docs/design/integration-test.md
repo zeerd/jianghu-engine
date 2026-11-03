@@ -106,7 +106,7 @@ default_script_root = lua-default ; 兜底默认脚本
 |------|---------|------|
 | **剧本报告/退出码** | 业务流程没跑通（wait 超时、断言失败） | 各道 CLI `--report status=` + 退出码兜底 |
 | **崩溃 dump** | 剧本判定之后的进程死亡（关服路径 UAF 等） | 启动前快照仓库根 `*.dmp`，停服后 diff，新增即 FAIL；dump 原地保留作证据 |
-| **服务端日志** | 服务端侧报错（Lua 异常、命令失败、DB 错误）——剧本收不到这些 | 启动前记 `tests/integration/log\` 字节偏移，停服后只扫新增区间：未登记 ERROR/FATAL 即 FAIL（白名单登记制，见指令 §3.5）；WARN 仅计数报告 |
+| **服务端日志** | 服务端侧报错（Lua 异常、命令失败、DB 错误）——剧本收不到这些 | 启动前记 `tests/integration/log\` 字节偏移，停服后只扫新增区间：未登记 ERROR/FATAL 即 FAIL（白名单登记制，见指令 §3.5）；WARN 仅计数报告。每轮以 `--log-run-id` 启动，日志单独落 `M-D-<runid>.txt` 且报告点名该文件 |
 | **绝对预算** | 耗时慢性爬升（滑动基线放行机制失效） | `-DurationBudgetSec`（默认 420s）超限高声告警；调预算走 diff 评审（见 §2.5） |
 
 设计取舍：服务端日志与崩溃 dump 是「剧本绿但系统坏」的唯一两双外部眼睛——
@@ -135,13 +135,13 @@ L2/L3/L5/L8/L10 的**单向服务请求**（`/t 1` + `tell` → 固定顺序 wai
 |------|------|--------------|
 | L1 | `lane_foot.sce` | 房间观察 / 向导问答与排行榜 / 开箱取物 / 商人买卖 / 任务 / 装备到右手 / 茶棚 / 住宅区置产到卖房 |
 | L2 | `lane_skill.sce` | 拜师 / 高级技能 valid_learn 两道门槛 / study·enable·prepare·practice 分支 / 升级·补上限·睡觉 / force 与 sword 两线练到高级并激发 |
-| L3 | `lane_combat.sce` | 树箱经验果 / 偷袭山鸡（throwing 技能与 mp 由 L9 供能、`/enable` 自做）/ 尸体腐烂 / 副本进出（与 L8 双向频道握手）——N4 拆分后练功五段迁 L10，本道只剩战斗/世界职责 |
-| L4 | `lane_social.sce` | 睡觉恢复 / 观察师父 / 毒药与补药数值对照 / 传送符 / 观察与说话作揖 / 钱庄数额 / 频道年龄与禁词 |
+| L3 | `lane_combat.sce` | 树箱经验果 / 偷袭青蛇（throwing 技能与 mp 由 L9 供能、`/enable` 自做）/ 战利品与口粮（青蛇掉蛇胆→服下验蛇毒状态、包子验食物回血）/ 尸体腐烂 / 副本进出（与 L8 双向频道握手）——N4 拆分后练功五段迁 L10，本道只剩战斗/世界职责 |
+| L4 | `lane_social.sce` | 睡觉恢复 / 观察师父 / 毒药与补药数值对照（含涂毒挂 `poison/modu`：巫师供毒术+内力、自持铁剑）/ 传送符 / 观察与说话作揖 / 钱庄数额 / 频道年龄与禁词 |
 | L5 | `lane_interaction_a.sce` | 配对互动 A：PK 前置（`pk_prep`：起步历练 + 青锋剑 + 冲 10 级，赢家账号专属）→ 与 L6 会合后覆盖组队 / 私聊屏蔽 / 定向说话表情 / 赠送 / 做客邀请 / 婚姻 / 摆摊交易与 PK 死亡链 |
 | L6 | `lane_interaction_b.sce` | 配对互动 B：响应方——接受组队 / 回私聊 / 购买 A 的商品 / 应战切磋与 PK 死亡链（输家账号保持 1 级徒手） |
 | L7 | `lane_spectate.sce` | 观战（PK 第三方，零采购零学艺）——比试房观战 `guard` / 观战退出 `halt` / 战斗房加入 `join`（+`ready_pk`、留场至散场）/ 随 `end_fight` 散出；只在会合房间待命收 L5 的开战信号 |
 | L8 | `lane_raid.sce` | 山贼试炼（N2 新增）：注册 con30 天赋流（Attrs 参数化）→ 历练冲级（`/upgrade` 自做，max_hp 1260 是战斗窗口地基）→ 战前顶 hp → force 技能/内力由 L9 供能（拆两次请求，enable 清 mp 的顺序硬约束）+ `/enable`/`/enforce` 自做 → **闯黑风寨与双山贼开战**（败退/重伤均收尾）→ 双向频道握手让位 L3。**降断言设计**：剧本只验「开战 → 战斗收束 → 战后信号」，不反验出招/反震——`l_perform_action` 已烧、`l_receive_wound` 结构性不可达（§6 内力经济行），副本第二入口窗口与内力经济实测归本道 |
-| L9 | `lane_wizard.sce` | 巫师服务（N4 新增，账号自举不注册）：巫师一号（cc_id=1）随服启动自举，按**固定 wait 顺序**收各需求道的 `/t 1` + `tell` 服务请求 → 执行 → 私发回执——服务面：冲级（`call set level`，L5）/ 山贼技能+内力（`set_skill`+`call set`，L8 两段）/ 偷袭（`set_skill throwing`+`call set mp`，L3）/ 组合（`set_skill` 四技能，L2）/ 练功（`call set max_mp`，L10）。请求词与 capture 标记全服唯一，服务段全程不 clear（§2.6） |
+| L9 | `lane_wizard.sce` | 巫师服务（N4 新增，账号自举不注册）：巫师一号（cc_id=1）随服启动自举，按**固定 wait 顺序**收各需求道的 `/t 1` + `tell` 服务请求 → 执行 → 私发回执——服务面：冲级（`call set level`，L5）/ 毒术+内力（`set_skill poison`+`call set mp`，L4）/ 山贼技能+内力（`set_skill`+`call set`，L8 两段）/ 偷袭（`set_skill throwing`+`call set mp`，L3）/ 组合（`set_skill` 四技能，L2）/ 练功（`call set max_mp`，L10）。请求词与 capture 标记全服唯一，服务段全程不 clear（§2.6） |
 | L10 | `lane_train.sce` | 练功道（N4 自 L3 拆出）：upgrade 门槛链（`levelup_heal`）/ force 链（`force_for_exercise`）/ 两轮收工打坐（`exercise_max_mp`）/ halt 保 mp（`halt_exercise`）/ 收工不抬升补全（`exercise_no_raise`，L9 供大上限）/ throwing 链（`learn_throwing`，棋子自购自 wield）——原 L3 的练功/学习任务唯一覆盖源 |
 
 ### 2.2 配对互动道（L5/L6）的 peer 机制
@@ -168,7 +168,7 @@ L7 的 vars 注入 `peer`/`peer_acct` = L5（`PeerId=5`），L5 的 vars 反向�
 ### 2.4 共享世界的隔离原则
 
 世界里稀缺且不可再生的资源必须**钉给唯一一道**——山脚木箱与药箱（L1）、山顶树箱经验果
-与山鸡（L3）、排行榜房间播报（L1）、断肠散与传送符（L4）；商人库存按各道所需
+与青蛇及其掉落的蛇胆（L3）、排行榜房间播报（L1）、蛇胆与传送符（L4）；商人库存按各道所需
 采购、合计不超上限。**黑风寨副本是唯一双道共享的稀缺资源**：L3 只在链尾路过大厅
 找小头目离开（不打山贼），山贼战与庭院首刷归 L8——两道靠**双向频道握手**错峰
 （L3 到寨口广播「L3已到寨口」→ L8 战后收到才回广播「黑风寨已清」→ L3 收到才

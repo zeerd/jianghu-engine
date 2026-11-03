@@ -17,3 +17,9 @@ char* decode_str(char* msg);
 
 // --- 校验 ---
 int valid_string(const char* msg);
+
+// --- 密码规范化 ---
+// 密码契约：密码不含单引号。登录口把整个登录串的单引号剥除后才比对
+// （Login.cpp replace_string），因此所有写入/校验密码的入口必须先把
+// 单引号剥掉，否则含引号密码存进去后永远登不上（存取两侧语义不一致）。
+void normalize_password(char* pass);

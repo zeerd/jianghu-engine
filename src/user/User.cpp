@@ -357,56 +357,6 @@ void CUser::ready_pk()
     }
 }
 
-// 接收字符串并处理
-bool CUser::on_receive(const char* command_string, int ret)
-{
-    int analyse_ptr   = 0;
-    int start         = m_cmd_buffer_len;
-    int32_t player_id = object_id();
-
-    while (command_string[analyse_ptr]) {
-        if (command_string[analyse_ptr] == '\t')  // Command Line End
-        {
-            m_command_buffer[m_cmd_buffer_len] = 0;
-
-            decode_str(&m_command_buffer[start]);
-            push_command(m_command_buffer, m_cmd_buffer_len + 1);
-
-            // 检查是否已经销毁
-            if (g_last_destruct_object == player_id) return true;
-
-            m_cmd_buffer_len = 0;
-            start            = 0;
-            analyse_ptr++;
-
-            if (analyse_ptr >= ret) return false;
-            continue;
-        }
-
-        m_command_buffer[m_cmd_buffer_len++] = command_string[analyse_ptr++];
-
-        if (analyse_ptr >= ret || m_cmd_buffer_len >= 1024)  // 越界
-        {
-            m_cmd_buffer_len
-                = m_cmd_buffer_len >= 1024 ? 1024 : m_cmd_buffer_len;
-            m_command_buffer[m_cmd_buffer_len] = 0;
-
-            decode_str(&m_command_buffer[start]);
-            push_command(m_command_buffer, m_cmd_buffer_len + 1);
-            m_cmd_buffer_len = 0;
-
-            LOG_ERROR("接收缓冲越界:用户%ld 字串%s", name(1), m_command_buffer);
-            return false;
-        }
-    }
-
-    // 等待下次处理
-    m_command_buffer[m_cmd_buffer_len] = 0;
-    decode_str(m_command_buffer);
-
-    return true;
-}
-
 void CUser::push_command(char* cmd, int len)
 {
     if (m_tail_command_ptr + 1 == m_head_command_ptr

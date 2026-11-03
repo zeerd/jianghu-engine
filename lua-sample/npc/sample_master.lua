@@ -50,6 +50,7 @@ function npc.create(self)
     self:set_skill("throwing", 500)
     self:set_skill("throw_adv", 500)
     self:set_skill("literate", 400)
+    self:set_skill("poison", 400)
 
     self:map_skill("force", "force_adv")
     self:map_skill("unarmed", "unarmed_adv")

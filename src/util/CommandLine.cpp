@@ -6,28 +6,31 @@
 #include "CommandLine.h"
 
 #include <string.h>
+#include <string>
 
-const char* parse_config_path(const char* cmd_line, char* out, size_t out_size,
-                              const char* default_path)
+bool parse_option_value(const char* cmd_line, const char* name, char* out,
+                        size_t out_size)
 {
-    if (!default_path) default_path = "data/config.ini";
-    if (!cmd_line || !out || out_size == 0) return default_path;
+    if (!cmd_line || !name || !name[0] || !out || out_size == 0) return false;
+
+    // 搜索串为 "--" + 选项名，命中位置必然带完整前缀
+    const std::string opt = std::string("--") + name;
 
     const char* p = cmd_line;
-    while ((p = strstr(p, "--config")) != NULL) {
-        const char* q = p + strlen("--config");
+    while ((p = strstr(p, opt.c_str())) != NULL) {
+        const char* q = p + opt.size();
 
         if (*q == '=') {
-            // --config=<path>
+            // --<name>=<value>
             ++q;
         }
         else {
-            // 选项名自身可能被引号包裹（注入式启动器会产生 "--config" "path"）
+            // 选项名自身可能被引号包裹（注入式启动器会产生 "--name" "value"）
             if (*q == '"') {
                 ++q;
             }
             else if (*q != ' ' && *q != '\t') {
-                // 其后必须跟分隔符才有值，否则是 --configure 这类同前缀参数
+                // 其后必须跟分隔符才有值，否则是 --nameable 这类同前缀参数
                 p = q;
                 continue;
             }
@@ -50,9 +53,18 @@ const char* parse_config_path(const char* cmd_line, char* out, size_t out_size,
         if (len > 0 && len < out_size) {
             memcpy(out, start, len);
             out[len] = '\0';
-            return out;
+            return true;
         }
         p = (q > p) ? q : p + 1;
     }
+    return false;
+}
+
+const char* parse_config_path(const char* cmd_line, char* out, size_t out_size,
+                              const char* default_path)
+{
+    if (!default_path) default_path = "data/config.ini";
+    // 未命中/无值/缓冲不足时 out 不被改动，回落 default_path
+    if (parse_option_value(cmd_line, "config", out, out_size)) return out;
     return default_path;
 }

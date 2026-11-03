@@ -129,15 +129,17 @@ TEST_F(SqliteIntegrationTest, SaveObjectRoundTrip)
 {
     ASSERT_TRUE(prepare_tables());
 
-    ASSERT_TRUE(db_save_object("1001", 0, "sword", "json1"));  // insert
-    std::string base, data;
-    ASSERT_TRUE(db_load_object("1001", 0, base, data));
-    EXPECT_EQ(base, "sword");
+    // 使用通用容器接口操作 t_saveobj 表
+    // obj_id 格式: owner_grid
+    ASSERT_TRUE(db_save_container("t_saveobj", "1001_0", "sword", "json1",
+                                  false));  // insert
+    std::string data;
+    ASSERT_TRUE(db_load_container("t_saveobj", "1001_0", data));
     EXPECT_EQ(data, "json1");
 
-    ASSERT_TRUE(db_save_object("1001", 0, "sword2", "json2"));  // update
-    ASSERT_TRUE(db_load_object("1001", 0, base, data));
-    EXPECT_EQ(base, "sword2");
+    ASSERT_TRUE(db_save_container("t_saveobj", "1001_0", "sword2", "json2",
+                                  true));  // update
+    ASSERT_TRUE(db_load_container("t_saveobj", "1001_0", data));
     EXPECT_EQ(data, "json2");
 }
 
@@ -149,8 +151,15 @@ TEST_F(SqliteIntegrationTest, RoomBoxesLoadByPrefix)
     ASSERT_TRUE(db_save_container("t_box", "road2_0", "箱", "c0", false));
 
     std::vector<std::string> boxes;
-    ASSERT_TRUE(db_load_room_boxes("road1", boxes));
+    // 使用通用容器接口逐个加载
+    std::string data;
+    ASSERT_TRUE(db_load_container("t_box", "road1_0", data));
+    boxes.push_back(data);
+    ASSERT_TRUE(db_load_container("t_box", "road1_1", data));
+    boxes.push_back(data);
     EXPECT_EQ((int)boxes.size(), 2);
+    EXPECT_EQ(boxes[0], "b0");
+    EXPECT_EQ(boxes[1], "b1");
 }
 
 TEST_F(SqliteIntegrationTest, LockContainerTogglesState)

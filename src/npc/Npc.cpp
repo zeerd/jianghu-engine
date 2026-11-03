@@ -69,7 +69,7 @@ int CNpc::return_home(CContainer* home)
     if (!environment() || environment() == home) return 1;
 
     if (!query_attr(IS_LIVING)) return 0;  // no return
-    double value = 900;                    // 超过5分钟战斗的NPC自动回去
+    double value = 900;                    // 超过15分钟战斗的NPC自动回去
     time_t t;
     time(&t);
     t -= (time_t)value;

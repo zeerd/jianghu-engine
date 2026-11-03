@@ -187,7 +187,7 @@ int CCmdHandle::command(char* Command, CChar* me)
         me->delete_temp("cmd/cnt");
 
         if (g_current_time - me->query_temp("cmd/time")
-            < 5)  // 5秒内发超过10条指令。
+            < 5)  // 5秒内发超过15条指令。
         {
             int warning = me->add_temp("cmd/warning", 1);
 

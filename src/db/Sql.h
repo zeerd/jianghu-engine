@@ -49,22 +49,12 @@ bool db_lock_container(const char* table, const char* obj_id, int locked,
                        int& out_current_lock);
 
 // ------------------------------------------------------------
-// 玩家物品存储操作 (对应 Char.cpp - t_saveobj)
-// ------------------------------------------------------------
-bool db_save_object(const char* owner_id, long grid, const char* base_name,
-                    const char* savedata);
-bool db_load_object(const char* owner_id, long grid, std::string& out_base_name,
-                    std::string& out_savedata);
-
-// ------------------------------------------------------------
 // 箱子存储操作 (对应 Box.cpp - t_box)
 // ------------------------------------------------------------
 bool db_save_box(const char* obj_id, const char* obj_name, const char* obj_data,
                  const char* room_id, int grid);
 bool db_load_box(const char* obj_id, std::string& out_data);
 bool db_delete_box(const char* obj_id);
-bool db_load_room_boxes(const char* room_base_name,
-                        std::vector<std::string>& out_data);
 
 // ------------------------------------------------------------
 // 用户/账号操作 (对应 Login.cpp, User.cpp, Char.cpp)

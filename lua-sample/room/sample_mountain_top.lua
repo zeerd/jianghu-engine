@@ -14,9 +14,9 @@ M.create = function(self)
     self:add_door("青云山半山腰", "青云山半山腰", "青云山山顶")
     self:set("monster_chance", 30)
 
-    -- 练级山鸡：1级，不会还手；击杀由 data/hooks.lua 的 kill_bonus 挂点
-    -- 奖励 10000 经验，死后随房间 reset 自动补充
-    self:add_npc("sample_pheasant")
+    -- 练级青蛇：1级，不会还手；击杀由 data/hooks.lua 的 kill_bonus 挂点
+    -- 奖励 10000 经验并掉落蛇胆，死后随房间 reset 自动补充
+    self:add_npc("sample_qingshe")
 
     self:set(
         "long",

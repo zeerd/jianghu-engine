@@ -264,6 +264,7 @@
     <ClCompile Include="test_lua_condition.cpp" />
     <ClCompile Include="test_lua_error_paths.cpp" />
     <ClCompile Include="test_lua_item.cpp" />
+    <ClCompile Include="test_sample_food_poison.cpp" />
     <ClCompile Include="test_emote_system.cpp" />
     <ClCompile Include="test_corpse.cpp" />
     <ClCompile Include="test_lua_npc.cpp" />

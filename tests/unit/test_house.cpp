@@ -21,6 +21,7 @@
 #include "mock/mock_database.h"
 #include "mock/mock_itemmgr.h"
 #include "test_lua_env.h"
+#include "test_bind_common.h"  // lua_bind_check_object（读回绑定返回的对象）
 #include "test_npc_cleanup.h"
 #include "HeartBeat.h"  // g_destruct_list 快照回收
 #include "Money.h"      // CMCoin/CMoney（房租现金支）

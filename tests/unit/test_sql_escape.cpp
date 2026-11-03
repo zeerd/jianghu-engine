@@ -3,7 +3,7 @@
 // 背景：存盘把 get_buffer() 的 JSON 文本写进单引号 SQL 字面量。连接已设
 // NO_BACKSLASH_ESCAPES（见 init_sql_server），反斜杠退化为普通字符，字面量内
 // 唯一需要处理的是单引号。本文件锁定该契约，并覆盖此前从未被测试的
-// db_save_container / db_save_object 转义路径。
+// db_save_container 转义路径。
 //
 // Build+Run: .\run-coverage.ps1
 
@@ -63,7 +63,7 @@ TEST(SqlEscape, HighBytesPassthrough)
 }
 
 // ====================================================================
-// db_save_container / db_save_object — 转义接入
+// db_save_container — 转义接入
 // ====================================================================
 
 class DbEscapeTest : public ::testing::Test {
@@ -95,9 +95,10 @@ TEST_F(DbEscapeTest, SaveContainer_DoublesQuoteInData)
     EXPECT_NE(sql.find("'a''b\"c\\d'"), std::string::npos) << sql;
 }
 
-TEST_F(DbEscapeTest, SaveObject_DoublesQuoteInData)
+TEST_F(DbEscapeTest, SaveContainer_DoublesQuoteInData_2)
 {
-    ASSERT_TRUE(db_save_object("1001", 0, "sw'ord", "s'a\"b"));
+    ASSERT_TRUE(
+        db_save_container("t_saveobj", "1001_0", "sw'ord", "s'a\"b", false));
     std::string sql = db->GetLastSql();
     EXPECT_NE(sql.find("'sw''ord'"), std::string::npos) << sql;
     EXPECT_NE(sql.find("'s''a\"b'"), std::string::npos) << sql;

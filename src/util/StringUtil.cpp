@@ -110,6 +110,16 @@ int valid_string(const char* msg)
     return 1;
 }
 
+void normalize_password(char* pass)
+{
+    if (!pass) return;
+    char* w = pass;
+    for (char* r = pass; *r; ++r) {
+        if (*r != '\'') *w++ = *r;
+    }
+    *w = 0;
+}
+
 int cc_strcmp(const char* str1, const char* str2)
 {
     if (str1 == NULL) {

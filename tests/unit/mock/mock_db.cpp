@@ -68,7 +68,14 @@ bool init_sql_server(const char* ipaddress, const char* name,
 
 bool restore_data_table() { return g_mock_db_succeed; }
 
-bool verify_user(const char* userid, char* passwd) { return g_mock_db_succeed; }
+// 记录最近一次 verify_user 收到的密码，供命令层断言规范化是否生效
+std::string g_mock_last_verify_passwd;
+
+bool verify_user(const char* userid, char* passwd)
+{
+    g_mock_last_verify_passwd = passwd ? passwd : "";
+    return g_mock_db_succeed;
+}
 
 bool ensure_wizard_accounts() { return g_mock_db_succeed; }
 

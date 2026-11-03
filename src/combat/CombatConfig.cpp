@@ -5,17 +5,24 @@
 #include <windows.h>
 
 #include "CombatConfig.h"
-#include "GameInit.h"
+#include "IniParser.h"
 
 CCombatConfig g_combat_config;
 
 CCombatConfig::CCombatConfig()
-    : m_ip_limit(g_ip_limit),
+    : m_ip_limit(30),
       m_login_limit(2500),
       m_kick_idle(true),
       m_no_check_house(true),
       m_debug(false)
 {
+}
+
+// 启动期快照：把 [server] ip_limit 读进本实例。放在 init_game 调用，
+// 与 CServerConfig::init 同模式——ini 提供初值，运行期改值走 set()（巫师命令）。
+void CCombatConfig::load_ini()
+{
+    m_ip_limit = ini_get_int("server", "ip_limit", 30);
 }
 
 void CCombatConfig::set(const char* key, int32_t val)

@@ -43,7 +43,7 @@ end
 --   返回 {reward=N} = 以 N 入账；nil / 缺席 = 按 reward 入账；
 --   咨询后仍 <=0 的奖励不入账、不发提示。
 function hooks.kill_bonus(killer, victim, reward)
-    -- 练级山鸡：击杀固定奖励 10000 经验（房间见 room/sample_mountain_top.lua）
+    -- 练级怪（青蛇）：击杀固定奖励 10000 经验（房间见 room/sample_mountain_top.lua）
     if victim:query("xp_bonus") == 1 then
         return { reward = 10000 }
     end

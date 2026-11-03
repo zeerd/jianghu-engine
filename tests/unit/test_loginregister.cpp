@@ -132,7 +132,7 @@ TEST(LoginRegister, InitNewChar_SetsStartValues)
     EXPECT_STREQ(me.querystr("title"), "普通百姓");
     EXPECT_STREQ(me.querystr("gender"), "女性");
     EXPECT_STREQ(me.querystr("race"), "人类");
-    EXPECT_GT(strlen(me.querystr("start_city")), 0) << "起始地必须给定";
+    EXPECT_GT(strlen(me.querystr("start_city")), (size_t)0) << "起始地必须给定";
 }
 
 // 登录时 level 已定为 1 → max_hp 重算为 363；已存在的 hp 不得悬在新上限之上

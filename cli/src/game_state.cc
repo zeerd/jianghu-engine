@@ -383,7 +383,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
                 if (msg.has("tea")) {
                     // tea field present (player is in battle)
                 }
-                if (msg.has("sta")) player_attr_.state = msg.get_int("sta");
+                if (msg.has("sta")) player_attr_.state = (int8_t)msg.get_int("sta");
                 if (msg.has("idl")) player_attr_.idle = msg.get_int("idl") != 0;
                 if (msg.has("hp")) player_attr_.hp = msg.get_int("hp");
                 if (msg.has("mp")) player_attr_.mp = msg.get_int("mp");

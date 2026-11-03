@@ -196,8 +196,8 @@ TEST_F(DbRegisterAccountTest, PasswordQuote_IsSanitizedLikeLogin)
     long id = Register("张三", "ab'cd12", "zhangsan@example.com", "男性", 21,
                        21, 21, 21, err, sizeof(err));
     EXPECT_EQ(42, id);
-    EXPECT_TRUE(db->ExecutedContaining("'ab cd12'"))
-        << "单引号替换为空格，与登录侧剔除逻辑一致";
+    EXPECT_TRUE(db->ExecutedContaining("'abcd12'"))
+        << "单引号直接剥除，与登录侧 replace_string 剥除语义一致";
 }
 
 TEST_F(DbRegisterAccountTest, IllegalGender_Fails)

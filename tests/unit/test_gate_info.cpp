@@ -4,6 +4,7 @@
 //
 #include "pch.h"
 #include "GameSvr.h"
+#include "GateClient.h"  // close_client
 
 class GateInfoTest : public ::testing::Test {
 protected:
@@ -48,6 +49,51 @@ TEST_F(GateInfoTest, xSend_EmptyQueue)
     CGateInfo info;
     info.m_sock = INVALID_SOCKET;
     info.x_send();
+}
+
+// ====================================================================
+// close_client：主动关闭统一走 close_connection（入队 EXIT + 失效句柄）
+// ====================================================================
+TEST_F(GateInfoTest, CloseClient_QueuesExitAndInvalidatesSocket)
+{
+    CGateInfo gate;
+    WSADATA wsa;
+    ASSERT_EQ(WSAStartup(MAKEWORD(2, 2), &wsa), 0);
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    ASSERT_NE(s, INVALID_SOCKET);
+    gate.m_sock   = s;
+    gate.m_login  = GATE_LOGIN_NORMAL;
+    gate.m_player = 42;
+
+    close_client((uint32_t)&gate);
+
+    EXPECT_EQ(GATE_LOGIN_CLOSING, gate.m_login);
+    EXPECT_EQ(0, gate.m_player);
+    EXPECT_TRUE(gate.m_closing);
+    EXPECT_EQ(INVALID_SOCKET, gate.m_sock) << "关闭后句柄必须失效";
+
+    // 删除流程由游戏线程消费 EXIT 驱动——必须恰好入队一条
+    auto* exitMsg = reinterpret_cast<_LPTRECVBUFF>(gate.m_recv_buff_q.pop_q());
+    ASSERT_NE(exitMsg, nullptr) << "主动关闭必须入队 RECV_MSG_EXIT";
+    EXPECT_EQ(RECV_MSG_EXIT, exitMsg->type);
+    delete exitMsg;
+    EXPECT_EQ(nullptr, gate.m_recv_buff_q.pop_q()) << "只入队一条 EXIT";
+}
+
+// m_closing 幂等守卫：重复 close 不得重复入队 EXIT
+TEST_F(GateInfoTest, CloseClient_IdempotentNoDuplicateExit)
+{
+    CGateInfo gate;
+    gate.m_sock = INVALID_SOCKET;
+
+    close_client((uint32_t)&gate);
+    close_client((uint32_t)&gate);
+
+    auto* exitMsg = reinterpret_cast<_LPTRECVBUFF>(gate.m_recv_buff_q.pop_q());
+    ASSERT_NE(exitMsg, nullptr);
+    EXPECT_EQ(RECV_MSG_EXIT, exitMsg->type);
+    delete exitMsg;
+    EXPECT_EQ(nullptr, gate.m_recv_buff_q.pop_q());
 }
 
 // ====================================================================

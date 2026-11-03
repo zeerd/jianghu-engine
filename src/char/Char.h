@@ -245,7 +245,6 @@ public:
     int is_invalid();
 
     int is_loading();
-    CContainer* query_shield();
     int query_grant();
     int recruit_num();
     void release_master();

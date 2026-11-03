@@ -143,15 +143,16 @@ TEST_F(DbLayerTest, LockContainer_QueryFails)
 }
 
 // ====================================================================
-// SqlContainer.cpp — 玩家物品
+// SqlContainer.cpp — 玩家物品 (使用通用容器接口操作 t_saveobj)
 // ====================================================================
 
 TEST_F(DbLayerTest, SaveObject_Insert)
 {
-    EXPECT_TRUE(db_save_object("1001", 0, "sword", "json_data"));
+    EXPECT_TRUE(
+        db_save_container("t_saveobj", "1001_0", "sword", "json_data", false));
     std::string sql = s_mockDb->GetLastSql();
     EXPECT_NE(sql.find("t_saveobj"), std::string::npos);
-    EXPECT_NE(sql.find("1001"), std::string::npos);
+    EXPECT_NE(sql.find("1001_0"), std::string::npos);
 }
 
 TEST_F(DbLayerTest, SaveObject_Update)
@@ -159,9 +160,10 @@ TEST_F(DbLayerTest, SaveObject_Update)
     // 先返回已有记录（触发 UPDATE 分支）
     DbResultSet rs = MockDatabase::MakeSingleRow({"sword"});
     s_mockDb->SetQueryResult(
-        "select base_name from t_saveobj where owner=1001 and grid = 0", rs);
+        "select obj_name from t_saveobj where obj_id='1001_0'", rs);
 
-    EXPECT_TRUE(db_save_object("1001", 0, "sword", "new_data"));
+    EXPECT_TRUE(
+        db_save_container("t_saveobj", "1001_0", "sword", "new_data", true));
     std::string sql = s_mockDb->GetLastSql();
     EXPECT_NE(sql.find("update"), std::string::npos);
     EXPECT_NE(sql.find("new_data"), std::string::npos);
@@ -170,55 +172,57 @@ TEST_F(DbLayerTest, SaveObject_Update)
 TEST_F(DbLayerTest, SaveObject_QueryFails)
 {
     s_mockDb->SetShouldFail(true);
-    EXPECT_FALSE(db_save_object("1001", 0, "sword", "data"));
+    EXPECT_FALSE(
+        db_save_container("t_saveobj", "1001_0", "sword", "data", false));
 }
 
 TEST_F(DbLayerTest, LoadObject_Found)
 {
     DbResultSet rs;
     DbRow row;
-    row.columns.push_back("sword");
     row.columns.push_back("json_data");
     rs.rows.push_back(row);
     s_mockDb->SetQueryResult(
-        "select base_name, savedata from t_saveobj where owner =1001 "
-        "and grid = 0",
-        rs);
+        "select obj_data from t_saveobj where obj_id='1001_0'", rs);
 
-    std::string base, data;
-    EXPECT_TRUE(db_load_object("1001", 0, base, data));
-    EXPECT_EQ(base, "sword");
+    std::string data;
+    EXPECT_TRUE(db_load_container("t_saveobj", "1001_0", data));
     EXPECT_EQ(data, "json_data");
 }
 
 TEST_F(DbLayerTest, LoadObject_NotFound)
 {
-    std::string base, data;
-    EXPECT_FALSE(db_load_object("9999", 0, base, data));
+    std::string data;
+    EXPECT_FALSE(db_load_container("t_saveobj", "9999_0", data));
 }
 
 // ====================================================================
-// SqlContainer.cpp — 箱子
+// SqlContainer.cpp — 箱子 (使用通用容器接口操作 t_box)
 // ====================================================================
 
 TEST_F(DbLayerTest, LoadRoomBoxes_Found)
 {
-    DbResultSet rs;
+    DbRow r0;
+    r0.columns.push_back("box_data_0");
+    DbResultSet rs0;
+    rs0.rows.push_back(r0);
     DbRow r1;
-    r1.columns.push_back("box_data_0");
-    rs.rows.push_back(r1);
-    DbRow r2;
-    r2.columns.push_back("box_data_1");
-    rs.rows.push_back(r2);
+    r1.columns.push_back("box_data_1");
+    DbResultSet rs1;
+    rs1.rows.push_back(r1);
 
-    // 匹配 LIKE 查询
+    // 通用容器接口按 obj_id 精确取数，预置两条各自的查询结果
     s_mockDb->SetQueryResult(
-        "select obj_data from t_box where obj_id LIKE 'road1_%' "
-        "order by obj_id",
-        rs);
+        "select obj_data from t_box where obj_id='road1_0'", rs0);
+    s_mockDb->SetQueryResult(
+        "select obj_data from t_box where obj_id='road1_1'", rs1);
 
     std::vector<std::string> boxes;
-    EXPECT_TRUE(db_load_room_boxes("road1", boxes));
+    std::string data;
+    EXPECT_TRUE(db_load_container("t_box", "road1_0", data));
+    boxes.push_back(data);
+    EXPECT_TRUE(db_load_container("t_box", "road1_1", data));
+    boxes.push_back(data);
     EXPECT_EQ((int)boxes.size(), 2);
     EXPECT_EQ(boxes[0], "box_data_0");
     EXPECT_EQ(boxes[1], "box_data_1");
@@ -227,7 +231,8 @@ TEST_F(DbLayerTest, LoadRoomBoxes_Found)
 TEST_F(DbLayerTest, LoadRoomBoxes_Empty)
 {
     std::vector<std::string> boxes;
-    EXPECT_TRUE(db_load_room_boxes("empty_room", boxes));
+    std::string data;
+    EXPECT_FALSE(db_load_container("t_box", "empty_room_0", data));
     EXPECT_EQ((int)boxes.size(), 0);
 }
 
@@ -297,6 +302,16 @@ TEST_F(DbLayerTest, change_password)
     EXPECT_NE(sql.find("newpass"), std::string::npos);
 }
 
+// 写路径契约：密码先剥单引号（与登录/注册同语义），字面量再转义
+TEST_F(DbLayerTest, ChangePassword_QuoteStrippedAndEscaped)
+{
+    EXPECT_TRUE(db_change_password("1", "a'b'c"));
+    std::string sql = s_mockDb->GetLastSql();
+    EXPECT_EQ(sql.find("a'b"), std::string::npos) << "裸引号不得进 SQL";
+    EXPECT_NE(sql.find("cc_passwd='abc'"), std::string::npos)
+        << "剥引号后与登录比对形态一致";
+}
+
 TEST_F(DbLayerTest, ChangePassword_Fails)
 {
     s_mockDb->SetShouldFail(true);
@@ -309,6 +324,15 @@ TEST_F(DbLayerTest, change_verify_password)
     std::string sql = s_mockDb->GetLastSql();
     EXPECT_NE(sql.find("cc_verifypass"), std::string::npos);
     EXPECT_NE(sql.find("OLD_PASSWORD"), std::string::npos);
+}
+
+// 暗码写路径转义兜底：调用方（LoginAuth）已剥引号，此处保证字面量安全
+TEST_F(DbLayerTest, ChangeVerifyPassword_QuoteEscaped)
+{
+    EXPECT_TRUE(db_change_verify_password("1", "x'y"));
+    std::string sql = s_mockDb->GetLastSql();
+    EXPECT_EQ(sql.find("x'y"), std::string::npos) << "裸引号不得进 SQL";
+    EXPECT_NE(sql.find("x''y"), std::string::npos) << "转义后入字面量";
 }
 
 // ====================================================================
@@ -633,23 +657,23 @@ TEST_F(DbLayerTest, LockContainer_NullDb)
 TEST_F(DbLayerTest, SaveObject_NullDb)
 {
     g_db = nullptr;
-    EXPECT_FALSE(db_save_object("1", 0, "x", "y"));
+    EXPECT_FALSE(db_save_container("t_saveobj", "1_0", "x", "y", false));
     g_db = s_mockDb;
 }
 
 TEST_F(DbLayerTest, LoadObject_NullDb)
 {
     g_db = nullptr;
-    std::string b, d;
-    EXPECT_FALSE(db_load_object("1", 0, b, d));
+    std::string data;
+    EXPECT_FALSE(db_load_container("t_saveobj", "1_0", data));
     g_db = s_mockDb;
 }
 
 TEST_F(DbLayerTest, LoadRoomBoxes_NullDb)
 {
     g_db = nullptr;
-    std::vector<std::string> v;
-    EXPECT_FALSE(db_load_room_boxes("x", v));
+    std::string data;
+    EXPECT_FALSE(db_load_container("t_box", "x_0", data));
     g_db = s_mockDb;
 }
 
@@ -697,16 +721,19 @@ TEST_F(DbLayerTest, LockContainer_DataEmpty)
 
 TEST_F(DbLayerTest, LoadObject_TooFewColumns)
 {
+    // 容器接口只读 obj_data 一列：行缺列（0 列）不可加载
     DbResultSet rs;
-    DbRow row;
-    row.columns.push_back("only_one");
-    rs.rows.push_back(row);
+    rs.rows.push_back(DbRow());
     s_mockDb->SetQueryResult(
-        "select base_name, savedata from t_saveobj where owner =1 "
-        "and grid = 0",
-        rs);
-    std::string b, d;
-    EXPECT_FALSE(db_load_object("1", 0, b, d));
+        "select obj_data from t_saveobj where obj_id='1_0'", rs);
+    std::string data;
+    EXPECT_FALSE(db_load_container("t_saveobj", "1_0", data));
+
+    // 列存在但数据为空同样不可加载
+    DbResultSet emptyVal = MockDatabase::MakeSingleRow({""});
+    s_mockDb->SetQueryResult(
+        "select obj_data from t_saveobj where obj_id='2_0'", emptyVal);
+    EXPECT_FALSE(db_load_container("t_saveobj", "2_0", data));
 }
 
 TEST_F(DbLayerTest, LoadRoomBoxes_RowEmptyColumns)
@@ -714,9 +741,8 @@ TEST_F(DbLayerTest, LoadRoomBoxes_RowEmptyColumns)
     DbResultSet rs;
     DbRow row;
     rs.rows.push_back(row);
-    std::vector<std::string> v;
-    EXPECT_TRUE(db_load_room_boxes("x", v));
-    EXPECT_EQ((int)v.size(), 0);
+    std::string data;
+    EXPECT_FALSE(db_load_container("t_box", "x_0", data));
 }
 
 // --- SqlAccount.cpp: NullDb 路径 ---
@@ -985,11 +1011,11 @@ TEST_F(DbLayerTest, SqlContainer_AllUnknownExceptionCatches)
         << "delete_container catch(115-116)";
     EXPECT_FALSE(db_lock_container("t", "i1", 1, cl))
         << "lock_container catch(163-164)";
-    EXPECT_FALSE(db_save_object("1", 0, "x", "y"))
+    EXPECT_FALSE(db_save_container("t_saveobj", "1_0", "x", "y", false))
         << "save_object catch(227-228)";
-    EXPECT_FALSE(db_load_object("1", 0, base, data))
+    EXPECT_FALSE(db_load_container("t_saveobj", "1_0", data))
         << "load_object catch(259-260)";
-    EXPECT_FALSE(db_load_room_boxes("r", boxes))
+    EXPECT_FALSE(db_load_container("t_box", "r_0", data))
         << "load_room_boxes catch(294-295)";
 
     g_db = saved;
@@ -1009,17 +1035,18 @@ TEST_F(DbLayerTest, SqlContainer_ExecuteAndQueryFailBranches)
     EXPECT_FALSE(db_lock_container("t_item", "chest_01", 1, cl))
         << "lock execute 失败(157-159)";
 
-    // save_object：无预置 → insert 路径 → execute 失败(222-223)
-    EXPECT_FALSE(db_save_object("1001", 0, "sword", "data"))
-        << "save_object execute 失败(222-223)";
+    // save_container：无预置 → insert 路径 → execute 失败(222-223)
+    EXPECT_FALSE(
+        db_save_container("t_saveobj", "1001_0", "sword", "data", false))
+        << "save_container execute 失败(222-223)";
     s_mockDb->SetExecuteErrorCode(0);
 
-    // load_object / load_room_boxes：首个 query 失败(247-248,283-284)
+    // load_container / load_room_boxes：首个 query 失败(247-248,283-284)
     s_mockDb->SetShouldFail(true);
     std::string base, data;
-    EXPECT_FALSE(db_load_object("1001", 0, base, data))
-        << "load_object query 失败(247-248)";
+    EXPECT_FALSE(db_load_container("t_saveobj", "1001_0", base))
+        << "load_container query 失败(247-248)";
     std::vector<std::string> boxes;
-    EXPECT_FALSE(db_load_room_boxes("road1", boxes))
+    EXPECT_FALSE(db_load_container("t_box", "road1_0", data))
         << "load_room_boxes query 失败(283-284)";
 }

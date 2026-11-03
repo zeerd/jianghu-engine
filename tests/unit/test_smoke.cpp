@@ -63,17 +63,19 @@ TEST(SmokeTest, MockFunctionsLink)
     // Verify functions are callable
     extern void tell_object(CContainer*, const char*, const char*);
     extern void message_vision(const char*, CContainer*, CContainer*, bool);
-    extern bool db_save_object(const char*, long, const char*, const char*);
-    extern bool db_load_object(const char*, long, std::string&, std::string&);
+    extern bool db_save_container(const char*, const char*, const char*,
+                                  const char*, bool);
+    extern bool db_load_container(const char*, const char*, std::string&);
     extern int is_user(CContainer*);
     extern int is_wizard(CChar*);
 
     tell_object(nullptr, "test", "system");
     message_vision("test", nullptr, nullptr, false);
     // g_db is nullptr here, so real implementations return false
-    EXPECT_FALSE(db_save_object("owner", 1, "item", "data"));
-    std::string base, data;
-    EXPECT_FALSE(db_load_object("owner", 1, base, data));
+    EXPECT_FALSE(
+        db_save_container("t_saveobj", "owner_1", "item", "data", false));
+    std::string data;
+    EXPECT_FALSE(db_load_container("t_saveobj", "owner_1", data));
     EXPECT_EQ(is_user(nullptr), 0);
     EXPECT_EQ(is_wizard(nullptr), 0);
 }

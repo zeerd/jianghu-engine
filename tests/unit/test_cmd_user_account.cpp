@@ -16,6 +16,8 @@
 extern char g_notify_fail_msg[512];
 extern int g_current_time;
 extern bool g_mock_db_succeed;  // mock_db.cpp：verify_user 的开关
+extern std::string
+    g_mock_last_verify_passwd;  // mock_db.cpp：verify_user 入参记录
 extern MAP2USER g_user_list;    // find_player 走在线用户表
 
 class CmdUserAccountTest : public ::testing::Test {
@@ -414,6 +416,41 @@ TEST_F(CmdUserAccountTest, Passwd_ChangePasswordSucceeds)
     EXPECT_TRUE(db->ExecutedContaining("cc_passwd"));
 }
 
+// ---------------- 密码入口规范化（剥单引号，与登录口同契约） ----------------
+
+TEST_F(CmdUserAccountTest, Passwd_OldPasswordQuoteStrippedBeforeVerify)
+{
+    db->SetQueryResultMatching("cc_verifypass",
+                               MockDatabase::MakeSingleRow({"x"}));
+    g_mock_last_verify_passwd.clear();
+    char arg[] = "old'pass verifycode";
+    ASSERT_EQ(CallPasswd(me, 0, arg), 1);
+    EXPECT_EQ(g_mock_last_verify_passwd, "oldpass")
+        << "剥引号后的形态才进 verify_user（登录口即此语义）";
+    EXPECT_NE(me->query_temp("pending/modify_pass"), 0);
+}
+
+TEST_F(CmdUserAccountTest, Passwd_LengthCheckSeesNormalizedValue)
+{
+    // 原始 5 字符过原始校验，剥引号后 4 字符必须被拒——长度校验在规范化之后
+    me->set_temp("pending/modify_pass", (long)1);
+    char arg[]           = "abc'd";
+    g_notify_fail_msg[0] = '\0';
+    EXPECT_EQ(CallPasswd(me, 0, arg), 0);
+    EXPECT_STREQ(g_notify_fail_msg, "密码不能少于5个字元！");
+    EXPECT_FALSE(db->ExecutedContaining("cc_passwd")) << "长度不过关不得落库";
+}
+
+TEST_F(CmdUserAccountTest, Passwd_NewPasswordQuoteStrippedBeforeDb)
+{
+    me->set_temp("pending/modify_pass", (long)1);
+    char arg[] = "new'pass";
+    ASSERT_EQ(CallPasswd(me, 0, arg), 1);
+    EXPECT_TRUE(db->ExecutedContaining("cc_passwd='newpass'"))
+        << "落库形态与登录比对形态一致（无引号）";
+    EXPECT_FALSE(db->ExecutedContaining("new'pass"));
+}
+
 TEST_F(CmdUserAccountTest, Validate_WrongPasswordRejected)
 {
     g_mock_db_succeed    = false;
@@ -439,6 +476,18 @@ TEST_F(CmdUserAccountTest, Validate_SuccessSetsFlag)
                                MockDatabase::MakeSingleRow({"x"}));
     char arg[] = "secret code12";
     ASSERT_EQ(CallValidate(me, 0, arg), 1);
+    EXPECT_NE(me->query_temp("validate"), 0);
+}
+
+TEST_F(CmdUserAccountTest, Validate_PasswordQuoteStrippedBeforeVerify)
+{
+    db->SetQueryResultMatching("cc_verifypass",
+                               MockDatabase::MakeSingleRow({"x"}));
+    g_mock_last_verify_passwd.clear();
+    char arg[] = "sec'ret code12";
+    ASSERT_EQ(CallValidate(me, 0, arg), 1);
+    EXPECT_EQ(g_mock_last_verify_passwd, "secret")
+        << "剥引号后的形态才进 verify_user";
     EXPECT_NE(me->query_temp("validate"), 0);
 }
 

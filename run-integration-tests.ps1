@@ -30,9 +30,15 @@
 #   8. 耗时监控：每次 PASS 运行把「剧本执行总耗时」（注册 + 各道并行，不含构建与
 #      覆盖率导出）连同各道耗时/步数/场景清单追加到
 #      coverage_history\e2e-timing-history.jsonl（保留最近 50 条），并与前次同类
-#      通过运行（同 workers、同覆盖率开关）对比；增量超过 -DurationRegressionSec
+#      通过运行（同模式、同 workers、同覆盖率开关）对比；增量超过 -DurationRegressionSec
 #      （默认 10 秒）时 diff 各道 include 场景清单归因是否新增场景导致，并按
 #      关键路径估算「移入现有道 / 新增一条道」的拆分收益。
+#   9. 简单模式（-Simple）：单条冒烟道验证「起服 → 登录 → look → 行走 → 关服」的
+#      最小命令面，预算 30s（口径=整段墙钟，不含构建）。账号自举免注册、强制重建
+#      测试库、强制无覆盖率（汇总另写 summary-e2e-smoke.txt，不覆盖完整模式的
+#      覆盖率汇总）；失败判定四通道与完整模式同一套。
+#      ⚠ 定位：仅供人类做「服务器还活着吗」的快速确认。AI/Agent 禁用——AI 的
+#      验证与交付验收必须跑完整模式，不许拿 -Simple 的绿当验收结论。
 #
 # 依赖：MSBuild（VS）、OpenCppCoverage。数据库为 SQLite（tests\integration\e2e.db），
 #        由服务端启动时自动建库建表，无需任何外部数据库服务。
@@ -42,6 +48,9 @@
 #   powershell -ExecutionPolicy Bypass -File run-integration-tests.ps1 -SkipBuild -NoCoverage
 #   powershell -ExecutionPolicy Bypass -File run-integration-tests.ps1 -Workers 2 -NoCoverage
 #   powershell -ExecutionPolicy Bypass -File run-integration-tests.ps1 -CliExe C:\tmp\jhcli.exe
+#   powershell -ExecutionPolicy Bypass -File run-integration-tests.ps1 -Simple
+#     简单模式（冒烟）：只跑登录/look/行走一条道，整段墙钟预算 30s（不含构建）。
+#     ⚠ 仅供人类快速确认；AI/Agent 禁用——AI 的验证与交付验收必须跑完整模式。
 #
 # 说明：
 #   - 使用独立 SQLite 文件库（tests\integration\config.ini 的 e2e.db），不污染业务库；
@@ -65,6 +74,13 @@ param(
     # 给各道 CLI 加 --dbg：把服务端报文（RTNINFO/STATE 等）打进 lane 日志，
     # 用于定位「客户端属性值和服务端对不上」这类问题
     [switch]$Dbg,
+    # ⚠ 仅供人类做快速确认（「服务器还活着吗」）：单条冒烟道，整段墙钟预算 30s
+    # （不含构建）。AI/Agent 禁用——AI 的验证与交付验收必须跑完整模式，不许拿
+    # -Simple 的绿当验收结论。
+    # 机制：只跑登录 / look / 行走一条道，巫师自举账号免注册，强制 -NoCoverage、
+    # 强制重建测试库、忽略 -Workers；与完整模式共用失败判定四通道与耗时历史，
+    # 历史记录带 mode 字段，两种模式互不作为 Δ 对比基线。
+    [switch]$Simple,
     # 单个 wait/assert 默认超时（毫秒）
     [int]$StepTimeout = 20000,
     # 等待服务器端口就绪的超时（秒）。首次在 OpenCppCoverage 下加载 PDB 可能较慢
@@ -92,6 +108,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# 简单模式的派生默认值（任何阶段执行前定死）：
+#   · 强制无覆盖率——覆盖率与未命中函数是完整模式的口径，冒烟不采集；
+#   · 强制重建测试库——存档的 start_city 是上次离线房间，不清库时巫师账号首登
+#     落点不确定，login 片段的起始房间断言会漂；重建库后首登必落 start_room；
+#   · 预算默认 30s（仅当未显式传 -DurationBudgetSec 时切换，显式传参以传参为准）。
+if ($Simple) {
+    $NoCoverage = $true
+    $ResetDb = $true
+    if (-not $PSBoundParameters.ContainsKey('DurationBudgetSec')) { $DurationBudgetSec = 30 }
+}
+
 # 起点计时（耗时监控用，文首第 8 条）；各阶段秒数在对应阶段赋值，未到达即为 $null
 $tScriptStart = Get-Date
 $tBuildSec = $null
@@ -99,6 +126,12 @@ $tServerReadySec = $null
 $tRegSec = $null
 $tLaneSec = $null
 $tExportSec = $null
+# 整段墙钟（简单模式预算口径，文首第 9 条）：构建之后起算，至关服与观测收尾，
+# 不含覆盖率导出；未到起算点即为 $null（构建失败等，此时也不会有耗时记录）
+$tWallStart = $null
+$tWallSec = $null
+# 注册阶段是否真的跑过：账号自举模式没有注册阶段，耗时记录的 reg_scenarios 为空
+$regRan = $false
 
 # --- 路径 -------------------------------------------------------------------
 $RepoRoot = $PSScriptRoot
@@ -114,7 +147,10 @@ $E2EDir = Join-Path $RepoRoot "bin\e2e"
 $ServerExe = Join-Path $E2EDir "jianghu.exe"
 $ReportDir = Join-Path $RepoRoot "coverage_report_e2e_sample"
 $CovBin = Join-Path $RepoRoot "coverage_history\e2e_sample.cov"
-$SummaryFile = Join-Path $RepoRoot "coverage_history\summary-e2e-sample.txt"
+# 汇总文件分模式：简单模式不采集覆盖率，若复用同名文件会把完整模式的覆盖率
+# 汇总（提交前清单的 delta 对比基准）冲掉——冒烟写自己的 summary-e2e-smoke.txt。
+$SummaryFile = Join-Path $RepoRoot ("coverage_history\" +
+    $(if ($Simple) { "summary-e2e-smoke.txt" } else { "summary-e2e-sample.txt" }))
 $UnhitFile = Join-Path $RepoRoot "coverage_history\e2e-sample-unhit-functions.txt"
 # N3 分段：已认领（决策归档）清单——命中的归「§6 决策认领」段，其余归「待推进」段。
 # 新增甄别归档时往该文件追加一行（格式=清单原行）；逐函数明细只进本清单（阶段工具），
@@ -167,6 +203,19 @@ $Lanes = @(
 )
 
 if ($Workers -lt 1) { $Workers = 1 }
+
+# 简单模式（文首第 9 条）：只有一条冒烟道——巫师自举账号（NoRegister，跳过注册
+# 阶段）+ 登录/行走片段，不设 peer/witness/wizard 依赖，下方依赖校验自然全过。
+if ($Simple) {
+    $Lanes = @(
+        @{ Id = 1; Desc = "简单冒烟"; Script = "lane_simple.sce"; NoRegister = $true }
+    )
+    if ($PSBoundParameters.ContainsKey('Workers') -and $Workers -ne 1) {
+        Write-Warning "-Simple 忽略 -Workers=$Workers：简单模式固定 1 条冒烟道"
+    }
+    $Workers = 1
+}
+
 if ($Workers -gt $Lanes.Count) { $Workers = $Lanes.Count }
 $ActiveLanes = @($Lanes | Select-Object -First $Workers)
 if ($Workers -lt $Lanes.Count) {
@@ -573,7 +622,13 @@ if ($DbPath -eq "") { throw "无法从 $ConfPath 解析 [database] path" }
 if (-not [System.IO.Path]::IsPathRooted($DbPath)) { $DbPath = Join-Path $RepoRoot ($DbPath -replace "/", "\") }
 if ($CliExe -eq "") { $CliExe = Join-Path $RepoRoot "bin\cli\jianghu_cli.exe" }
 
-Write-Host "== lua-sample 集成测试（单人主线 E2E）=="
+if ($Simple) {
+    Write-Host "== lua-sample 集成测试 · 简单模式（冒烟：网络联通 / 行走 / look）=="
+    Write-Warning "-Simple 仅供人类快速确认；AI/Agent 禁用——AI 的验证与交付验收必须跑完整模式。"
+}
+else {
+    Write-Host "== lua-sample 集成测试（单人主线 E2E）=="
+}
 Write-Host "repo     : $RepoRoot"
 Write-Host "config   : $ConfPath"
 Write-Host "port     : $Port   db: sqlite $DbPath"
@@ -613,15 +668,9 @@ if (-not $NoCoverage -and -not (Test-Path $OccExe)) {
     throw "找不到 OpenCppCoverage：$OccExe（可用 -NoCoverage 跳过）"
 }
 
-# --- 数据库（可选重建） -----------------------------------------------------
-# SQLite 的「重建库」= 删库文件（连带 WAL/SHM 附属文件），服务端启动时
-# sqlite3_open_v2 自动重建、prepare_tables 自动建表播种，无需任何外部工具。
-if ($ResetDb) {
-    Write-Host "-- 重建测试库 $DbPath"
-    foreach ($f in @($DbPath, "$DbPath-wal", "$DbPath-shm")) {
-        if (Test-Path $f) { Remove-Item -Force $f }
-    }
-}
+# 整段墙钟起算点（简单模式预算口径）：从这里开始的一切都算进 30s——重建库、
+# 生成 vars、回收残留服务器、起服、注册、各道、关服与观测收尾；只有构建在外。
+$tWallStart = Get-Date
 
 # --- 生成各道的 vars（唯一角色名 + 邮箱） --------------------------------------
 # 角色名长度限制为 2~10 字节（LoginRegister::check_legal_name / make_body）：
@@ -703,6 +752,13 @@ $dumpsBefore = $null
 $serverLogOffsets = $null
 $ServerLogDir = Join-Path $RepoRoot "tests\integration\log"
 $LogAllowFile = Join-Path $IntDir "log-allowlist.txt"
+# 本轮服务端日志标识：传给 jianghu.exe --log-run-id，本轮日志单独落在
+# <log 路径>/M-D-<id>.txt（文件名规则见 Logger.cpp）。扫描口径不变（仍按字节
+# 偏移扫全目录增量，跨轮错误不算进本轮），run id 的作用是在报告里点名本轮文件，
+# 排查时不必翻目录猜「哪份是这次的」。毫秒时间戳避免同秒并行两轮撞同一文件名。
+$LogRunId = "e2e-" + (Get-Date -Format "yyyyMMdd-HHmmss-fff")
+# 本轮日志文件路径行（finally 里产出，$lines 创建后并入报告）。
+$srvLogFileLine = $null
 # 服务端日志扫描的 summary 行（finally 里产出，$lines 创建后并入报告）。
 $srvLogSummary = $null
 # 旧 dump 归档目录（仓库根 crash_dumps\）：启动前把上一轮遗留 dump 挪进去；
@@ -977,9 +1033,23 @@ function Add-TimingRecord {
     }
 }
 
-# 与前次同类（同 workers / 覆盖率开关 / dbg / step-timeout 且 PASS）运行对比，
-# 生成报告行：总耗时与阶段构成 → 各道耗时增量 → 新增场景 diff → 关键路径 → 拆分建议。
-# 拆分收益按「关键路径道的增量 ≈ 新增场景成本、墙钟 = 注册 + 最长道」估算。
+# 与前次同类（同模式 / 同 workers / 同覆盖率开关 / 同 dbg / 同 step-timeout 且
+# PASS）运行对比，生成报告行：总耗时与阶段构成 → 各道耗时增量 → 新增场景 diff →
+# 关键路径 → 拆分建议。拆分收益按「关键路径道的增量 ≈ 新增场景成本、墙钟 = 注册
+# + 最长道」估算。
+#
+# 预算口径选择：完整模式量「剧本执行」（注册 + 各道并行，与关键路径/吸收能力
+# 同口径）；简单模式量「整段墙钟」——该模式的存在意义就是「一次运行有多快」，
+# 起服与关服正是它要约束的耗时，只量剧本执行会把这部分开销藏在预算之外。
+function Get-BudgetMeasure {
+    param([Parameter(Mandatory)]$Rec)
+
+    if ([string]$Rec.budget_base -eq 'wall' -and $null -ne $Rec.wall_sec) {
+        return @{ Sec = [int]$Rec.wall_sec; Label = "整段墙钟" }
+    }
+    return @{ Sec = [int]$Rec.exec_sec; Label = "剧本执行总耗时" }
+}
+
 function Get-TimingReport {
     param(
         [Parameter(Mandatory)]$Cur,
@@ -1003,10 +1073,14 @@ function Get-TimingReport {
     [void]$out.Add(("  构建 {0} ｜ 起服 {1} ｜ 覆盖率导出 {2}（不计入对比）" -f $buildTxt, $readyTxt, $exportTxt))
 
     # --- 绝对预算三行硬指标（预算是唯一的通过标尺；Δ 归因在其后，纯诊断） ---
-    $headroom = $BudgetSec - $curExec
-    $overBudget = $curExec -gt $BudgetSec
-    [void]$out.Add(("预算 {0}s / 实测 {1}s / 余量 {2}{3}s" -f $BudgetSec, $curExec,
+    $meas = Get-BudgetMeasure -Rec $Cur
+    $headroom = $BudgetSec - $meas.Sec
+    $overBudget = $meas.Sec -gt $BudgetSec
+    [void]$out.Add(("预算 {0}s / 实测 {1}s / 余量 {2}{3}s" -f $BudgetSec, $meas.Sec,
             $(if ($headroom -ge 0) { "+" } else { "" }), $headroom))
+    if ([string]$Cur.budget_base -eq 'wall') {
+        [void]$out.Add("（简单模式预算口径=整段墙钟：构建之后起算，至关服与观测收尾，不含覆盖率导出）")
+    }
 
     # 关键路径与非关键路径吸收能力：墙钟 = 注册 + 最长道，把「加片段往哪放」
     # 的余量显式化——新增场景只要不落关键路径，吸收能力内加满也不动墙钟。
@@ -1022,7 +1096,7 @@ function Get-TimingReport {
             ([int]$critLane.sec - $otherMax)))
 
     if ($null -eq $Prev) {
-        [void]$out.Add("无同类基线（首次运行或 workers/覆盖率/dbg/step-timeout 变更），本次已记为基线。")
+        [void]$out.Add("无同类基线（首次运行或模式/workers/覆盖率/dbg/step-timeout 变更），本次已记为基线。")
         return [pscustomobject]@{ Lines = @($out); Regression = $false; CausedByNewScenario = $false; OverBudget = $overBudget }
     }
 
@@ -1177,6 +1251,18 @@ try {
     Stop-OrphanTestServer -Port $Port
     Start-Sleep -Seconds 1
 
+    # --- 数据库（可选重建） ---------------------------------------------------
+    # 位置必须在回收残留服务器**之后**：残留服务器仍握着库文件句柄时 Windows 下
+    # 删不掉（SQLite 不共享删除权限），先回收再删才可靠。
+    # SQLite 的「重建库」= 删库文件（连带 WAL/SHM 附属文件），服务端启动时
+    # sqlite3_open_v2 自动重建、prepare_tables 自动建表播种，无需任何外部工具。
+    if ($ResetDb) {
+        Write-Host "-- 重建测试库 $DbPath"
+        foreach ($f in @($DbPath, "$DbPath-wal", "$DbPath-shm")) {
+            if (Test-Path $f) { Remove-Item -Force $f }
+        }
+    }
+
     # 崩溃检测：服务器的未处理异常过滤器（CCreateDump）会往工作目录（仓库根）写
     # "[时间]dumpfile.dmp"。先把上一轮遗留的旧 dump 归档到仓库根 crash_dumps\
     # （在仓库里，看得见；也避免在仓库根无限堆积），再快照当前集合——收尾停服后
@@ -1207,7 +1293,7 @@ try {
     $tServerStart = Get-Date
     if ($NoCoverage) {
         $serverRun = Start-HiddenProcess -Exe $ServerExe -WorkingDirectory $RepoRoot `
-            -Arguments @("--config", $ConfPath)
+            -Arguments @("--config", $ConfPath, "--log-run-id", $LogRunId)
         $serverProc = $serverRun.Process
     }
     else {
@@ -1222,7 +1308,7 @@ try {
             "--export_type", "cobertura:$ReportDir\coverage.xml",
             "--export_type", "binary:$CovBin",
             "--",
-            $ServerExe, "--config", $ConfPath
+            $ServerExe, "--config", $ConfPath, "--log-run-id", $LogRunId
         )
         $occRun = Start-HiddenProcess -Exe $OccExe -WorkingDirectory $RepoRoot -Arguments $occArgs
         Write-Host "-- OpenCppCoverage 已启动（pid $($occRun.Process.Id)，无窗口）"
@@ -1233,7 +1319,6 @@ try {
     Write-Host "-- 服务器就绪"
 
     # --- 阶段 1：一次性注册 N 个账号（并行） ---------------------------------
-    Write-Host "-- 阶段 1：并行注册 $($ActiveLanes.Count) 个账号"
     $t0 = Get-Date
     $regItems = @()
     foreach ($lane in $ActiveLanes) {
@@ -1248,19 +1333,28 @@ try {
             LogFile   = Join-Path $WorkDir ("lane{0}.register.log" -f $lane.Id)
         }
     }
-    $regResults = Invoke-ParallelBatch -Items $regItems -Phase "reg"
-
-    $regBad = @($regResults | Where-Object { $_.ExitCode -ne 0 })
-    foreach ($r in $regBad) {
-        Write-Warning "账号注册失败：$($r.Tag)"
-        Show-LaneTail $r 30
-        Write-Host "        完整输出：$($r.LogFile)"
+    if ($regItems.Count -eq 0) {
+        # 本模式的账号全部自举（简单模式的巫师账号）：没有注册阶段
+        Write-Host "-- 阶段 1：跳过注册（账号自举，无注册流程）"
+        $regResults = @()
     }
-    if ($regBad.Count -gt 0) { throw "$($regBad.Count) 个账号注册失败" }
+    else {
+        Write-Host "-- 阶段 1：并行注册 $($regItems.Count) 个账号"
+        $regResults = Invoke-ParallelBatch -Items $regItems -Phase "reg"
+        $regRan = $true
+
+        $regBad = @($regResults | Where-Object { $_.ExitCode -ne 0 })
+        foreach ($r in $regBad) {
+            Write-Warning "账号注册失败：$($r.Tag)"
+            Show-LaneTail $r 30
+            Write-Host "        完整输出：$($r.LogFile)"
+        }
+        if ($regBad.Count -gt 0) { throw "$($regBad.Count) 个账号注册失败" }
+        Write-Host "-- $($regItems.Count) 个账号注册完成"
+    }
     foreach ($lane in $ActiveLanes) {
         if (-not (Test-Path $lane.VarsFile)) { throw "注册后缺少变量文件：$($lane.VarsFile)" }
     }
-    Write-Host "-- $($ActiveLanes.Count) 个账号注册完成"
     $tRegSec = [int]((Get-Date) - $t0).TotalSeconds
 
     # 注册完成后回读各道 acct，向配对两道互注 peer_acct（对方数字账号 ID）。
@@ -1395,6 +1489,19 @@ finally {
     # 服务端日志观测（轨道 L）：剧本全绿但服务端报错同样是矛盾信号。停服后扫
     # 本次新增日志区间——未登记的 ERROR/FATAL 判 FAIL（与崩溃检测同级）；
     # 已登记的预期错误（故意负测等）静默；WARN 仅计数入报告。
+    # 先点名本轮日志文件（按启动时传下的 run id 匹配，不猜日期——月日不补零的
+    # 拼接交给通配）；找不到说明 --log-run-id 没生效，如实说明而不是静默。
+    $runLogFiles = @(Get-ChildItem -LiteralPath $ServerLogDir `
+            -Filter "*-$LogRunId.txt" -File -ErrorAction SilentlyContinue)
+    if ($runLogFiles.Count -gt 0) {
+        $srvLogFileLine = "本轮服务端日志：" +
+        (($runLogFiles | ForEach-Object { $_.FullName }) -join "、")
+        Write-Host $srvLogFileLine
+    }
+    else {
+        Write-Host "本轮服务端日志：未生成 *-$LogRunId.txt（查 $ServerLogDir）"
+    }
+
     $srvLog = $null
     if ($null -ne $serverLogOffsets) {
         try { $srvLog = Get-ServerLogIssues -Offsets $serverLogOffsets -AllowFile $LogAllowFile }
@@ -1410,7 +1517,11 @@ finally {
                 Write-Host "       $u"
             }
             if ($srvLog.Unknown.Count -gt 10) {
-                Write-Host "       （共 $($srvLog.Unknown.Count) 条，仅列前 10；完整日志见 $ServerLogDir）"
+                $fullLog = if ($runLogFiles.Count -gt 0) {
+                    ($runLogFiles | ForEach-Object { $_.FullName }) -join "、"
+                }
+                else { $ServerLogDir }
+                Write-Host "       （共 $($srvLog.Unknown.Count) 条，仅列前 10；完整日志见 $fullLog）"
             }
             Write-Host "       若确属预期（负测等），在 $LogAllowFile 登记其签名。"
         }
@@ -1430,6 +1541,10 @@ finally {
         $srvLogSummary = ("服务端日志：ERROR {0}（白名单 {1}，未登记 {2}），WARN {3}" -f `
                 $srvLog.ErrTotal, $srvAllowed, $srvLog.Unknown.Count, $srvWarnCount)
     }
+
+    # 整段墙钟收点（简单模式预算口径）：到关服与观测收尾为止；覆盖率导出在下方
+    # 单列，与完整模式「导出不计入对比」的口径一致。
+    if ($null -ne $tWallStart) { $tWallSec = [int]((Get-Date) - $tWallStart).TotalSeconds }
 
     # NoCoverage 模式下服务器 stdout/stderr 此前被异步排空后丢弃——落盘备查。
     if ($serverRun) {
@@ -1560,18 +1675,21 @@ if ($status -eq "pass" -and $null -ne $tRegSec -and $null -ne $tLaneSec) {
     $curRecord = [pscustomobject]@{
         time             = Get-Date -Format s
         status           = $status
+        mode             = $(if ($Simple) { "simple" } else { "full" })
         workers          = $ActiveLanes.Count
         no_coverage      = [bool]$NoCoverage
         dbg              = [bool]$Dbg
         step_timeout     = $StepTimeout
         budget_sec       = $DurationBudgetSec
+        budget_base      = $(if ($Simple) { "wall" } else { "exec" })
         build_sec        = $tBuildSec
         server_ready_sec = $tServerReadySec
+        wall_sec         = $tWallSec
         reg_sec          = $tRegSec
         lane_sec         = $tLaneSec
         exec_sec         = $tRegSec + $tLaneSec
         export_sec       = $tExportSec
-        reg_scenarios    = @(Get-LaneScenarioList "register.sce")
+        reg_scenarios    = $(if ($regRan) { @(Get-LaneScenarioList "register.sce") } else { @() })
         lanes            = @(foreach ($lane in $ActiveLanes) {
                 [pscustomobject]@{
                     id        = [int]$lane.Id
@@ -1586,6 +1704,8 @@ if ($status -eq "pass" -and $null -ne $tRegSec -and $null -ne $tLaneSec) {
 
     # 同类基线：正序遍历历史（append 时间递增），反复覆盖后留下最近一条同配置 PASS 记录。
     # 必须在 Add-TimingRecord 之前读，否则会拿本次当基线跟自己比。
+    # mode 区分简单/完整（旧记录无 mode 字段，都是完整模式运行）：两种模式的
+    # 道构成与预算口径不同，互不作基线，否则 Δ 归因与拆分探索全无意义。
     $baseline = $null
     foreach ($h in @(Read-TimingHistory)) {
         if ($h.status -ne 'pass') { continue }
@@ -1593,6 +1713,8 @@ if ($status -eq "pass" -and $null -ne $tRegSec -and $null -ne $tLaneSec) {
         if ([bool]$h.no_coverage -ne $curRecord.no_coverage) { continue }
         if ([bool]$h.dbg -ne $curRecord.dbg) { continue }
         if ([int]$h.step_timeout -ne $curRecord.step_timeout) { continue }
+        $hMode = if ($h.mode) { [string]$h.mode } else { "full" }
+        if ($hMode -ne [string]$curRecord.mode) { continue }
         $baseline = $h
     }
 
@@ -1604,8 +1726,9 @@ if ($status -eq "pass" -and $null -ne $tRegSec -and $null -ne $tLaneSec) {
     if ($timingReport.OverBudget) {
         # 绝对预算告警：预算是护栏不是门禁（不改状态），但必须吵——滑动基线
         # 的教训是「每次 +N 都合法、总量单调爬升」，吵是唯一的收敛压力。
+        $meas = Get-BudgetMeasure -Rec $curRecord
         Write-Host ""
-        Write-Host ("!! 剧本执行总耗时超绝对预算：预算 {0}s，实测 {1}s。" -f $DurationBudgetSec, $curRecord.exec_sec)
+        Write-Host ("!! {0}超绝对预算：预算 {1}s，实测 {2}s。" -f $meas.Label, $DurationBudgetSec, $meas.Sec)
         Write-Host "   预算是代码里的常数（run-integration-tests.ps1 默认值），调整须走 diff 评审；"
         Write-Host "   收敛手段见报告中的关键路径/吸收能力行与归因拆分建议。"
     }
@@ -1616,7 +1739,8 @@ if ($status -eq "pass" -and $null -ne $tRegSec -and $null -ne $tLaneSec) {
     Add-TimingRecord -Record $curRecord
 }
 
-$lines += "lua-sample E2E：$status"
+$lines += $(if ($Simple) { "lua-sample E2E 简单模式：$status" } else { "lua-sample E2E：$status" })
+if ($srvLogFileLine) { $lines += $srvLogFileLine }
 if ($srvLogSummary) { $lines += $srvLogSummary }
 if ($failReason) { $lines += "reason=$failReason" }
 $lines += "workers=$($ActiveLanes.Count)"

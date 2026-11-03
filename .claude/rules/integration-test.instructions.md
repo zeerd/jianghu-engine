@@ -53,7 +53,9 @@ applyTo: '**/tests/integration/**'
 
 **脚本会自动完成**：
 1. MSBuild `Release|Win32` 构建 `jianghu.vcxproj` + `cli/jianghu_cli.vcxproj`
-2. OpenCppCoverage 启动 `bin\jianghu.exe --config tests\integration\config.ini`
+2. OpenCppCoverage 启动 `bin\jianghu.exe --config tests\integration\config.ini --log-run-id <本轮id>`
+   （run id 让本轮服务端日志单独落成 `tests\integration\log\M-D-<本轮id>.txt`，
+   与同一天其他运行不混写，报告里点名该文件）
 3. 等待端口 6611 就绪（最长 180 秒，首次 PDB 加载较慢）
 4. **并行**注册 N 个账号（N 条道各跑一次 `register.sce`，各得各的 `acct`），随后
    **并行**开跑 N 条道（`lane_foot.sce` / `lane_skill.sce` / `lane_combat.sce` / `lane_social.sce`）
@@ -128,8 +130,10 @@ PASS 才算同类基线）：Δ 超参考阈值（默认 10s）时自动归因�
 ### 3.5 服务端日志观测（ERROR 即失败，白名单登记制）
 
 剧本断言的是「客户端收到了什么」；**服务端自己报的错是另一双眼睛**——Lua 异常、
-命令处理失败、DB 错误只落在服务端日志里（`tests\integration\log\<M>-<D>.txt`，
-配置见 `config.ini [log]`）。run-integration-tests.ps1 在停服后扫**本次运行新增的
+命令处理失败、DB 错误只落在服务端日志里（`tests\integration\log\`，配置见
+`config.ini [log]`）。每轮以 `--log-run-id e2e-<时间戳>` 启动，本轮日志单独落成
+**`M-D-e2e-<时间戳>.txt`**——报告开头打印该文件的完整路径，**排查时直接看它**，
+不必在目录里翻哪份是这次的。run-integration-tests.ps1 在停服后扫**本次运行新增的
 日志区间**（启动前记字节偏移）：
 
 | 级别 | 判定 |
@@ -230,8 +234,7 @@ lua-sample 脚本根）与「命令行 `--config` 直接加载、不改写 `data
 #### sleep 的合法用途（`rate_limit=0` 之后仍必须用 sleep 的场景）
 
 服务端命令限流虽已关闭（`config.ini` 的 `rate_limit=0`），但 `sleep` 并非因此失效——
-它等的从来不是限流，而是**心跳驱动的游戏内计时**。服务端心跳 1 秒一拍
-（`HeartBeat.cpp` 的 `alarm_loop`），Lua 的 `start_busy(n)` 以心跳为单位计时
+它等的从来不是限流，而是**心跳驱动的游戏内计时**。Lua 的 `start_busy(n)` 以心跳为单位计时
 （`start_busy(2)` ≈ 2 秒 busy），busy 期间几乎所有命令被 `is_busy()` 拒绝
 （「你现在正忙着呢」）。所以：
 
@@ -276,8 +279,8 @@ lua-sample 脚本根）与「命令行 `--config` 直接加载、不改写 `data
 2. **文本断言要认得出「是我发的」**：`notify_fail`、`tell_object`、`say(msg, me)` 都私发、可直接断；
    `message_vision` 对本人渲染「你…」、对同房间旁人渲染「<名字>…」，所以取「你…」前缀才不会被
    别的账号串满足；改不动的房间/频道播报（尸体腐烂、排行榜）只能保证**只由本道触发**。
-3. **稀缺资源唯一归属**：木箱与药箱（L1）、树箱经验果与山鸡与副本（L3）、库存很薄的商品
-   （传送符×2、断肠散×5，L4）只能由一道采购与使用，并写进该道片段的头注释。
+3. **稀缺资源唯一归属**：木箱与药箱（L1）、树箱经验果与青蛇及其掉落的蛇胆与副本（L3）、库存很薄的商品
+   （传送符×2、蛇胆×5，L4）只能由一道采购与使用，并写进该道片段的头注释。
 
 > `lua-sample/data/hooks.lua` 里的 `hooks.setup_human`（新角色起步本金）是**示例世界的正常
 > 功能**：新角色靠它购物、置业、存款、自立门户。它不是测试脚手架，不要当「为测试加的逻辑」
@@ -318,7 +321,7 @@ lua-sample 脚本根）与「命令行 `--config` 直接加载、不改写 `data
    会合（`wait object $peer`）或等待对方响应的步骤，排查先看**对端道**的日志（见 §9），
    不要只盯本道。
 5. **稀缺资源归属**：互动道（L5/L6）不得采购/使用钉给唯一道的稀缺资源（木箱药箱、
-   树箱经验果、山鸡、排行榜、断肠散、传送符）；互动双方要消耗的资源（如赠送的物品、
+   树箱经验果、青蛇、排行榜、蛇胆、传送符）；互动双方要消耗的资源（如赠送的物品、
    摆摊的商品）由**互动道自己**的 provision 片段购买，声明写进道头注释。
 6. **`/t <ID>` 只收 ID，不收显示名**（显示名允许重名、无法唯一定位）：
    - **玩家**：数字账号 ID（如 `/t 1396`、剧本用 `$peer_acct`），**全服有效、
@@ -367,7 +370,7 @@ lua-sample 脚本根）与「命令行 `--config` 直接加载、不改写 `data
 | 配对道 `wait object $peer` 超时 | **疑似对端未到位**：对端登录失败/中途失败停摆，或本道自己先失败没走到会合 | 1. 先看对端道的日志（`%TEMP%\e2e_lanes\lane<对端Id>.log`，**UTF-8 编码**——服务端 `tests\integration\log\` 才是 UTF-8、lane 日志经 CLI CP_UTF8 控制台层写入亦为 UTF-8；用 GBK/936 解码会得到伪可读乱码误导排查）2. 对端报告的 reason/失败行 3. 两边都正常再查会合房间名与 `$peer` 变量注入 |
 | 观战道（L7）`wait text 比试开打/第二轮开打` 超时，或 L5 等 `比试观战完毕` 超时 | **疑似信号对端未到位**：L5 未发开战信号（比试/kill 段没跑到）或 L7 登录/移动停摆 | 1. 对端日志（L7 等信号看 `lane5.log`，L5 等回信号看 `lane7.log`）2. L7 是否已在山脚茶棚（`wait room` 行）3. `$spectator_acct`/`$peer_acct` 注入是否齐全（启动校验已拦一半未启用的情形） |
 | 失败原因「服务器崩溃（未处理异常）」 | 服务器在关服路径（`WM_DESTROY`→等工作线程）崩溃；dump 由 `CCreateDump` 写出 | 1. 本轮新 dump **原地留在仓库根**（脚本会打印完整路径，不会挪走）；上一轮的旧 dump 已归档到仓库根 `crash_dumps\` 2. 用 `bin\jianghu.pdb` + WinDbg/cdb 分析 3. 崩溃发生在剧本判定之后，剧本本身可能是绿的，别只看剧本结果 |
-| 失败原因「服务端日志出现未登记 ERROR/FATAL」 | 服务端侧报错（Lua 异常/命令失败/DB 错误），剧本只断言客户端收不到这些 | 1. 报告里看未登记签名与完整日志 `tests\integration\log\<M>-<D>.txt` 2. 是预期（负测等）→ 按 §3.5 登记 `log-allowlist.txt` 3. 疑似真 bug → 先查根因再处置，不许直接拉黑（`set_leader` 案例） |
+| 失败原因「服务端日志出现未登记 ERROR/FATAL」 | 服务端侧报错（Lua 异常/命令失败/DB 错误），剧本只断言客户端收不到这些 | 1. 报告里看未登记签名与「本轮服务端日志」点名的 `M-D-e2e-<时间戳>.txt`（§3.5）2. 是预期（负测等）→ 按 §3.5 登记 `log-allowlist.txt` 3. 疑似真 bug → 先查根因再处置，不许直接拉黑（`set_leader` 案例） |
 | L3 `wait text 黑风寨已清` 超时 | **疑似对端 L8 未到位**（L8 挂在战前准备/战斗、或握手反向 `wait L3已到寨口` 未获 L3 广播） | 1. 先看 `lane8.log`（§9 对端排查口径）2. L8 若停在 `wait text L3已到寨口` → 看 L3 是否广播过「L3已到寨口」（L3 的 corpse 段 28 行前）3. 反向：L8 广播被 L3 早到缓冲抹掉属握手设计已消除的情形——若复现检查两道 wait 段内是否被插入 clear |
 | L8 `wait text L3已到寨口` 超时 | 对端 L3 未到寨口（L3 挂在 corpse 尸腐等待前的链、或 `wait 黑风寨已清` 已超时失败） | 1. 先看 `lane3.log` 2. L3 的失败会在报告里先暴露（两道互锁） |
 | 耗时报告「超绝对预算」告警 | 剧本执行总耗时（注册+各道并行）超过 `-DurationBudgetSec`（默认 420s） | 1. 看报告三行硬指标：关键路径道、吸收能力 2. Δ 归因点名新增场景 → 按拆分建议移道/新开道 3. 新增场景默认别进 L3（物理地板）4. 确需抬预算 → 改脚本默认值走 diff 评审 |
@@ -388,6 +391,7 @@ lua-sample 脚本根）与「命令行 `--config` 直接加载、不改写 `data
 - [ ] 覆盖率 `delta ≥ 0`（对比 `coverage_history/summary-e2e-sample.txt`）
 - [ ] 无新增「未命中函数」属于本次修改范围（或有合理解释）
 - [ ] 没有在代码中保留注释形式的迁移记录
+- [ ] 如果新增测试影响了覆盖率，更新`docs\e2e-unhit-audit.md`。
 
 ---
 

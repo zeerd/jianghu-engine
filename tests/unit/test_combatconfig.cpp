@@ -5,6 +5,7 @@
 //
 #include "pch.h"
 #include "CombatConfig.h"
+#include "IniParser.h"  // g_ini_data：load_ini 的读取来源
 
 // ====================================================================
 // Default values
@@ -97,6 +98,27 @@ TEST(CCombatConfig, QueryMissingKey)
     CCombatConfig cfg;
     EXPECT_EQ(cfg.query("nonexistent"), 0);
     EXPECT_STREQ(cfg.querystr("nonexistent"), "");
+}
+
+// ====================================================================
+// load_ini：启动期把 [server] ip_limit 快照进实例（init_game 调用）
+// ====================================================================
+TEST(CCombatConfig, LoadIni_ReadsServerIpLimit)
+{
+    g_ini_data["server"]["ip_limit"] = "17";
+    CCombatConfig cfg;
+    EXPECT_EQ(cfg.ip_limit(), 30) << "构造默认不读 ini";
+    cfg.load_ini();
+    EXPECT_EQ(cfg.ip_limit(), 17) << "load_ini 后取 ini 值";
+    g_ini_data["server"].erase("ip_limit");  // 恢复，不污染其他用例
+}
+
+TEST(CCombatConfig, LoadIni_MissingKeyKeepsDefault)
+{
+    g_ini_data["server"].erase("ip_limit");
+    CCombatConfig cfg;
+    cfg.load_ini();
+    EXPECT_EQ(cfg.ip_limit(), 30);
 }
 
 // ====================================================================

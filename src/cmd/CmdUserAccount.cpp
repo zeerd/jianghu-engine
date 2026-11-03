@@ -170,6 +170,10 @@ int CCmdUser::passwd(CChar* me, int32_t target, char* arg)
     char msg[40];
 
     analyse_string(arg, msg, 40);
+    // 密码入口规范化（剥单引号）：长度校验与 verify_user/change_password
+    // 都必须看到与登录比对一致的形态，否则含引号密码既登不上、又把裸
+    // 引号带进 SQL。msg 是暗码，走 LoginAuth 的剥除契约，此处不动。
+    normalize_password(arg);
 
     // 检测旧密码
     if (!me->query_temp("pending/modify_pass")) {
@@ -201,6 +205,7 @@ int CCmdUser::validate(CChar* me, int32_t target, char* arg)
     char msg[40];
 
     analyse_string(arg, msg, 40);
+    normalize_password(arg);  // 与 passwd 同契约：密码剥引号后再校验
 
     if (!me->query_temp("validate")) {
         if (!verify_user(me->querystr("id"), arg))

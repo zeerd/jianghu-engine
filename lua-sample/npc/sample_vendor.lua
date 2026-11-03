@@ -27,12 +27,16 @@ function npc.create(self)
     self:carry_good("sample_book_sword", 5)
     self:carry_good("sample_heal", 200)
     self:carry_good("sample_hp", 200)
-    self:carry_good("sample_poison", 5)
+    -- 蛇胆：毒药货位（山脚唯一毒药，与青蛇死时的掉落同源）
+    self:carry_good("sample_shedan", 5)
     self:carry_good("sample_teleport", 2)
     self:carry_good("sample_teapot", 5)
     self:carry_good("sample_chess", 20)
     -- 铜钥匙：开山脚那锁着的箱子（password 两处配套，见 key.lua 头注）
     self:carry_good("key", 5)
+    -- 包子：货架按追加排列，既有商品的序号不动——`/buy <序号>` 是玩家记在
+    -- 脑子里的用法，新货插队会把老主顾的下单指到别的商品上
+    self:carry_good("sample_baozi", 20)
 
     -- 自身装备
     self:carry_object("sample_sword_basic"):wear()

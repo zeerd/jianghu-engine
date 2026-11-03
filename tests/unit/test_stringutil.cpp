@@ -11,6 +11,7 @@ void analyse_string(char* Comm, char* arg, int len);
 char* get_value(const char* cmd_str, const char* keyword, char* pValue,
                 int nValueLen);
 int valid_string(const char* msg);
+void normalize_password(char* pass);
 
 // ====================================================================
 // analyse_string: split command and arguments
@@ -110,4 +111,36 @@ TEST(StringUtil, ValidString_Empty) { EXPECT_EQ(valid_string(""), 1); }
 TEST(StringUtil, ValidString_WithQuote)
 {
     EXPECT_NE(valid_string("say \"hello\""), 1);
+}
+
+// ====================================================================
+// normalize_password: 密码契约——剥除单引号（与登录口剥除语义一致）
+// ====================================================================
+TEST(StringUtil, NormalizePassword_RemovesQuotes)
+{
+    char pass[] = "ab'c'd";
+    normalize_password(pass);
+    EXPECT_STREQ(pass, "abcd");
+}
+
+TEST(StringUtil, NormalizePassword_NoQuoteUnchanged)
+{
+    char pass[] = "plainpass";
+    normalize_password(pass);
+    EXPECT_STREQ(pass, "plainpass");
+}
+
+TEST(StringUtil, NormalizePassword_AllQuotes)
+{
+    char pass[] = "'''''";
+    normalize_password(pass);
+    EXPECT_STREQ(pass, "");
+}
+
+TEST(StringUtil, NormalizePassword_EmptyAndNull)
+{
+    char empty[] = "";
+    normalize_password(empty);
+    EXPECT_STREQ(empty, "");
+    normalize_password(nullptr);  // 不得崩溃
 }

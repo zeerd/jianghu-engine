@@ -1,4 +1,4 @@
-# sneak_and_battle.sce — 偷袭山鸡成战（N4 拆分后：技能与 mp 由 L9 供能）
+# sneak_and_battle.sce — 偷袭青蛇成战（N4 拆分后：技能与 mp 由 L9 供能）
 #
 # 覆盖：
 #   lua-default/skill/basic/throwing 的 do_sneak：先找暗器（wield 的棋子）、
@@ -47,8 +47,8 @@ wait text Ok. timeout=10000
 # 「中暗器了」断言红：把覆盖丢失变成显式失败，而不是静默漂移；战斗本身
 # 仍由统一 kill 收口（已在战斗中时 kill 是冗余重申，未开战时它补上这一战）。
 # ---------------------------------------------------------------------------
-wait object 山鸡
-cmd /t shan ji
+wait object 青蛇
+cmd /t qing she
 clear
 repeat 3
 cmd /cast throwing sneak
@@ -61,4 +61,21 @@ cmd /kill
 wait battle
 wait battle_end timeout=180000
 cmd .info
+cmd /t 0
+
+# --- 战利品与战后口粮（掉落 → 拾取 / 食物回血）----------------------------
+# 青蛇的 die 把蛇胆丢在脚下（见 npc/sample_qingshe.lua），battle_end 时已在地上。
+# 先 sleep 等战斗 busy 过拍——busy 由心跳驱动，是 sleep 的合法用途（§8.1）；
+# 捡东西与吃东西都要求不忙
+sleep 5000
+wait object 蛇胆 timeout=10000
+cmd /t she dan
+cmd /get
+wait item 蛇胆 timeout=10000
+cmd /t 0
+
+# 包子吃在战后残血窗口：food_base 只在真回血时才拼出 hp+，满血吃不出这串
+cmd /t bao zi
+cmd /use
+wait text 你将剩下的包子吃得干干净净。 hp+ timeout=10000
 cmd /t 0

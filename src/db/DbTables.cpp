@@ -158,22 +158,14 @@ bool prepare_tables(void)
                              "PRIMARY KEY (`re_master`,`re_id`)",
                              "KEY `re_master` (`re_master`,`re_id`)"));
 
-        // 容器/物品/房间/箱子
-        for (const char* name : {"t_item", "t_npc", "t_room", "t_box"}) {
+        // 容器/物品/房间/箱子/玩家存档：统一容器表结构，
+        // t_saveobj 的 obj_id 为 owner_grid 复合键（通用容器接口访问）
+        for (const char* name :
+             {"t_item", "t_npc", "t_room", "t_box", "t_saveobj"}) {
             tables.push_back(BuildCreateTable(name, container_cols,
                                               "PRIMARY KEY (`obj_id`)",
                                               "KEY `obj_id` (`obj_id`)"));
         }
-
-        // 玩家存档
-        tables.push_back(BuildCreateTable(
-            "t_saveobj",
-            "`owner` int(16) NOT NULL DEFAULT '0',"
-            "`base_name` varchar(40) NOT NULL DEFAULT '',"
-            "`savedata` blob NOT NULL,"
-            "`grid` tinyint(2) NOT NULL DEFAULT '0'",
-            "PRIMARY KEY (`grid`,`owner`)",
-            "KEY `owner` (`owner`),KEY `base_name` (`base_name`)"));
 
         // 旧式注册表
         tables.push_back(BuildCreateTable(

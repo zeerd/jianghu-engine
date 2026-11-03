@@ -38,7 +38,6 @@ TEST_F(CharFightTest, QueryWeapon_Empty)
 {
     EXPECT_EQ(ch->query_weapon(), nullptr);
     EXPECT_EQ(ch->query_left_weapon(), nullptr);
-    EXPECT_EQ(ch->query_shield(), nullptr);
 }
 
 // ---------------- query_unarmed ----------------
@@ -349,7 +348,6 @@ TEST_F(CharFightTest, QueryLeftWeaponAndShieldWithEquippedHand)
     (*ch->get_equip_list())[WIELD_LEFT_HAND] = blade->object_id();
 
     EXPECT_EQ(blade, ch->query_left_weapon()) << "左手武器命中并返回(46,49)";
-    EXPECT_EQ(blade, ch->query_shield()) << "盾类判定命中(188,191)";
 }
 
 TEST_F(CharFightTest, QueryActionBeastWithoutVerbsUsesDefault)

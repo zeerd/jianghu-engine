@@ -13,8 +13,8 @@
 #   或含对方名渲染，与性别无关（设计见 docs/design/integration-test.md §2.1）。
 #
 # 稀缺资源归属声明（§8.4 / §8.6 ⑤）：本道与 L5 道**不得触碰**钉给唯一道的
-#   资源——山脚木箱与药箱（L1）、山顶树箱经验果与山鸡与副本（L3）、
-#   排行榜房间播报（L1）、断肠散与传送符（L4）。
+#   资源——山脚木箱与药箱（L1）、山顶树箱经验果与青蛇与副本（L3）、
+#   排行榜房间播报（L1）、蛇胆与传送符（L4）。
 
 include common/login.sce
 include interaction/rendezvous.sce

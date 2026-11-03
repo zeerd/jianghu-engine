@@ -174,6 +174,9 @@ verified-by: pending（待作者确认 Open Questions）
   `GATE_LOGIN_{NOT_LOGGED_IN,LOGGING_IN,NORMAL,CLOSING(-1),PENDING_DELETE,SCHEDULED_DELETE}`
   （`src/net/GameSvr.h:37-42`）；**新连接的第一包被整体视为登录包**
   （`GateRecvDispatch.cpp:26-41`），`LOGGING_IN` 期间丢弃其余流量。
+  游戏侧主动关闭（`close_client`）与对端断开**统一走 `close_connection()`**：
+  幂等入队 `RECV_MSG_EXIT`（`m_closing` 守卫防重复）、关闭并失效 socket 句柄，
+  gate 的删除一律由游戏线程消费 EXIT 驱动，不依赖 worker 侧 recv 完成时序。
 - **协议**：`\t` 分帧（缓冲 ≥1024 无终止符则强制吐包，`src/net/GateInfo.cpp:131-156`）；
   载荷是 `&C=<code>&M=<text>&` 形式的键值对（`src/util/StringUtil.cpp:35-60`）；
   全链路 GBK；**混淆（非加密）**：固定 9 字节密钥 XOR（`StringUtil.cpp:77-97`），无压缩无加密。
@@ -184,9 +187,15 @@ verified-by: pending（待作者确认 Open Questions）
   `UPDATE jianghudb set cc_name=..., cc_savedata='<JSON>'`（`src/char/CharSave.cpp:93-141`）。
   Schema 管理 = `CREATE TABLE IF NOT EXISTS`（`src/db/DbTables.cpp:95-245`），**无版本表、无迁移**。
   脚本可用 `save_table`/`save_key` 自选路由表，C++ 不认识具体表名。
+- **密码契约**：密码/暗码**不含单引号**——登录口对整个登录串剥除后才比对
+  （`Login.cpp:176`），因此注册、`passwd`/`validate` 命令入口、`db_change_password`
+  写路径统一调 `normalize_password`（`StringUtil.cpp`）剥引号：长度校验、
+  `verify_user` 比对、落库三者看到同一形态，否则含引号密码存入后永远登不上。
+  SQL 字面量另经 `sql_escape_literal` 兜底（`db_change_password`/`db_change_verify_password`）。
 - **配置**：`--config <path>` 覆盖默认 `data/config.ini`（`src/util/CommandLine.cpp:10-58`，
   `main.cpp:61`）；`ini_load`/`ini_get` 读进全局 `g_ini_data`；
-  各模块在 `init_game` 时**快照**成静态成员（`src/config/ServerConfig.cpp:13-21` 等），
+  各模块在 `init_game` 时**快照**成静态成员（`src/config/ServerConfig.cpp:13-21`、
+  `CCombatConfig::load_ini` 的 `[server] ip_limit` 等），
   运行期改配置需重启（Lua 侧的 `ini_get` 绑定是实时的）。
 
 **Clarified Rationale**（from user，非推断）:
@@ -303,7 +312,7 @@ MySQL/SQLite 切换点，测试据此注入 `MockDatabase`/`ThrowingDatabase`
 erase 循环（`ServerSockWorker.cpp:213-221`）**未加锁**，与已加锁的迭代
 （`ServerSockWorker.cpp:142`）并发 —— 锁存在但未覆盖全部访问点。
 
-⚠️ **硬性 32 位约束**：`GateClient.cpp:12-52` 把 `CGateInfo*` 截断成
+⚠️ **硬性 32 位约束**：`GateClient.cpp:12-53` 把 `CGateInfo*` 截断成
 `uint32_t serial` 当作连接标识；一旦迁到 x64 立即失效，且陈旧 serial 有
 use-after-free 隐患（引用计数部分缓解，但 `close_client` 路径不持引用）。
 
@@ -420,18 +429,7 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 
 **Known Issues**（discovered during analysis）:
 
-- ⚠️ **疑似连接泄漏**：游戏侧主动关闭走 `close_client` 置 `m_login = CLOSING(-1)`
-  （`GateClient.cpp:12-23`），而 `RECV_MSG_EXIT` 分支只在
-  `m_login > GATE_LOGIN_PENDING_DELETE` 时才进入删除流程（`ServerSockWorker.cpp:175-176`）
-  —— 即 `-1` 永远不进删除分支。**未做运行时追踪，需实证。**
-- ⚠️ **`[server] ip_limit` 疑似不生效**：ini 值读入 `g_ip_limit`（`GameInit.cpp:95`），
-  但登录限流实际读 `g_combat_config.ip_limit()`（`Login.cpp:252,336`），
-  其值来自静态默认 30 且只能被巫师命令修改（`CombatConfig.cpp:12-19`）。
-- ⚠️ **登录密码变更路径的 SQL 注入面**：`passwd`/`validate` 命令把原始 `arg` 传入
-  `db_change_password`（`src/cmd/CmdUserAccount.cpp:176,190,206` → `SqlAccount.cpp:179-181`），
-  **不经转义**；登录路径靠整体剥除 `'` 缓解，游戏内路径没有。
-- ⚠️ **死代码 / 死配置**：`alarm_loop` 与 `g_heart_beat_flag` 无调用者；
-  `SetEvent(g_event)` 指向从未 `CreateEvent` 的句柄；`db_save_box/db_load_box/db_delete_box`
+- ⚠️ **死代码 / 死配置**：`SetEvent(g_event)` 指向从未 `CreateEvent` 的句柄；`db_save_box/db_load_box/db_delete_box`
   与 `select_game_database` 只有测试 stub；`t_saveobj`、`user` 表有 DDL 无调用方。
 - ⚠️ **`gen_apply.py` 缺失**：`LuaBindDecls.h` 注释称绑定由该脚本生成，仓库中找不到它。
 - ⚠️ **`CCmdHandle` 双全局**：`CommandHandle`（`src/char/Char.cpp:32`，实际被用）
@@ -479,16 +477,13 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 **Immediate**:
 
 - [ ] 给 `g_gate_list` 的 `push_back` 与 erase 循环补上已有的 `g_gate_list_mutex`
-- [ ] 给 `passwd`/`validate` 路径接上 `sql_escape_literal`
-- [ ] 运行时验证 `m_login = -1` 的 gate 是否泄漏；若泄漏，统一 `close_client` 与删除分支
-- [ ] 核对 `[server] ip_limit` 是否到达登录限流；不通则接通或删除死配置
 
 **Short-Term**:
 
 - [ ] 为 MySQL 语句设置超时，并把 `on_login` 中的 DB 调用移出 `g_gate_list_mutex` / `m_cs` 临界区
 - [ ] `load_script()` 把整文件哈希移到缓存未命中之后（热路径 I/O 放大）
 - [ ] 回答 Open Questions 的安全姿态，据此决定是否立项
-- [ ] 清理已知死代码（`alarm_loop`、`SetEvent(g_event)`、`db_save_box` 族、`t_saveobj`/`user` 表）
+- [ ] 清理已知死代码（`SetEvent(g_event)`、`db_save_box` 族、`t_saveobj`/`user` 表）
 
 **Long-Term**:
 

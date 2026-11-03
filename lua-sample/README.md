@@ -20,6 +20,11 @@
 | 高级剑法 | `skill/sword_adv.lua` | 剑气 |
 | 高级投掷 | `skill/throw_adv.lua` | 飞星连珠；`valid_learn` 要求手持暗器 |
 
+另有一门**基础**技能随本世界自带：毒术（`skill/poison.lua`）。涂毒
+（`item/poison_base.lua` 的 `do_mo`）以 `query_skill("poison") > 0` 为准入，
+没有它涂毒只会把毒抹到自己手上；等级同时是毒效时效（登记 `remove_effect`
+的拍数）。本世界未设毒术师父，技能由巫师授予。
+
 ## 共享模块（require）
 
 示例项目演示了两种 `require` 用法，与真实代码库的模式一致：
@@ -56,6 +61,8 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 |------|------|------|
 | 房间公共 | `room/sample_room_common.lua` | 通用 do_look |
 | 秘籍公共 | `item/sample_book_common.lua` | 数据驱动创建 |
+| 食物基类 | `item/food_base.lua`（lua-default） | 包子复用：吃食判定 + 回血回气 + 吃完销毁 |
+| 毒药基类 | `item/poison_base.lua`（lua-default） | 蛇胆复用：观察（剩余次数 + 涂毒菜单）、涂毒 `do_mo`、毒效 `remove_effect`；**服下走自己的 `handle_action`**（`poison_base.handle_action` 的 use 分支会抢在 use 命令之前拦下、丢掉即时双损伤） |
 
 ## 物品体系
 
@@ -69,8 +76,9 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | 剑法秘籍 | `item/sample_book_sword.lua` | 学习剑法（使用 book_common） |
 | 金创药 | `item/sample_heal.lua` | 回血药品（`receive_curing`） |
 | 回春丹 | `item/sample_hp.lua` | 回血药品（`receive_healing`） |
+| 包子 | `item/sample_baozi.lua` | 食物：复用 `item/food_base.lua` 的通用吃食逻辑（回血回气、吃完销毁） |
 | 经验果 | `item/sample_xp.lua` | 使用后增加战斗经验 100000、内力上限 +100（山顶随机树箱掉落） |
-| 断肠散 | `item/sample_poison.lua` | 剧毒：服下即扣气血与气血上限，并挂载「断肠散之毒」状态持续扣血 |
+| 蛇胆 | `item/sample_shedan.lua` | 剧毒：服下即扣气血与气血上限，并挂载「蛇毒」状态持续扣血（青蛇死时掉落、杂货铺亦有售）；观察与涂毒复用 `item/poison_base.lua` |
 | 传送符 | `item/sample_teleport.lua` | 弹出菜单选择目的地传送 |
 | 酒壶 | `item/sample_teapot.lua` | liquid 容器，可 fill 装茶、use 饮用 |
 
@@ -89,7 +97,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 
 | 状态 | 文件 | 说明 |
 |------|------|------|
-| 断肠散之毒 | `condition/sample_poison.lua` | 断肠散服用后挂载：每拍扣 5% 气血上限，持续 2 拍后毒性散尽 |
+| 蛇毒 | `condition/snake_poison.lua` | 蛇胆服用后挂载：每拍扣 5% 气血上限，持续 2 拍后毒性散尽 |
 
 ## 房屋体系（住宅区 + 私宅）
 
@@ -160,14 +168,20 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 
 | NPC | 文件 | 说明 |
 |-----|------|------|
-| 山鸡 | `npc/sample_pheasant.lua` | 1级练级怪，不会还手；击杀经 `hooks.kill_bonus` 奖励 10000 经验 |
+| 青蛇 | `npc/sample_qingshe.lua` | 1级练级怪，不会还手；击杀经 `hooks.kill_bonus` 奖励 10000 经验，死时 `die` 把蛇胆丢在脚下 |
 
 **练级奖励机制**（挂点见 `data/hooks.lua`，钩子契约见 `lua-default/data/hooks.lua`）：
 - `hooks.kill_bonus(killer, victim, reward)` 在击杀 NPC 经验封顶后、入账前被调用；
   每次玩家击杀都会咨询（reward 可能为 0），因此固定奖励不因 nk_gain 的
   组队分红、晕倒归属、经验折算等上游因素失效
-- 山鸡（`sample_pheasant`）返回 `{ reward = 10000 }` 覆盖入账值，其余 NPC 返回 nil 按常规入账
-- 击杀后山鸡随房间 reset 自动补充，可持续练级
+- 青蛇（`sample_qingshe`）返回 `{ reward = 10000 }` 覆盖入账值，其余 NPC 返回 nil 按常规入账
+- 击杀后青蛇随房间 reset 自动补充，可持续练级
+
+**死亡掉落机制**（脚本 `die`，见 `npc/sample_qingshe.lua`）：
+- 脚本定义 `die` 即整个接管死亡：先做掉落，再 `self:die_base()` 回链标准死亡
+  流程——**不回链就没有尸体、也不结算击杀经验**（对照 `mirror_base` 的 `die` 装配）
+- 青蛇死时把蛇胆 `load_item` 出来丢进所在房间，谁杀的谁自己捡；
+  同一颗蛇胆杂货铺也有售（货位见 `npc/sample_vendor.lua`）
 
 **任务机制**（`data/quest.lua`，钩子契约见 `lua-default/data/hooks.lua`）：
 - 引擎不认任何「任务」类型，任务是纯数据集逻辑，只挂在两个通用挂点上：
@@ -228,7 +242,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | 场景 | 文件 | 说明 |
 |------|------|------|
 | 房间公共模块 | `room/sample_room_common.lua` | require 共享 do_look |
-| 状态脚本 | `condition/sample_poison.lua` | 「断肠散之毒」状态：挂载播报 + 逐拍倒数 + 归零解除 |
+| 状态脚本 | `condition/snake_poison.lua` | 「蛇毒」状态：挂载播报 + 逐拍倒数 + 归零解除 |
 | 山脚 | `room/sample_mountain_foot.lua` | 向导+商人，箱子 |
 | 山脚茶棚 | `room/sample_tea_stall.lua` | 水源fill |
 | 山脚钱庄 | `room/sample_bank.lua` | 钱庄老板（存取款/贷款） |
@@ -237,8 +251,10 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
 | 半山腰 | `room/sample_mountain_mid.lua` | 师父NPC + 练功木人 |
 | 练功木人 | `npc/sample_wooden_dummy.lua` | type=mirror 镜像NPC：`/ask 对练` 照挑战者复制自己 |
-| 山顶 | `room/sample_mountain_top.lua` | 副本入口，山鸡练级点 |
-| 山鸡 | `npc/sample_pheasant.lua` | 1级练级怪，击杀奖 10000 经验（hooks.kill_bonus） |
+| 山顶 | `room/sample_mountain_top.lua` | 副本入口，青蛇练级点 |
+| 青蛇 | `npc/sample_qingshe.lua` | 1级练级怪，击杀奖 10000 经验（hooks.kill_bonus），die 掉蛇胆 |
+| 包子 | `item/sample_baozi.lua` | 食物：复用 food_base 的通用吃食逻辑 |
+| 蛇胆 | `item/sample_shedan.lua` | 剧毒：服下双损伤 + 挂「蛇毒」状态（condition/snake_poison），观察/涂毒复用 poison_base |
 | sample 挂点 | `data/hooks.lua` | script_root 的 hooks 实现（kill_bonus + 称谓/任务规则安装） |
 | 任务 | `data/quest.lua` | 老李头的委托：pre_talk 接委托/复命 + pre_accept_object 交物 |
 | 频道禁词表 | `data/chanbanword.lua` | 可选数据集配置：命中即拒发（不提供则按空词表） |

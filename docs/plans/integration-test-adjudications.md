@@ -105,7 +105,7 @@ C++ 直调脚本字段/钩子（`C→Lua`），胶水方向天然无人走；0 �
 
 1. **巫师/诊断域 14**：`/reload` 权限 80 命令的整条 bridge-script-notify 链、
    `dump_caller_info` 加载失败打印、`get_magic_name`/`display_name` **全库无调用方**、
-   `lua_bind_check_object`/`lua_check_char` 内层助手其绑定教材未调；
+   `lua_check_char` 内层助手其绑定教材未调；
 2. **hook 读取端 5**：`result_bool`/`is_number`/`int`/`table_str_*` 全挂在**未注册 hook**
    后——`calculate_damage`、`can_prepare_combine` 不在注册面；
 3. **教材未定义字段/4 参链 8**：`greeting`/`finish_kill`/`is_defeated`/`accept_fight`/

@@ -23,7 +23,6 @@ public:
 
     int query_server();
     int handle_command();
-    bool on_receive(const char* command_string, int ret);
     void push_command(char* command, int len);
 
     void ready_pk();

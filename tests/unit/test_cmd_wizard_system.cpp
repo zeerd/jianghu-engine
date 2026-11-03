@@ -630,7 +630,6 @@ TEST_F(CmdWizardSystemTest, PrintMapping_ReturnsOk)
 // =====================================================================
 // 授权表单源化（CmdWizardInit.cpp 单张三元组表）：recruit_exp /
 // print_mapping 按 docs/protocol.md §4.4 补上 grant=50 门槛；历史死条目
-// reward_money / tail（有授权无 handler）不再注册，恒不可达。
 // =====================================================================
 TEST_F(CmdWizardSystemTest, GrantGate_RecruitExpBlocksBelow50)
 {
@@ -662,15 +661,6 @@ TEST_F(CmdWizardSystemTest, GrantGate_PrintMappingAllowsAt50)
     me->set("grant", (long)50);
     char arg[8] = "";
     EXPECT_EQ(call_print_mapping(me, 0, arg), 1);
-}
-
-TEST_F(CmdWizardSystemTest, GrantTable_OrphanEntriesUnreachable)
-{
-    CCmdWizard cmd;
-    char arg[8] = "";
-    EXPECT_EQ(cmd.handlecommand((char*)"reward_money", me, 0, arg), -1)
-        << "无 handler 的历史条目不应可执行";
-    EXPECT_EQ(cmd.handlecommand((char*)"tail", me, 0, arg), -1);
 }
 
 TEST_F(CmdWizardSystemTest, Update_FreshensEnvironment)

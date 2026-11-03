@@ -8,6 +8,9 @@
 // 构建/运行：仓库根目录执行 .\run-coverage.ps1
 #include "pch.h"
 
+#include <cstdio>
+#include <string>
+
 #include "CommandLine.h"
 
 namespace {
@@ -94,4 +97,58 @@ TEST(CommandLineTest, BufferTooSmallFallsBackToDefault)
 TEST(CommandLineTest, NullBufferFallsBackToDefault)
 {
     EXPECT_STREQ(kDefault, parse_config_path("--config abc", nullptr, 16));
+    char buf[16] = "untouched";
+    EXPECT_STREQ(kDefault, parse_config_path("--config abc", buf, 0));
+    EXPECT_STREQ("untouched", buf);  // 未取到值，缓冲不被改动
+}
+
+// ---- parse_option_value：任意 `--<name> <value>` / `--<name>=<value>` 选项
+// ----
+
+namespace {
+
+std::string Option(const char* cmd_line, const char* name,
+                   const char* initial = "untouched")
+{
+    char buf[256];
+    snprintf(buf, sizeof(buf), "%s", initial);
+    return parse_option_value(cmd_line, name, buf, sizeof(buf))
+               ? std::string(buf)
+               : std::string("<miss>") + "|" + buf;
+}
+
+}  // namespace
+
+TEST(CommandLineOptionTest, BothFormsAndPrefixIsolation)
+{
+    EXPECT_EQ(Option("--log-run-id abc", "log-run-id"), "abc");
+    EXPECT_EQ(Option("--log-run-id=abc", "log-run-id"), "abc");
+    EXPECT_EQ(Option("--dbg --log-run-id abc --report out.txt", "log-run-id"),
+              "abc");
+    // 同前缀参数不是本选项，且其后仍能找到真选项
+    EXPECT_EQ(Option("--log-run-identity x --log-run-id abc", "log-run-id"),
+              "abc");
+    // 选项名自身被引号包裹（注入式启动器）
+    EXPECT_EQ(Option("\"--log-run-id\" \"abc\"", "log-run-id"), "abc");
+    EXPECT_EQ(Option("--log-run-id \"a b\"", "log-run-id"), "a b");
+}
+
+TEST(CommandLineOptionTest, MissLeavesBufferUntouched)
+{
+    EXPECT_EQ(Option(nullptr, "log-run-id"), "<miss>|untouched");
+    EXPECT_EQ(Option("", "log-run-id"), "<miss>|untouched");
+    EXPECT_EQ(Option("--config data/config.ini", "log-run-id"),
+              "<miss>|untouched");
+    // 无值 / 空值 / 缓冲不足都不算取到
+    EXPECT_EQ(Option("--log-run-id", "log-run-id"), "<miss>|untouched");
+    EXPECT_EQ(Option("--log-run-id ", "log-run-id"), "<miss>|untouched");
+    EXPECT_EQ(Option("--log-run-id=\"\"", "log-run-id"), "<miss>|untouched");
+
+    char small[4];
+    snprintf(small, sizeof(small), "kee");  // 4 字节缓冲只容得下 3 字符 + NUL
+    EXPECT_FALSE(parse_option_value("--log-run-id abcdef", "log-run-id", small,
+                                    sizeof(small)));
+    EXPECT_STREQ("kee", small);
+    EXPECT_FALSE(
+        parse_option_value("--log-run-id abc", "", small, sizeof(small)));
 }

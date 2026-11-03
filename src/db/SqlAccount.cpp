@@ -112,14 +112,13 @@ long db_register_account(const char* name, const char* passwd,
             return 0;
         }
 
-        // 密码：cc_passwd varchar(22)；登录流程会剔除单引号，此处同样剔除，
-        // 保证存库密码与登录校验串一致。
+        // 密码：cc_passwd varchar(22)。密码契约不含单引号——登录口对整个
+        // 登录串剥除单引号后才比对，注册必须同一规范化，否则含引号密码
+        // 存库后与登录校验串不一致（自我锁死）；长度按规范化后的值校验。
         char pass[24];
         snprintf(pass, sizeof(pass), "%s", passwd ? passwd : "");
+        normalize_password(pass);
         size_t plen = strlen(pass);
-        for (char* p = pass; *p; ++p) {
-            if (*p == '\'') *p = ' ';
-        }
         if (plen < 4 || plen > 22) {
             if (err)
                 snprintf(err, errlen, "密码长度必须在 4 到 22 个字符之间。");
@@ -182,11 +181,15 @@ bool db_change_password(const char* id, const char* new_pass)
     if (!g_db) return false;
 
     try {
-        char msg[256];
-        snprintf(msg, sizeof(msg),
-                 "update jianghudb set cc_passwd='%s' where cc_id=%s", new_pass,
-                 id);
-        int ret = g_db->execute(msg);
+        // 写路径契约：密码先规范化（剥单引号，与登录/注册同语义，否则
+        // 含引号密码存进去登录时对不上），字面量再转义兜底——同一入口也
+        // 覆盖巫师 chpass 这条不经命令层规范化的调用。
+        char pass[256];
+        snprintf(pass, sizeof(pass), "%s", new_pass ? new_pass : "");
+        normalize_password(pass);
+        std::string sql = "update jianghudb set cc_passwd='"
+                          + sql_escape_literal(pass) + "' where cc_id=" + id;
+        int ret         = g_db->execute(sql.c_str());
         return ret == 0;
     } catch (...) {
         LOG_ERROR("db_change_password: unknown exception");
@@ -199,19 +202,22 @@ bool db_change_verify_password(const char* id, const char* new_pass)
     if (!g_db) return false;
 
     try {
+        // 暗码写路径：调用方（LoginAuth::change_verify_password）已剥除
+        // 单引号，这里转义兜底保证字面量安全。
+        const std::string esc = sql_escape_literal(new_pass);
         char msg[256];
         // SQLite 无 OLD_PASSWORD()：直接写入明文，由 db_verify_password
         // 等值比较
         if (g_db->is_sqlite()) {
             snprintf(msg, sizeof(msg),
                      "update jianghudb set cc_verifypass='%s' where cc_id=%s",
-                     new_pass, id);
+                     esc.c_str(), id);
         }
         else {
             snprintf(msg, sizeof(msg),
                      "update jianghudb set cc_verifypass = OLD_PASSWORD('%s') "
                      "where cc_id=%s",
-                     new_pass, id);
+                     esc.c_str(), id);
         }
         int ret = g_db->execute(msg);
         return ret == 0;

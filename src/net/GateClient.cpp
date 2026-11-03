@@ -17,8 +17,9 @@ void close_client(uint32_t serial)
         LOG_DEBUG("%d", gate_info->m_player);
         gate_info->m_login  = GATE_LOGIN_CLOSING;
         gate_info->m_player = 0;
-        gate_info->x_send();
-        closesocket(gate_info->m_sock);
+        // 统一走关闭路径：入队 RECV_MSG_EXIT（游戏线程据此调度删除）、
+        // 关闭并失效 socket。
+        gate_info->close_connection();
     }
 }
 

@@ -226,7 +226,7 @@ TEST_F(LuaConditionTest, LoadFailure_RecoversWhenScriptFileAppears)
 }
 
 // ---------------------------------------------------------------------
-// 样本条件脚本契约：lua-sample/condition/sample_poison.lua
+// 样本条件脚本契约：lua-sample/condition/snake_poison.lua
 //
 // 引擎只认自己的脚本根（test_config.ini 的 script_root），而条件名必须与
 // 条件脚本同名，故用例把样本脚本原文拷进单测脚本根再交给引擎加载——
@@ -236,28 +236,28 @@ TEST_F(LuaConditionTest, LoadFailure_RecoversWhenScriptFileAppears)
 // 样本条件脚本：挂载即写入条件项，逐拍扣血并递减 duration，归零后引擎清除条件项
 TEST_F(LuaConditionTest, SampleScript_MountsTicksAndExpires)
 {
-    ScopedSampleScript script("condition/sample_poison.lua",
-                              "lua-sample/condition/sample_poison.lua");
+    ScopedSampleScript script("condition/snake_poison.lua",
+                              "lua-sample/condition/snake_poison.lua");
     ASSERT_TRUE(script.ok()) << "样本条件脚本未就位: " << script.file();
-    ScopedCondition guard("sample_poison");
+    ScopedCondition guard("snake_poison");
 
     ch->set("max_hp", (long)100);
     ch->set("hp", (long)100);
     ch->set("eff_hp", (long)100);
 
     // 施加层：脚本可用 → init 被调用 → 条件项写入（2 拍）
-    ASSERT_TRUE(ch->apply_condition("sample_poison", 2, 0));
-    EXPECT_EQ(ch->query_condition("sample_poison"), 2);
+    ASSERT_TRUE(ch->apply_condition("snake_poison", 2, 0));
+    EXPECT_EQ(ch->query_condition("snake_poison"), 2);
     EXPECT_EQ(ch->query("hp"), 100) << "挂载本身不扣血";
 
     // 心跳层第 1 拍：脚本扣掉 5% 气血上限的血量，duration 自减
     ch->update_condition();
-    EXPECT_EQ(ch->query_condition("sample_poison"), 1);
+    EXPECT_EQ(ch->query_condition("snake_poison"), 1);
     EXPECT_EQ(ch->query("hp"), 95) << "毒性每拍应扣 5% 气血上限";
 
     // 心跳层第 2 拍：duration 归零 → 脚本返回 0 → 引擎清除条件项
     ch->update_condition();
-    EXPECT_EQ(ch->query_condition("sample_poison"), 0);
+    EXPECT_EQ(ch->query_condition("snake_poison"), 0);
     EXPECT_EQ(ch->query("hp"), 95) << "毒性散尽那拍不再扣血";
 }
 

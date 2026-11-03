@@ -1,0 +1,2 @@
+# Lua 源文件统一 LF：入库与检出字节一致，不随 core.autocrlf 漂移
+*.lua text eol=lf

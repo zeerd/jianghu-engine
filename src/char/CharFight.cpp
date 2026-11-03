@@ -174,18 +174,6 @@ void CChar::is_defeated(CChar* winner, CChar* failer)
     }
 }
 
-// 返回盾牌 Designed For Lingering Tale
-CContainer* CChar::query_shield()
-{
-    int32_t weapon = query_equip(WIELD_LEFT_HAND);  // 盾牌在左手
-    if (!weapon) return 0;
-
-    CContainer* ob = present(weapon);
-    if (!ob || DIFFERSTR(ob->querystr("armor_type"), "shield")) return 0;
-
-    return ob;
-}
-
 int CChar::query_unarmed()
 {
     int improve = query_skill("unarmed", 1);

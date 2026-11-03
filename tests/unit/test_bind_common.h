@@ -23,9 +23,17 @@
 #include "ItemMgr.h"
 #include "mock/mock_itemmgr.h"
 #include "LuaBind.h"
+#include "LuaBindTypes.h"
 #include "LuaEngine.h"
 #include "LuaBindDecls.h"
 #include "test_lua_env.h"
+
+// 从 Lua 栈取回 lua_bind_push_object 压入的绑定对象（压入/读回是一对），
+// 类型不符时由 luaL_checkudata 报错。绑定用例读返回值靠它。
+inline CMainObject* lua_bind_check_object(lua_State* L, int idx)
+{
+    return get_object(L, idx);
+}
 
 // RAII helper: install a g_ItemMgr factory that hands out real CItem objects
 // (so carry_object / add_money / Add_Box do not deref a null load_item result).
