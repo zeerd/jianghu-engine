@@ -3,8 +3,7 @@
 -- 除买卖外，还演示 NPC 侧的「对话菜单 + 菜单命令分发」：
 --   do_talk 在问话提到「交易」时列菜单，其余问话交回 base_do_talk 保持
 --   商家询问回绝；菜单命令经 handle_action 路由到 do_get_trade_doc，
---   向玩家发放交易文书（lua-default/item/trade.lua 贸易文书，参考
---   jianghu-dataset/npc/pub2/pub_xiaoer4.lua 的 gettrade）。
+--   向玩家发放交易文书（lua-default/item/trade.lua 贸易文书）。
 
 local npc = {}
 npc.type = "vendor"
@@ -27,23 +26,22 @@ function npc.create(self)
     self:carry_good("sample_book_sword", 5)
     self:carry_good("sample_heal", 200)
     self:carry_good("sample_hp", 200)
-    -- 蛇胆：毒药货位（山脚唯一毒药，与青蛇死时的掉落同源）
     self:carry_good("sample_shedan", 5)
     self:carry_good("sample_teleport", 2)
     self:carry_good("sample_teapot", 5)
     self:carry_good("sample_chess", 20)
-    -- 铜钥匙：开山脚那锁着的箱子（password 两处配套，见 key.lua 头注）
     self:carry_good("key", 5)
-    -- 包子：货架按追加排列，既有商品的序号不动——`/buy <序号>` 是玩家记在
-    -- 脑子里的用法，新货插队会把老主顾的下单指到别的商品上
     self:carry_good("sample_baozi", 20)
+    self:carry_good("sample_blind_box", 1000)
+    -- 烈酒：出厂即满的酒精饮料，饮下挂 condition/drunk（见 item/sample_jiu.lua）
+    self:carry_good("sample_jiu", 5)
 
     -- 自身装备
     self:carry_object("sample_sword_basic"):wear()
 end
 
 -- 对话入口：问话提到「交易」才列菜单；其余问话交回 base_do_talk，
--- 保持本 NPC 对陌生问话的「对方并不愿意理你。」回绝（见 vendor_talk.sce）
+-- 保持本 NPC 对陌生问话的「对方并不愿意理你。」回绝
 function npc.do_talk(self, me, ask)
     if ask ~= "" and not string.find(ask, "交易", 1, true) then
         return self:base_do_talk(me, ask)

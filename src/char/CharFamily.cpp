@@ -336,17 +336,6 @@ int l_prevent_learn(lua_State* L)
     return 1;
 }
 
-// self:attempt_apprentice(me)
-int l_attempt_apprentice(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    CChar* me = NULL;
-    if (lua_isuserdata(L, 2)) me = dynamic_cast<CChar*>(get_object(L, 2));
-    if (me) c->attempt_apprentice(me);
-    return 0;
-}
-
 // query_recruit(id) -> table|nil -
 // 查询某人收徒记录（key=弟子id，值={name,apprentice,exp}）
 int l_query_recruit(lua_State* L)

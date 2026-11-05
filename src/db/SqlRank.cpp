@@ -1,11 +1,10 @@
 ﻿/**
  * @file SqlRank.cpp
- * @brief 排行榜与游戏记录  */
+ * @brief 排行榜  */
 
 #include <windows.h>
 
 #include <stdio.h>
-#include <time.h>
 
 #include "Combatd.h"
 #include "Global.h"
@@ -69,94 +68,11 @@ int paihangbang(CContainer* me)
     }
 }
 
-// ============================================================
-// 玩家历练记录 (t_record 表)
-// ============================================================
-
-bool sql_update_record(const char* id, int type, int level, const char* data,
-                       bool update)
-{
-    try {
-        LOG_DEBUG("sql_update_record: %s, %d, %d, %s, %s", id, type, level,
-                  data, (update ? "update" : "-"));
-
-        char msg[255];
-        DbResultSet result;
-
-        char savetime[80];
-        struct tm* newtime;
-        time_t current = g_current_time;
-        newtime        = localtime(&current);
-
-        sprintf(savetime, "%d/%02d/%02d %02d:%02d:%02d",
-                1900 + newtime->tm_year, newtime->tm_mon + 1, newtime->tm_mday,
-                newtime->tm_hour, newtime->tm_min, newtime->tm_sec);
-
-        snprintf(msg, 255,
-                 "SELECT cc_level FROM t_record WHERE cc_id = '%s' and cc_type "
-                 "= %d;",
-                 id, type);
-        int ret_code = g_db->query(msg, result);
-        if (ret_code != 0) {
-            LOG_ERROR("update_record:query db fail!");
-            return false;
-        }
-
-        unsigned long long n = result.size();
-        if (n == 0) {
-            snprintf(msg, 255,
-                     "INSERT INTO t_record "
-                     "(cc_time, cc_id, cc_type, cc_level, cc_savedata) "
-                     "VALUES ('%s', %s, %d, %d, '%s')",
-                     savetime, id, type, level, data);
-            ret_code = g_db->execute(msg);
-            if (ret_code != 0) {
-                LOG_ERROR("update_record:insert to db fail!");
-                return false;
-            }
-        }
-        else {
-            const DbRow& row = result.rows[0];
-
-            snprintf(msg, 255,
-                     "update t_record set cc_time = '%s', cc_level=%d, "
-                     "cc_savedata='%s' "
-                     "where cc_id = '%s' and cc_type = %d and cc_level < %d",
-                     savetime, level, data, id, type, level);
-            ret_code = g_db->execute(msg);
-
-            if (ret_code != 0) {
-                LOG_ERROR("update_record:%s!", g_db->error());
-                return false;
-            }
-        }
-
-        return true;
-    } catch (...) {
-        LOG_ERROR("update_record:unknown!");
-        return false;
-    }
-}
-
 //---------------------------------------------------------
 // [LuaBind] auto-managed bindings
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// 全局：sql_update_record(id, type, level, data, update) - 更新玩家历练记录
-int l_sql_update_record(lua_State* L)
-{
-    const char* id       = luaL_checkstring(L, 1);
-    int type             = (int)luaL_checkinteger(L, 2);
-    int level            = (int)luaL_checkinteger(L, 3);
-    const char* data     = luaL_optstring(L, 4, "");
-    bool update          = lua_toboolean(L, 5) != 0;
-    std::string data_gbk = data;
-    lua_pushboolean(
-        L,
-        sql_update_record(id, type, level, data_gbk.c_str(), update) ? 1 : 0);
-    return 1;
-}
 // paihangbang(npc) -> number  排行榜查询
 int l_paihangbang(lua_State* L)
 {

@@ -240,7 +240,6 @@ public:
     virtual void finish_kill(CChar* me);
     int learn_bonus();
     int refuse_channel(const char* channel);
-    int32_t query_apply(const char* attr);
 
     int is_invalid();
 

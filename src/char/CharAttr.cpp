@@ -79,14 +79,6 @@ int CChar::query_grant() { return query("grant"); }
 
 int CChar::is_loading() { return query_temp("client/loading"); }
 
-int32_t CChar::query_apply(const char* attr)
-{
-    char key[80];
-
-    snprintf(key, 80, "apply/%s", attr);
-    return query(attr) + query_temp(key);
-}
-
 // 检查用户是否拒绝收听该频道信息
 int CChar::refuse_channel(const char* channel)
 {
@@ -170,18 +162,6 @@ int l_query_combat_exp(lua_State* L)
     CChar* ch = dynamic_cast<CChar*>(obj);
     if (!ch) return 0;
     lua_pushinteger(L, ch->query_combat_exp());
-    return 1;
-}
-
-// self:query_apply(attr) -> number
-int l_query_apply(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    const char* attr = luaL_checkstring(L, 2);
-    lua_pushinteger(L, ch->query_apply(attr));
     return 1;
 }
 
@@ -302,11 +282,12 @@ int l_query_exp(lua_State* L)
     return 1;
 }
 
-// self:query_valid_exp() -> number（校验等级是否有效）
+// self:query_valid_exp() -> number - 可用经验（经验总额减去等级与技能已耗的
+// 未分配部分；学技能与升级都从这里扣，玩家与 NPC 同域）
 int l_query_valid_exp(lua_State* L)
 {
-    CNpc* n = dynamic_cast<CNpc*>(get_object(L, 1));
-    if (!n) return 0;
-    lua_pushinteger(L, n->query_valid_exp());
+    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
+    if (!c) return 0;
+    lua_pushinteger(L, c->query_valid_exp());
     return 1;
 }

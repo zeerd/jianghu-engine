@@ -114,9 +114,8 @@ TEST_F(BindContainerDbaseTest, NameAndId)
 }
 
 // ---------------- set_name：改名后向同容器玩家重发行包 ----------------
-// 协议没有「改名」消息，名字只在物件进场景时下发；不在这里重发的话，先
-// Add_Box 再 set_name 的脚本（sample_guide 的随机树箱）对已在场玩家永远
-// 是旧名字。
+// 协议没有「改名」消息，名字只在物件进场景时下发；不在这里重发的话，
+// 已在场玩家拿到的永远是旧名字。
 class BindDbaseRenameTest : public BindEngineTest {
 protected:
     void PushStr(const char* s) { lua_pushstring(L, s); }

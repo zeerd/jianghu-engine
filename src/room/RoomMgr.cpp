@@ -48,22 +48,6 @@ void room_release()
 void remove_room(string room_name) { g_room_list.erase(room_name); }
 
 //---------------------------------------------------------
-// 导出房间地图（调试）
-//---------------------------------------------------------
-void draw_map()
-{
-    iterator_room p;
-    FILE* fp;
-    fp = fopen("map.txt", "wt");
-    if (!fp) return;
-
-    for (p = g_room_list.begin(); p != g_room_list.end(); p++)
-        fprintf(fp, "\"%s\",\n", p->first.c_str());
-
-    fclose(fp);
-}
-
-//---------------------------------------------------------
 // [LuaBind] auto-managed bindings
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)

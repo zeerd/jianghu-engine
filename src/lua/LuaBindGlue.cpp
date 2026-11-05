@@ -265,6 +265,19 @@ int l_call_out_combat(lua_State* L)
 
     int32_t param2 = (int32_t)luaL_optinteger(L, 5, 0);
 
+    // delay=0 的哨兵只在「角色离开战斗房」时被触发（CFightRoom::do_leave_team
+    // → evaluate_call_out_combat），心跳永不走表（CContainer::heart_beat 对
+    // type=1 且 delay==0 直接跳过）。脱战注册会一直挂到下一次打完一架才触发，
+    // 此后再不动手则永不触发——回调与它要解除的状态一起挂到对象销毁，
+    // 故在注册入口拒绝：延迟语义是「等这场战斗结束」，前提是此刻已在战斗中。
+    if (delay == 0 && c->query_temp("fight/is_fighting") == 0) {
+        LOG_ERROR(
+            "[Callout] call_out_combat delay=0 out of combat, "
+            "ob=%s(%ld) reject",
+            c->name(1), c->object_id());
+        return 0;
+    }
+
     int scriptRef = resolve_script_ref(obj);
 
     if (scriptRef == LUA_NOREF) {
@@ -667,21 +680,21 @@ int l_base_reset(lua_State* L)
 }
 
 // ini_get(section, key, default) -> string - 读取 config.ini 配置值，
-// 节与键由脚本自行选择
+// 节与键由脚本自行选择。
+// 配置文件是 UTF-8（GameInit 读同一批键时自行 utf8_to_gbk），而 Lua 字符串
+// 空间是 GBK 且脚本侧没有第二道转码口，故文件值在此归一为 GBK；缺键时的
+// 默认值由调用脚本以 GBK 传入，原样透传。
 int l_ini_get(lua_State* L)
 {
     const char* section = luaL_checkstring(L, 1);
     const char* key     = luaL_checkstring(L, 2);
     const char* def     = luaL_optstring(L, 3, "");
-    lua_pushstring(L, ini_get(section, key, def));
-    return 1;
-}
-
-// utf8_to_gbk(s) -> string - 脚本侧 UTF-8 文本转成服务器内部 GBK
-int l_utf8_to_gbk(lua_State* L)
-{
-    const char* s = luaL_checkstring(L, 1);
-    lua_pushstring(L, utf8_to_gbk(s).c_str());
+    const char* value   = ini_get(section, key, NULL);
+    if (!value) {
+        lua_pushstring(L, def);
+        return 1;
+    }
+    lua_pushstring(L, utf8_to_gbk(value).c_str());
     return 1;
 }
 

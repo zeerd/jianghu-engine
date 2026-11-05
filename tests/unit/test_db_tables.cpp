@@ -14,13 +14,13 @@ bool prepare_tables(void);
 
 namespace {
 
-// 服务器依赖的核心表：账号、门派招募、容器/物品/房间/箱子、存档、战斗记录等。
+// 服务器依赖的核心表：账号、门派招募、容器/物品/房间/箱子、存档、社交关系等。
 // 数据集专用表（如 t_treasure、t_corp）不在此列——它们由脚本经 db_register_ddl
 // 登记、prepare_tables 末尾统一执行，见 DatasetDdl 用例。
 // 顺序需与 prepare_tables 的执行顺序一致，失败点用例据此标注表名。
 const char* const kRequiredTables[] = {
     "jianghudb", "recruit_exp", "t_item", "t_npc",    "t_room",
-    "t_box",     "t_saveobj",   "user",   "t_record", "relative",
+    "t_box",     "t_saveobj",   "user",   "relative",
 };
 
 constexpr int kTableCount

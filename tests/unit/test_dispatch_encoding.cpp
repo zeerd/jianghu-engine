@@ -71,13 +71,3 @@ TEST_F(DispatchEncodingTest, ValidLeaveDirMatchesGbkLiteral)
         << "GBK dir（出口）应与脚本字面量直接相等";
     EXPECT_EQ(room->valid_leave(me, "somewhere"), 1);
 }
-
-TEST_F(DispatchEncodingTest, Utf8ToGbkBindingStaysAvailable)
-{
-    // 分发契约统一后脚本侧已无调用方，但 utf8_to_gbk 仍是内容作者的
-    // 公开绑定（构造 UTF-8 文本时使用），保持可用
-    lua_State* L = ensure_lua_env();
-    ASSERT_NE(L, nullptr);
-    ASSERT_EQ(luaL_dostring(L, "assert(utf8_to_gbk('abc') == 'abc')"), LUA_OK)
-        << lua_tostring(L, -1);
-}

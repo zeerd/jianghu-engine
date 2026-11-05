@@ -1,5 +1,6 @@
 {
   "instructions": [
-    ".claude/rules/*.instructions.md"
+    ".claude/rules/*.instructions.md",
+    ".claude/rules/copilot-instructions.md"
   ]
 }

@@ -113,7 +113,8 @@ TEST_F(CharCoreTest, IsKilling)
     CChar* foe = new CChar();
     foe->set("id", "foe1");
     EXPECT_EQ(ch->is_killing(foe), 0);
-    ch->set_killer(foe);  // records by id; is_killing checks object_id
+    ch->set_killer(foe);
+    EXPECT_EQ(ch->is_killing(foe), 1);
     ch->remove_all_killer();
     EXPECT_EQ(ch->is_killing(foe), 0);
     delete foe;

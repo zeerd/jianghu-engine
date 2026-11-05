@@ -48,7 +48,6 @@ public:
     virtual int valid_leave(CChar* me, const char* dir);
     virtual void setup();
     virtual void remove_all_doors();
-    virtual void remove_doors(const char* arg);
     virtual CContainer* add_item(const char* item_name);
     virtual DTEXITLIST* query_exits();
 

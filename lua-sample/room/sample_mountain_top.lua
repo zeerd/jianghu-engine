@@ -18,6 +18,9 @@ M.create = function(self)
     -- 奖励 10000 经验并掉落蛇胆，死后随房间 reset 自动补充
     self:add_npc("sample_qingshe")
 
+    -- 黑风寨总教头：判师改投的去处（见 npc/sample_heifeng_master.lua）
+    self:add_npc("sample_heifeng_master")
+
     self:set(
         "long",
         "这里是青云山的山顶，可以俯瞰整个山谷。前方隐约可见一座山寨，那是山贼的老巢。"

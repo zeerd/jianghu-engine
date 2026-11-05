@@ -15,6 +15,9 @@ require("data.rank").install(hooks)
 require("data.quest").install(hooks)
 -- 天下大考：answer 频道接管（出题 / 判分 / 奖励，见 data/exam.lua）
 require("data.exam").install(hooks)
+-- 开盲盒记档：建表语句须在 require 期登记（建表由开机 prepare_tables 统一
+-- 执行，晚于它登记表就永远建不出来；见 data/box_draw_log.lua）
+require("data.box_draw_log")
 
 -- 新角色起步本金（金）
 -- 取值偏大：住宅区地价随住户数走阶梯（见 resident_base HOUSE_PRICES，最低档
@@ -49,5 +52,56 @@ function hooks.kill_bonus(killer, victim, reward)
     if victim:query("xp_bonus") == 1 then
         return { reward = 10000 }
     end
+    -- 固定击杀经验（nk_bonus）：入账值原本要过 nk_gain 的历练折算——对手历练
+    -- 远高于这类杂鱼时折出来就是 0，杀了等于白杀；写死在本挂点上才折不掉
+    local bonus = victim:query("nk_bonus")
+    if bonus ~= 0 then
+        return { reward = bonus }
+    end
+    return nil
+end
+
+-- hooks.fight(me, victim)
+--   调用点：CCombatd::fight 每次常规出手结算完之后，攻守双方各走一次。
+--   这里做「追加攻击」：带 hidden_weapon 标记的角色（山道强人）在自己那一
+--   回合补一记棋子——取身上第一件暗器发动一次独立结算。
+--   flag 走 TYPE_HIT（必中档）：这一档把对手的闪避值与招架值都压到 1，
+--   暗器是贴身抖出去的，中不中只看出手的人，不给对手凭身法让开的余地。
+function hooks.fight(me, victim)
+    if me:query("hidden_weapon") ~= 1 then
+        return
+    end
+
+    local weapon = get_first_throwing_weapon(me)
+    if not weapon then
+        return
+    end
+
+    combat_attack_weapon(me, victim, weapon, TYPE_HIT)
+end
+
+-- hooks.post_buy(vendor, buyer, goods)
+--   调用点：CVendor::do_buy 成交之后（引擎只给「买下了」回执，成交后想对
+--   买卖双方说的话在此给）。盲盒「拆开之前不退不换」是它独有的规矩，故按
+--   goods.basename 收窄到盲盒，别的货位不发这句——message_vision_self 只送
+--   买卖双方、不进房间广播。
+function hooks.post_buy(vendor, buyer, goods)
+    if goods.basename ~= "sample_blind_box" then
+        return
+    end
+
+    message_vision_self("$N冲$n笑道：盲盒拆开之前不退不换，想清楚再开。", vendor, buyer)
+end
+
+-- hooks.calculate_damage(me, victim, damage)
+--   调用点：CAttack 伤害算完、落到身上之前，damage 就是这一击的实打数值。
+--   这里把打在山道强人身上的每一击格式化后私发给出手方——他自己的攻击几乎
+--   不会落空，文案稳定；返回 nil 即不改写伤害。
+function hooks.calculate_damage(me, victim, damage)
+    if victim:query("hidden_weapon") ~= 1 then
+        return nil
+    end
+
+    tell_object(me, "这一击" .. damge_to_string(damage))
     return nil
 end

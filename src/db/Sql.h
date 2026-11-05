@@ -86,6 +86,3 @@ bool db_update_relative(const char* me, const char* target, long pt, int flag);
 // 排行榜
 // ------------------------------------------------------------
 int paihangbang(CContainer* me);
-
-bool sql_update_record(const char* id, int type, int level, const char* data,
-                       bool update = false);

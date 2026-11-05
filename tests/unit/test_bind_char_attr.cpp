@@ -25,14 +25,6 @@ TEST_F(BindCharAttrTest, QueryAttributes)
     EXPECT_EQ(18, CallInt(l_query_per, 1));
 }
 
-TEST_F(BindCharAttrTest, QueryApply)
-{
-    ch.set_temp("apply/str", (long)5);
-    lua_bind_push_object(L, &ch);
-    lua_pushstring(L, "str");
-    EXPECT_EQ(5, CallInt(l_query_apply, 2));
-}
-
 TEST_F(BindCharAttrTest, AddBalance)
 {
     lua_bind_push_object(L, &ch);
@@ -46,8 +38,10 @@ TEST_F(BindCharAttrTest, QueryExp)
     ch.set("combat_exp", (long)50000);
     lua_bind_push_object(L, &ch);
     EXPECT_EQ(50000, CallInt(l_query_exp, 1));
+    // 契约：可用经验对普通 CChar 同样可读（玩家侧升级/学技能的扣费依据），
+    // level/sk_exp 未设时 = 经验总额
     lua_bind_push_object(L, &ch);
-    EXPECT_GE(CallInt(l_query_valid_exp, 1), 0);
+    EXPECT_EQ(50000, CallInt(l_query_valid_exp, 1));
     lua_bind_push_object(L, &ch);
     EXPECT_GE(CallInt(l_query_combat_exp, 1), 0);
 }

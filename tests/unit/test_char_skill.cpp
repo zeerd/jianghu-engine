@@ -4,12 +4,15 @@
 //
 #include "pch.h"
 #include "Char.h"
+#include "test_lua_env.h"  // condition 已全 lua 化：apply/update 依赖脚本环境
 
 class CharSkillTest : public ::testing::Test {
 protected:
     CChar* ch;
     void SetUp() override
     {
+        // 夹具自建 Lua 环境，不依赖同进程里前序测试的初始化
+        ASSERT_NE(ensure_lua_env(), nullptr);
         ch = new CChar();
         ch->set("name", "sk");
         ch->set("id", "sk1");

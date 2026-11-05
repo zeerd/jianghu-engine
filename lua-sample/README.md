@@ -77,10 +77,13 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | 金创药 | `item/sample_heal.lua` | 回血药品（`receive_curing`） |
 | 回春丹 | `item/sample_hp.lua` | 回血药品（`receive_healing`） |
 | 包子 | `item/sample_baozi.lua` | 食物：复用 `item/food_base.lua` 的通用吃食逻辑（回血回气、吃完销毁） |
-| 经验果 | `item/sample_xp.lua` | 使用后增加战斗经验 100000、内力上限 +100（山顶随机树箱掉落） |
+| 经验果 | `item/sample_xp.lua` | 使用后增加战斗经验 100000、内力上限 +100（山顶怪树聊天摘得） |
 | 蛇胆 | `item/sample_shedan.lua` | 剧毒：服下即扣气血与气血上限，并挂载「蛇毒」状态持续扣血（青蛇死时掉落、杂货铺亦有售）；观察与涂毒复用 `item/poison_base.lua` |
 | 传送符 | `item/sample_teleport.lua` | 弹出菜单选择目的地传送 |
-| 酒壶 | `item/sample_teapot.lua` | liquid 容器，可 fill 装茶、use 饮用 |
+| 酒壶 | `item/sample_teapot.lua` | liquid 容器，可 fill 装茶、use 饮用（空容器，装什么由 fill 决定） |
+| 烈酒 | `item/sample_jiu.lua` | liquid 容器，**出厂即满的酒精饮料**：use 直接走 `liquid_base.do_use` 的致醉分支，挂「醉酒」状态，不需 fill |
+| 盲盒 | `item/sample_blind_box.lua` | 商人出售；use 拆盒，`xrandom` 从奖池抽一件 sample 物品（奖池按 value 升序，越贵越难开）；开盒记档写独立表（`data/box_draw_log.lua`） |
+| 一个奇怪的树 | `item/sample_tree.lua` | 房间陈设物（`no_get` 捡不走、`no_clean_up` 不被 reset 清扫），老李头随机刷在山顶；对它 `talk` 即摘下一粒经验果（物件截获命令 + `handle_action`），果子只有一枚 |
 
 ## 状态体系（condition）
 
@@ -98,6 +101,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | 状态 | 文件 | 说明 |
 |------|------|------|
 | 蛇毒 | `condition/snake_poison.lua` | 蛇胆服用后挂载：每拍扣 5% 气血上限，持续 2 拍后毒性散尽 |
+| 醉酒 | `condition/drunk.lua` | 烈酒饮用后挂载：逐拍播报醉意 → 拍数到 1 调 `unconcious()` 昏过去 → 拍数到 0 调 `revive()` 醒过来并回满气血 |
 
 ## 房屋体系（住宅区 + 私宅）
 
@@ -125,9 +129,38 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 
 | NPC | 文件 | 说明 |
 |-----|------|------|
-| 老李头（向导） | `npc/sample_guide.lua` | 聊天NPC，随机自言自语；在山顶随机刷出"奇怪的树"（树箱）；身兼任务发起人（`data/quest.lua`） |
+| 老李头（向导） | `npc/sample_guide.lua` | 聊天NPC，随机自言自语；在山顶随机刷出"奇怪的树"（`item/sample_tree.lua`）；身兼任务发起人（`data/quest.lua`） |
 | 杂货老板（商人） | `npc/sample_vendor.lua` | 出售武器、秘籍、药品、酒壶、棋子等；`/ask 交易` 菜单索取交易文书 |
+| 云游道人（巡游） | `npc/sample_wanderer.lua` | `random_move` 随机取出口走动 + 自我续排 `call_out`：从山脚路口出发全图巡逻；副本与主图之间没有门，走不进副本 |
 | 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
+
+### 山脚林间空地
+
+| NPC / 场景 | 文件 | 说明 |
+|-----|------|------|
+| 林间空地 | `room/sample_woods.lua` | 死胡同支线场地（山脚单门进出），不设 no_fight |
+| 山道强人 | `npc/sample_road_rogue.lua` | 「记仇 / 切磋」的脚本侧配合——**出言不逊才记账，客气请教才当场还手**：`do_talk`「挑衅」按 `is_killing` 分真假支（首次 `set_killer` 记账，而它**不开打**、只把人写进追杀名单，所以同一句能反复问）· `do_talk`「讨教」→ `fight_ob` 还手不记账（这句才开战）· 收受贿赂 → `remove_all_killer` 双方销账 · 打到死由 `die` 接管（`killer_reward` + `MakeCorpse`）· 每回合补暗器（`data/hooks.lua` 的 `hooks.fight`） |
+
+**记仇与切磋的分野**（引擎侧 `src\cmd\CmdStandardCombat.cpp`）：
+- `/fight` 切磋 → `CNpc::accept_fight` → `do_bishi` 比试房，**全程不碰杀意名单**；
+  `/kill` 记仇 → `cmd_hit_ob` + **双向 `set_killer`**（源码注释即「记仇的」）。
+  两条路开的都是战斗房，差别只在名单——「看起来XX想杀死你」这句私发只在后者出现。
+- 名单记的是**跨会面的追杀关系**：`is_killing` 读它、`remove_all_killer` 撤它，
+  人还在名单里，下次进房会被 `CChar::init` 的 hatred 分支自动开战。
+- 数据集同款读法见 `npc/pub4/pub_guidao.lua:47`：先问 `is_killing` 再决定下不下死手；
+  「进房即宣死战」（`huashan_mei` 对三人 `set_killer` 一类）是表达恶意的**特殊**用法，
+  本样本不走那条。
+
+**暗器与死亡**：
+- 追击挂在 `hooks.fight`（常规出手结算完后攻守各走一次），按角色身上的
+  `hidden_weapon` 标记过滤，flag 走 `TYPE_HIT` 必中档——补击的招式文案由
+  `build_action_description` 出，排在闪避判定之前，只要补击发出就必然可见
+- 伤害文案挂在 `hooks.calculate_damage`（伤害落到身上之前，`damage` 是实打
+  数值）：打在山道强人身上的每一击都格式化后私发给出手方，返回 nil 不改写伤害
+- 死亡由脚本接管：`killer_reward` 结算奖励 → `MakeCorpse` 造尸体 → 自毁；
+  **不回链 `die_base`**，否则奖励与尸体交回 C++ 再做一遍（对照青蛇的回链写法）
+- 击杀奖励另配 `nk_bonus` 固定经验：`nk_gain` 按双方历练折算，对手历练远高于
+  这类杂鱼时折出来就是 0、杀了等于白杀——固定值只能走 `hooks.kill_bonus`
 
 ### 茶棚（山脚分支）
 
@@ -194,6 +227,12 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
   `quest/lilaotou` 上，随角色存档走
 
 **其余挂点**（同样见 `data/hooks.lua`）：
+- `hooks.fight(me, victim)`：常规出手结算完后的追加攻击钩子，攻守双方各走一次
+  （本世界只给带 `hidden_weapon` 标记的角色开小灶，其余一律早返回）
+- `hooks.calculate_damage(me, victim, damage)`：伤害落到身上之前的最后一道口子，
+  拿得到这一击的实打数值；返回 nil 即不改写伤害
+- `hooks.post_buy(vendor, buyer, goods)`：成交之后补话头（本世界只给盲盒发
+  一句不退不换的须知），走 `message_vision_self` 只送买卖双方、不进房间广播
 - `data/chanbanword.lua`：频道禁词表（可选数据集配置），命中即拒发；
   不提供本文件时按空词表处理
 
@@ -203,8 +242,10 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 吃完还得打坐一阵把内力真练进去（道理写在 `item/sample_xp.lua` 的注释里）。
 
 **随机事件（概率性内容）**：
-- 山脚的向导老李头挂一个延迟函数，以 1/10 的概率在山顶刷出"一个奇怪的树"
-  （`Add_Box` + `sample_xp` 经验果）；未命中则 5 秒后重掷，直到刷出为止
+- 山脚的向导老李头挂一个延迟函数，以 1/5 的概率用 `add_item` 在山顶刷出
+  "一个奇怪的树"（`item/sample_tree.lua`）；未命中则 5 秒后重掷，直到刷出为止
+- 和怪树聊天（对它 `talk`）即摘下树上唯一一枚经验果——物件在命令分发中
+  先于内建命令截获定向命令，由脚本的 `handle_action` 决定摘果
 - 演示 `random()` + `call_out()` 驱动的概率事件与按需刷内容
 
 ### 副本（黑风寨）
@@ -233,7 +274,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
  向导+商人            师父（学技能）    守门喽啰        小喽啰+大当家（战斗）
  箱子(剑/币/药)        自动出绝招     (副本门→大厅)
                        练功木人(对练)
- 随机树箱(经验果)
+ 随机怪树(talk摘经验果)
  └→ 住宅区（申请成为居民 → 置产 → 搬进自家宅院）
 ```
 
@@ -243,7 +284,11 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 |------|------|------|
 | 房间公共模块 | `room/sample_room_common.lua` | require 共享 do_look |
 | 状态脚本 | `condition/snake_poison.lua` | 「蛇毒」状态：挂载播报 + 逐拍倒数 + 归零解除 |
-| 山脚 | `room/sample_mountain_foot.lua` | 向导+商人，箱子 |
+| 状态脚本 | `condition/drunk.lua` | 「醉酒」状态：逐拍倒数 → `unconcious()` 昏过去 → `revive()` 醒过来 |
+| 烈酒 | `item/sample_jiu.lua` | 出厂即满的酒精饮料，use 挂「醉酒」状态（杂货铺货位 14） |
+| 山脚 | `room/sample_mountain_foot.lua` | 向导+商人+巡游道人，箱子 |
+| 云游道人 | `npc/sample_wanderer.lua` | `random_move` 随机走动 + 自我续排 `call_out` 的巡逻NPC |
+| 山脚林间空地 | `room/sample_woods.lua` | 死胡同支线场地，山道强人驻扎（战斗状态链） |
 | 山脚茶棚 | `room/sample_tea_stall.lua` | 水源fill |
 | 山脚钱庄 | `room/sample_bank.lua` | 钱庄老板（存取款/贷款） |
 | 住宅区 | `room/sample_resident.lua` | type=resident，申请成为居民 → 置产 → 搬家；驻守月老 |
@@ -258,6 +303,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | sample 挂点 | `data/hooks.lua` | script_root 的 hooks 实现（kill_bonus + 称谓/任务规则安装） |
 | 任务 | `data/quest.lua` | 老李头的委托：pre_talk 接委托/复命 + pre_accept_object 交物 |
 | 频道禁词表 | `data/chanbanword.lua` | 可选数据集配置：命中即拒发（不提供则按空词表） |
+| 开盒记档 | `data/box_draw_log.lua` | 独立表 `sample_box_draw`（谁/何时/开出什么）：require 期 `db_register_ddl` 建表，拆盒 `db_execute` 写 + `db_query` 读回次数 |
 | 副本总控 | `room/sample_stronghold_fb.lua` | type=fb，只预加载入口房间 |
 | 副本房间 | `room/sample_stronghold_courtyard.lua` | type=fbroom，入口+副本门 |
 | 副本房间 | `room/sample_stronghold.lua` | type=fbroom，大厅+战斗NPC |

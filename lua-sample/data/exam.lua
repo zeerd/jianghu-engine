@@ -48,7 +48,8 @@ function M.install(hooks)
             me:add("combat_exp", REWARD)
             -- 奖励入账即推送 RTNINFO：属性面板（总经验/战斗力）立即刷新
             me:FlushMyInfo()
-            return { mouren .. " 答对了！奖历练 " .. REWARD .. " 点。" }
+            -- 奖数走中文数字播报（chinese_number），频道文案里不夹阿拉伯数字
+            return { mouren .. " 答对了！奖励经验值" .. chinese_number(REWARD) .. "点。" }
         end
 
         return { mouren .. " 答错了，再想想。" }

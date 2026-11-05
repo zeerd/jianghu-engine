@@ -149,6 +149,8 @@ verified-by: pending（待作者确认 Open Questions）
   频道发言的行为接管走 `hooks.do_channel`（示例：`lua-sample/data/exam.lua` 天下大考）。
 - **分工铁律**：引擎不知道"任务"这种类型；法术一律 Lua（`CSkill::Magic_t.lua_func`）；
   但战斗主循环、命令框架、移动、网络、持久化、心跳调度在 C++。
+  全局绑定只暴露引擎能力，不反向 `require` 内容模块、不做 Lua→C++→Lua 纯转发——
+  内容组合逻辑由内容层模块直连。
 
 **Key Implementation Details**:
 
@@ -335,7 +337,7 @@ erase 循环（`ServerSockWorker.cpp:213-221`）**未加锁**，与已加锁的�
 `find_online` 是 `g_user_list` 线性扫描。
 
 ⚠️ **无 schema 迁移、无事务**：`CREATE TABLE IF NOT EXISTS` 是全部 schema 管理；
-`db_save_container` / `db_update_recruit` / `sql_update_record` 等是
+`db_save_container` / `db_update_recruit` 等是
 "先 SELECT 后 INSERT/UPDATE" 的读改写，**只因进程内单写者才成立**，
 一旦有第二个进程写库立即产生竞态。`verify_user` 用 `select *` **按下标**取列
 （`src/db/Sql.cpp:226-313`），列顺序变化会静默错位。

@@ -48,19 +48,25 @@ jianghu_core.lib (静态库)
 
 ```
 tests/
-├── tests.vcxproj       # VS 工程文件（唯一测试入口）
-├── packages.config           # NuGet 包配置（Google Test）
-├── pch.h / pch.cpp          # 预编译头（gtest/gtest.h）
-├── mock/                     # Mock 层（链接时替换）
-│   ├── mock_net.cpp          # 仅测试开关 g_test_suppress_output
-│   ├── mock_db.cpp           # 替代被排除出库的 src/db/Sql.cpp；补 main.cpp 的 g_ini_data
-│   ├── mock_game.cpp         # 空壳占位，当前无 mock 函数
-│   ├── mock_itemmgr.cpp/.h   # CMockItemMgr：物品管理器假实现
-│   └── mock_database.h       # MockDatabase / ThrowingDatabase（IDatabase 假实现）
-├── lua-tests/                # Lua 夹具脚本
-├── test_config.ini           # 测试配置（相对仓库根读取）
-├── test_smoke.cpp            # 冒烟测试（验证框架链接正确）
-└── test_<功能名>.cpp         # 其他测试文件
+├── integration/                 # 集成测试（E2E，见 integration-test.md §1.2）
+├── Debug/ / Release/ / x64/     # 构建输出（Debug 为手动 Debug 构建的产物目录）
+├── test_tmp_dir.h               # 测试临时目录路径（经 JIANGHU_TEST_TMP 消费）
+└── unit/                        # 单元测试工程根
+    ├── tests.vcxproj            # 引擎测试工程（唯一引擎测试入口）
+    ├── packages.config          # NuGet 包配置（Google Test）
+    ├── pch.h / pch.cpp          # 预编译头（gtest/gtest.h）
+    ├── mock/                    # Mock 层（链接时替换）
+    │   ├── mock_net.cpp         # 仅测试开关 g_test_suppress_output
+    │   ├── mock_db.cpp          # 替代被排除出库的 src/db/Sql.cpp；补 main.cpp 的 g_ini_data
+    │   ├── mock_game.cpp        # 空壳占位，当前无 mock 函数
+    │   ├── mock_itemmgr.cpp/.h  # CMockItemMgr：物品管理器假实现
+    │   └── mock_database.h      # MockDatabase / ThrowingDatabase（IDatabase 假实现）
+    ├── lua-tests/               # Lua 夹具脚本
+    ├── test_config.ini          # 测试配置（相对仓库根读取：tests/unit/test_config.ini）
+    ├── test_smoke.cpp           # 冒烟测试（验证框架链接正确）
+    └── test_<功能名>.cpp        # 其他测试文件
+
+cli/tests/                       # CLI 测试工程（jianghu_cli_tests.vcxproj）
 ```
 
 ---
@@ -98,6 +104,10 @@ tests/
 Debug 与 Release 不是同一个被测对象。Debug 的栈填充区与调试堆会暂时掩盖越界写/未初始化内存，优化开关又会改变 UB 的表现；生产代码跑的是 Release。Debug 全绿只证明 Debug 没问题，不证明生产没问题。
 
 因此 Debug 版测试程序被硬门禁封死：`TestConfigGate.DebugBuildIsNotAcceptance` 无条件失败，Debug 版无论怎么跑都在结果里报红——门禁本身是指令文件「构建命令和运行方法」的可执行事实，本节是它的理由。
+
+**Release-only 的依据**：生产服务器以 `Release|Win32`（`/MT`、`NDEBUG`、`/O2`）构建，
+覆盖率也直接在 Release 上采集（Release 带 PDB，OpenCppCoverage 行映射正常）——
+`run-coverage.ps1` 从头到尾只有 Release 一个配置，测试与生产跑的是同一套构建口径。
 
 ---
 

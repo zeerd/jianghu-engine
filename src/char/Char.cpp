@@ -320,11 +320,11 @@ int32_t CChar::query_condition(const char* cnd)
     return _M.query(key);
 }
 
+// 杀意名单以角色 id 为键：写(set_killer)、销(remove_killer)、读(本函数)
+// 三处必须同一口径，名单才是一份可往返的状态
 int CChar::is_killing(CChar* ob)
 {
-    char id[20];
-    return (m_killers.find(snprintf(id, 20, "%ld", ob->object_id()))
-            != m_killers.end());
+    return (m_killers.find(ob->querystr("id")) != m_killers.end());
 }
 
 void CChar::remove_faint(CContainer* me, int32_t param1, int32_t param2)

@@ -98,6 +98,7 @@ return {
                             local damage = me:query_skill("force_adv", 1) * 2
                             obj:receive_damage("hp", damage)
                             message_vision("$N被狮子吼震得气血翻涌！", obj)
+                            obj:set_killer(me)
                         end
                     end
                 end

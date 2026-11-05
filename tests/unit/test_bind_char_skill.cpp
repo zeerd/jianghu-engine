@@ -164,7 +164,7 @@ TEST_F(BindCharSkillTest, PrepareSkillAndClears)
     EXPECT_EQ(0, ch.query_skills()->get_count());
 }
 
-TEST_F(BindCharSkillTest, SkillNeedPointsAndHardcore)
+TEST_F(BindCharSkillTest, SkillNeedPoints)
 {
     // 契约：无该技能时 (0+1)^2 - 0 = 1
     lua_bind_push_object(L, &ch);
@@ -173,9 +173,7 @@ TEST_F(BindCharSkillTest, SkillNeedPointsAndHardcore)
 
     ch.set_skill("unarmed", 40);
     lua_bind_push_object(L, &ch);
-    int k = call(l_query_hardcore_skills, 1);
-    // 契约：无 hard-core 标记的技能返回 nil（l_query_hardcore_skills 尾部）
-    EXPECT_EQ(1, k);
-    EXPECT_TRUE(lua_isnil(L, -1));
-    lua_pop(L, k);
+    lua_pushstring(L, "unarmed");
+    // 契约：已学 40 级时 (40+1)^2 - 0 = 1681
+    EXPECT_EQ(1681, CallInt(l_skill_need_points, 2));
 }

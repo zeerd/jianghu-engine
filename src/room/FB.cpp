@@ -11,8 +11,6 @@
 #include "User.h"
 #include "fightroom.h"
 
-#include "Sql.h"
-
 void set_heart_beat_obj(CContainer* obj, int flag);
 std::unique_ptr<CFBRoom> create_fb_room(string room_name, CFB* fb);
 
@@ -173,19 +171,6 @@ void CFB::begin_fb(const char* source_map, int limit_time, int flag)
 void CFB::end_fb()
 {
     try {
-        char msg[255];
-
-        CMapping* m = querymap("player");
-        if (m != NULL) {
-            CVector v;
-            m->keys(v);
-
-            for (int i = 0; i < v.count(); i++) {
-                snprintf(msg, 80, "player/%s", v[i]);
-                sql_update_record(v[i], 1, query(msg), "", true);
-            }
-        }
-
         DTItemList search;
         CContainer* env;
 

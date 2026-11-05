@@ -270,20 +270,6 @@ void CRoom::remove_all_doors()
     m_door_list.clear();
 }
 
-void CRoom::remove_doors(const char* arg)
-{
-    auto it = m_door_list.begin();
-    while (it != m_door_list.end()) {
-        CDoor* door = *it;
-        if (EQUALSTR(door->querystr("next_room"), arg)) {
-            it = m_door_list.erase(it);
-            delete door;
-            break;
-        }
-        ++it;
-    }
-}
-
 void CRoom::setup()
 {
     if (_M.undefinedp("map")) _M.set("map", _M.querystr("base_name"));
@@ -365,12 +351,6 @@ int CRoom::handle_action(char* comm, CChar* me, char* arg, char* tar)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-int l_draw_map(lua_State* L)
-{
-    draw_map();
-    return 0;
-}
-
 // self:remove_all_doors() - 移除房间全部出口（CRoom）
 int l_remove_all_doors(lua_State* L)
 {
@@ -401,18 +381,6 @@ int l_room_reset(lua_State* L)
     CRoom* room = dynamic_cast<CRoom*>(obj);
     if (!room) return 0;
     room->reset();
-    return 0;
-}
-
-// self:remove_doors(next) - 移除通往 next 房间的出口（CRoom）
-int l_remove_doors(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CRoom* room = dynamic_cast<CRoom*>(obj);
-    if (!room) return 0;
-    const char* next = luaL_checkstring(L, 2);
-    room->remove_doors(next);
     return 0;
 }
 

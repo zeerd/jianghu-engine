@@ -98,14 +98,6 @@ TEST_F(BindCharFamilyTest, PreventLearn)
     lua_pop(L, k);
 }
 
-TEST_F(BindCharFamilyTest, AttemptApprentice)
-{
-    // 空实现（CharFamily.cpp）：void 转发、pcall 不抛
-    lua_bind_push_object(L, &master);
-    lua_bind_push_object(L, &appr);
-    EXPECT_EQ(0, CallRetCount(l_attempt_apprentice, 2));
-}
-
 TEST_F(BindCharFamilyTest, ReleaseMaster)
 {
     // 无 family/user 的玩家师父记录 → guard 早退（void 无返回）

@@ -1004,7 +1004,7 @@ TEST_F(DbLayerTest, UpdateRelative_NullDb)
 }
 
 // ====================================================================
-// SqlRank.cpp — paihangbang / sql_update_record
+// SqlRank.cpp — paihangbang
 // ====================================================================
 
 // paihangbang 返回值契约：query 失败 -> 0；成功（含空结果/有行） -> 1。
@@ -1031,62 +1031,6 @@ TEST_F(DbLayerTest, Paihangbang_WithRows_ReturnsOne)
     s_mockDb->SetQueryResultMatching("from jianghudb", rs);
     CContainer me;
     EXPECT_EQ(1, paihangbang(&me));
-}
-
-// 这个函数未在 Sql.h 中声明
-extern bool sql_update_record(const char* id, int type, int level,
-                              const char* data, bool update);
-
-TEST_F(DbLayerTest, SqlUpdateRecord_NotFound_Inserts)
-{
-    // 默认空结果集 = 该 id/type 无记录 -> 走 INSERT 分支
-    EXPECT_TRUE(sql_update_record("1", 1, 10, "data", false));
-    EXPECT_TRUE(s_mockDb->ExecutedContaining("INSERT INTO t_record"));
-}
-
-TEST_F(DbLayerTest, SqlUpdateRecord_Found_UpdateHigherLevel)
-{
-    DbResultSet rs = MockDatabase::MakeSingleRow({"5"});
-    s_mockDb->SetQueryResult(
-        "SELECT cc_level FROM t_record WHERE cc_id = '1' and cc_type = 1;", rs);
-    EXPECT_TRUE(sql_update_record("1", 1, 10, "newdata", false));
-    std::string sql = s_mockDb->GetLastSql();
-    EXPECT_NE(sql.find("update"), std::string::npos);
-    EXPECT_NE(sql.find("t_record"), std::string::npos);
-}
-
-TEST_F(DbLayerTest, SqlUpdateRecord_Found_SkipUpdate_LowerLevel)
-{
-    DbResultSet rs = MockDatabase::MakeSingleRow({"20"});
-    s_mockDb->SetQueryResult(
-        "SELECT cc_level FROM t_record WHERE cc_id = '1' and cc_type = 1;", rs);
-    EXPECT_TRUE(sql_update_record("1", 1, 5, "data", true));
-    // 现有等级 20 > 新等级 5："跳过" 由 UPDATE 的 WHERE cc_level < 5 在
-    // DB 侧保证（低等级行不匹配 WHERE，不会被覆盖）；语句仍会下发。
-    std::string sql = s_mockDb->GetLastSql();
-    EXPECT_NE(sql.find("update t_record"), std::string::npos);
-    EXPECT_NE(sql.find("cc_level < 5"), std::string::npos);
-}
-
-TEST_F(DbLayerTest, SqlUpdateRecord_QueryFails)
-{
-    s_mockDb->SetShouldFail(true);
-    EXPECT_FALSE(sql_update_record("1", 1, 10, "data", false));
-}
-
-TEST_F(DbLayerTest, SqlUpdateRecord_ExecuteFails)
-{
-    DbResultSet rs = MockDatabase::MakeSingleRow({"1"});
-    s_mockDb->SetQueryResult(
-        "SELECT cc_level FROM t_record WHERE cc_id = '1' and cc_type = 1;", rs);
-    s_mockDb->SetExecuteErrorCode(1);  // execute 返回非 0 = 失败
-    EXPECT_FALSE(sql_update_record("1", 1, 10, "data", false));
-    s_mockDb->SetExecuteErrorCode(0);
-}
-
-TEST_F(DbLayerTest, SqlUpdateRecord_NullDb)
-{
-    // sql_update_record 无 g_db 空检查，会崩溃，跳过
 }
 
 // ====================================================================

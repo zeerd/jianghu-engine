@@ -165,35 +165,6 @@ void destruct(PCContainer me)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// make_random_yewai(n) -> string
-// 返回随机野外房间名（UTF-8），n 为野外区域编号（1~23）
-// 调用 Lua 的 yewai_grid.make_random_yewai
-int l_make_random_yewai_global(lua_State* L)
-{
-    int n = (int)luaL_checkinteger(L, 1);
-    // require("room.yewai_grid").make_random_yewai(n)
-    lua_getglobal(L, "require");
-    lua_pushstring(L, "room.yewai_grid");
-    if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
-        lua_pushstring(L, "");
-        return 1;
-    }
-    lua_getfield(L, -1, "make_random_yewai");
-    if (!lua_isfunction(L, -1)) {
-        lua_pop(L, 2);
-        lua_pushstring(L, "");
-        return 1;
-    }
-    lua_pushinteger(L, n);
-    lua_call(L, 1, 1);
-    // 结果已经是 UTF-8 字符串，直接返回
-    if (lua_isnil(L, -1) || lua_isnone(L, -1)) {
-        lua_pop(L, 1);
-        lua_pushstring(L, "");
-    }
-    return 1;
-}
-
 // RandomGetItem(ob[, nType[, exclude]]) -> object|nil
 // nType 默认
 // IS_ITEM（物品），脚本禁止传数字枚举，如需其他类型用全局常量（IS_MONEY 等）

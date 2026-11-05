@@ -61,22 +61,21 @@ function npc.handle_action(self, comm, me, arg)
     return 1
 end
 
--- 随机树箱（概率性事件的演示）：在山顶按 1/10 概率刷出一个装着经验果的
--- 箱子；未中则 5 秒后再掷，直到刷出为止，刷出后停止重排。
+-- 随机怪树（概率性事件的演示）：在山顶按 1/5 概率用 add_item 刷出一棵怪树
+-- （怪树是 item，见 item/sample_tree.lua：聊天即摘果）；未中则 5 秒后再掷，
+-- 直到刷出为止，刷出后停止重排。
 -- 注意：房间在 g_room_list 中按「门所引用的 id」索引——本例各房间的门都以
 -- 显示名互相引用（见 add_door 的第一个参数），山顶对应的 id 是"青云山山顶"，
 -- 而非脚本文件名"sample_mountain_top"。用后者会拿到另一个房间实例，
--- 箱子看不见。
+-- 怪树会刷在看不见的地方。
 function npc.do_refresh(self, param1, param2)
     local map = load_room("青云山山顶")
     if map:query("random/tree") == 0 then
-        if random(10) == 1 then
-            local box = map:Add_Box()
-            box:add_object("sample_xp", 1)
-            box:set_name("一个奇怪的树", "tree")
+        if random(5) == 1 then
+            map:add_item("sample_tree")
             map:set("random/tree", 1)
         else
-            -- 未命中：5 秒后再掷一次，直到树箱出现
+            -- 未命中：5 秒后再掷一次，直到怪树出现
             self:call_out("do_refresh", 5)
         end
     end

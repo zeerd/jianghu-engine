@@ -12,11 +12,14 @@ return {
         self:set_name("青云山山脚")
         self:add_npc("sample_guide")
         self:add_npc("sample_vendor")
+        -- 巡游NPC：起点放在路口（出口最多），random_move 由此走遍全图
+        self:add_npc("sample_wanderer")
         self:add_door("青云山半山腰", "青云山半山腰", "青云山山脚")
         self:add_door("山脚茶棚", "山脚茶棚", "青云山山脚")
         self:add_door("山脚钱庄", "山脚钱庄", "青云山山脚")
         self:add_door("青云城住宅区", "青云城住宅区", "青云山山脚")
         self:add_door("山脚演武场", "山脚演武场", "青云山山脚")
+        self:add_door("山脚林间空地", "山脚林间空地", "青云山山脚")
         self:set("no_fight", 1)
 
         -- 放置箱子（set_name 第二参是 /t 用的英文 id：单参会被构造期的

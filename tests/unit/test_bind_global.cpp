@@ -417,20 +417,6 @@ TEST_F(BindGlobalTest, RandomGetItemEmpty)
     lua_pop(L, k);
 }
 
-TEST_F(BindGlobalTest, MakeRandomYewai)
-
-{
-    lua_pushinteger(L, 5);
-
-    int k = call(l_make_random_yewai_global, 1);
-
-    EXPECT_EQ(1, k);  // require fails -> "" string
-
-    EXPECT_TRUE(lua_isstring(L, -1));
-
-    lua_pop(L, k);
-}
-
 // destruct with a non-userdata arg -> ob stays NULL, guard skips destruct()
 
 TEST_F(BindGlobalTest, DestructNilGuard)
@@ -649,18 +635,6 @@ TEST_F(BindGlobalTest, SqlRankAndCharge)
     CharMockDb db;
 
     g_db = &db;
-
-    lua_pushstring(L, "id1");
-
-    lua_pushinteger(L, 1);
-
-    lua_pushinteger(L, 10);
-
-    lua_pushstring(L, "data");
-
-    lua_pushboolean(L, 0);
-
-    CallBool(l_sql_update_record, 5);
 
     lua_bind_push_object(L, &c);
 
@@ -1162,7 +1136,7 @@ TEST_F(BindGlobalTest, NotifyFail_FormatArgs_ComposesMessage)
 
 // ---------------- engine/GameObject.cpp（random_get_item / destruct /
 
-//                  find_object / make_random_yewai） ----------------
+//                  find_object） ----------------
 
 TEST_F(BindGlobalTest, RandomGetItemDeepPath)
 
@@ -1302,78 +1276,6 @@ TEST_F(BindGlobalTest, FindObjectBindReadsIdAndFlag)
     // 不 delete：l_find_object 已把它绑定进 lua 引用表
 }
 
-TEST_F(BindGlobalTest, MakeRandomYewaiThreeStates)
-
-{
-    // 态1：模块有函数且返回字符串 → 181,187,188 直通
-
-    luaL_dostring(
-
-        L,
-
-        "package.loaded['room.yewai_grid']=nil\n"
-
-        "package.preload['room.yewai_grid']=function() return {"
-
-        "make_random_yewai=function(n) return 'yewai-'..n end } end\n");
-
-    lua_pushinteger(L, 5);
-
-    int k1 = call(l_make_random_yewai_global, 1);
-
-    ASSERT_EQ(1, k1);
-
-    EXPECT_STREQ(lua_tostring(L, -1), "yewai-5") << "有钩子回读串(187-188)";
-
-    if (k1 > 0) lua_pop(L, k1);
-
-    // 态2：模块表缺函数 → 182-185 早退空串
-
-    luaL_dostring(
-
-        L,
-
-        "package.loaded['room.yewai_grid']=nil\n"
-
-        "package.preload['room.yewai_grid']=function() return {} end\n");
-
-    lua_pushinteger(L, 5);
-
-    int k2 = call(l_make_random_yewai_global, 1);
-
-    ASSERT_EQ(1, k2);
-
-    EXPECT_STREQ(lua_tostring(L, -1), "") << "缺钩子 → 空串(182-185)";
-
-    if (k2 > 0) lua_pop(L, k2);
-
-    // 态3：函数返回 nil → 190-191 归一空串
-
-    luaL_dostring(L,
-
-                  "package.loaded['room.yewai_grid']=nil\n"
-
-                  "package.preload['room.yewai_grid']=function() return {"
-
-                  "make_random_yewai=function(n) return nil end } end\n");
-
-    lua_pushinteger(L, 5);
-
-    int k3 = call(l_make_random_yewai_global, 1);
-
-    ASSERT_EQ(1, k3);
-
-    EXPECT_STREQ(lua_tostring(L, -1), "") << "nil 结果归一空串(190-191)";
-
-    if (k3 > 0) lua_pop(L, k3);
-
-    luaL_dostring(L,
-
-                  "package.loaded['room.yewai_grid']=nil;"
-
-                  "package.preload['room.yewai_grid']=nil");
-}
-
 // ---------------- object/ContainerMove.cpp: l_environment ----------------
 
 TEST_F(BindGlobalTest, EnvironmentBindReturnsContainerEnv)
@@ -1496,34 +1398,12 @@ TEST_F(BindGlobalTest, CombatAttackWeaponAndUnarmedWrappers)
     delete weap;
 }
 
-// ---------------- item/Item.cpp: l_do_use(291) / l_do_action_base(309-310)
+// ---------------- item/Item.cpp: l_do_action_base ----------------
 
-// ----------------
-
-TEST_F(BindGlobalTest, DoUseAndActionBaseBinds)
+TEST_F(BindGlobalTest, DoActionBaseBind)
 
 {
-    // do_use：三参齐备 → target 参数读取路径(291)
-
-    CItem* it = new CItem();
-
-    it->set_name("粗碗", "use_bowl");
-
-    lua_bind_push_object(L, it);
-
-    lua_bind_push_object(L, &ch);
-
-    lua_bind_push_object(L, &c);
-
-    int k = call(l_do_use, 3);
-
-    ASSERT_EQ(1, k) << "do_use 返回一个数值";
-
-    EXPECT_TRUE(lua_isinteger(L, -1)) << "do_use 结果为整数";
-
-    lua_pop(L, k);
-
-    // do_action_base：CLuaEquip 分支(309-310)
+    // do_action_base：CLuaEquip 分支
 
     ASSERT_NE(ensure_lua_env(), nullptr);  // CLuaEquip 构造走脚本环境
 
@@ -1533,15 +1413,11 @@ TEST_F(BindGlobalTest, DoUseAndActionBaseBinds)
 
     lua_pushinteger(L, 0);  // act
 
-    k = call(l_do_action_base, 2);
+    int k = call(l_do_action_base, 2);
 
-    EXPECT_EQ(1, k) << "CLuaEquip 分支返回(309-310)";
+    EXPECT_EQ(1, k) << "CLuaEquip 分支返回";
 
     lua_pop(L, k);
-
-    it->move(nullptr);
-
-    delete it;
 }
 
 // ---------------- util/Random.cpp: l_xrandom 全档位采样(47,49,51,55)
@@ -1576,24 +1452,4 @@ TEST_F(BindGlobalTest, XrandomCoversAllWeightBands)
     EXPECT_GE(lo, 0) << "结果非负（档位输出不越下界）";
 
     EXPECT_LT(hi, 200) << "结果封顶 ≤ v*4/5 + v/5（档位输出不越上界）";
-}
-
-// ---------------- db/SqlRank.cpp: insert execute-fail 双支(165-166)
-// ----------------
-TEST_F(BindGlobalTest, SqlRankInsertFailBranches)
-{
-    MockDatabase mdb;
-    g_db = &mdb;
-    mdb.SetExecuteErrorCode(1);  // query 空成功 → INSERT → execute 失败
-
-    // sql_update_record：INSERT 失败 → false(165-166)
-    lua_pushstring(L, "id9");
-    lua_pushinteger(L, 1);
-    lua_pushinteger(L, 10);
-    lua_pushstring(L, "datax");
-    lua_pushboolean(L, 0);
-    EXPECT_FALSE(CallBool(l_sql_update_record, 5))
-        << "record insert 失败 → false(165-166)";
-
-    g_db = nullptr;
 }

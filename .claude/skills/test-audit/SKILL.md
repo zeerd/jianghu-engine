@@ -7,7 +7,7 @@ description: "每当编写、修改、评审或清扫测试时调用：新测试
 
 三种模式，一条价值标准。编写模式在写入时把关每一个新增或修改的测试；审计模式针对重断言源码、重复更强证明、耦合实现细节、或为测试专用生产 seam 续命的测试做定点清扫；战役模式一次修剪一个子系统拥有的全部测试面，开始前先读 [CAMPAIGN.md](CAMPAIGN.md)。广泛审计按主题拆成独立的后续变更；优化目标是置信度，不是删除数量。
 
-本项目测试面：`tests/unit/` 下 Google Test 的 `test_*.cpp`（唯一测试工程 `tests/unit/tests.vcxproj`），链接 `jianghu_core.lib` 真实实现，外部依赖由 `tests/unit/mock/` 链接时替换。测试架构、覆盖率门槛与运行方式以 `.agents/instructions/unit-test.instructions.md` 为准，本文件是其评审与修剪配套。
+本项目测试面：`tests/unit/` 下 Google Test 的 `test_*.cpp`（唯一测试工程 `tests/unit/tests.vcxproj`），链接 `jianghu_core.lib` 真实实现，外部依赖由 `tests/unit/mock/` 链接时替换。测试架构、覆盖率门槛与运行方式以 `.claude/rules/unit-test.instructions.md` 为准，本文件是其评审与修剪配套。
 
 ## Authoring gate（编写门槛）
 
@@ -55,13 +55,13 @@ Bug 回归测试必须在修复前的代码上因预期原因失败、在 owner 
 - 在测试或 stub 里复制一份生产实现再断言它（历史教训：`test_combatd` 对 `EffStatusMsg` 的断言在 stub 中复制了实现，已删）；
 - 只断言 mock 自身状态（CallRecord、ok 之类标志）而生产侧没有对应调用契约的测试；测试之间不 reset 导致的顺序依赖测试；
 - 同一契约的双份测试 —— 对照现查（`Select-String "TEST\("` 两侧计数，同有即在案）：`test_channel_subsystems.cpp` 的 `SnoopSystemDirect` ↔ `test_container_ownership.cpp` 的 `ChannelSnoopList`；`test_smoke.cpp` 的 `MappingBasic`/`StackingLogic` ↔ `test_mapping.cpp`/`test_stacking.cpp`；
-- 仅为测试存在的生产 seam：没有生产调用方的接口 + 全局指针、getter、reset 导出、注入参数。判据见 `.agents/instructions/unit-test.instructions.md` 的"可测试性设计：自由函数无法 Mock，必须类化"：生产调用方也需要的接口是设计，只有测试需要的才是 seam，直接删。
+- 仅为测试存在的生产 seam：没有生产调用方的接口 + 全局指针、getter、reset 导出、注入参数。判据见 `.claude/rules/unit-test.instructions.md` 的"可测试性设计：自由函数无法 Mock，必须类化"：生产调用方也需要的接口是设计，只有测试需要的才是 seam，直接删。
 
 ## Value bar（价值标准）
 
 测试靠保护行为、可信回归或独立有意义的契约来证明维护成本。审计中，一个"为保持行为的源码重组就必须改"的测试是可疑对象，但不自动可删；编写门槛仍然拒绝新增此类测试。
 
-判定候选前，读完整的测试与生产 owner、它的入口、调用方、被调方、兄弟实现、重叠测试、测试注册路由（`tests.vcxproj` 的 `<ClCompile>` 与 `run-coverage.ps1` 范围）与相关历史。**先读根 `AGENTS.md` 与 `.agents/instructions/*.instructions.md`**（copilot-instructions、unit-test 等）。测试声称依赖某库行为时，直接读依赖源码或类型（如 LuaBridge）。
+判定候选前，读完整的测试与生产 owner、它的入口、调用方、被调方、兄弟实现、重叠测试、测试注册路由（`tests.vcxproj` 的 `<ClCompile>` 与 `run-coverage.ps1` 范围）与相关历史。**先读根 `AGENTS.md` 与 `.claude/rules/*.instructions.md`**（copilot-instructions、unit-test 等）。测试声称依赖某库行为时，直接读依赖源码或类型（如 LuaBridge）。
 
 ## Discovery（发现）
 

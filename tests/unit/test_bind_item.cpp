@@ -47,16 +47,6 @@ TEST_F(BindItemTest, SplitNeedsFactory)
     lua_pop(L, k);
 }
 
-// do_use is a no-op returning 0
-TEST_F(BindItemTest, DoUse)
-{
-    lua_bind_push_object(L, &item);
-    int k = call(l_do_use, 1);
-    EXPECT_EQ(1, k);
-    EXPECT_EQ(0, lua_tointeger(L, -1));
-    lua_pop(L, k);
-}
-
 // do_action_base: CItem 的 Do_Action 是无副作用的 no-op，返回 0
 TEST_F(BindItemTest, DoActionBase)
 {

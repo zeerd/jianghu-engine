@@ -275,25 +275,6 @@ void CItem::init()
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:do_use(me, target) -> number
-int l_do_use(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
-    CItem* item = dynamic_cast<CItem*>(obj);
-    if (!item) return 0;
-
-    CChar* me          = NULL;
-    CContainer* target = NULL;
-    if (lua_isuserdata(L, 2)) me = dynamic_cast<CChar*>(get_object(L, 2));
-    if (lua_isuserdata(L, 3))
-        target = dynamic_cast<CContainer*>(get_object(L, 3));
-
-    lua_pushinteger(L, item->do_use(me, target));
-    return 1;
-}
-
 // self:do_action_base(nAct, me) -> number - 调用基类 CItem::Do_Action（绕过 Lua
 // 重写）
 int l_do_action_base(lua_State* L)

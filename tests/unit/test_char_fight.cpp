@@ -367,10 +367,7 @@ TEST_F(CharFightTest, InitHatredMarksLookingForTrouble)
     b->set_name("乙", "init_b");
     b->set("id", "init_b");
 
-    char oid_str[20];
-    snprintf(oid_str, 20, "%ld", (long)b->object_id());
-    b->set("id", oid_str);  // is_killing 按 object_id 比对 → id 对齐口径
-    a->set_killer(b);       // is_killing(b) 为真
+    a->set_killer(b);  // 名单记角色 id，init(b) 读得到 → hatred 自动战排程
     a->init(b);
 
     EXPECT_EQ(1, a->query_temp("looking_for_trouble"))

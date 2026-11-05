@@ -172,20 +172,6 @@ TEST_F(FBRoomTest, AddDoor_IsFindableByIdAndDir)
     EXPECT_EQ(door, exits->front());
 }
 
-TEST_F(FBRoomTest, RemoveDoors_DropsOnlyMatchingNextRoom)
-{
-    CFBRoom room;
-    CDoor* keep = room.add_door("keep", "fbtest_keep", "", "E");
-    CDoor* gone = room.add_door("gone", "fbtest_gone", "", "W");
-    ASSERT_NE(keep, gone);
-
-    room.remove_doors("fbtest_gone");
-
-    EXPECT_EQ(nullptr, room.present_door("gone"));
-    EXPECT_EQ(keep, room.present_door("keep"));
-    EXPECT_EQ(1, (int)room.query_exits()->size());
-}
-
 TEST_F(FBRoomTest, RemoveAllDoors_EmptiesExits)
 {
     CFBRoom room;
@@ -700,7 +686,7 @@ TEST_F(FBRoomBindTest, BeginFbBindWritesState)
 }
 
 // ====================================================================
-// CFB 深路：move_in 甩载 / end_fb 持久化与清场 / 异常捕获 / heart_beat 计时
+// CFB 深路：move_in 甩载 / end_fb 清场 / heart_beat 计时
 // ====================================================================
 
 // protected 成员测试暴露（using 惯例）
@@ -755,11 +741,10 @@ TEST_F(FBRoomTest, MoveInTwiceMatchesExistingUser)
     EXPECT_EQ(1, fb.move_in(u, 0)) << "二次命中已有登记(122) 幂等成功";
 }
 
-TEST_F(FBRoomTest, EndFbPersistsPlayersAndEvicts)
+TEST_F(FBRoomTest, EndFbEvictsContents)
 {
     FbExposed fb;
     fb.load_fb_room("fbtest_end_map");
-    fb.set("player/fbtest_p1", (long)7);  // → querymap("player") 非空(180)
 
     CUser* inner = ownUser("fbtest_end_user");
     inner->move(&fb);
@@ -769,8 +754,6 @@ TEST_F(FBRoomTest, EndFbPersistsPlayersAndEvicts)
 
     fb.end_fb();
 
-    EXPECT_FALSE(db->GetLastSql().empty())
-        << "player 留存走 sql_update_record(180-185)";
     EXPECT_EQ(load_room(g_start_room), inner->environment())
         << "内部 user 甩回起始城(195,206)";
 
@@ -816,35 +799,6 @@ TEST_F(FBRoomTest, EndFbSweepsRoomListContents)
     }
     EXPECT_TRUE(junk_queued) << "房内普通件销毁(222)";
     delete junk;
-}
-
-TEST_F(FBRoomTest, EndFbDbExceptionCaught)
-{
-    ThrowingDatabase tdb;
-    tdb.throwOnQuery   = true;
-    tdb.throwOnExecute = true;
-    g_db               = &tdb;
-
-    FbExposed fb;
-    fb.load_fb_room("fbtest_throw_map");
-    fb.set("player/fbtest_x", (long)1);  // sql_update_record 内 db 调用抛
-
-    fb.end_fb();  // catch(233-234) → 不 DESTRUCT、不崩
-
-    bool fb_queued = false;
-    {
-        std::lock_guard<std::mutex> lk(g_destruct_list_mutex);
-        for (auto* p : g_destruct_list)
-            if (p == &fb) fb_queued = true;
-    }
-    EXPECT_TRUE(fb_queued)
-        << "db 异常被内层 sql_update_record 消化，清场/析构照常完成";
-    {
-        std::lock_guard<std::mutex> lk(g_destruct_list_mutex);
-        g_destruct_list.remove(&fb);
-    }  // 栈对象必须出队（防清队列时误删）
-
-    g_db = db;  // 恢复 fixture mock
 }
 
 TEST_F(FBRoomTest, HeartBeatNeedEndAndCountdownBroadcast)

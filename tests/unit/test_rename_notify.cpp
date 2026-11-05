@@ -2,9 +2,8 @@
 // CContainer::on_name_changed，把「物件进入场景」的 11+17 重发给同一容器内
 // 的在线玩家。
 //
-// 背景：协议没有「改名」消息，名字只在物件进场景/玩家进场景时下发。脚本先
-// Add_Box 再 set_name 时，已在场玩家拿到的仍是旧名字，combat/treebox.sce 的
-// `wait object 一个奇怪的树` 就只能碰运气（玩家进山顶前箱子已刷出才通过）。
+// 背景：协议没有「改名」消息，名字只在物件进场景/玩家进场景时下发；已在场
+// 玩家不会自动拿到新名字，全靠 set_name 触发的这次重发。
 //
 // Build+Run: .\run-coverage.ps1
 //
@@ -63,7 +62,7 @@ protected:
     }
 };
 
-// 场景内箱子改名：在场玩家立刻收到携带新名字的详情包（E2E 随机树箱）
+// 场景内箱子改名：在场玩家立刻收到携带新名字的详情包
 TEST_F(RenameNotifyTest, BoxRenameReachesCoLocatedUser)
 {
     CBox* tree = MakeBoxInRoom("rbox");

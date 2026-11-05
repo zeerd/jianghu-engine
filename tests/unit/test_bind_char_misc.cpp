@@ -10,6 +10,8 @@
 
 #include "Money.h"
 
+#include "CmdHandle.h"  // drop_all(CChar*) 行为直测
+
 #include "Npc.h"  // l_setup CNpc 分支         // CMCoin（现金不落）
 
 #include "test_state_recorder.h"  // StateRecordingUser（add_menu_item 投递观察）
@@ -239,20 +241,6 @@ TEST_F(BindCharMiscTest, CommandBind_NonCharArg_ReturnsFalse)
     lua_pop(L, k);
 }
 
-// ---- CmdHandle.cpp: drop_all (empty inventory -> no-op) ----
-
-TEST_F(BindCharMiscTest, DropAllEmpty)
-
-{
-    lua_bind_push_object(L, &me);
-
-    int k = call(l_drop_all, 1);
-
-    EXPECT_GE(k, 0);
-
-    if (k >= 0) lua_pop(L, k);
-}
-
 // ---- Container.cpp lifecycle: create / purge / clear ----
 
 TEST_F(BindCharMiscTest, CreatePurgeClear)
@@ -356,9 +344,7 @@ TEST_F(BindCharMiscTest, DropAll_InventorySweep)
 
     ASSERT_NE(0, eq->query("equipped")) << "前置：已装备";
 
-    lua_bind_push_object(L, &me);
-
-    EXPECT_EQ(1, call(l_drop_all, 1)) << "drop_all 返回 true";
+    drop_all(&me);
 
     EXPECT_EQ(&room, junk->environment()) << "普通件落地(142-143)";
 
@@ -381,28 +367,6 @@ TEST_F(BindCharMiscTest, DropAll_InventorySweep)
     delete eq;
 
     me.move(nullptr);  // 栈房析构前必须摘人（UAF 预防）
-}
-
-// ---- l_drop_all 绑定守卫：非对象/非角色容器 → false ----
-
-TEST_F(BindCharMiscTest, DropAllBind_NonObjectArg_ReturnsFalse)
-
-{
-    lua_pushstring(L, "not an object");
-
-    EXPECT_EQ(0, CallInt(l_drop_all, 1)) << "非对象参数 → false(351-352)";
-}
-
-TEST_F(BindCharMiscTest, DropAllBind_ContainerArg_ReturnsFalse)
-
-{
-    CContainer c;
-
-    c.set_name("容器", "dbc1");
-
-    lua_bind_push_object(L, &c);
-
-    EXPECT_EQ(0, CallInt(l_drop_all, 1)) << "非角色容器 → false(360)";
 }
 
 // ---- ItemInterface.cpp: add_menu_item 派发(58-65) + get_info 锁定段(112-113)

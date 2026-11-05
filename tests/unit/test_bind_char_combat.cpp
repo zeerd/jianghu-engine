@@ -174,7 +174,8 @@ TEST_F(BindCharCombatTest, KillSetFightKilling)
 
     EXPECT_EQ(0, CallRetCount(l_fight_ob, 2));
 
-    // is_killing 返回一个布尔（值依赖杀手表内部键，不断言具体值）
+    // is_killing 契约：恰好 push 一个布尔；真假的值断言在 Char 层的
+    // CharCombatTest.SetAndRemoveKiller（绑定层只负责取值与入栈）
 
     lua_bind_push_object(L, &ch);
 
@@ -486,9 +487,7 @@ TEST_F(BindCharCombatTest, SaveLoadOffline)
 
     // save 必须真的把 SQL 交给 db 层（CharMockDb 记录最后一条）
 
-    lua_bind_push_object(L, &u);
-
-    CallInt(l_save_to_server, 1);
+    u.save_to_server();
 
     EXPECT_FALSE(db.LastSql().empty());
 
@@ -498,114 +497,14 @@ TEST_F(BindCharCombatTest, SaveLoadOffline)
 
     // offline 清除载入标记（User.cpp: delete client/loading）
 
-    lua_bind_push_object(L, &u);
-
-    EXPECT_EQ(0, CallRetCount(l_offline, 1));
+    u.offline();
 
     EXPECT_EQ(0, u.query_temp("client/loading"));
 
     g_db = nullptr;
 }
 
-// ---- l_do_wield / l_unwield_weapon / l_start_powerup 深路 ----
-
-TEST_F(BindCharCombatTest, DoWieldBind_FindsEquipByName)
-
-{
-    ASSERT_NE(ensure_lua_env(), nullptr);  // CLuaEquip 走全局引擎
-
-    auto* eq = new CLuaEquip("ssword");
-
-    eq->del("equipped");  // 构造/脚本可能带装备态：镜像 SetupObjects 的清态
-
-    eq->set_name("长剑", "bw_sword");
-
-    eq->set("id", "bw_sword");
-
-    CMapping apply;
-
-    apply.set("damage", 1L);
-
-    apply.set("desc", "攻击");
-
-    eq->set("apply", apply);
-
-    eq->set("wield_position", (long)WIELD_HAND);  // do_wield 拒 WIELD_NONE
-
-    eq->move(&ch);
-
-    lua_bind_push_object(L, &ch);
-
-    lua_pushstring(L, "bw_sword");
-
-    EXPECT_EQ(1, CallInt(l_wield_weapon, 2)) << "命中装备并装备(307-312)";
-
-    EXPECT_NE(0, (long)eq->query("equipped")) << "槽位登记";
-
-    EXPECT_EQ(1, ch.query_temp("apply/damage")) << "apply 增益入体";
-
-    lua_bind_push_object(L, &ch);
-
-    lua_pushstring(L, "no_such_item");
-
-    EXPECT_EQ(0, CallInt(l_wield_weapon, 2)) << "未命中 → 0(315)";
-
-    eq->move(nullptr);
-
-    delete eq;
-}
-
-TEST_F(BindCharCombatTest, UnwieldWeaponBind_ClearsEquip)
-
-{
-    ASSERT_NE(ensure_lua_env(), nullptr);
-
-    auto* eq = new CLuaEquip("ssword");
-
-    eq->del("equipped");  // 构造/脚本可能带装备态：镜像 SetupObjects 的清态
-
-    eq->set_name("长剑", "bw_sword2");
-
-    eq->set("id", "bw_sword2");
-
-    CMapping apply;
-
-    apply.set("damage", 1L);
-
-    apply.set("desc", "攻击");
-
-    eq->set("apply", apply);
-
-    eq->set("wield_position", (long)WIELD_HAND);
-
-    eq->move(&ch);
-
-    lua_bind_push_object(L, &ch);
-
-    lua_pushstring(L, "bw_sword2");
-
-    ASSERT_EQ(1, CallInt(l_wield_weapon, 2));  // 前置：真装备
-
-    lua_bind_push_object(L, &ch);
-
-    lua_pushstring(L, "bw_sword2");
-
-    EXPECT_EQ(1, CallInt(l_unwield_weapon, 2)) << "按名卸装(327-332)";
-
-    EXPECT_EQ(0, (long)eq->query("equipped")) << "槽位登记已清";
-
-    EXPECT_EQ(0, ch.query_temp("apply/damage")) << "apply 增益回收";
-
-    lua_bind_push_object(L, &ch);
-
-    lua_pushstring(L, "no_such_item");
-
-    EXPECT_EQ(0, CallInt(l_unwield_weapon, 2)) << "未命中 → 0(335)";
-
-    eq->move(nullptr);
-
-    delete eq;
-}
+// ---- l_start_powerup 深路 ----
 
 TEST_F(BindCharCombatTest, StartPowerupBind_AppliesBuffs)
 

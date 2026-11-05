@@ -7,7 +7,12 @@
 #   create() 里一次性放置、且不随 CRoom::reset 恢复的共享资源——取走即止，
 #   全服只有一份。因此开箱段只由 L1 一道执行；其余各道不碰箱子，
 #   改从商人购买所需物品，各靠启动本金自给自足。
+#
+# 前置：本段可能紧跟在换房片段之后——进房回执先到、房间物件推送随后，
+#   中间有窗口，直接 /t 会撞「Target not found」（§8.1：同步一律用 wait，
+#   不赌物件列表已到）。故先 wait object 钉住箱子在场，再定向。
 
+wait object 木箱 timeout=10000
 cmd /t mu xiang
 cmd /look
 wait menu
@@ -18,6 +23,7 @@ cmd /look
 wait menu
 menu 金币
 wait item 金币 timeout=10000
+wait object 药箱 timeout=10000
 cmd /t yao xiang
 cmd /look
 wait menu

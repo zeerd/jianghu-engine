@@ -604,39 +604,3 @@ TEST_F(MgrLoadersTest, LoadNpcBindPushesResult)
         }
     }
 }
-
-// ====================================================================
-
-// RoomMgr::draw_map：把注册表里的房间键写进 map.txt（54-64 全程）
-
-// ====================================================================
-
-TEST_F(MgrLoadersTest, DrawMapWritesRegisteredRooms)
-
-{
-    CRoom probe;
-
-    probe.set_name("出图房", "drawmap_probe");
-
-    g_room_list["drawmap_probe"] = &probe;
-
-    draw_map();
-
-    FILE* fp = fopen("map.txt", "rt");
-
-    ASSERT_NE(fp, nullptr) << "map.txt 已生成(57-58)";
-
-    char buf[4096] = {0};
-
-    fread(buf, 1, sizeof(buf) - 1, fp);
-
-    fclose(fp);
-
-    EXPECT_NE(std::string(buf).find("drawmap_probe"), std::string::npos)
-
-        << "注册房间键写入文件(60-61)";
-
-    remove("map.txt");  // 清理副作用
-
-    g_room_list.erase("drawmap_probe");
-}

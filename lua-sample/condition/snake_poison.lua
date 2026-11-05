@@ -27,12 +27,16 @@ return {
             return 0
         end
 
-        -- 毒性持续侵蚀气血：按气血上限的 5% 计，随角色成长同步放大
+        -- 毒性持续侵蚀：按气血上限的 5% 计，随角色成长同步放大。
+        -- 走 receive_poison 而不是 receive_damage：它按施毒者归属结算
+        -- （condition/who_<名> 找到下毒者才吃其毒术加成，找不到按无归属处理），
+        -- 落点是 wound 语义——扣气血上限 eff_hp，并把当前气血压到其下；
+        -- receive_damage 则只扣当前气血 hp。两者都让气血往下走，路径不同。
         local damage = me:query("max_hp") * 5 // 100
         if damage < 1 then
             damage = 1
         end
-        me:receive_damage("hp", damage)
+        me:receive_poison("hp", damage, me:name(1))
         tell_object(me, "毒性一阵阵发作，你的身体又虚弱了几分。")
         return CND_CONTINUE, duration - 1
     end,

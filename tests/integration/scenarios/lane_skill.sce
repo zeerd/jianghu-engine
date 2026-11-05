@@ -33,10 +33,20 @@ include skill/sword_qi.sce
 # 空手组合（一次两招）：请求 L9 供能 → 卸剑 → enable 双空手槽 → prepare
 # 成功分支 → 打木人断言双击。必须在 enable_practice 之后（其 prepare 拒绝
 # 分支先建立「pmap 为空」的前提与反面断言），在 skill_admin 之前（abandon
-# 收口在道尾，其后不接任何交互）。
+# 收口在道尾，其后不接任何交互）。打散的练功木人随 die 钩子自毁，它 /kill
+# 时写进杀意名单的账也一并不留——本段之后道上没有活名单。
 include skill/prepare_combine.sce
 # 激励术（一放一收 + 心跳到期）：请求 L9 供能 mp≥100 后连施三次。
 #   必须在 enable_practice 之后（force_adv 已 enable——cast 前置），
 #   在 skill_admin 之前（abandon 收口在道尾，其后不接任何交互）。
+#   必须在 iron_dummy_retaliate 之前：/kill 写下的名单在玩家每次进房时都由
+#   CChar::init 的 hatred 分支重排一颗 5~10 秒后引爆的自动开战，而本段两处
+#   sleep 正落在那个窗口里——战斗中 /cast 会撞上「需要…AP，你的AP不足」。
 include skill/powerup.sce
+# 铁人桩的回合还手（attack 钩子 → base_attack，钩子在其己方回合派发、一回合一
+#   击，非受击额外攻击）：开战、第二次还手后 /halt 逃战收场，本段不换装备不动技能。
+#   排在 skill_admin 之前是刻意的：铁人桩打不死，它是本道最后一处 /kill、名单
+#   一直有效——本段之后只剩 skill_admin 约一秒，雷落下时道已收口。断言全取
+#   铁人桩一侧的文本，与手上有没有剑无关。
+include skill/iron_dummy_retaliate.sce
 include skill/skill_admin.sce

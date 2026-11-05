@@ -30,14 +30,27 @@ void CChar::owner_is_killed(CChar* killer) {}
 //  IEquippable
 // ========================================================================
 
+// 角色侧的装备接口占位：装备动作的语义主体是物品——wield 命令与
+// 脚本 :wield() 都对物品做 do_action(DO_WIELD)，由 CEquip::do_wield
+// 完成装备；角色侧恒返回 0，wield()/wear() 对角色无效果。
+// 不可删的理由是接口契约而非功能：二者实现 IEquippable 纯虚函数，
+// 只删定义会链接失败；连声明一起删则 CChar 缺实现成为抽象类，
+// CNpc/CUser 等实例化点全部编译失败；彻底删除须连 Char.h 的
+// public IEquippable 一并摘除，那会翻转 l_wield/l_wear 对角色的
+// 返回契约（转换成功返回 0、失败返回 nil，0 为真 nil 为假），
+// 角色也不再属于「可装备对象」类型面（CChar 与 CItem 同实现该接口）。
 int CChar::wield() { return do_action(DO_WIELD); }
 
+// 同 wield：角色侧没有独立的穿戴动作，与 wield 共用 DO_WIELD 语义。
 int CChar::wear() { return do_action(DO_WIELD); }
 
 // ========================================================================
 //  IActionHandler
 // ========================================================================
 
+// 角色自身不处理装备/使用类动作，默认恒返回 0；需要响应的动作由
+// 具体实现类（CEquip、CVendor、CRoom）覆写。同 IEquippable：
+// do_action 是 IActionHandler 的纯虚实现，同样不可单独删除。
 int CChar::do_action(int act, CChar* me) { return 0; }
 
 int CChar::handle_action(char* comm, CChar* me, char* arg) { return 0; }

@@ -329,6 +329,108 @@ TEST_F(ScenarioRepeatTest, FailureInsideRepeatReportsBodyLine)
         << r.report;
 }
 
+// 分场景计时契约：include 内联后步骤仍带来源剧本归属。日志里的三样东西是
+// 「哪段剧本吃掉墙钟」的唯一数据源——回显 [+-]秒 前缀（相邻差分 = 单步耗时）、
+// 跨剧本处的 [timing] 边界行、收口的 [timing] summary 汇总。
+class ScenarioTimingTest : public ::testing::Test {
+protected:
+    std::filesystem::path work_dir_;
+    std::filesystem::path script_path_;
+    std::filesystem::path report_path_;
+    std::filesystem::path logs_dir_;
+
+    void SetUp() override
+    {
+        work_dir_     = test_tmp_dir() / "jianghu_cli_scenario_timing_test";
+        logs_dir_     = work_dir_ / "logs";
+        script_path_  = work_dir_ / "root.sce";
+        report_path_  = work_dir_ / "report.txt";
+        std::filesystem::create_directories(work_dir_);
+    }
+
+    void TearDown() override
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(work_dir_, ec);
+    }
+
+    // 写入根剧本与一个子剧本，跑一次并返回 stdout 全文
+    RunResult run_with_include(const std::string &root_script)
+    {
+        std::filesystem::create_directories(work_dir_ / "sub");
+        std::ofstream child(work_dir_ / "sub" / "child.sce", std::ios::trunc);
+        child << "sleep 0\n";
+        child.close();
+
+        std::ofstream out(script_path_, std::ios::trunc);
+        out << root_script;
+        out.close();
+
+        Config cfg;
+        cfg.logs_dir = logs_dir_.string();
+        ClientCore core(cfg);
+
+        ScenarioOptions opts;
+        opts.script_path        = script_path_.string();
+        opts.report_path        = report_path_.string();
+        opts.default_timeout_ms = 5000;
+
+        RunResult r;
+        std::cout.flush();
+        SyncProbeBuf probe;
+        std::streambuf* saved = std::cout.rdbuf(&probe);
+        r.rc                   = run_scenario(core, opts);
+        std::cout.rdbuf(saved);
+
+        r.out    = probe.text;
+        r.report = read_text_file(report_path_);
+        return r;
+    }
+
+    // 断言 text 中 needle 所在行以 prefix 开头（回显必须带时刻前缀）
+    static void ExpectLineStartsWith(const std::string& text,
+                                     const std::string& needle,
+                                     const std::string& prefix)
+    {
+        size_t pos = text.find(needle);
+        ASSERT_NE(pos, std::string::npos) << "missing: " << needle;
+        size_t line_start = text.rfind('\n', pos);
+        line_start        = (line_start == std::string::npos)
+                                ? 0
+                                : line_start + 1;
+        EXPECT_EQ(text.compare(line_start, prefix.size(), prefix), 0)
+            << "line for '" << needle << "' must start with '" << prefix
+            << "', got: " << text.substr(line_start, 40);
+    }
+};
+
+TEST_F(ScenarioTimingTest, EveryStepEchoCarriesElapsedPrefix)
+{
+    RunResult r = run_with_include("include sub/child.sce\n"
+                                   "sleep 0\n");
+
+    EXPECT_EQ(r.rc, 0);
+    ExpectLineStartsWith(r.out, "[script:1] sleep 0", "[+");
+    ExpectLineStartsWith(r.out, "[script:2] sleep 0", "[+");
+}
+
+TEST_F(ScenarioTimingTest, IncludeBoundaryAnchorsEachScenario)
+{
+    RunResult r = run_with_include("include sub/child.sce\n"
+                                   "sleep 0\n");
+
+    EXPECT_EQ(r.rc, 0);
+    // 归属名相对顶层剧本目录、'/' 分隔；两条边界夹出各自的计时段
+    EXPECT_NE(r.out.find("[timing] sub/child.sce"), std::string::npos)
+        << r.out;
+    EXPECT_NE(r.out.find("[timing] root.sce"), std::string::npos) << r.out;
+    // 汇总按耗时降序列出各剧本的秒数与步数
+    EXPECT_NE(r.out.find("[timing] summary total="), std::string::npos)
+        << r.out;
+    EXPECT_NE(r.out.find("1 sub/child.sce"), std::string::npos) << r.out;
+    EXPECT_NE(r.out.find("1 root.sce"), std::string::npos) << r.out;
+}
+
 TEST_F(ScenarioRunTest, EchoesEachStepAndFlushesBeforeNextStep)
 {
     Config cfg;

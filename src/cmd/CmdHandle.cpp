@@ -369,24 +369,6 @@ void CCmdHandle::do_kick(CContainer* ob, int32_t param1, int32_t param2)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// 全局：drop_all(me) - 丢弃玩家全部物品（收费计费用）
-int l_drop_all(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) {
-        lua_pushboolean(L, 0);
-        return 1;
-    }
-    CChar* me = dynamic_cast<CChar*>(obj);
-    if (me) {
-        drop_all(me);
-        lua_pushboolean(L, 1);
-    }
-    else
-        lua_pushboolean(L, 0);
-    return 1;
-}
-
 // notify_fail(msg[, args...]) -> 0 (用于脚本返回失败)
 // 支持 string.format 风格的可变参数（与 C++ 变参 notify_fail 对齐）
 int l_notify_fail(lua_State* L)

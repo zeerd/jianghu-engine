@@ -316,26 +316,3 @@ int l_load_from_server(lua_State* L)
     lua_pushinteger(L, ch->load_from_server());
     return 1;
 }
-
-// self:SaveToServer() - 保存角色数据到服务器
-int l_save_to_server(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    lua_pushinteger(L, ch->save_to_server());
-    return 1;
-}
-
-// self:Offline() - 强制玩家下线
-int l_offline(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CUser* u = dynamic_cast<CUser*>(obj);
-    if (!u) return 0;
-    LOG_INFO("Lua脚本强制下线: %s(id:%s)", u->name(1), u->id(1));
-    u->offline();
-    return 0;
-}

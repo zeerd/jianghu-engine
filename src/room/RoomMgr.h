@@ -16,4 +16,3 @@ CRoom* load_room(const char* base_name);
 // --- 房间管理（内部） ---
 void room_release();
 void remove_room(string room_name);
-void draw_map();

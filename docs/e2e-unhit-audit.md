@@ -98,13 +98,12 @@
 
 ### 2.1 盲区① 明细（19 条，全为非绑定）
 
-- [ ] `CChar::receive_poison` — `src\char\CharCombat.cpp:281` 体 281-292 ｜ 盲区①
+- [x] `CChar::receive_poison` — `src\char\CharCombat.cpp:281` 体 281-292 ｜ 盲区①（阶段 4：`l_receive_poison` 教材已调）
 - [ ] `CChar::apply_condition` — `src\char\CharSkill.cpp:287` 体 287-303 ｜ 盲区①
 - [ ] `CCmdWizard::print_svalue` — `src\cmd\CmdWizardWorld.cpp:117` 体 117-144 ｜ 盲区①（计入 §4 巫师域）
-- [ ] `CCombatd::do_attack_weapon` — `src\combat\Combatd.cpp:29` 体 29-31 ｜ 盲区①
+- [x] `CCombatd::do_attack_weapon` — `src\combat\Combatd.cpp:29` 体 29-31 ｜ 盲区①（阶段 4：`l_combat_attack_weapon` 教材已调）
 - [ ] `CReward::distribute_party_exp` — `src\combat\CReward.cpp:106` 体 106-159 ｜ 盲区①
 - [ ] `CWeaponEffect::bash_weapon` — `src\combat\WeaponEffect.cpp:17` 体 17-51 ｜ 盲区①
-- [x] ~~`db_update_recruit` — `src\db\SqlAccount.cpp:350` 体 350-391 ｜ 盲区①~~ **2026-11-04 20:19 起已命中**：玩家收徒场景（L6 存盘 → `CharSave` 师徒经验写链）
 - [ ] `db_query_relative` — `src\db\SqlAccount.cpp:395` 体 395-422 ｜ 盲区①
 - [ ] `db_save_object` — `src\db\SqlContainer.cpp:174` 体 174-232 ｜ 盲区①
 - [ ] `db_load_object` — `src\db\SqlContainer.cpp:236` 体 236-264 ｜ 盲区①
@@ -112,8 +111,6 @@
 - [ ] `create_database` — `src\db\SqliteDb.cpp:92` 体 92-98 ｜ 盲区①
 - [ ] `sql_update_record` — `src\db\SqlRank.cpp:78` 体 78-139 ｜ 盲区①
 - [ ] `CChannel::update_relative` — `src\engine\Channel.cpp:93` 体 93-95 ｜ 盲区①
-- [x] ~~`CChannel::update_recruit` — `src\engine\Channel.cpp:104` 体 104-106 ｜ 盲区①~~ **2026-11-04 20:19 起已命中**：同上（写链入口）
-- [x] ~~`CRelationshipTracker::update_recruit` — `src\engine\RelationshipTracker.cpp:47` 体 47-51 ｜ 盲区①~~ **2026-11-04 20:19 起已命中**：同上（写链入口）
 - [ ] `CRelationshipTracker::query_relative` — `src\engine\RelationshipTracker.cpp:56` 体 56-69 ｜ 盲区①
 - [ ] `CRelationshipTracker::update_relative` — `src\engine\RelationshipTracker.cpp:74` 体 74-78 ｜ 盲区①
 - [ ] `CContainer::call_out_combat` — `src\object\ContainerMisc.cpp:44` 体 44-57 ｜ 盲区①
@@ -191,141 +188,154 @@
 绑定可达链：`LuaBind.cpp` 注册表 → **脚本调用** → `l_xxx()`。
 注册表本身不算调用，所以下面分两类。
 
-### 3.1 教材从未调用：127 条（内容缺口，非测试缺口）
+### 3.1 教材从未调用：126 条（2026-11-06 复核分档）
 
 全量扫 `lua-default` + `lua-sample` 每个 `.lua`（排除注释行、排除 `function xxx.name(`
-定义、区分 `:method()` 与全局函数）。**140 个绑定里只有 13 个有真实调用点，127 个一次都没出现。**
+定义、区分 `:method()` 与全局函数）。**140 个绑定里 14 个有真实调用点，126 个一次都没出现。**
+（`l_die_base` 已转正：教材 `lua-sample\npc\sample_qingshe.lua:42` 调 `self:die_base()`，
+官方未命中清单亦无该条。本节 127→126 的更正不回溯重算 §1 总账，收口时统一重算。）
 
-对应 `design/integration-test.md §6` 第 2 行裁定：**内容需求问题，不为测试加调用。**
+**分档处置（2026-11-06；三问裁决：有无真实调用方 / 有无更优解 / 语义是否独特）**——
+A 档蓝本取自 `jianghu-dataset` 的真实用法，逐条标在条目尾部：
 
-- [ ] 确认口径：127 条属内容缺口，维持 `§6` 裁定不设消化目标
-- [ ] `l_clear_condition` — `src\char\Char.cpp:373` `[clear_condition]`
-- [ ] `l_reset_level` — `src\char\Char.cpp:397` `[reset_level]`
-- [ ] `l_is_killing` — `src\char\Char.cpp:408` `[is_killing]`
-- [ ] `l_disable_player` — `src\char\Char.cpp:455` `[disable_player]`
-- [ ] `l_enable_player` — `src\char\Char.cpp:467` `[enable_player]`
-- [ ] `l_query_dex` — `src\char\CharAttr.cpp:156` `[query_dex]` **【单测也未覆盖】**
-- [ ] `l_query_combat_exp` — `src\char\CharAttr.cpp:167` `[query_combat_exp]`
-- [ ] `l_query_apply` — `src\char\CharAttr.cpp:178` `[query_apply]`
-- [ ] `l_query_str` — `src\char\CharAttr.cpp:190` `[query_str]`
-- [ ] `l_query_con` — `src\char\CharAttr.cpp:201` `[query_con]`
-- [ ] `l_query_int` — `src\char\CharAttr.cpp:212` `[query_int]`
-- [ ] `l_query_per` — `src\char\CharAttr.cpp:223` `[query_per]`
-- [ ] `l_is_invalid` — `src\char\CharAttr.cpp:234` `[is_invalid]`
-- [ ] `l_learn_bonus` — `src\char\CharAttr.cpp:247` `[learn_bonus]`
-- [ ] `l_query_respect` — `src\char\CharAttr.cpp:258` `[query_respect]`
-- [ ] `l_query_rude` — `src\char\CharAttr.cpp:268` `[query_rude]`
-- [ ] `l_query_self` — `src\char\CharAttr.cpp:278` `[query_self]`
-- [ ] `l_query_self_rude` — `src\char\CharAttr.cpp:288` `[query_self_rude]`
-- [ ] `l_query_valid_exp` — `src\char\CharAttr.cpp:307` `[query_valid_exp]`
-- [ ] `l_wield_weapon` — `src\char\CharCombat.cpp:301` `[wield_weapon]`
-- [ ] `l_unwield_weapon` — `src\char\CharCombat.cpp:321` `[unwield_weapon]`
-- [ ] `l_base_attack` — `src\char\CharCombat.cpp:367` `[base_attack]` **【单测也未覆盖】**
-- [ ] `l_receive_poison` — `src\char\CharCombat.cpp:410` `[receive_poison]`
-- [ ] `l_set_killer` — `src\char\CharCombat.cpp:482` `[set_killer]`
-- [ ] `l_fight_ob` — `src\char\CharCombat.cpp:495` `[fight_ob]`
-- [ ] `l_remove_all_killer` — `src\char\CharCombat.cpp:508` `[remove_all_killer]`
-- [ ] `l_set_leader` — `src\char\CharFamily.cpp:234` `[set_leader]`
-- [ ] `l_recruit_num` — `src\char\CharFamily.cpp:247` `[recruit_num]`
-- [ ] `l_release_master` — `src\char\CharFamily.cpp:256` `[release_master]`
-- [ ] `l_is_apprentice_of` — `src\char\CharFamily.cpp:265` `[is_apprentice_of]`
-- [ ] `l_recruit_apprentice` — `src\char\CharFamily.cpp:276` `[recruit_apprentice]`
-- [ ] `l_assign_apprentice` — `src\char\CharFamily.cpp:304` `[assign_apprentice]`
-- [ ] `l_recognize_apprentice` — `src\char\CharFamily.cpp:318` `[recognize_apprentice]`
-- [ ] `l_prevent_learn` — `src\char\CharFamily.cpp:329` `[prevent_learn]`
-- [ ] `l_attempt_apprentice` — `src\char\CharFamily.cpp:341` `[attempt_apprentice]`
-- [ ] `l_query_recruit` — `src\char\CharFamily.cpp:353` `[query_recruit]`
-- [ ] `l_update_recruit` — `src\char\CharFamily.cpp:384` `[update_recruit]`
-- [ ] `l_query_left_weapon` — `src\char\CharFight.cpp:377` `[query_left_weapon]`
-- [ ] `l_init` — `src\char\CharFight.cpp:395` `[init]`
-- [ ] `l_do_bishi` — `src\char\CharFight.cpp:408` `[Do_BiShi]`
-- [ ] `l_flush_my_skill` — `src\char\CharFlush.cpp:240` `[FlushMySkill]`
-- [ ] `l_remove_betrayer` — `src\char\CharLevel.cpp:242` `[Remove_Betrayer]` **【单测也未覆盖】**
-- [ ] `l_skill2level` — `src\char\CharLevel.cpp:253` `[skill2level]`
-- [ ] `l_level2skill` — `src\char\CharLevel.cpp:261` `[level2skill]`
-- [ ] `l_exp2level` — `src\char\CharLevel.cpp:277` `[exp2level]`
-- [ ] `l_save_to_server` — `src\char\CharSave.cpp:322` `[SaveToServer]`
-- [ ] `l_offline` — `src\char\CharSave.cpp:333` `[Offline]`
-- [ ] `l_mini_skill` — `src\char\CharSkill.cpp:328` `[mini_skill]`
-- [ ] `l_delete_skill` — `src\char\CharSkill.cpp:354` `[delete_skill]`
-- [ ] `l_query_hardcore_skills` — `src\char\CharSkill.cpp:441` `[query_hardcore_skills]`
-- [ ] `l_inc_skill` — `src\char\CharSkill.cpp:475` `[inc_skill]`
-- [ ] `l_improve_skill` — `src\char\CharSkill.cpp:542` `[improve_skill]`
-- [ ] `l_clear_skill` — `src\char\CharSkill.cpp:582` `[clear_skill]`
-- [ ] `l_clear_skill_map` — `src\char\CharSkill.cpp:593` `[clear_skill_map]`
-- [ ] `l_clear_skill_prepare` — `src\char\CharSkill.cpp:604` `[clear_skill_prepare]`
-- [ ] `l_skill_need_points` — `src\char\CharSkill.cpp:615` `[skill_need_points]`
-- [ ] `l_unconcious` — `src\char\CharState.cpp:296` `[unconcious]`
-- [ ] `l_die` — `src\char\CharState.cpp:307` `[die]`
-- [ ] `l_die_base` — `src\char\CharState.cpp:318` `[die_base]`
-- [ ] `l_revive` — `src\char\CharState.cpp:342` `[revive]`
-- [ ] `l_drop_all` — `src\cmd\CmdHandle.cpp:374` `[drop_all]`
-- [ ] `l_get_room_char` — `src\cmd\CmdHandle.cpp:416` `[get_room_char]`
-- [ ] `l_is_relative` — `src\cmd\CmdHandle.cpp:429` `[is_relative]`
-- [ ] `l_damge_to_string` — `src\combat\Attack.cpp:663` `[damge_to_string]`
-- [ ] `l_combat_attack_weapon` — `src\combat\Combatd.cpp:115` `[combat_attack_weapon]`
-- [ ] `l_killer_reward` — `src\combat\CReward.cpp:499` `[killer_reward]`
-- [ ] `l_db_execute` — `src\db\LuaBindDb.cpp:14` `[db_execute]` **【盲区②】**
-- [ ] `l_get_db_type` — `src\db\LuaBindDb.cpp:36` `[get_db_type]` **【盲区②】**
-- [ ] `l_db_register_ddl` — `src\db\LuaBindDb.cpp:47` `[db_register_ddl]` **【盲区②】**
-- [ ] `l_db_query` — `src\db\LuaBindDb.cpp:65` `[db_query]` **【盲区②】**
-- [ ] `l_sql_update_record` — `src\db\SqlRank.cpp:148` `[sql_update_record]`
-- [ ] `l_make_random_yewai_global` — `src\engine\GameObject.cpp:172` `[make_random_yewai]`
-- [ ] `l_random_get_item` — `src\engine\GameObject.cpp:201` `[RandomGetItem]`
-- [ ] `l_make_corpse` — `src\item\Corpse.cpp:142` `[MakeCorpse]`
-- [ ] `l_do_wield` — `src\item\Equip.cpp:221` `[Do_Wield]`
-- [ ] `l_do_unwield` — `src\item\Equip.cpp:236` `[Do_UnWield]`
-- [ ] `l_do_use` — `src\item\Item.cpp:280` `[do_use]`
-- [ ] `l_do_action_base` — `src\item\Item.cpp:300` `[do_action_base]`
-- [ ] `l_split` — `src\item\Item.cpp:337` `[Split]`
-- [ ] `l_find_item` — `src\item\ItemMgr.cpp:140` `[find_item]`
-- [ ] `l_random_vendor` — `src\item\Vendor.cpp:335` `[random_vendor]`
-- [ ] `l_enter_register_hall` — `src\lua\LuaBindGlue.cpp:15` `[enter_register_hall]` **【单测也未覆盖】**
-- [ ] `l_call_out_combat` — `src\lua\LuaBindGlue.cpp:250` `[call_out_combat]` **【盲区②】**
-- [ ] `l_base_create` — `src\lua\LuaBindGlue.cpp:415` `[base_create]` **【盲区②】**
-- [ ] `l_ini_get` — `src\lua\LuaBindGlue.cpp:671` `[ini_get]`
-- [ ] `l_utf8_to_gbk` — `src\lua\LuaBindGlue.cpp:681` `[utf8_to_gbk]`
-- [ ] `l_get_no_force_conflict` — `src\lua\LuaBindGlue.cpp:690` `[get_no_force_conflict]`
-- [ ] `l_get_all_online_users` — `src\net\Login.cpp:563` `[get_all_online_users]`
-- [ ] `l_message_vision_self` — `src\net\Message.cpp:440` `[message_vision_self]`
-- [ ] `l_message_channel` — `src\net\Message.cpp:468` `[message_channel]`
-- [ ] `l_chinese_number` — `src\net\Message.cpp:482` `[chinese_number]`
-- [ ] `l_wield_ownered_item` — `src\npc\Npc.cpp:349` `[wield_ownered_item]`
-- [ ] `l_random_move` — `src\npc\Npc.cpp:421` `[random_move]`
-- [ ] `l_add_money` — `src\npc\Npc.cpp:430` `[add_money]`
-- [ ] `l_random_npc` — `src\npc\NpcMgr.cpp:115` `[random_npc]`
-- [ ] `l_create` — `src\object\Container.cpp:205` `[create]`
-- [ ] `l_purge` — `src\object\Container.cpp:232` `[purge]`
-- [ ] `l_clear` — `src\object\Container.cpp:241` `[clear]`
-- [ ] `l_set_heart_beat` — `src\object\Container.cpp:252` `[set_heart_beat]`
-- [ ] `l_get_map` — `src\object\ContainerDbase.cpp:194` `[get_map]`
-- [ ] `l_set_map` — `src\object\ContainerDbase.cpp:223` `[set_map]`
-- [ ] `l_queryvec` — `src\object\ContainerDbase.cpp:250` `[queryvec]`
-- [ ] `l_querymap_temp_keys` — `src\object\ContainerDbase.cpp:343` `[querymap_temp_keys]`
-- [ ] `l_title` — `src\object\ContainerItem.cpp:232` `[title]`
-- [ ] `l_query_amount` — `src\object\ContainerWeight.cpp:122` `[Query_Amount]`
-- [ ] `l_query_weight` — `src\object\ContainerWeight.cpp:133` `[Query_Weight]`
-- [ ] `l_can_equipped` — `src\object\ContainerWeight.cpp:155` `[can_equipped]`
-- [ ] `l_current_time_info` — `src\object\Global.cpp:49` `[current_time_info]`
-- [ ] `l_get_server_id` — `src\object\Global.cpp:63` `[get_server_id]`
-- [ ] `l_door_bind` — `src\room\Door.cpp:43` `[bind]`
-- [ ] `l_draw_map` — `src\room\Room.cpp:369` `[draw_map]` **【单测也未覆盖】**
-- [ ] `l_room_reset` — `src\room\Room.cpp:398` `[reset]`
-- [ ] `l_remove_doors` — `src\room\Room.cpp:409` `[remove_doors]`
-- [ ] `l_add_item` — `src\room\Room.cpp:478` `[add_item]`
-- [ ] `l_present_door` — `src\room\Room.cpp:506` `[PresentDoor]`
-- [ ] `l_room_exits` — `src\room\Room.cpp:521` `[room_exits]`
-- [ ] `l_valid_force` — `src\skill\Skill.cpp:276` `[valid_force]`
-- [ ] `l_load_skill` — `src\skill\SkillMgr.cpp:112` `[load_skill]`
-- [ ] `l_do_active` — `src\user\User.cpp:453` `[DoActive]`
-- [ ] `l_ready_pk` — `src\user\User.cpp:466` `[ready_pk]`
-- [ ] `l_find_player` — `src\user\UserMgr.cpp:110` `[find_player]`
-- [ ] `l_log_trace` — `src\util\Logger.cpp:179` `[log_trace]` **【盲区③】**
-- [ ] `l_log_debug` — `src\util\Logger.cpp:180` `[log_debug]` **【盲区③】**
-- [ ] `l_log_warn` — `src\util\Logger.cpp:182` `[log_warn]` **【盲区③】**
-- [ ] `l_log_error` — `src\util\Logger.cpp:183` `[log_error]` **【盲区③】**
-- [ ] `l_log_fatal` — `src\util\Logger.cpp:184` `[log_fatal]` **【盲区③】**
-- [ ] `l_xrandom` — `src\util\Random.cpp:40` `[xrandom]`
+| 档 | 条数 | 处置 | 归属阶段 |
+|---|---|---|---|
+| A 数据集有真实用法 | 114 | 教材补演示（内容缺口坐实） | 阶段 3~6 |
+| B1 被更优解取代 / 内部 API 不必暴露 | 7 | **全部已删**——阶段 1：`utf8_to_gbk`、`SaveToServer`、`drop_all`、`attempt_apprentice`；阶段 2：`wield_weapon`、`unwield_weapon`、`do_use`（2026-11-06） | 阶段 1 ✓ / 2 ✓ |
+| B2 语义独特 | 3 | `Offline`、`remove_doors` **已删（阶段 2）**；`query_apply` 补演示 | 阶段 2 ✓ / 6 |
+| B3 日志级别体系 | 2 | 豁免（作者批注「忽略日志相关的几个函数」） | — |
+
+**进度（2026-11-06）**：阶段 1/2 合计删 9 条，另 `l_draw_map` 一条已随 `draw_map` 整链移除
+（非本计划阶段）——本节现存 **116** 条（126 − 10）。§1 总账仍按基线不回溯重算，收口统一处理。
+
+**勾选进度（2026-11-07）**：阶段 4 勾 12 条——本节累计已勾 **23**、未勾 **93**；
+本轮官方未命中清单 **225 → 210**（本节 12 条 + §2.1/§5.2 的 `receive_poison`、
+`do_attack_weapon` 两条盲区同批出列）。
+
+**方向标注**：`do_use`、`attempt_apprentice`、`die`、`create`、`init` 五条同名双向——脚本里的
+`xxx = function(...)` 是 C++→Lua hook，本节统计的是 Lua→C++ 绑定方向；hook 方向教材已演示，
+绑定方向零调用。
+
+`design/integration-test.md §6` 第 2 行裁定仍约束 A 档：**内容需求问题，不为测试加调用**——
+补的是教材内容，不是覆盖率。
+
+- [ ] 确认分档：A 114 补演示、B1 7 删、B2 3 分流、B3 2 豁免；`§6` 裁定维持
+- [ ] `l_clear_condition` — `src\char\Char.cpp:373` `[clear_condition]` ｜ 【A 档】蓝本: dulonglian.lua, jiuxichanzhang.lua
+- [ ] `l_reset_level` — `src\char\Char.cpp:397` `[reset_level]` ｜ 【A 档】蓝本: login.lua, zaixiang_zhang.lua
+- [x] `l_is_killing` — `src\char\Char.cpp:408` `[is_killing]` ｜ 【A 档】蓝本: pub_guidao.lua, duanjia_sword.lua ｜ 阶段 4：`sample_road_rogue` 的 `do_talk`「挑衅」读名单分岔——首次记账后名单在→真支、贿赂销账后→假支（同一句再问翻回假支即销账的状态证明）；`/fight` 与 `fight_ob` 两场的不碰名单由 `notext 想杀死你` 另行盯住（`mountain_foot/road_rogue.sce`）
+- [ ] `l_disable_player` — `src\char\Char.cpp:455` `[disable_player]` ｜ 【A 档】蓝本: newyear.lua, newyear1.lua
+- [ ] `l_enable_player` — `src\char\Char.cpp:467` `[enable_player]` ｜ 【A 档】蓝本: newyear.lua, newyear1.lua
+- [x] `l_query_dex` — `src\char\CharAttr.cpp:156` `[query_dex]` **【单测也未覆盖】** ｜ 【A 档】蓝本: animal_dongbeihu.lua, animal_huananhu.lua ｜ 阶段 3：`sample_master`「验看」报数 + `social/master_inspect.sce`（未命中清单 233→225）
+- [x] `l_query_combat_exp` — `src\char\CharAttr.cpp:167` `[query_combat_exp]` ｜ 【A 档】蓝本: douzhuan xinyi1.lua, douzhuan xinyi2.lua ｜ 阶段 3：同上「验看」（历练 51000 点精确断言——大考 1000 + 问路 50000 正常所攒）
+- [ ] `l_query_apply` — `src\char\CharAttr.cpp:178` `[query_apply]` ｜ 【B2 补演示·阶段6】泛化版，随五大属性演示
+- [x] `l_query_str` — `src\char\CharAttr.cpp:190` `[query_str]` ｜ 【A 档】蓝本: wumu_book1.lua, gaibang_hong.lua ｜ 阶段 3：`sample_master`「验看」报数 + `social/master_inspect.sce`
+- [x] `l_query_con` — `src\char\CharAttr.cpp:201` `[query_con]` ｜ 【A 档】蓝本: nuerxiang.lua, gaibang_hong.lua ｜ 阶段 3：同上「验看」
+- [x] `l_query_int` — `src\char\CharAttr.cpp:212` `[query_int]` ｜ 【A 档】蓝本: jieyuling.lua, shangshan_tie.lua ｜ 阶段 3：同上「验看」
+- [x] `l_query_per` — `src\char\CharAttr.cpp:223` `[query_per]` ｜ 【A 档】蓝本: pub_baixiaosheng.lua, leisure.lua ｜ 阶段 3：同上「验看」（与老夫比容貌，老夫 create 钉 0、弟子创建下限 10 恒胜）
+- [ ] `l_is_invalid` — `src\char\CharAttr.cpp:234` `[is_invalid]` ｜ 【A 档】蓝本: login.lua, heiyue_si.lua
+- [ ] `l_learn_bonus` — `src\char\CharAttr.cpp:247` `[learn_bonus]` ｜ 【A 档】蓝本: lingjiu_mishi.lua, shidong_base.lua
+- [ ] `l_query_respect` — `src\char\CharAttr.cpp:258` `[query_respect]` ｜ 【A 档】蓝本: rubbish_1.lua, rubbish_2.lua
+- [ ] `l_query_rude` — `src\char\CharAttr.cpp:268` `[query_rude]` ｜ 【A 档】蓝本: gaibang_xiaofeng.lua, alms.lua
+- [ ] `l_query_self` — `src\char\CharAttr.cpp:278` `[query_self]` ｜ 【A 档】蓝本: jieyinling.lua, pub_yangfengren.lua
+- [ ] `l_query_self_rude` — `src\char\CharAttr.cpp:288` `[query_self_rude]` ｜ 【A 档】蓝本: fengyin.lua
+- [x] `l_query_valid_exp` — `src\char\CharAttr.cpp:307` `[query_valid_exp]` ｜ 【A 档】蓝本: emei_miejue.lua, lingjiu_mishi.lua ｜ 阶段 3：同上「验看」（报弟子可用经验 49700 = 51000 − level2_exp(5)，正常升级所耗）；绑定原为 CNpc 收窄，本阶段放宽回 CChar 域（`upgrade()` 本就对玩家调此方法），绑定单测同步收紧为精确断言
+- [x] `l_base_attack` — `src\char\CharCombat.cpp:367` `[base_attack]` **【单测也未覆盖】** ｜ 【A 档】蓝本: pub_muren.lua, pub_tongren.lua ｜ 阶段 3：`sample_iron_dummy` 的 `attack` 钩子 + `skill/iron_dummy_retaliate.sce`（run3 未命中清单 237→236）
+- [x] `l_receive_poison` — `src\char\CharCombat.cpp:410` `[receive_poison]` ｜ 【A 档】蓝本: bingpo_poison.lua, dsy_poison.lua ｜ 阶段 4：`condition/snake_poison.lua` 逐拍毒伤改走本绑定（并入 L4 现有毒链，断言不动）
+- [x] `l_set_killer` — `src\char\CharCombat.cpp:482` `[set_killer]` ｜ 【A 档】蓝本: huashan_mei.lua, pub_guidao.lua ｜ 阶段 4：`do_talk`「挑衅」首次出言不逊时记账（对方收私发「想杀死你」）——**set_killer 不开打**，只把人写进追杀名单，所以同一句能反复问、话一直说得下去；脚本不主动宣战，进战斗的分野仍由 `/kill` vs `/fight` 两条正常命令承担
+- [x] `l_fight_ob` — `src\char\CharCombat.cpp:495` `[fight_ob]` ｜ 【A 档】蓝本: dali_duanerguan.lua, gaibang_xiaofeng.lua ｜ 阶段 4：`do_talk`「讨教」客气请教时还手——与「挑衅」的 `set_killer` 分列两支，两条写绑定各自看得见；这句排在所有问话之后，`fight_ob` 是**真开打**（清缓冲后的 `notext` 证明它不记账），开战后不再需要说话，一路打到死
+- [x] `l_remove_all_killer` — `src\char\CharCombat.cpp:508` `[remove_all_killer]` ｜ 【A 档】蓝本: guanyin.lua ｜ 阶段 4：**收受贿赂销账**——钱到气消，双方 `remove_all_killer`；销完再问同一句「挑衅」翻回假支即其状态证明（没销账就还是「新账旧账一起算」）；贿赂排在开战之前，非战斗态下 give 不走 30 AP 那道门
+- [ ] `l_set_leader` — `src\char\CharFamily.cpp:234` `[set_leader]` ｜ 【A 档】蓝本: was_leitinglin.lua, lingjiu_xuzhu.lua
+- [ ] `l_recruit_num` — `src\char\CharFamily.cpp:247` `[recruit_num]` ｜ 【A 档】蓝本: zushi.lua
+- [x] `l_release_master` — `src\char\CharFamily.cpp:256` `[release_master]` ｜ 【A 档】蓝本: emei_miejue.lua, pub_huqingyu.lua ｜ 阶段 3：黑风寨总教头 `do_talk`「判师」捎带（run7 未命中清单出列）
+- [ ] `l_is_apprentice_of` — `src\char\CharFamily.cpp:265` `[is_apprentice_of]` ｜ 【A 档】蓝本: murong_fu.lua
+- [ ] `l_recruit_apprentice` — `src\char\CharFamily.cpp:276` `[recruit_apprentice]` ｜ 【A 档】蓝本: gumu_hong.lua, gumu_liqingzhao.lua
+- [ ] `l_assign_apprentice` — `src\char\CharFamily.cpp:304` `[assign_apprentice]` ｜ 【A 档】蓝本: due.lua, dujie.lua
+- [ ] `l_recognize_apprentice` — `src\char\CharFamily.cpp:318` `[recognize_apprentice]` ｜ 【A 档】蓝本: skills.lua, zm_btshan.lua
+- [ ] `l_prevent_learn` — `src\char\CharFamily.cpp:329` `[prevent_learn]` ｜ 【A 档】蓝本: zm_btshan.lua, zm_dali.lua
+- [ ] `l_query_recruit` — `src\char\CharFamily.cpp:353` `[query_recruit]` ｜ 【A 档】蓝本: zushi.lua
+- [ ] `l_update_recruit` — `src\char\CharFamily.cpp:384` `[update_recruit]` ｜ 【A 档】蓝本: zushi.lua
+- [ ] `l_query_left_weapon` — `src\char\CharFight.cpp:377` `[query_left_weapon]` ｜ 【A 档】蓝本: hooks.lua, fb_shadow.lua
+- [ ] `l_init` — `src\char\CharFight.cpp:395` `[init]` ｜ 【A 档】蓝本: corps_qingxia.lua, lj_andongzhu.lua；脚本常自定义同名 init，绑定方向需甄别
+- [x] `l_do_bishi` — `src\char\CharFight.cpp:408` `[Do_BiShi]` ｜ 【A 档】蓝本: btshan_tongzi.lua, dali_duanwuwei.lua ｜ 阶段 4：`sample_arena_master`「指教」问话走引擎比试绑定 + `interaction/arena.sce` 段尾（阈值血线收场）
+- [ ] `l_flush_my_skill` — `src\char\CharFlush.cpp:240` `[FlushMySkill]` ｜ 【A 档】蓝本: login.lua, base_funcs.lua
+- [x] `l_remove_betrayer` — `src\char\CharLevel.cpp:242` `[Remove_Betrayer]` **【单测也未覆盖】** ｜ 【A 档】蓝本: quanzhou_xmdog.lua ｜ 阶段 3：`sample_master`「悔过」菜单 + `social/betray_and_repent.sce`（run7 未命中清单出列）
+- [ ] `l_skill2level` — `src\char\CharLevel.cpp:253` `[skill2level]` ｜ 【A 档】蓝本: xunshou_shu.lua, qufeng.lua
+- [ ] `l_level2skill` — `src\char\CharLevel.cpp:261` `[level2skill]` ｜ 【A 档】蓝本: hooks.lua, jinshe1.lua
+- [ ] `l_exp2level` — `src\char\CharLevel.cpp:277` `[exp2level]` ｜ 【A 档】蓝本: fb_shadow.lua, wiz_paihangbang.lua
+- [ ] `l_mini_skill` — `src\char\CharSkill.cpp:328` `[mini_skill]` ｜ 【A 档】蓝本: shaolin_qing_le.lua, shaolin_xuan_ku.lua
+- [ ] `l_delete_skill` — `src\char\CharSkill.cpp:354` `[delete_skill]` ｜ 【A 档】蓝本: login.lua, base_funcs.lua
+- [ ] `l_query_hardcore_skills` — `src\char\CharSkill.cpp:441` `[query_hardcore_skills]` ｜ 【A 档】蓝本: familybook.lua, family_book.lua
+- [ ] `l_inc_skill` — `src\char\CharSkill.cpp:475` `[inc_skill]` ｜ 【A 档】蓝本: familybook.lua, family_book.lua
+- [ ] `l_improve_skill` — `src\char\CharSkill.cpp:542` `[improve_skill]` ｜ 【A 档】蓝本: hooks.lua, bojuan.lua
+- [ ] `l_clear_skill` — `src\char\CharSkill.cpp:582` `[clear_skill]` ｜ 【A 档】蓝本: zhangmen_base.lua, pub_huqingyu.lua
+- [ ] `l_clear_skill_map` — `src\char\CharSkill.cpp:593` `[clear_skill_map]` ｜ 【A 档】蓝本: zhangmen_base.lua, pub_huqingyu.lua
+- [ ] `l_clear_skill_prepare` — `src\char\CharSkill.cpp:604` `[clear_skill_prepare]` ｜ 【A 档】蓝本: zhangmen_base.lua, pub_huqingyu.lua
+- [ ] `l_skill_need_points` — `src\char\CharSkill.cpp:615` `[skill_need_points]` ｜ 【A 档】蓝本: lingjiu_mishi.lua, shidong_base.lua
+- [x] `l_unconcious` — `src\char\CharState.cpp:296` `[unconcious]` ｜ 【A 档】蓝本: drunk.lua, drunk1.lua ｜ 阶段 4：`condition/drunk.lua` 醉到头昏过去（`item/sample_jiu.lua` 挂载 + `mountain_foot/drink_and_faint.sce`）
+- [ ] `l_die` — `src\char\CharState.cpp:307` `[die]` ｜ 【A 档】蓝本: jiasha.lua, bicanfeng.lua；脚本常自定义同名 die(hook)，绑定方向需甄别
+- [x] `l_revive` — `src\char\CharState.cpp:342` `[revive]` ｜ 【A 档】蓝本: bj_hao.lua, bj_liu.lua ｜ 阶段 4：同上，酒力散尽由状态自己醒（赶在引擎自动苏醒兜底之前）
+- [ ] `l_get_room_char` — `src\cmd\CmdHandle.cpp:416` `[get_room_char]` ｜ 【A 档】蓝本: skills.lua
+- [ ] `l_is_relative` — `src\cmd\CmdHandle.cpp:429` `[is_relative]` ｜ 【A 档】蓝本: skills.lua
+- [x] `l_damge_to_string` — `src\combat\Attack.cpp:663` `[damge_to_string]` ｜ 【A 档】蓝本: dagou_bang.lua, dashou_yin.lua ｜ 阶段 4：`data/hooks.lua` 的 `calculate_damage` 把打在山道强人身上的每一击实打伤害格式化后私发给出手方
+- [x] `l_combat_attack_weapon` — `src\combat\Combatd.cpp:115` `[combat_attack_weapon]` ｜ 【A 档】蓝本: hooks.lua, qianbi_shou.lua ｜ 阶段 4：`hooks.fight` 的棋子补击（TYPE_HIT 必中档，蓝本即数据集 `hooks.lua:292`）
+- [x] `l_killer_reward` — `src\combat\CReward.cpp:499` `[killer_reward]` ｜ 【A 档】蓝本: mfnpc_common.lua, monster_yewai_base.lua ｜ 阶段 4：`sample_road_rogue` 的 `die` 接管（配 `nk_bonus` 固定击杀经验——`nk_gain` 的历练折算会把杂鱼折成 0，静默无回执）
+- [ ] `l_db_execute` — `src\db\LuaBindDb.cpp:14` `[db_execute]` **【盲区②】** ｜ 【A 档】蓝本: card_core.lua, mingjiao_db.lua
+- [ ] `l_get_db_type` — `src\db\LuaBindDb.cpp:36` `[get_db_type]` **【盲区②】** ｜ 【A 档】蓝本: card_core.lua
+- [ ] `l_db_register_ddl` — `src\db\LuaBindDb.cpp:47` `[db_register_ddl]` **【盲区②】** ｜ 【A 档】蓝本: card_core.lua, corps_db.lua
+- [ ] `l_db_query` — `src\db\LuaBindDb.cpp:65` `[db_query]` **【盲区②】** ｜ 【A 档】蓝本: showmjexp.lua, card_core.lua
+- [ ] `l_sql_update_record` — `src\db\SqlRank.cpp:148` `[sql_update_record]` ｜ 【A 档】蓝本: boss_common.lua
+- [ ] `l_make_random_yewai_global` — `src\engine\GameObject.cpp:172` `[make_random_yewai]` ｜ 【A 档】蓝本: yewai_grid.lua
+- [ ] `l_random_get_item` — `src\engine\GameObject.cpp:201` `[RandomGetItem]` ｜ 【A 档】蓝本: alms.lua, begging.lua
+- [x] `l_make_corpse` — `src\item\Corpse.cpp:142` `[MakeCorpse]` ｜ 【A 档】蓝本: animal_bear.lua, qishe.lua ｜ 阶段 4：同上，`die` 自己造尸体（不回链 `die_base`，否则奖励与尸体交回 C++ 再做一遍）
+- [ ] `l_do_wield` — `src\item\Equip.cpp:221` `[Do_Wield]` ｜ 【A 档】蓝本: gaitou.lua, killermask.lua
+- [ ] `l_do_unwield` — `src\item\Equip.cpp:236` `[Do_UnWield]` ｜ 【A 档】蓝本: gaitou.lua, killermask.lua
+- [ ] `l_do_action_base` — `src\item\Item.cpp:300` `[do_action_base]` ｜ 【A 档】蓝本: gaitou.lua, killermask.lua
+- [ ] `l_split` — `src\item\Item.cpp:337` `[Split]` ｜ 【A 档】蓝本: alms.lua, begging.lua
+- [ ] `l_find_item` — `src\item\ItemMgr.cpp:140` `[find_item]` ｜ 【A 档】蓝本: quanzhou_xmdog.lua
+- [ ] `l_random_vendor` — `src\item\Vendor.cpp:335` `[random_vendor]` ｜ 【A 档】蓝本: wiz_redpacket.lua
+- [ ] `l_enter_register_hall` — `src\lua\LuaBindGlue.cpp:15` `[enter_register_hall]` | 忽略，不测
+- [ ] `l_call_out_combat` — `src\lua\LuaBindGlue.cpp:250` `[call_out_combat]` **【盲区②】** ｜ 【A 档】蓝本: xunshou_shu.lua, qufeng.lua
+- [ ] `l_base_create` — `src\lua\LuaBindGlue.cpp:415` `[base_create]` **【盲区②】** ｜ 【A 档】蓝本: hamagong.lua, kurong_changong.lua
+- [ ] `l_ini_get` — `src\lua\LuaBindGlue.cpp:671` `[ini_get]` ｜ 【A 档】蓝本: hooks.lua, login.lua
+- [ ] `l_get_no_force_conflict` — `src\lua\LuaBindGlue.cpp:690` `[get_no_force_conflict]` ｜ 【A 档】蓝本: hamagong.lua, kurong_changong.lua
+- [ ] `l_get_all_online_users` — `src\net\Login.cpp:563` `[get_all_online_users]` ｜ 【A 档】蓝本: pub_habagou.lua, monster_searcher.lua
+- [ ] `l_message_vision_self` — `src\net\Message.cpp:440` `[message_vision_self]` ｜ 【A 档】蓝本: hooks.lua
+- [ ] `l_message_channel` — `src\net\Message.cpp:468` `[message_channel]` ｜ 【A 档】蓝本: bojuan.lua, musicbook2.lua
+- [ ] `l_chinese_number` — `src\net\Message.cpp:482` `[chinese_number]` ｜ 【A 档】蓝本: musicbook1.lua, hushenfu.lua
+- [ ] `l_wield_ownered_item` — `src\npc\Npc.cpp:349` `[wield_ownered_item]` ｜ 【A 档】蓝本: fb_shadow.lua
+- [ ] `l_random_move` — `src\npc\Npc.cpp:421` `[random_move]` ｜ 【A 档】蓝本: btshan_ouyangke.lua, gaibang_kongkong.lua
+- [ ] `l_add_money` — `src\npc\Npc.cpp:430` `[add_money]` ｜ 【A 档】蓝本: btshan_ouyangfeng.lua, btshan_ouyangke.lua
+- [ ] `l_random_npc` — `src\npc\NpcMgr.cpp:115` `[random_npc]` ｜ 【A 档】蓝本: corps_xiaoyaosanren.lua, pub_caozhangguei.lua
+- [ ] `l_create` — `src\object\Container.cpp:205` `[create]` ｜ 【A 档】蓝本: hooks.lua, boss_common.lua；脚本常自定义同名 create，绑定方向需甄别
+- [ ] `l_purge` — `src\object\Container.cpp:232` `[purge]` ｜ 【A 档】蓝本: mfnpc_common.lua, monster_yewai_base.lua
+- [ ] `l_clear` — `src\object\Container.cpp:241` `[clear]` ｜ 【A 档】蓝本: pub_huqingyu.lua
+- [ ] `l_set_heart_beat` — `src\object\Container.cpp:252` `[set_heart_beat]` ｜ 【A 档】蓝本: pub_tangseng.lua, wiz_biaoche.lua
+- [ ] `l_get_map` — `src\object\ContainerDbase.cpp:194` `[get_map]` ｜ 【A 档】蓝本: pub_huqingyu.lua
+- [ ] `l_set_map` — `src\object\ContainerDbase.cpp:223` `[set_map]` ｜ 【A 档】蓝本: pub_huqingyu.lua
+- [ ] `l_queryvec` — `src\object\ContainerDbase.cpp:250` `[queryvec]` ｜ 【A 档】蓝本: zhangmen_base.lua, xunshou_shu.lua
+- [ ] `l_querymap_temp_keys` — `src\object\ContainerDbase.cpp:343` `[querymap_temp_keys]` ｜ 【A 档】蓝本: hooks.lua, wiz_redpacket.lua
+- [ ] `l_title` — `src\object\ContainerItem.cpp:232` `[title]` ｜ 【A 档】蓝本: killermask.lua, killermask1.lua
+- [ ] `l_query_amount` — `src\object\ContainerWeight.cpp:122` `[Query_Amount]` ｜ 【A 档】蓝本: shicheng.lua, yanziwu_azhu.lua
+- [ ] `l_query_weight` — `src\object\ContainerWeight.cpp:133` `[Query_Weight]` ｜ 【A 档】蓝本: yinguozhu.lua, pub_caozhangguei.lua
+- [ ] `l_can_equipped` — `src\object\ContainerWeight.cpp:155` `[can_equipped]` ｜ 【A 档】蓝本: newyear.lua, newyear1.lua
+- [ ] `l_current_time_info` — `src\object\Global.cpp:49` `[current_time_info]` ｜ 【A 档】蓝本: pub_sun.lua
+- [ ] `l_get_server_id` — `src\object\Global.cpp:63` `[get_server_id]` ｜ 【A 档】蓝本: monster_18dy_base.lua
+- [ ] `l_door_bind` — `src\room\Door.cpp:43` `[bind]` ｜ 【A 档】蓝本: yewai_grid.lua
+- [ ] `l_room_reset` — `src\room\Room.cpp:398` `[reset]` ｜ 【A 档】蓝本: was_mache.lua, randomnpc.lua
+- [ ] `l_add_item` — `src\room\Room.cpp:478` `[add_item]` ｜ 【A 档】蓝本: dalieast_nongtian2.lua, dalisouth_nongtian.lua
+- [ ] `l_present_door` — `src\room\Room.cpp:506` `[PresentDoor]` ｜ 【A 档】蓝本: yewai_grid.lua, 18hell_1_1.lua
+- [ ] `l_room_exits` — `src\room\Room.cpp:521` `[room_exits]` ｜ 【A 档】蓝本: monster_search.lua, randomnpc.lua
+- [ ] `l_valid_force` — `src\skill\Skill.cpp:276` `[valid_force]` ｜ 【A 档】蓝本: hooks.lua
+- [ ] `l_load_skill` — `src\skill\SkillMgr.cpp:112` `[load_skill]` ｜ 【A 档】蓝本: skills.lua, login.lua
+- [ ] `l_do_active` — `src\user\User.cpp:453` `[DoActive]` ｜ 【A 档】蓝本: exercisebot.lua, practicebot.lua
+- [ ] `l_ready_pk` — `src\user\User.cpp:466` `[ready_pk]` ｜ 【A 档】蓝本: heimuya_renwoxing.lua, lj_andongzhu.lua
+- [ ] `l_find_player` — `src\user\UserMgr.cpp:110` `[find_player]` ｜ 【A 档】蓝本: jieyinling.lua
+- [ ] `l_log_trace` — `src\util\Logger.cpp:179` `[log_trace]` **【盲区③】** | 1106: 忽略日志相关的几个函数 ｜ 【B3 豁免】日志级别体系，作者批注忽略
+- [ ] `l_log_debug` — `src\util\Logger.cpp:180` `[log_debug]` **【盲区③】** ｜ 【A 档】蓝本: mingjiao_db.lua, yinmopao.lua
+- [ ] `l_log_warn` — `src\util\Logger.cpp:182` `[log_warn]` **【盲区③】** ｜ 【A 档】蓝本: login.lua, zaixiang_zhang.lua
+- [ ] `l_log_error` — `src\util\Logger.cpp:183` `[log_error]` **【盲区③】** ｜ 【A 档】蓝本: card_core.lua, hooks.lua
+- [ ] `l_log_fatal` — `src\util\Logger.cpp:184` `[log_fatal]` **【盲区③】** ｜ 【B3 豁免】日志级别体系，作者批注忽略
+- [x] `l_xrandom` — `src\util\Random.cpp:40` `[xrandom]`  | 1106: 山贼头目死亡时使用这个随机函数决定掉落。做个掉落列表，按价值决定概率。 ｜ 【A 档】蓝本: 38huoqiang.lua, bichaoxiao.lua ｜ 阶段 3：`item/sample_blind_box.lua` 拆盒抽奖 + `mountain_foot/blind_box.sce`（未命中清单 233→225）
 
 ### 3.2 教材调用了，但本轮走不到：12 条
 
@@ -431,7 +441,7 @@
 - [ ] `CLuaSkill::get_magic_display_name` — `src\lua\LuaSkill.cpp:305` ｜ 零调用（连单测也没有）
 - [x] `lua_bind_check_object` — 已移出生产代码，读栈辅助归 `tests\unit\test_bind_common.h` ｜ 生产侧零调用方
 - [ ] `logger_new_run_id` — `src\util\Logger.cpp:60` ｜ 仅 `test_env.cpp`/`test_log_runid.cpp`
-- [ ] `CContainer::query_short` — `src\object\ContainerItem.cpp:60` ｜ 零调用 | 准备删除
+- [ ] `CContainer::query_short` — `src\object\ContainerItem.cpp:60` ｜ 零调用 | 1106:准备删除
 - [ ] `CContainer::query_max_amount` — `src\object\ContainerWeight.cpp:63` ｜ 零 `->query_max_amount()` 调用点 | 需要重新设计。目前的堆叠功能没有上限。容易堆出一个超级重的物品。可能需要设置上限，大道上大道上达到上限自动分出第二堆。
 - [ ] `CItem::query_max_amount` — `src\item\Item.cpp:124` ｜ 同上（虚函数无分派到）
 - [ ] `CSkill::has_magic` — `src\skill\Skill.cpp:47` ｜ 零调用
@@ -470,9 +480,6 @@
 
 - [ ] `CChannel::do_snooping` — `src\engine\Channel.cpp:82` ← `User.cpp`（`client/snoop` 需巫师 `snoop` 命令）
 - [ ] `CChannel::query_snooping` — `src\engine\Channel.cpp:77` ← `CmdWizardAdmin.cpp`（巫师域）
-- [x] ~~`CChannel::update_recruit` — `src\engine\Channel.cpp:104` ← `CharFamily.cpp` / `CharSave.cpp`（`family/user` 恒 0）~~ **2026-11-04 20:19 起已命中**：玩家收徒场景补上 `family/user=1` 侧
-- [x] ~~`CRelationshipTracker::update_recruit` — `src\engine\RelationshipTracker.cpp:47` ← 同上~~ **2026-11-04 20:19 起已命中**
-- [x] ~~`db_update_recruit` — `src\db\SqlAccount.cpp:350` ← 同上~~ **2026-11-04 20:19 起已命中**
 - [ ] `CChar::clear_condition` — `src\char\Char.cpp:310` ← `l_clear_condition`（教材没调）
 - [ ] `CChar::clear_skill` — `src\char\CharSkill.cpp:198` ← `l_clear_skill`（教材没调）
 - [ ] `CChar::clear_skill_map` — `src\char\CharSkill.cpp:195` ← 同上
@@ -485,13 +492,13 @@
 - [ ] `CChar::query_grant` — `src\char\CharAttr.cpp:78` ← 同上 **【盲区③】**
 - [ ] `CChar::mini_skill` — `src\char\CharSkill.cpp:261` ← `l_mini_skill`（教材没调）
 - [ ] `CChar::query_learned` — `src\char\CharSkill.cpp:241` ← 同上 **【盲区③】**
-- [ ] `CChar::receive_poison` — `src\char\CharCombat.cpp:281` ← `l_receive_poison`（教材没调）**【盲区①】**
+- [x] `CChar::receive_poison` — `src\char\CharCombat.cpp:281` ← `l_receive_poison`（教材已调：阶段 4 `condition/snake_poison.lua`）**【盲区①】**
 - [ ] `CChar::recruit_num` — `src\char\CharFamily.cpp:206` ← `l_recruit_num`（教材没调）
-- [ ] `CChar::remove_betrayer` — `src\char\CharLevel.cpp:206` ← `l_remove_betrayer`（教材没调）
+- [x] `CChar::remove_betrayer` — `src\char\CharLevel.cpp:206` ← `l_remove_betrayer`（教材已调：`sample_master`「悔过」，阶段 3）
 - [ ] `CChar::skill2level` — `src\char\CharLevel.cpp:41` ← `l_skill2level`（教材没调）
 - [ ] `CCmdHandle::do_kick` — `src\cmd\CmdHandle.cpp:351` ← `CmdWizardAdmin.cpp`（巫师域）
 - [ ] `CCmdHandle::do_revive` — `src\cmd\CmdHandle.cpp:344` ← `CmdHandle.cpp`（`rate_limit=0` 关掉刷屏封禁分支）
-- [ ] `CCombatd::do_attack_weapon` — `src\combat\Combatd.cpp:29` ← `l_combat_attack_weapon`（教材没调）**【盲区①】**
+- [x] `CCombatd::do_attack_weapon` — `src\combat\Combatd.cpp:29` ← `l_combat_attack_weapon`（教材已调：阶段 4 `data/hooks.lua` 棋子补击）**【盲区①】**
 - [ ] `CContainer::call_out_combat` — `src\object\ContainerMisc.cpp:44` ← `l_call_out_combat`（教材没调）**【盲区①】**
 - [ ] `CContainer::query_entire_temp_dbase` — `src\object\ContainerDbase.cpp:25` ← `l_querymap_temp_keys` 类链 **【盲区③】**
 - [ ] `CGateInfo::x_send` — `src\net\GateInfo.cpp:102` ← `close_client` 改走 `close_connection()` 后已无生产调用方（死代码，归死代码批次处置）
@@ -506,7 +513,6 @@
 - [ ] `CRoom::query_exits` — `src\room\Room.cpp:236` ← `l_room_exits`（教材没调）**【盲区③】**
 - [ ] `CRoom::remove_doors` — `src\room\Room.cpp:274` ← `l_remove_doors`（教材没调）
 - [ ] `CSkill::depends_on` — `src\skill\Skill.cpp:59` ← `SkillMgr.cpp`（热重载 `skill_release_one` 路径）
-- [ ] `draw_map` — `src\room\RoomMgr.cpp:54` ← `l_draw_map`（教材没调）
 - [ ] `printf_all_mappings` — `src\object\Mapping.cpp:21` ← `CCmdWizard::print_mapping`（巫师域）
 - [ ] `random_get_item` — `src\engine\GameObject.cpp:20` ← `l_random_get_item`（教材没调）
 - [ ] `random_npc` — `src\npc\NpcMgr.cpp:85` ← `l_random_npc`（教材没调）
@@ -550,16 +556,15 @@ reload 试验台转绿移出）
 
 **已核实（干净）**
 
-- [ ] ✅ `CChannel::snoop` — `src\engine\Channel.cpp:74` ← `User.cpp:63 if (query_temp("client/snoop"))` 行命中但体0 → 需先执行巫师 `snoop`
-- [ ] ✅ `CChar::apply_condition`（4 参带 `who`）— `src\char\CharSkill.cpp:287` ← 教材 `apply_condition(cnd,duration)` 只传 3 参，`who` 恒 NULL → 走 3 参重载
-- [ ] ✅ `CChar::handle_action`（4 参）— `src\char\CharInterface.cpp:46` ← 只有 `where`（环境）是角色才走，E2E 玩家永远在房间里
-- [ ] ✅ `CRoom::download` / `CRoom::get_info` — `src\room\RoomInterface.cpp:70/80` ← 只有"房间对象被塞进容器"或 `downloadobject <房间id>` / `room:DownLoad(me)` 才走；`sample_master.lua:94 self:DownLoad(me)` 的 `self` 是 NPC → 走 `CChar::download`
-- [ ] ~~✅ `CRelationshipTracker::update_recruit` 相关的 `CharSave.cpp:59` 分支 ← `family/user` 恒 0（E2E 收的都是 NPC 师父）~~ **2026-11-04 20:19 起已命中**：玩家收徒场景（L6 存盘触发 `if (query("family/user"))` 分支），NPC 师父侧另由 L4 的巫师 `call query family/user=0` 钉住
-- [ ] ✅ `CFBRoom::CFBRoom(CFB*)` — `src\room\FBRoom.cpp:48` ← `create_fb_room` 的兜底分支（脚本缺失才走）
-- [ ] ✅ `seed_first_id` — `src\db\DbTables.cpp:81` ← 只在**首建库**时调，E2E 库已存在
-- [ ] ✅ `CChannel::group_listener` — `src\engine\ChatChannel.cpp:327` ← `hooks.channel_group` 教材未实现 → `group_key` 恒空
-- [ ] ✅ `finish_kill`（`CLuaNpcT`）— `src\lua\LuaNpc.inl:446` ← `killer->finish_kill()`，需 **NPC 击杀玩家**，E2E 中 NPC 从未杀死玩家
-- [ ] ~~✅ `CChar::load` — `src\char\CharSave.cpp:290` ← `LuaObjects.cpp` 恢复路径，E2E 用 `-ResetDb` 外的常驻库~~ **2026-11-04 起已命中**：persist 阶段黑风寨主 `create()` 的 `self:Load()` 走非用户分支（重启后 `restore_data` 恢复挑战计数即其实证）
+- [ ] `CChannel::snoop` — `src\engine\Channel.cpp:74` ← `User.cpp:63 if (query_temp("client/snoop"))` 行命中但体0 → 需先执行巫师 `snoop`
+- [ ] `CChar::apply_condition`（4 参带 `who`）— `src\char\CharSkill.cpp:287` ← 教材 `apply_condition(cnd,duration)` 只传 3 参，`who` 恒 NULL → 走 3 参重载
+- [ ] `CChar::handle_action`（4 参）— `src\char\CharInterface.cpp:46` ← 只有 `where`（环境）是角色才走，E2E 玩家永远在房间里
+- [ ] `CRoom::download` / `CRoom::get_info` — `src\room\RoomInterface.cpp:70/80` ← 只有"房间对象被塞进容器"或 `downloadobject <房间id>` / `room:DownLoad(me)` 才走；`sample_master.lua:94 self:DownLoad(me)` 的 `self` 是 NPC → 走 `CChar::download`
+- [ ] `CFBRoom::CFBRoom(CFB*)` — `src\room\FBRoom.cpp:48` ← `create_fb_room` 的兜底分支（脚本缺失才走）
+- [ ] `seed_first_id` — `src\db\DbTables.cpp:81` ← 只在**首建库**时调，E2E 库已存在
+- [ ] `CChannel::group_listener` — `src\engine\ChatChannel.cpp:327` ← `hooks.channel_group` 教材未实现 → `group_key` 恒空
+- [ ] `finish_kill`（`CLuaNpcT`）— `src\lua\LuaNpc.inl:446` ← `killer->finish_kill()`，需 **NPC 击杀玩家**，E2E 中 NPC 从未杀死玩家
+- [ ] ~~`CChar::load` — `src\char\CharSave.cpp:290` ← `LuaObjects.cpp` 恢复路径，E2E 用 `-ResetDb` 外的常驻库~~ **2026-11-04 起已命中**：persist 阶段黑风寨主 `create()` 的 `self:Load()` 走非用户分支（重启后 `restore_data` 恢复挑战计数即其实证）
 
 **待甄别（同名噪声嫌疑，需逐条确认调用点是否真是本函数）**
 
@@ -596,7 +601,7 @@ reload 试验台转绿移出）
 - [ ] `CContainer::set_amount` — `src\object\ContainerWeight.cpp:65` **【盲区③】**
 - [ ] `CContainer::query_entire_temp_dbase` 已在 §5.2
 - [ ] `CVector::get_buffer` — `src\object\Mapping.cpp:538`（存盘实际走 `CMapping::get_buffer`）
-- [ ] `CChatChannel::group_listener` 已标 ✅
+- [ ] `CChatChannel::group_listener`
 - [ ] `CItem::destruct_me` 已在 §5.2
 - [ ] `IDatabase::create` — `src\db\SqliteDb.cpp:135`（实际用 `create_sqlite_db`/`create_my_sql_db` 自由函数）
 - [ ] `handle_action` ×3（`LuaRoom.inl` / `LuaNpc.inl` / `LuaItem.inl`）— 短名噪声，需按签名区分 3 参/4 参
@@ -610,7 +615,7 @@ reload 试验台转绿移出）
 - [ ] `CLuaSkill::base_query_action` — `src\lua\LuaSkill.cpp:215`
 - [ ] `CLuaSkill::valid_force_pro` — `src\lua\LuaSkill.cpp:471`
 - [ ] `CFBRoom::CFBRoom` — `src\room\FBRoom.cpp:48`
-- [ ] `CRoom::get_info` — `src\room\RoomInterface.cpp:80`（见 ✅ 项 `CRoom::download`，同链）
+- [ ] `CRoom::get_info` — `src\room\RoomInterface.cpp:80`
 - [ ] `CRoom::handle_action` — `src\room\RoomInterface.cpp:23` **【盲区③】**
 - [ ] `CChar::wear` — `src\char\CharInterface.cpp:35` **【盲区③】**
 - [ ] `CNpc::chat_msg` — `src\npc\Npc.cpp:62` **【盲区③】**
@@ -630,11 +635,10 @@ reload 试验台转绿移出）
 
 ### 6.1 单测报告里有行但 0 命中（11 条）
 
-- [ ] `l_base_attack` — `src\char\CharCombat.cpp:367`
-- [ ] `l_draw_map` — `src\room\Room.cpp:369`
+- [ ] `l_base_attack` — `src\char\CharCombat.cpp:367`（e2e 已覆盖·阶段 3；本节只记单测侧，仍 0 命中）
 - [ ] `l_enter_register_hall` — `src\lua\LuaBindGlue.cpp:15`
-- [ ] `l_query_dex` — `src\char\CharAttr.cpp:156`
-- [ ] `l_remove_betrayer` — `src\char\CharLevel.cpp:242`
+- [ ] `l_query_dex` — `src\char\CharAttr.cpp:156`（e2e 已覆盖·阶段 3；本节只记单测侧，仍 0 命中）
+- [ ] `l_remove_betrayer` — `src\char\CharLevel.cpp:242`（e2e 已覆盖·阶段 3；本节只记单测侧，仍 0 命中）
 - [ ] `can_combine_in_box` — `src\lua\LuaItem.inl:575`（`m_script_ref == LUA_NOREF` 兜底支）
 - [ ] `CContainer::add_amount` — `src\object\ContainerWeight.cpp:67`（空实现，调用行 0）
 - [ ] `CChar::user_dump` — `src\user\User.cpp:223`（需 idle > 900s）
@@ -681,8 +685,6 @@ reload 试验台转绿移出）
 
 - [ ] **组队状态下杀怪**：`party_a.sce` 只验组队命令不杀怪，7 个含 `kill` 的剧本（`sneak_and_battle`/`servant`/`fight_a`/`pk_a`/`raid_assault`/`prepare_combine`）都不组队 → `CReward::distribute_party_exp`（经验共享）整块 0 覆盖。**这是唯一一条"补场景即得"的高价值缺口。**
 - [ ] **`house_base.lua` 的 `player/` 映射全仓无人写** → `CFB::end_fb` 排行写入分支（`sql_update_record`）永远走不到；`rank.sce` 覆盖的只是查询侧。确认是补内容还是标废弃。
-- [x] ~~`poison_base.lua` 的涂毒成功支与 `l_send_state` 到不了~~ **已注销**：E2E（`poison_and_cure.sce` 的涂毒链）打实 `do_look` → `do_mo` 成功支挂 `poison/modu` → 二涂被拒 → `remove_effect` 到点解除，`l_send_state` 随之进覆盖（未命中清单已无此项）；模块由 `sample_shedan.lua` `require`，不再是孤儿。单测侧另有 `SampleFoodPoisonTest` 的 `Shedan_TumoWithPoisonSkillCoatsWeapon` / `PoisonBase_HandleActionRoutesUseTumoAndUnknown` 兜底（毒术等三前置的分支矩阵）。
-- [x] ~~**`family/user` 恒为 0**：E2E 收的都是 NPC 师父，`recruit_apprentice` 只在 `is_user(master)` 时写 `family/user=1` → 师徒经验**写**链（`update_recruit`→`db_update_recruit`）不可达。确认是否补"玩家收徒"场景。~~ **已注销（2026-11-04）**：补上玩家收徒场景——L5/L6 师徒四段（`interaction/recruit_*`/`rexp_*`/`expell_*`/`apprentice_*`，A 扮师父、B 扮徒弟）+ L4 的 `social/npc_master_family_user.sce`（NPC 师父 `family/user=0` 反向锚点）。写链（存盘→`update_recruit`→`db_update_recruit`）与 `release_master` 翻标记两侧都有断言，未命中清单已无 `update_recruit`/`db_update_recruit`/`release_master`/`CCmdStandard::recruit|expell`/`CCmdUser::recruit_exp`
 - [ ] **`CFB` 的 `querymap("player")` 恒 NULL**（见上）
 - [ ] **`mirror_base` 缺省 `die` 从不装配**：`sample_wooden_dummy` 自定义了 `die` → `find_object` 不可达。确认是否需要一个不自定义 `die` 的镜像 NPC。
 

@@ -85,18 +85,11 @@ TEST_F(BindRoomTest, PresentDoorAndRoomExitsMethods)
         "__room = nil __byid = nil __bydir = nil __miss = nil __exits = nil");
 }
 
-TEST_F(BindRoomTest, RemoveDoors)
+TEST_F(BindRoomTest, RemoveAllDoors)
 {
     room.add_door((char*)"east", (char*)"room/e1", (char*)"west", (char*)"E");
     ASSERT_EQ(1u, room.query_exits()->size());
 
-    lua_bind_push_object(L, &room);
-    lua_pushstring(L, "room/e1");
-    EXPECT_EQ(0, CallRetCount(l_remove_doors, 2));
-    // 契约：按 next_room 匹配删除出口（CRoom::remove_doors）
-    EXPECT_EQ(0u, room.query_exits()->size());
-
-    room.add_door((char*)"east", (char*)"room/e1", (char*)"west", (char*)"E");
     lua_bind_push_object(L, &room);
     EXPECT_EQ(0, CallRetCount(l_remove_all_doors, 1));
     EXPECT_EQ(0u, room.query_exits()->size());

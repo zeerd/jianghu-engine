@@ -435,41 +435,6 @@ int l_query_skill_map_list(lua_State* L)
     return 1;
 }
 
-// self:query_hardcore_skills() -> table|nil -
-// 返回所有“核心”已学技能的技能名数组
-int l_query_hardcore_skills(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-
-    CMapping* skills = ch->query_skills();
-    if (!skills) {
-        lua_pushnil(L);
-        return 1;
-    }
-
-    CVector v;
-    skills->keys(v);
-    int cnt = (int)v.count();
-    int idx = 1;
-    lua_createtable(L, 0, 0);
-    for (int i = 0; i < cnt; i++) {
-        const char* sn = v[i];
-        CSkill* sk     = load_skill(sn);
-        if (sk && sk->query("hardcore") != 0) {
-            lua_pushstring(L, sn ? sn : "");
-            lua_rawseti(L, -2, idx++);
-        }
-    }
-    if (idx == 1) {
-        lua_pushnil(L);
-        return 1;
-    }
-    return 1;
-}
-
 // self:inc_skill(skill, delta) - 增加指定技能等级
 int l_inc_skill(lua_State* L)
 {

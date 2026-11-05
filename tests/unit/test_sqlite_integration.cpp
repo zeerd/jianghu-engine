@@ -73,9 +73,8 @@ TEST_F(SqliteIntegrationTest, PrepareTables_CreatesEveryTable)
 {
     ASSERT_TRUE(prepare_tables()) << db->error();
 
-    for (const char* t :
-         {"jianghudb", "recruit_exp", "t_item", "t_npc", "t_room", "t_box",
-          "t_saveobj", "user", "t_record", "relative"}) {
+    for (const char* t : {"jianghudb", "recruit_exp", "t_item", "t_npc",
+                          "t_room", "t_box", "t_saveobj", "user", "relative"}) {
         EXPECT_TRUE(TableExists(t)) << "missing table " << t;
     }
 }
@@ -390,21 +389,8 @@ TEST_F(SqliteIntegrationTest, RelativeRoundTrip)
 }
 
 // ====================================================================
-// 排行榜 / 记录
+// 排行榜
 // ====================================================================
-
-TEST_F(SqliteIntegrationTest, RecordRoundTrip)
-{
-    ASSERT_TRUE(prepare_tables());
-
-    ASSERT_TRUE(sql_update_record("1", 1, 10, "dataA", false));  // insert
-    ASSERT_TRUE(sql_update_record("1", 1, 20, "dataB", true));   // update
-
-    DbResultSet rs;
-    ASSERT_EQ(db->query("select cc_level from t_record where cc_id=1", rs), 0);
-    ASSERT_EQ(rs.size(), 1);
-    EXPECT_EQ(rs.rows[0][0], "20");
-}
 
 TEST_F(SqliteIntegrationTest, PaihangbangReadsSeededRows)
 {

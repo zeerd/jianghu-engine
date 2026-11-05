@@ -10,7 +10,8 @@
 #   表情系统（EmoteSystem 的 myself 版私发 / others 版房间播报）；
 #   频道禁词（lua-sample/data/chanbanword → check_channel_msg → lstrchr 逐字匹配）；
 #   hooks.do_channel 接管（lua-sample/data/exam.lua 天下大考，answer 频道）：
-#     返回数组 →接管广播（考官出题/判分），返回 nil 的其余频道照走内置分支
+#     返回数组 →接管广播（考官出题/判分，奖数走 chinese_number 报中文数字），
+#     返回 nil 的其余频道照走内置分支
 #     ——上面的新手频道回显就是 fallthrough 的现成证据；答对发历练并
 #     FlushMyInfo 推送，用 attr 断真实状态（回显只证明钩子跑了）。
 #
@@ -70,4 +71,6 @@ wait text 答错了 timeout=10000
 clear
 cmd 李白
 wait text 答对了 timeout=10000
+# 奖数以中文数字播报（exam.lua 调 chinese_number(REWARD)，1000 → 一千点）
+wait text 一千点 timeout=10000
 wait attr combat_exp >= 1000 timeout=10000

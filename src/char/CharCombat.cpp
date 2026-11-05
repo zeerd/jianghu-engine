@@ -303,46 +303,6 @@ int32_t CChar::receive_poison(const char* type, int32_t damage,
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:wield_weapon(weapon) - 装备指定武器（在角色身上找到对应装备并装备）
-int l_wield_weapon(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    const char* w    = luaL_checkstring(L, 2);
-    CContainer* item = ch->present(w, 0);
-    if (item) {
-        CLuaEquip* e = dynamic_cast<CLuaEquip*>(item);
-        if (e) {
-            lua_pushinteger(L, e->lua_do_wield());
-            return 1;
-        }
-    }
-    lua_pushinteger(L, 0);
-    return 1;
-}
-
-// self:unwield_weapon(weapon) - 卸下指定武器
-int l_unwield_weapon(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    const char* w    = luaL_checkstring(L, 2);
-    CContainer* item = ch->present(w, 0);
-    if (item) {
-        CLuaEquip* e = dynamic_cast<CLuaEquip*>(item);
-        if (e) {
-            lua_pushinteger(L, e->lua_do_un_wield());
-            return 1;
-        }
-    }
-    lua_pushinteger(L, 0);
-    return 1;
-}
-
 // self:receive_curing(type, heal) -> number
 int l_receive_curing(lua_State* L)
 {

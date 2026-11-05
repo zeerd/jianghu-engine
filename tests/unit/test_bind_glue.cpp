@@ -307,3 +307,21 @@ TEST_F(BindGlueTest, IniGetBindReturnsDefault)
         << "配置缺失 → 返回默认值(731-732)";
     if (k > 0) lua_pop(L, k);
 }
+
+// 配置文件是 UTF-8、Lua 字符串空间是 GBK（与 load_file_as_gbk 同口径）：
+// 文件值在绑定边界归一为 GBK，脚本拿到的字符串与引擎内部一致。
+TEST_F(BindGlueTest, IniGetBindNormalizesConfigValueToGbk)
+{
+    const std::string saved = g_ini_data["server"]["name"];
+    g_ini_data["server"]["name"]
+        = "\xE9\x87\x91\xE5\x89\x91\xE6\xB1\x9F\xE6\xB9\x96";  // 金剑江湖 UTF-8
+
+    lua_pushstring(L, "server");
+    lua_pushstring(L, "name");
+    int k = call(l_ini_get, 2);
+    ASSERT_EQ(1, k) << "回推一个字符串";
+    EXPECT_STREQ(lua_tostring(L, -1), "金剑江湖") << "文件值按 GBK 归一进 Lua";
+    if (k > 0) lua_pop(L, k);
+
+    g_ini_data["server"]["name"] = saved;
+}

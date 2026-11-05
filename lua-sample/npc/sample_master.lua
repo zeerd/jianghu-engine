@@ -17,6 +17,9 @@ function npc.create(self)
     self:set("con", 40)
     self:set("dex", 40)
     self:set("int", 40)
+    -- 容貌钉 0：老夫不修边幅，验看时与弟子比较容貌（query_per 双方各读一次），
+    -- 弟子侧创建下限 10 恒胜，比较结果不随随机属性漂
+    self:set("per", 0)
 
     self:set("max_hp", 50000)
     self:set("hp", 50000)
@@ -110,6 +113,80 @@ function npc.chat_msg(self)
     else
         return "拳脚功夫，看似简单，实则蕴含无穷变化。"
     end
+end
+
+-- 问话入口：只注册「悔过」「验看」两条问话，其余交回 base_do_talk，
+-- 保持对陌生问话的原有回绝。
+--   悔过：判师记录（betrayer）的清除入口——机制全在引擎 Remove_Betrayer
+--     （清记录，按判师次数把全部武功每重降 20 级），本脚本只管菜单与前后文。
+--   验看：弟子的门规与实学核验，取值机制见 npc.handle_inspect。
+function npc.do_talk(self, me, ask)
+    if ask ~= "悔过" and ask ~= "验看" then
+        return self:base_do_talk(me, ask)
+    end
+
+    if ask == "验看" then
+        self:AddMenuItem("请师父验看根骨", "$0inspect $1", me)
+    else
+        self:AddMenuItem("我愿意承受代价，洗去判师之名", "$0repent $1", me)
+    end
+    self:SendMenu(me)
+    return 1
+end
+
+-- 验看：弟子的门规与实学核验（say 第二参收件人，只发问者本人）。
+--   门规四问各设合格线 20：臂力/根骨（query_str/query_con）、悟性
+--   （query_int）、身法（query_dex），任一不足即回绝，四问全过才继续报数。
+--   实学两数是引擎实读：历练 = query_combat_exp；可用经验 =
+--   query_valid_exp——未分配的经验（经验总额减去等级与技能已耗），
+--   学技能与升级都从这里扣，弟子升过几级便扣掉几级的累计门槛。
+--   容貌 = query_per 与老夫同法各读一次，按大小判胜负。
+function npc.handle_inspect(self, me)
+    if me:query_str() < 20 or me:query_con() < 20 then
+        self:say("你根骨不济，入不得我青云门。", me)
+        return
+    end
+    if me:query_int() < 20 then
+        self:say("你悟性不足，先去多读几年书。", me)
+        return
+    end
+    if me:query_dex() < 20 then
+        self:say("你身法太僵，先去练练腿脚。", me)
+        return
+    end
+
+    self:say("门规尽过——根骨、悟性、身法都够格。", me)
+    self:say(
+        string.format("你眼下历练%d点，可用经验%d点。", me:query_combat_exp(), me:query_valid_exp()),
+        me
+    )
+
+    if me:query_per() > self:query_per() then
+        self:say("论容貌你胜过老夫，好卖相。", me)
+    else
+        self:say("论容貌你不及老夫。", me)
+    end
+end
+
+function npc.handle_action(self, comm, me, arg)
+    if comm == "repent" then
+        if me:query("betrayer") == 0 then
+            self:say("你并无判师记录，无过可悔。", me)
+            return 1
+        end
+
+        self:say("悔过的代价先说清：判师几次，全部武功便每重降 20 级。", me)
+        me:Remove_Betrayer(me)
+        self:say("判师记录已消。", me)
+        return 1
+    end
+
+    if comm == "inspect" then
+        npc.handle_inspect(self, me)
+        return 1
+    end
+
+    return self:base_handle_action(comm, me, arg)
 end
 
 return npc

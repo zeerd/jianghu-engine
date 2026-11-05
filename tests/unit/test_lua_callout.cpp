@@ -104,6 +104,23 @@ protected:
         return id;
     }
 
+    // self:call_out_combat(func, delay) -> 回调 ID（0 = 拒绝注册）
+    int CallOutCombat(CContainer* ob, const char* func_name, int delay)
+    {
+        lua_bind_push_object(L, ob);
+        lua_pushstring(L, func_name);
+        lua_pushinteger(L, delay);
+        lua_pushcfunction(L, l_call_out_combat);
+        lua_insert(L, -4);
+        if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
+            lua_pop(L, 1);
+            return -1;
+        }
+        int id = (int)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+        return id;
+    }
+
     // self:remove_call_out(func) -> 移除数量
     int RemoveCallOut(CContainer* ob, const char* func_name)
     {
@@ -366,4 +383,87 @@ TEST_F(LuaCalloutTest, DestroyedTargetReleasesNamedCallout)
     ASSERT_GT(CallOut(&other, "test_dead_cb", 1), 0);
     other.heart_beat();
     EXPECT_EQ(1, LuaInt("callout_test_ran")) << "other 的同名注册照常执行";
+}
+
+// ---------------------------------------------------------------------
+// call_out_combat 的注册契约：delay=0 的战斗哨兵只许在战斗中注册
+//
+// delay=0 的节点心跳永不走表（CContainer::heart_beat 对 type=1 且 delay==0
+// 直接跳过），唯一触发点是角色离开战斗房（CFightRoom::do_leave_team →
+// evaluate_call_out_combat）——脱战注册会一直挂到「下一次打完一架」才触发，
+// 此后再不动手则永不触发，回调与它要解除的状态一起挂到对象销毁。故绑定层
+// 拒绝脱战注册；delay>0 走心跳倒数支，非战注册照常。
+// ---------------------------------------------------------------------
+
+TEST_F(LuaCalloutTest, CombatDelay0OutOfFightRejected)
+{
+    CContainer owner;
+    HeartBeatGuard beat(&owner);
+    owner.set_name("callout_owner");
+
+    ASSERT_TRUE(
+        LoadScriptTable("callout_test_script = {\n"
+                        "  test_combat_cb = function(self)\n"
+                        "    callout_test_ran = 1\n"
+                        "  end\n"
+                        "}"));
+
+    EXPECT_EQ(0, CallOutCombat(&owner, "test_combat_cb", 0))
+        << "脱战注册 delay=0 应被拒绝";
+    EXPECT_EQ(0, RemoveCallOut(&owner, "test_combat_cb"))
+        << "被拒的注册不得留下挂起节点";
+
+    owner.heart_beat();
+    EXPECT_EQ(0, LuaInt("callout_test_ran"));
+}
+
+TEST_F(LuaCalloutTest, CombatDelay0InFightRegistersAndFiresOnCombatEnd)
+{
+    CContainer owner;
+    HeartBeatGuard beat(&owner);
+    owner.set_name("callout_owner");
+    owner.set_temp("fight/is_fighting", 1);
+
+    ASSERT_TRUE(
+        LoadScriptTable("callout_test_script = {\n"
+                        "  test_combat_cb = function(self)\n"
+                        "    callout_test_ran = 1\n"
+                        "  end\n"
+                        "}"));
+
+    EXPECT_GT(CallOutCombat(&owner, "test_combat_cb", 0), 0)
+        << "战斗中注册 delay=0 应放行";
+
+    // 心跳不走表：哨兵不因时间触发
+    owner.heart_beat();
+    owner.heart_beat();
+    EXPECT_EQ(0, LuaInt("callout_test_ran"));
+
+    // 角色离开战斗房时引擎做的就是这一步
+    owner.evaluate_call_out_combat();
+    EXPECT_EQ(1, LuaInt("callout_test_ran"));
+    EXPECT_EQ(0, RemoveCallOut(&owner, "test_combat_cb"))
+        << "触发后节点已回收（一次性）";
+}
+
+TEST_F(LuaCalloutTest, CombatDelayBeyondZeroOutOfFightCountsDown)
+{
+    CContainer owner;
+    HeartBeatGuard beat(&owner);
+    owner.set_name("callout_owner");
+
+    ASSERT_TRUE(
+        LoadScriptTable("callout_test_script = {\n"
+                        "  test_combat_cb = function(self)\n"
+                        "    callout_test_ran = 1\n"
+                        "  end\n"
+                        "}"));
+
+    EXPECT_GT(CallOutCombat(&owner, "test_combat_cb", 2), 0)
+        << "delay>0 走心跳倒数支，非战注册不受限";
+
+    owner.heart_beat();  // 2 -> 1
+    EXPECT_EQ(0, LuaInt("callout_test_ran"));
+    owner.heart_beat();  // 1 -> 0 到点触发
+    EXPECT_EQ(1, LuaInt("callout_test_ran"));
 }

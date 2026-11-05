@@ -1,7 +1,11 @@
 #include "scenario_runner.h"
 
+#include <algorithm>
 #include <cctype>
+#include <chrono>
+#include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 
@@ -20,9 +24,10 @@ using RepeatFrame        = CScenarioRunner::RepeatFrame;
 Step make_index_step(const RepeatFrame &frame, int index)
 {
     Step step;
-    step.verb    = "set";
-    step.args    = frame.var + " " + std::to_string(index + 1);
-    step.line_no = frame.line_no;
+    step.verb     = "set";
+    step.args     = frame.var + " " + std::to_string(index + 1);
+    step.line_no  = frame.line_no;
+    step.scenario = frame.scenario;
     return step;
 }
 
@@ -123,7 +128,8 @@ std::string CScenarioRunner::subst(const std::string &in) const
     return out;
 }
 
-bool CScenarioRunner::load_script(const std::string &path, int depth)
+bool CScenarioRunner::load_script(const std::string &path, int depth,
+                                  const std::string &scenario)
 {
     if (depth > 8) {
         fail_reason_ = "include nesting too deep: " + path;
@@ -171,10 +177,13 @@ bool CScenarioRunner::load_script(const std::string &path, int depth)
             else {
                 inc = base_dir + inc;
             }
-            if (!load_script(inc, depth + 1)) return false;
+            if (!load_script(inc, depth + 1, scenario_name_of(inc))) {
+                return false;
+            }
             continue;
         }
 
+        step.scenario = scenario;
         steps_.push_back(std::move(step));
     }
     return true;
@@ -193,8 +202,9 @@ bool CScenarioRunner::parse_repeat(const Step &step, RepeatFrame &frame)
         return fail("line " + std::to_string(step.line_no)
                     + ": repeat count exceeds " + std::to_string(MAX_REPEAT_COUNT));
     }
-    frame.count   = static_cast<int>(count);
-    frame.line_no = step.line_no;
+    frame.count     = static_cast<int>(count);
+    frame.line_no   = step.line_no;
+    frame.scenario  = step.scenario;
 
     std::string as;
     if (iss >> as) {
@@ -268,14 +278,96 @@ bool CScenarioRunner::fail(const std::string &reason)
     return false;
 }
 
+// 秒数格式化：独立 ostringstream，避免 fixed/precision 污染 cout 后续输出
+namespace {
+
+std::string fmt_sec(double sec)
+{
+    std::ostringstream os;
+    os << std::fixed << std::setprecision(3) << sec;
+    return os.str();
+}
+
+}  // namespace
+
 void CScenarioRunner::echo_step(const Step &step) const
 {
     if (!opts_.echo) return;
-    std::cout << "[script:" << step.line_no << "] " << step.verb;
+    // [+-]秒 是本步相对剧本开始的时刻：日志里相邻两条回显的差值就是该步耗时，
+    // 分场景计时与「哪一步吃掉了墙钟」都靠它差分。
+    std::cout << "[+" << fmt_sec(elapsed_sec()) << "] [script:" << step.line_no
+              << "] " << step.verb;
     if (!step.args.empty()) std::cout << " " << step.args;
     // 无头运行的 stdout 是被 E2E 脚本重定向的管道（全缓冲），
     // 不 flush 就看不到逐步进度，整段剧本会长时间毫无反馈。
     std::cout << std::endl;
+}
+
+// 距剧本开始的秒数（回显前缀与场景边界共用一个时钟）
+double CScenarioRunner::elapsed_sec() const
+{
+    return std::chrono::duration<double>(std::chrono::steady_clock::now()
+                                         - start_tp_)
+        .count();
+}
+
+// 把路径折成相对顶层剧本目录的归属名（'/' 分隔），失败退回文件名
+std::string CScenarioRunner::scenario_name_of(const std::string &path) const
+{
+    const std::filesystem::path p(path);
+    if (script_root_.empty()) return p.filename().generic_string();
+
+    std::error_code ec;
+    const std::filesystem::path rel = std::filesystem::relative(
+        p, std::filesystem::path(script_root_), ec);
+    if (ec || rel.empty()) return p.filename().generic_string();
+    return rel.generic_string();
+}
+
+// 关上当前计时段：把本段耗时并进该剧本的累计
+void CScenarioRunner::close_scenario(double now_sec)
+{
+    if (open_scenario_.empty()) return;
+    scenario_sec_[open_scenario_] += now_sec - seg_start_sec_;
+    open_scenario_.clear();
+}
+
+// 跨剧本：先关旧段，再打一条带时刻的 [timing] 边界行
+void CScenarioRunner::open_scenario(const std::string &scenario)
+{
+    const double now = elapsed_sec();
+    close_scenario(now);
+    open_scenario_  = scenario;
+    seg_start_sec_  = now;
+    if (opts_.echo) {
+        std::cout << "[+" << fmt_sec(now) << "] [timing] " << scenario
+                  << std::endl;
+    }
+}
+
+// 收口汇总：按耗时降序列出各剧本累计秒/步数——「谁吃掉墙钟」一眼可见
+void CScenarioRunner::print_timing() const
+{
+    if (!opts_.echo || scenario_sec_.empty()) return;
+
+    std::map<std::string, int> steps_by_scenario;
+    for (const auto &step : steps_) ++steps_by_scenario[step.scenario];
+
+    std::vector<std::pair<std::string, double>> rows(scenario_sec_.begin(),
+                                                     scenario_sec_.end());
+    std::sort(rows.begin(), rows.end(),
+              [](const auto &a, const auto &b) { return a.second > b.second; });
+
+    double total = 0.0;
+    for (const auto &row : rows) total += row.second;
+
+    std::cout << "[timing] summary total=" << fmt_sec(total) << "s steps="
+              << steps_.size() << std::endl;
+    for (const auto &row : rows) {
+        std::cout << "[timing] " << fmt_sec(row.second) << "s "
+                  << steps_by_scenario[row.first] << " " << row.first
+                  << std::endl;
+    }
 }
 
 bool CScenarioRunner::write_report(const std::string &status) const
@@ -292,8 +384,13 @@ bool CScenarioRunner::write_report(const std::string &status) const
 
 int CScenarioRunner::run()
 {
+    // 计时零点与分场景归属根：include 名一律相对顶层剧本所在目录折算
+    start_tp_    = std::chrono::steady_clock::now();
+    script_root_ = std::filesystem::path(opts_.script_path).parent_path().string();
+
     load_vars();
-    if (!load_script(opts_.script_path) || !expand_loops()) {
+    if (!load_script(opts_.script_path, 0, scenario_name_of(opts_.script_path))
+        || !expand_loops()) {
         std::cerr << "[scenario] " << fail_reason_ << "\n";
         write_report("fail");
         return 2;
@@ -310,18 +407,26 @@ int CScenarioRunner::run()
             fail_reason_ = "server closed the connection";
             std::cerr << "[scenario] FAIL at line " << step.line_no << ": "
                       << fail_reason_ << "\n";
+            close_scenario(elapsed_sec());
+            print_timing();
             write_report("fail");
             return 1;
         }
+        // 步骤跨剧本即关段打边界：日志里 [timing] 行是分场景计时的锚点
+        if (step.scenario != open_scenario_) open_scenario(step.scenario);
         if (!run_step(step)) {
             fail_line_ = step.line_no;
             std::cerr << "[scenario] FAIL at line " << step.line_no << ": "
                       << fail_reason_ << "\n";
+            close_scenario(elapsed_sec());
+            print_timing();
             write_report("fail");
             return 1;
         }
     }
 
+    close_scenario(elapsed_sec());
+    print_timing();
     std::cout << "[scenario] PASS: " << steps_.size() << " steps"
               << std::endl;
     write_report("pass");

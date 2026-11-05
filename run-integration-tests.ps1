@@ -796,7 +796,7 @@ if (-not $SkipBuild) {
     foreach ($dll in Get-ChildItem (Join-Path $RepoRoot "bin\*.dll") -ErrorAction SilentlyContinue) {
         $dst = Join-Path $E2EDir $dll.Name
         if (-not (Test-Path $dst)) {
-            Copy-Item -Destination $dst -ErrorAction SilentlyContinue
+            Copy-Item -Path $dll.FullName -Destination $dst -ErrorAction SilentlyContinue
         }
     }
     $tBuildSec = [int]((Get-Date) - $t0).TotalSeconds
@@ -2053,6 +2053,34 @@ finally {
     }
     else {
         Write-Host "本轮服务端日志：未生成 *-$LogRunId*（查 $ServerLogDir）"
+    }
+
+    # 各道剧本日志归档：test_tmp\e2e_lanes 下的 *.log 每轮被覆盖，而「哪道卡在
+    # 哪一步」的复盘（尖峰归因、失败定位）全靠它——按本轮 run id 拷进服务端日志
+    # 同目录，与 *-$LogRunId* 服务端日志同处一次查齐。只做文件拷贝，不动进程。
+    try {
+        if ($LogRunId) {
+            $laneLogArchive = Join-Path $ServerLogDir "lanes-$LogRunId"
+            $laneLogs = @(Get-ChildItem -LiteralPath $WorkDir -Filter "*.log" `
+                    -File -ErrorAction SilentlyContinue)
+            if ($laneLogs.Count -gt 0) {
+                New-Item -ItemType Directory -Path $laneLogArchive -Force | Out-Null
+                foreach ($laneLog in $laneLogs) {
+                    Copy-Item -LiteralPath $laneLog.FullName `
+                            -Destination (Join-Path $laneLogArchive $laneLog.Name) `
+                            -Force
+                }
+                Write-Host "本轮各道剧本日志：$laneLogArchive（$($laneLogs.Count) 份）"
+                # 与 .cov 同规只留最近 5 轮（run id 为日期时间前缀，字典序即时间序）
+                Get-ChildItem -LiteralPath $ServerLogDir -Directory `
+                        -Filter "lanes-*" -ErrorAction SilentlyContinue |
+                    Sort-Object Name -Descending | Select-Object -Skip 5 |
+                    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    catch {
+        Write-Warning "各道剧本日志归档失败：$($_.Exception.Message)"
     }
 
     $srvLog = $null

@@ -111,13 +111,6 @@ TEST_F(CharAttrTest, IsLoading_Flag)
     EXPECT_EQ(ch->is_loading(), 1);
 }
 
-TEST_F(CharAttrTest, QueryApply)
-{
-    ch->set("str", (long)10);
-    ch->set_temp("apply/str", (long)5);
-    EXPECT_EQ(ch->query_apply("str"), 15);
-}
-
 TEST_F(CharAttrTest, RefuseChannel)
 {
     EXPECT_EQ(ch->refuse_channel("rumor"), 0);

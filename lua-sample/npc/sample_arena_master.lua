@@ -7,6 +7,11 @@
 --     Select_Member 点名）→ 数拍后 Leave_Team 退队 → End_Fight 收场。
 -- 比试结束双方自动回到演武场（end_fight 把房内角色移回环境）。
 --
+-- 同一场比试还有第二条开法：「指教」走引擎的 Do_BiShi——建房、入队、开打
+-- 三步由绑定一把梭（见 do_bishi），阈值 check 定「打到几成血算输」。两条路
+-- 殊途同归，差别只在谁来装配战斗房：上面那条逐绑定演示装配过程，指教那条
+-- 演示引擎替你装配。
+--
 -- 平衡设定：教头不配技能（战力走素人回退档）且历练为 0——几乎打不伤人，
 -- 自己皮厚（2000 血）挨打不倒。比试输赢不重要，「点到为止」的收场时机
 -- 才是脚本说了算的部分。
@@ -34,8 +39,13 @@ function npc.create(self)
     self:set("int", 10)
 end
 
--- 问答入口：命中「比武」开一场脚本驱动的比试，其余问话交回通用流程
+-- 问答入口：命中「比武」开一场脚本驱动的比试、命中「指教」走引擎绑定一把梭，
+-- 其余问话交回通用流程
 function npc.do_talk(self, me, ask)
+    if ask == "指教" then
+        return npc.do_bishi(self, me)
+    end
+
     if ask ~= "" and ask ~= "比武" and ask ~= "切磋" then
         return self:base_do_talk(me, ask)
     end
@@ -85,6 +95,20 @@ function npc.do_talk(self, me, ask)
     -- 数拍后点到为止：退己方 + 收比武房，全由脚本收场（引擎心跳不会抢先
     -- ——双方都活着，空队/血量结束条件都不满足）
     self:call_out("yield", 6)
+    return 1
+end
+
+-- 「指教」：建房、入队、开打三步交给引擎的比试绑定 Do_BiShi，脚本不再逐个
+-- 装配。check 是阈值收场的血线——「打到九成血算输」，谁先掉到九成以下，
+-- 比试立刻判负收场（阈值判定在行动方回合开打之前，故几回合内必然见分晓）。
+function npc.do_bishi(self, me)
+    local room = Do_BiShi(self, me, "演武指教", 90)
+    if not room then
+        return notify_fail("教头摆摆手：今日比不得。")
+    end
+
+    -- say 第二参给收件人 = 私发；双方此刻已在比试房内，私发不看房间
+    self:say("接招吧——打到九成血，就算你赢。", me)
     return 1
 end
 

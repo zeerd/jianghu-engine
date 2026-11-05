@@ -254,19 +254,6 @@ bool prepare_tables(void)
                   "`casehistory` varchar(255) DEFAULT NULL",
             sqlite ? "" : "PRIMARY KEY (`id`)", "KEY `id` (`id`)"));
 
-        // 玩家历练记录
-        tables.push_back(BuildCreateTable(
-            "t_record",
-            AutoPkColumn("`id` int(16) NOT NULL AUTO_INCREMENT,",
-                         "`id` INTEGER PRIMARY KEY,")
-                + "`cc_time` datetime NOT NULL DEFAULT "
-                  "'0000-00-00 00:00:00',"
-                  "`cc_id` int(16) NOT NULL DEFAULT '0',"
-                  "`cc_type` int(16) NOT NULL DEFAULT '0',"
-                  "`cc_level` int(16) NOT NULL DEFAULT '0',"
-                  "`cc_savedata` blob",
-            sqlite ? "" : "PRIMARY KEY (`id`)", "KEY `id` (`id`)"));
-
         // 社交关系（db_query_relative / db_update_relative 使用）
         tables.push_back(BuildCreateTable(
             "relative",

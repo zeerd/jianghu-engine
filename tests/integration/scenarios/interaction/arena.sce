@@ -12,6 +12,8 @@
 #     → l_end_fight（收比武房，房内角色移回演武场）
 #   C++ get_team_count 另经 l_get_fight_team_char 的 get_team_list(team)
 #   默认参数路再走一遍。
+#   「指教」问话（段尾）：l_do_bishi——建房、入队、开打三步交给引擎绑定，
+#     阈值血线判负收场，与上面那条逐绑定装配链殊途同归。
 #
 # 与既有比试（interaction/fight_a.sce 的 /fight C++ 路径）分工：那里覆盖
 # do_bishi 的 C++ 建房，这里覆盖教头脚本逐绑定自建——两条路殊途同归。
@@ -51,4 +53,19 @@ wait text 点到为止 timeout=30000
 wait text 演武比试结束了 timeout=10000
 wait battle_end timeout=10000
 wait room 山脚演武场 timeout=10000
+cmd /t 0
+
+# --- 指教：引擎比试绑定一把梭（Do_BiShi 建房 + 入队 + 开打，阈值血线收场） -----
+# 排在上一段收场之后：教头已回演武场、双方都脱战，才约得了第二场
+cmd /t yan wu
+clear
+cmd /ask 指教
+# 私发的应答与切房推送同时在途：先收战斗态，再收那句应答（都进同一缓冲）
+wait battle timeout=15000
+wait text 接招吧 timeout=10000
+# 比试房名就是 Do_BiShi 的 name 参数，收场播报由 end_fight 拼「<房名>结束了。」
+# ——与上一段的「演武比试结束了」分属两间房，互不误认
+wait text 演武指教结束了 timeout=60000
+wait battle_end timeout=15000
+wait room 山脚演武场 timeout=15000
 cmd /t 0

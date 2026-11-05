@@ -213,19 +213,31 @@ TEST_F(CharCombatTest, InterruptMe)
 // ---------------- killers ----------------
 TEST_F(CharCombatTest, SetAndRemoveKiller)
 {
-    // set_killer records by id; is_killing queries by object_id (pre-existing
-    // key mismatch)。保留 set/remove_killer 路径覆盖，终态查询为 false。
+    // 名单以角色 id 为键，写/销/读同一口径：set 之后读得到，remove 之后读不到
     ch->set_killer(foe);
+    EXPECT_TRUE(ch->is_killing(foe));
     ch->remove_killer(foe);
-    ch->set_killer(foe);
     EXPECT_FALSE(ch->is_killing(foe));
+    ch->set_killer(foe);
+    EXPECT_TRUE(ch->is_killing(foe));
 }
 
 TEST_F(CharCombatTest, RemoveAllKiller)
 {
     ch->set_killer(foe);
+    EXPECT_TRUE(ch->is_killing(foe));
     ch->remove_all_killer();
     EXPECT_FALSE(ch->is_killing(foe));
+}
+
+TEST_F(CharCombatTest, IsKillingMatchesOnlyListedFoe)
+{
+    // 按 id 精确匹配：名单里没有的人读出来仍是假，不会整表误判为真
+    CChar other;
+    other.set("id", "f2");
+    ch->set_killer(foe);
+    EXPECT_TRUE(ch->is_killing(foe));
+    EXPECT_FALSE(ch->is_killing(&other));
 }
 
 TEST_F(CharCombatTest, KillAndFightOb)

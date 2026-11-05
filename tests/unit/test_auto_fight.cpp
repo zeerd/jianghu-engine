@@ -9,8 +9,7 @@
 // 1) 玩家搬入房间会置 client/loading（等客户端切图应答），present() 视其
 //    不可见——夹具代客户端应答（delete_temp），与 loc 指令同款；
 // 2) 观察点用受害者收到的文案：set_killer 的"想杀死你"通知、狂暴切磋
-//    分支的"陪我玩两手"邀战。不用 is_killing——它按 object_id 查表而
-//    set_killer 记的是角色 id，名不一致（见交接报告）。
+//    分支的"陪我玩两手"邀战——文案是外显结果，直接对应玩家可见的反馈。
 // 开战成功路径经 g_item_mgr 造真实 CFightRoom——夹具注入 CMockItemMgr
 // 提供 fight_room 工厂（默认 g_item_mgr 为空指针）。
 //
