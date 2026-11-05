@@ -259,6 +259,10 @@ void CChar::get_state_msg(std::string& msg)
     if (disable[0])
         msg += snprintf(tmp, static_cast<int>(sizeof(tmp)), "dis=%s&", disable);
 
+    // 忙碌（start_busy 的拍数/钩子未走完）：消费方以「字段缺失 = 不忙」判定，
+    // 与 exe/net/poi/idl 同构——因此忙碌起止的每次 STATE 都必须是全量标志集
+    if (is_busy()) msg += "bsy=1&";
+
     if (query_temp("pending/exercising"))  // 在打坐
         msg += "exe=1&";
 

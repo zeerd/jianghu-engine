@@ -437,6 +437,17 @@ TEST_F(GameStateTest, UpdatePlayerState)
     EXPECT_FALSE(state_.player_attr().idle);
 }
 
+// bsy 的契约是「字段缺失即不忙」：每次私发 STATE 都携带全量标志集，
+// 所以缺席必须把 busy 算回 false，而不是保留上一次的旧值。
+TEST_F(GameStateTest, UpdatePlayerBusyFlag)
+{
+    state_.handle_message(make_msg(23, {{"T", "1001"}, {"bsy", "1"}}));
+    EXPECT_TRUE(state_.player_attr().busy);
+
+    state_.handle_message(make_msg(23, {{"T", "1001"}, {"sta", "60"}}));
+    EXPECT_FALSE(state_.player_attr().busy);
+}
+
 // ==================== C=24 ADDDOOR ====================
 
 TEST_F(GameStateTest, AddExitToRoom)

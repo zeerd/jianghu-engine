@@ -35,7 +35,8 @@ struct LuaScript {
     LuaScriptType type;         // 脚本类型
     int ref;                    // 脚本 table 的 registry 引用
     unsigned long contentHash;  // 文件内容哈希（用于热重载检测）
-    time_t mtime;               // 文件最后修改时间（快速过滤用）
+    long long mtime;            // 文件最后修改时间（FILETIME，100ns 粒度，
+                                // 快速过滤用——秒级比较会漏掉同秒内的二次编辑）
     bool loaded;                // 是否已成功加载
     bool hasError;              // 是否有语法/加载错误
     bool fromDefault;           // 是否来自默认脚本目录（不参与热重载）
@@ -106,16 +107,20 @@ public:
     const char* get_script_field(const char* name, LuaScriptType type,
                                  const char* fieldName, const char* def);
 
-    // 手动热重载单个脚本（返回新的 registry 引用）
-    // compositeKey: 复合 key（如 "item/hammer"）
-    int reload_script(const char* compositeKey);
+    // 手动热重载单个脚本。返回 registry 引用：成功为新引用，失败为旧引用
+    // （旧版本原地保留，调用方仍拿得到可用引用）。
+    // reloaded 回传本次是否真的装入新版本——「拿得到可用引用」与「这次
+    // 重载成功了」是两个问题，结果上报（日志/回执/广播）必须看后者：
+    // 旧 ref ≥0 恒为真，拿返回值当真值会把失败谎报成成功。
+    int reload_script(const char* compositeKey, bool* reloaded = nullptr);
 
-    // 按 bareName 搜索并重载所有匹配的脚本（供 wizard reload 命令调用）
-    // 返回最后重载的 ref（若无匹配返回 LUA_NOREF）
-    int reload_script_by_name(const char* bareName);
+    // 按 bareName 搜索并重载所有匹配的脚本（供 wizard reload 命令调用）。
+    // 返回是否有至少一个匹配条目重载成功（无匹配 / 全部失败 = false）。
+    bool reload_script_by_name(const char* bareName);
 
-    // 重载所有已加载脚本
-    void reload_all_scripts();
+    // 重载所有已加载脚本。返回重载失败的条目数（0 = 全部成功），
+    // 供「reload all」回执如实上报部分失败。
+    int reload_all_scripts();
 
     // 检查所有已加载脚本是否有变化，自动重载（供心跳调用）
     // 返回重载的脚本数量
@@ -195,6 +200,14 @@ public:
     bool get_emote_map(
         std::map<std::string, std::map<std::string, std::string>>& out);
 
+    // 专用：获取扩展频道配置（内部调用 LoadDataScript("channel_config")）
+    // 结构：频道名 -> { field -> 值 }。值恒为字符串（Lua 数字/布尔由本层
+    // 归一为 "1"/"0" 形式），数值字段的整数化由调用方按字段白名单完成。
+    // 可选配置：数据集未提供 channel_config.lua 时 out 清空返回 true，
+    // 不算加载错误。
+    bool get_channel_config(
+        std::map<std::string, std::map<std::string, std::string>>& out);
+
     // 专用：获取公告列表（内部调用 LoadDataScript("bullet") 解析
     // bullet_lines）
     bool get_bullet_lines(std::vector<std::string>& out);
@@ -218,8 +231,9 @@ public:
     //---------------------------------------------------------
 
     // 注册一个 Lua 延迟回调（owner 是发起 call_out 的对象，回调归属它）
-    // 按名注册：函数必须已存在于 scriptRef 指向的脚本表中，否则报错并拒绝注册
-    // 返回回调 ID（作为 call_out 的 param1 传递），-1 表示失败
+    // 按名注册：先查 owner 自己的脚本表；缺名时回退到当前执行脚本（回调函数
+    // 属于发起 call_out 的脚本，对象只是效果作用的目标）；两处都没有才报错
+    // 并拒绝注册。返回回调 ID（作为 call_out 的 param1 传递），-1 表示失败
     int register_callout(CContainer* owner, int scriptRef, const char* funcName,
                          int32_t userParam1 = 0, int32_t userParam2 = 0);
 

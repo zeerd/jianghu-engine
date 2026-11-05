@@ -53,7 +53,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
@@ -74,7 +74,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
@@ -94,7 +94,7 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -115,7 +115,7 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;../../3rd/include;../../3rd/include/lua55;../../3rd/include/mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -155,6 +155,7 @@
     <ClCompile Include="test_sql_escape.cpp" />
     <ClCompile Include="test_mgr_loaders.cpp" />
     <ClCompile Include="test_encoding.cpp" />
+    <ClCompile Include="test_crypto.cpp" />
     <ClCompile Include="test_stringutil.cpp" />
     <ClCompile Include="test_log_levels.cpp" />
     <ClCompile Include="test_random.cpp" />
@@ -255,6 +256,7 @@
     <ClCompile Include="test_cmd_user_social.cpp" />
     <ClCompile Include="test_party_config.cpp" />
     <ClCompile Include="test_server_config.cpp" />
+    <ClCompile Include="test_connection_handle.cpp" />
     <ClCompile Include="test_gate_info.cpp" />
     <ClCompile Include="test_net_dispatch.cpp" />
     <ClCompile Include="test_server_sock.cpp" />
@@ -278,6 +280,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="..\test_tmp_dir.h" />
     <ClInclude Include="mock\mock_itemmgr.h" />
   </ItemGroup>
   <ItemGroup>

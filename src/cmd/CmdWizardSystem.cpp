@@ -382,8 +382,8 @@ int CCmdWizard::restore_exp(CChar* me, int32_t target, char* arg)
 
     if (!(who = find_player(target))) return notify_fail("没有这个人。");
 
-    int32_t exp        = who->query("sk_exp");
-    int32_t combat_exp = who->query_exp();
+    mapping_value_t exp = who->query("sk_exp");
+    int32_t combat_exp  = who->query_exp();
 
     if (exp * 3 < combat_exp)
         return notify_fail("此人经验%ld，技能经验%ld，不能恢复。", combat_exp,
@@ -489,7 +489,7 @@ int CCmdWizard::reward_exp(CChar* me, int32_t target, char* arg)
 
     if (!(who = find_player(target))) return notify_fail("没有这个人。");
 
-    int level   = who->query("level");
+    mapping_value_t level = who->query("level");
     int32_t exp = CChar::level2_exp(level + 1) - CChar::level2_exp(level);
 
     who->add("combat_exp", exp);
@@ -513,7 +513,7 @@ int CCmdWizard::sub_exp(CChar* me, int32_t target, char* arg)
     CChar* who;
     if (!(who = find_player(target))) return notify_fail("没有这个人。");
 
-    int level   = who->query("level");
+    mapping_value_t level = who->query("level");
     int32_t exp = CChar::level2_exp(level) - CChar::level2_exp(level - 1);
 
     who->add("combat_exp", -exp);
@@ -566,14 +566,20 @@ int CCmdWizard::reload_lua(CChar* me, int32_t target, char* arg)
         return notify_fail("用法: reload <脚本名> 或 reload all");
 
     if (cc_strcmp(arg, "all") == 0) {
-        // 重载所有已加载脚本
-        extern void lua_reload_all();
-        lua_reload_all();
-        tell_object(me, "所有 Lua 脚本已重载。");
+        // 重载所有已加载脚本；部分失败必须在回执里点出来（失败条目保留旧版本）
+        extern int lua_reload_all();
+        int failed = lua_reload_all();
+        if (failed > 0)
+            tell_object(me, snprintf(arg, 255,
+                                     "所有 Lua 脚本已重载，%d 个失败（保留旧版"
+                                     "本）。",
+                                     failed));
+        else
+            tell_object(me, "所有 Lua 脚本已重载。");
         return 1;
     }
 
-    extern int lua_reload_script(const char* name);
+    extern bool lua_reload_script(const char* name);
     if (lua_reload_script(arg))
         tell_object(me, "Lua 脚本已重载。");
     else

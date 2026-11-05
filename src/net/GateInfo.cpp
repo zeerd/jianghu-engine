@@ -1,4 +1,5 @@
 #include "gamesvr.h"
+#include "ConnectionHandleManager.h"
 #include "Logger.h"
 
 CGateInfo::CGateInfo()
@@ -6,6 +7,7 @@ CGateInfo::CGateInfo()
     m_do_sending = 0;
     m_player     = 0;
     m_login      = GATE_LOGIN_NOT_LOGGED_IN;
+    m_handle     = CConnectionHandleManager::INVALID_CONNECTION_HANDLE;
     m_ref_count  = 1;  // 列表持有 1 个引用
     m_closing    = false;
     memset(&OverlappedEx, 0, sizeof(OverlappedEx));
@@ -27,6 +29,11 @@ void CGateInfo::close_connection()
         return;
     }
     m_closing = true;
+
+    // 句柄即刻失效：早于对象被移出 g_gate_list，此后经句柄寻址一律落空，
+    // 游戏层不会再碰到已进入关闭流程的连接（见 CConnectionHandleManager）
+    CConnectionHandleManager::release(m_handle);
+    m_handle = CConnectionHandleManager::INVALID_CONNECTION_HANDLE;
 
     LOG_INFO("连接关闭: player=%d", m_player);
 

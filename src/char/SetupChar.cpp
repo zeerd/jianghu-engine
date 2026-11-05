@@ -25,11 +25,11 @@ void setup_human_max_hp(CChar* me, int age)
 {
     CMapping* m = me->query_entire_dbase();
 
-    int hp = m->query("con");
+    mapping_value_t hp = m->query("con");
     if (CServerConfig::force_add_hp()) hp += me->query_skill("force", 1) / 10;
 
     // 最大上限与等级的关系
-    int base_value = 300 + m->query("level") * hp * 3;
+    mapping_value_t base_value = 300 + m->query("level") * hp * 3;
 
     if (age <= 14)
         m->set("max_hp", base_value);
@@ -78,7 +78,7 @@ void setup_human(CChar* me)
 
     setup_human_base_attrs(me);
 
-    int age = m->query("age");
+    mapping_value_t age = m->query("age");
     if (is_user(me) || m->undefinedp("max_hp")) setup_human_max_hp(me, age);
 
     if (m->undefinedp("gender")) m->set("gender", "男性");
@@ -117,8 +117,8 @@ void setup_beast(CChar* me)
     if (m->undefinedp("dex")) m->set("dex", g_utils.random(41) + 5);
 
     if (m->undefinedp("max_hp")) {
-        int level = m->query("level");
-        int age   = m->query("age");
+        mapping_value_t level = m->query("level");
+        mapping_value_t age   = m->query("age");
 
         if (age <= 5)
             m->set("max_hp", 150);

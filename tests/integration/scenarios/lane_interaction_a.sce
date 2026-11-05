@@ -1,18 +1,23 @@
 # lane_interaction_a.sce — L5 道：配对互动 A
 #
 # 职责：与 L6 道配对，覆盖多客户端互动场景（设计见
-#   docs/design/integration-test.md §2.1）。A 扮「主动方」——邀请组队、发起私聊、定向说话/表情、赠送物品、
+#   docs/design/integration-test.md §2.1）。A 扮「主动方」——收徒资格前置与
+#   玩家收徒（A 扮师父）、邀请组队、发起私聊、定向说话/表情、赠送物品、
 #   置业后邀请 B 做客、婚姻登记表签名领表、夫妻组队、离婚确认、摆摊售卖、
 #   发起切磋与玩家 PK（对手是 L6，观战联动 L7）。
 #
-# 片段链：登录 → PK 前置（pk_prep：起步历练 + 青锋剑 + 冲 10 级，赢家账号
-#   专属）→ 会合 → 组队 → 私聊 → 说话表情 → 赠送 → 做客 → 结婚 → 夫妻组队
-#   → 离婚 → 摆摊交易 → 双人同睡（sleep：wakeup2 男性分支，醒后重挥剑）
-#   → 切磋（fight/follow/halt）→ 玩家 PK 与死亡链（pk_*）
+# 片段链：登录 → 收徒资格前置（master_recruit_prep：拜师青云子取门派代数 +
+#   巫师供能 recruit_exp）→ 会合 → 组队 → 玩家收徒四段（recruit/rexp/expell/
+#   apprentice，A 扮师父、B 扮徒弟，同在茶棚完成；必须排在组队之后——组队是
+#   全链唯一向对端推菜单的段，cmd 会 cancel 在途菜单，见 recruit_a 头注）→
+#   私聊 → 说话表情 → 赠送 → 做客 → 结婚 → 夫妻组队 → 离婚 → 摆摊交易 →
+#   双人同睡（sleep：wakeup2 男性分支，醒后重挥剑）→ PK 前置（pk_prep：
+#   起步历练 + 青锋剑 + 冲 10 级，赢家账号专属）→ 切磋（fight/follow/halt）→
+#   玩家 PK 与死亡链（pk_*）
 #   → 属区卖房收口（sell_own_house：本道置业只为做客邀请，链尾直卖、登记册每轮净 0）。
 #   marriage/pair/divorce/trade/pk 前置依次依赖：pair 要 couple、divorce 要
 #   couple、trade 双方需同房间；pk 段依赖观战道（L7）在线接信号，链内自有
-#   步行与 tell 同步。
+#   步行与 tell 同步；收徒四段依赖本道的收徒资格前置与 B 的存盘回执。
 #
 # 性别：本道注册为男性（vars 的 gender 键）——wakeup2 双人同睡要求异性，
 #   与 L6（女性）配对；见 sleep_a.sce 头注。
@@ -28,12 +33,24 @@
 #   排行榜房间播报（L1）、蛇胆与传送符（L4）；自购补给走本道自己的
 #   provision 与 pk_prep 片段（金创药 1 包用于赠送、青锋剑 1 柄为 PK 武装，
 #   均按商人常规库存自购）；摆摊段的贸易文书按人发放、
-#   待售商品（金创药/酒壶）本道自购，均不占稀缺资源。
+#   待售商品（金创药/酒壶）本道自购，均不占稀缺资源。师徒关系只在本道与
+#   L6 之间建立，不动物品、不占任何唯一资源。
 
 include common/login.sce
 include provision/interaction_provision_a.sce
+# 收徒资格前置必须在会合之前：recruit_a 起的师徒四段要 /recruit 资格守卫，
+#   本段先拜师青云子（门派/代数）再请巫师供能 recruit_exp，段尾回山脚
+include provision/master_recruit_prep.sce
 include interaction/rendezvous.sce
 include interaction/party_a.sce
+# 玩家收徒四段排在组队**之后**（段落位置理由见 recruit_a 头注）：/party 会向
+#   对端推菜单，而 cmd（非数字输入）会 cancel_menu——对端正执行 cmd 时菜单被吞、
+#   其 wait menu 必红；师徒段只产生文本信号与「观察者自己」的菜单，必须放在
+#   无对端菜单的窗口里
+include interaction/recruit_a.sce
+include interaction/rexp_a.sce
+include interaction/expell_a.sce
+include interaction/apprentice_a.sce
 include interaction/tell_a.sce
 include interaction/say_emote_a.sce
 include interaction/give_a.sce

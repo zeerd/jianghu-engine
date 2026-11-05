@@ -47,8 +47,12 @@ std::string format_tell(int64_t uid, int64_t target_id,
 // Returns wire format: "{player_uid} chat 0 <content>\t"
 std::string format_chat(int64_t uid, const std::string &content);
 
+// 设置通讯帧 XOR 密钥（空串恢复内置默认）。由 ClientCore 构造时按配置
+// 下发；服务端读 [security] comm_key，两侧不一致则互相解不开帧。
+void set_comm_key(const std::string &key);
+
 // XOR encode/decode (same function — XOR is symmetric)
-// The server uses DecodeStr with key "\15L\26A\18N\12W\25O\33O\6D"
+// 密钥见 set_comm_key；未设置时为服务端同款内置默认值。
 std::string encode_str(const std::string &input);
 
 // XOR decode (symmetric — same as encode_str, but named for clarity on the

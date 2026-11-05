@@ -6,7 +6,9 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <map>
 #include <vector>
 
 #include "Char.h"
@@ -77,7 +79,22 @@ void CChatChannel::create()
 {
     clear();
 
-    // 1，建立频道
+    // 1，基础频道：引擎机制频道（权限/分组/按动词特判的渲染分支都在
+    //    do_channel / filter_* 里），硬编码为引擎默认
+    register_base_channels();
+
+    // 2，扩展频道：f1-f4、answer 及数据集新增频道，channel_config.lua
+    //    是唯一来源（文件缺失 = 未配置，扩展频道不注册）
+    load_lua_channels();
+
+    // 3，从 Lua 配置加载聊天禁词
+    load_ban_words_from_lua();
+}
+
+// 基础频道（引擎机制频道）。do_channel 中按动词特判的渲染分支
+// （party/corps/wiz/new/chat）与权限/分组机制都依赖这些键，属引擎职责。
+void CChatChannel::register_base_channels()
+{
     CMapping m;
 
     // sys
@@ -150,46 +167,6 @@ void CChatChannel::create()
     channels.set("noise", m);
     m.clear();
 
-    // f1
-    m.set("msg_speak", "$HIM【%s】$COM%s");
-    m.set("msg_emote", "$HIM【%s】%s");
-    m.set("msg_color", "$COM");
-    m.set("channel", "f1");
-    m.set("newbie", 1);
-
-    channels.set("f1", m);
-    m.clear();
-
-    // f2
-    m.set("msg_speak", "$HIG【%s】$COM%s");
-    m.set("msg_emote", "$HIG【%s】%s");
-    m.set("msg_color", "$COM");
-    m.set("channel", "f2");
-    m.set("newbie", 1);
-
-    channels.set("f2", m);
-    m.clear();
-
-    // f3
-    m.set("msg_speak", "$HIW【%s】$COM%s");
-    m.set("msg_emote", "$HIW【%s】%s");
-    m.set("msg_color", "$COM");
-    m.set("channel", "f3");
-    m.set("newbie", 1);
-
-    channels.set("f3", m);
-    m.clear();
-
-    // f4
-    m.set("msg_speak", "$HIW【%s】$COM%s");
-    m.set("msg_emote", "$HIW【%s】%s");
-    m.set("msg_color", "$COM");
-    m.set("channel", "f4");
-    m.set("newbie", 1);
-
-    channels.set("f4", m);
-    m.clear();
-
     // rumor
     m.set("msg_speak", "$HIM【谣言】%s：%s");
     m.set("msg_emote", "$HIM【谣言】%s");
@@ -219,18 +196,57 @@ void CChatChannel::create()
 
     channels.set("corps", m);
     m.clear();
+}
 
-    // answer
-    m.set("msg_speak", "$YEL【考试】%s: %s");
-    m.set("msg_color", "$YEL");
-    m.set("newbie", 1);
-    m.set("channel", "answer");
+// 数值字段白名单：do_channel / filter_* 经 query()（仅命中 T_NUMBER）读取
+// 的频道字段。channel_config.lua 里这些字段由 load_lua_channels 转成整数
+// 落库；新增数值字段必须同步在此登记，否则按字符串存入、query() 恒返回 0
+// （年龄门槛、收听过滤、内力消耗等会全部静默失效）。
+static bool is_numeric_channel_field(const char* field)
+{
+    static const char* k_numeric_fields[]
+        = {"wiz_only", "wiz_use", "all_receive",
+           "newbie",   "use_mp",  "interMain_emote"};
+    for (const char* f : k_numeric_fields) {
+        if (strcmp(f, field) == 0) return true;
+    }
+    return false;
+}
 
-    channels.set("answer", m);
-    m.clear();
+// 扩展频道：channel_config.lua 是 f1-f4、answer 及数据集新增频道的唯一
+// 来源。表内条目整体生效（后写覆盖，也可覆盖基础频道的文案字段）；
+// 缺文件 = 数据集未配置，扩展频道不注册，服务器照常启动。
+void CChatChannel::load_lua_channels()
+{
+    if (!g_LuaEngine) {
+        LOG_ERROR("LoadLuaChannels: Lua engine not initialized");
+        return;
+    }
 
-    // 7, 从 Lua 配置加载聊天禁词
-    load_ban_words_from_lua();
+    std::map<std::string, std::map<std::string, std::string>> config;
+    if (!g_LuaEngine->get_channel_config(config)) {
+        LOG_ERROR("LoadLuaChannels: Failed to load channel config from Lua");
+        return;
+    }
+
+    int count = 0;
+    for (const auto& channel_kv : config) {
+        CMapping m;
+        for (const auto& field_kv : channel_kv.second) {
+            const char* field = field_kv.first.c_str();
+            if (is_numeric_channel_field(field))
+                m.set(field, atoi(field_kv.second.c_str()));
+            else
+                m.set(field, field_kv.second.c_str());
+        }
+        // channel 字段恒等于键名：filter_list 拿它比对玩家收听表，
+        // 与动词不一致会让非 all_receive 频道永远收不到
+        m.set("channel", channel_kv.first.c_str());
+        channels.set(channel_kv.first.c_str(), m);
+        count++;
+    }
+
+    LOG_DEBUG("LoadLuaChannels: loaded %d channels from channel_config", count);
 }
 
 // 从 Lua 配置加载聊天禁词
@@ -542,7 +558,7 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     if (!filter_list(channel, me, verb, list)) return 0;
 
     const char* wiz_name;
-    int grant = me->query("grant");
+    mapping_value_t grant = me->query("grant");
     if (grant < 60)
         wiz_name = "$YEL【客座巫师】$HIY";
     else if (grant < 70)

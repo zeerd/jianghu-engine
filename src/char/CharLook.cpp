@@ -95,9 +95,9 @@ int CChar::do_look(CChar* me)
 
     char family_des[80];
 
-    family_des[0] = 0;
-    int gen       = query("family/generation");
-    int mygen     = me->query("family/generation");
+    family_des[0]         = 0;
+    int gen               = query("family/generation");
+    mapping_value_t mygen = me->query("family/generation");
 
     if (this != me && me->querymap("family")
         && EQUALSTR(querystr("family/family_name"),
@@ -196,8 +196,8 @@ int CChar::do_look(CChar* me)
         add_menu_item("结束观察", "", me);
     }
 
-    int32_t me_shen  = me->query("repute");
-    int32_t obj_shen = query("repute");
+    mapping_value_t me_shen = me->query("repute");
+    int32_t obj_shen        = query("repute");
 
     if (this != me && is_living(this)
         && ((me_shen < 0 && obj_shen > 0) || (me_shen > 0 && obj_shen < 0))

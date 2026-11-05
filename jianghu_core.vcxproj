@@ -202,6 +202,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CallingConvention>Cdecl</CallingConvention>
       <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <!-- Debug|x64 -->
@@ -343,6 +344,7 @@
     <ClCompile Include="src\lua\LuaObjects.cpp" />
     <ClCompile Include="src\lua\LuaSyntaxChecker.cpp" />
     <!-- net -->
+    <ClCompile Include="src\net\ConnectionHandleManager.cpp" />
     <ClCompile Include="src\net\GateClient.cpp" />
     <ClCompile Include="src\net\GateInfo.cpp" />
     <ClCompile Include="src\net\GateRecvDispatch.cpp" />
@@ -375,6 +377,7 @@
     <ClCompile Include="src\util\Logger.cpp" />
     <ClCompile Include="src\util\Random.cpp" />
     <ClCompile Include="src\util\StringUtil.cpp" />
+    <ClCompile Include="src\util\Crypto.cpp" />
     <ClCompile Include="src\util\CreateDump.cpp" />
     <ClCompile Include="src\util\Utils.cpp" />
     <ClCompile Include="src\util\CommandLine.cpp" />
@@ -406,6 +409,7 @@
     <ClInclude Include="src\object\CObject.h" />
     <ClInclude Include="src\engine\Condition.h" />
     <ClInclude Include="src\object\Container.h" />
+    <ClInclude Include="src\net\ConnectionHandleManager.h" />
     <ClInclude Include="src\net\GameSvr.h" />
     <ClInclude Include="src\object\Global.h" />
     <ClInclude Include="src\item\Item.h" />

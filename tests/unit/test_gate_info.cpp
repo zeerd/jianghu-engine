@@ -61,16 +61,23 @@ TEST_F(GateInfoTest, CloseClient_QueuesExitAndInvalidatesSocket)
     ASSERT_EQ(WSAStartup(MAKEWORD(2, 2), &wsa), 0);
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     ASSERT_NE(s, INVALID_SOCKET);
-    gate.m_sock   = s;
-    gate.m_login  = GATE_LOGIN_NORMAL;
-    gate.m_player = 42;
+    gate.m_sock       = s;
+    gate.m_login      = GATE_LOGIN_NORMAL;
+    gate.m_player     = 42;
+    const auto handle = CConnectionHandleManager::allocate(&gate);
+    gate.m_handle     = handle;  // 模拟 accept 路径的分配
 
-    close_client((uint32_t)&gate);
+    close_client(handle);
 
     EXPECT_EQ(GATE_LOGIN_CLOSING, gate.m_login);
     EXPECT_EQ(0, gate.m_player);
     EXPECT_TRUE(gate.m_closing);
     EXPECT_EQ(INVALID_SOCKET, gate.m_sock) << "关闭后句柄必须失效";
+    EXPECT_EQ(CConnectionHandleManager::INVALID_CONNECTION_HANDLE,
+              gate.m_handle)
+        << "关闭即归还句柄";
+    EXPECT_EQ(nullptr, CConnectionHandleManager::lookup(handle))
+        << "关闭后经句柄查表落空";
 
     // 删除流程由游戏线程消费 EXIT 驱动——必须恰好入队一条
     auto* exitMsg = reinterpret_cast<_LPTRECVBUFF>(gate.m_recv_buff_q.pop_q());
@@ -80,20 +87,35 @@ TEST_F(GateInfoTest, CloseClient_QueuesExitAndInvalidatesSocket)
     EXPECT_EQ(nullptr, gate.m_recv_buff_q.pop_q()) << "只入队一条 EXIT";
 }
 
-// m_closing 幂等守卫：重复 close 不得重复入队 EXIT
-TEST_F(GateInfoTest, CloseClient_IdempotentNoDuplicateExit)
+// m_closing 幂等守卫：同一对象重复进入关闭路径不得重复入队 EXIT
+TEST_F(GateInfoTest, CloseConnection_IdempotentNoDuplicateExit)
 {
     CGateInfo gate;
     gate.m_sock = INVALID_SOCKET;
 
-    close_client((uint32_t)&gate);
-    close_client((uint32_t)&gate);
+    gate.close_connection();
+    gate.close_connection();
 
     auto* exitMsg = reinterpret_cast<_LPTRECVBUFF>(gate.m_recv_buff_q.pop_q());
     ASSERT_NE(exitMsg, nullptr);
     EXPECT_EQ(RECV_MSG_EXIT, exitMsg->type);
     delete exitMsg;
     EXPECT_EQ(nullptr, gate.m_recv_buff_q.pop_q());
+}
+
+// 句柄已归还后 close_client 查表落空：对象状态不被触碰（句柄失效语义）
+TEST_F(GateInfoTest, CloseClient_MissedHandleLeavesGateUntouched)
+{
+    CGateInfo gate;
+    gate.m_sock       = INVALID_SOCKET;
+    gate.m_login      = GATE_LOGIN_NORMAL;
+    const auto handle = CConnectionHandleManager::allocate(&gate);
+    CConnectionHandleManager::release(handle);  // 模拟连接已走过关闭路径
+
+    close_client(handle);
+
+    EXPECT_EQ(GATE_LOGIN_NORMAL, gate.m_login) << "查表落空 → 不修改对象";
+    EXPECT_EQ(nullptr, gate.m_recv_buff_q.pop_q()) << "不入队 EXIT";
 }
 
 // ====================================================================

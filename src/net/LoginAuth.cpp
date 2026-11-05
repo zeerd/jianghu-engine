@@ -10,10 +10,6 @@
 #include "LoginAuth.h"
 #include "Sql.h"
 
-extern void close_client(uint32_t serial);
-extern int send_to_client(int object_id, uint32_t serial, const char* msg);
-extern int send_to_client_direct(int sockfd, uint32_t serial, const char* msg);
-
 int ban_me(CChar* me)
 {
     if (g_channel.banlist.query(get_ip(me))) return 1;

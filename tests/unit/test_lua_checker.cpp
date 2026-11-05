@@ -8,6 +8,8 @@
 //   2. require 闭包 字面量 require 指向不存在的模块（语法全绿、加载即炸）
 //   3. 未绑定全局   card_core 调 get_db_type()，登录期才抛 nil value
 //   4. 未绑定方法   self:set_verbs()，对象元表里只有 set_beast_verbs
+//   5. call_out 目标 延迟函数不在发起脚本的返回表里（xy_tielao 的 do_tanhua
+//                   写成顶层裸 function）——注册期按名查不到、回调挂不上
 //
 // 第 3 道最容易因"没装绑定表"而整片误报或漏报，故专门用裸 lua_State 用例钉住
 // check_lua_files 自持调用 lua_bind_init 这一前提。
@@ -15,6 +17,7 @@
 
 #include "lua/LuaSyntaxChecker.h"
 #include "test_lua_env.h"
+#include "test_tmp_dir.h"
 
 #include <lua.hpp>
 
@@ -74,7 +77,25 @@ const char* kNoparenReq
     = "tests/unit/lua-tests/check_fixture/noparen_req_bad.lua";
 const char* kConcatReq = "tests/unit/lua-tests/check_fixture/concat_req_ok.lua";
 
-// 基线文件由用例自己在仓库外的临时目录生成、析构即删。
+// 防线5：call_out 目标可见性（docs/guide/call_out.md 规则1）
+const char* kCalloutGlobalBad
+    = "tests/unit/lua-tests/check_fixture/callout_global_bad.lua";
+const char* kCalloutLocalBad
+    = "tests/unit/lua-tests/check_fixture/callout_local_bad.lua";
+const char* kCalloutFieldOk
+    = "tests/unit/lua-tests/check_fixture/callout_field_ok.lua";
+const char* kCalloutAliasOk
+    = "tests/unit/lua-tests/check_fixture/callout_alias_ok.lua";
+const char* kCalloutGhostBad
+    = "tests/unit/lua-tests/check_fixture/callout_ghost_bad.lua";
+const char* kCalloutCrossOk
+    = "tests/unit/lua-tests/check_fixture/callout_cross_ok.lua";
+const char* kCalloutCrossProvider
+    = "tests/unit/lua-tests/check_fixture/callout_cross_provider.lua";
+const char* kCalloutDynamicOk
+    = "tests/unit/lua-tests/check_fixture/callout_dynamic_ok.lua";
+
+// 基线文件由用例自己在仓库内 test_tmp\ 生成、析构即删（.gitignore 已排除）。
 // 它只是测试的 arrange（生产接口按路径读基线，注释行/空行/CRLF/重复条目
 // 计数都得真跑一遍），不是需要跟代码同步演进的数据 —— 提交进仓库只会变成
 // 没有别的消费者的孤儿文件。
@@ -82,7 +103,7 @@ class ScopedBaseline {
 public:
     ScopedBaseline(const char* name, const std::vector<std::string>& lines = {})
     {
-        m_path = (std::filesystem::temp_directory_path() / name).string();
+        m_path = (test_tmp_dir() / name).string();
         std::ofstream out(m_path, std::ios::binary | std::ios::trunc);
         // 用 CRLF：load_baseline 对 \r\n 与 \n 都要吃得下
         for (const std::string& line : lines) out << line << "\r\n";
@@ -363,4 +384,55 @@ TEST_F(LuaCheckerRequireTest, WriteBaselineDoesNotHideSyntaxErrors)
 
     EXPECT_NE(content.find("A:definitely_not_bound_xyz"), std::string::npos)
         << "违规仍要写进基线（基线只豁免违规，管不着语法错误）";
+}
+
+// ---------------- 防线 5：call_out 目标可见性（docs/guide/call_out.md 规则1）
+// ----------------
+
+// 顶层裸 function = 全局定义，不在返回表里 → 注册期两处表都查不到、必拒
+TEST_F(LuaCheckerRequireTest, CalloutGlobalTargetFails)
+{
+    EXPECT_EQ(check(kCalloutGlobalBad), 1)
+        << "裸全局定义的延迟函数不在返回表里，注册必拒 → 应判失败";
+}
+
+// local function 未导出 → 表里查不到（locals 不是表字段）
+TEST_F(LuaCheckerRequireTest, CalloutLocalNotExportedFails)
+{
+    EXPECT_EQ(check(kCalloutLocalBad), 1)
+        << "local 延迟函数未导出到返回表 → 应判失败";
+}
+
+// 目标函数何处都没有表字段定义
+TEST_F(LuaCheckerRequireTest, CalloutGhostTargetFails)
+{
+    EXPECT_EQ(check(kCalloutGhostBad), 1) << "幽灵目标 → 应判失败";
+}
+
+// 正例：function 模块名.名字（表字段）
+TEST_F(LuaCheckerRequireTest, CalloutTableFieldPasses)
+{
+    EXPECT_EQ(check(kCalloutFieldOk), 0) << "返回表字段形态应通过";
+}
+
+// 正例：local 函数 + 表内别名导出（数据集 chunjie_yh 形态）
+TEST_F(LuaCheckerRequireTest, CalloutAliasExportPasses)
+{
+    EXPECT_EQ(check(kCalloutAliasOk), 0) << "别名导出后字段在表里，应通过";
+}
+
+// NOTE 形态：目标在另一脚本的表里（owner 契约）→ 不判失败
+TEST_F(LuaCheckerRequireTest, CalloutCrossFileIsNoteNotFailure)
+{
+    const std::vector<std::string> files{kCalloutCrossOk,
+                                         kCalloutCrossProvider};
+    EXPECT_EQ(check_all(files), 0)
+        << "跨文件 owner 契约形态只记 NOTE，不应判失败";
+}
+
+// 盲区形态：目标名是变量（非字面量）→ 静态不可判，跳过
+TEST_F(LuaCheckerRequireTest, CalloutDynamicArgSkipped)
+{
+    EXPECT_EQ(check(kCalloutDynamicOk), 0)
+        << "非字面量目标名静态不可判，不应误报失败";
 }

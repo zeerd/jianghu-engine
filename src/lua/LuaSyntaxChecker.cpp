@@ -1,7 +1,7 @@
 ﻿/** @file LuaSyntaxChecker.cpp
  *  @brief --check-lua 静态校验实现。
  *
- *  四道防线，各自对应一次真实线上故障（都是先炸后发现 → 逐道前移到启动前）：
+ *  五道防线，各自对应一次真实线上故障（都是先炸后发现 → 逐道前移到启动前）：
  *
  *  1. 语法          luaL_loadbuffer：括号/引号不匹配、关键字拼错。
  *  2. require 闭包  字面量 require("a.b") 指向不存在的模块（历史事故：
@@ -13,6 +13,11 @@
  *  4. 未绑定方法    self:set_verbs(...) / self:Ready_PK() —— 对象元表里只有
  *                   set_beast_verbs / ready_pk，名字或大小写不符即取到 nil。
  *                   同型：Pay_Player 对 pay_player。
+ *  5. call_out 目标 数据集 xy_tielao 系把延迟函数写成顶层裸 function（全局）、
+ *                   hangzhou_lieyandao 的 do_time 同——名字不在发起脚本的返回
+ *                   表里，注册期按名两处都查不到即 LOG_ERROR 拒绝，回调根本
+ *                   挂不上。规则见 docs/guide/call_out.md（规则1：写成
+ *                   模块名.名字）。
  *
  *  第 3、4 道必须拿到"引擎到底绑了什么"才有判断依据，故本文件自持调用
  *  lua_bind_init()（幂等），不依赖调用方是否已初始化——历史上 check-lua 只跑
@@ -26,6 +31,8 @@
  *      就不再检查——局部与全局同名时会漏检（宁可漏、不可误报的取舍）；
  *   3. 方法消解只看"全语料有没有人定义过这个名字"，不校验目标对象上真的
  *      挂得到，跨对象同名会被放行。
+ *   4. 防线5 只检 call_out/call_out_combat 的**字面量**注册名（非字面量实参
+ *      静态不可判，跳过）；remove_call_out 的配对与死移除不在本道。
  */
 
 #include <windows.h>
@@ -586,6 +593,9 @@ void analyze_scope(const std::vector<LexTok>& toks, FileScan& fs)
               && (toks[k - 1].text == "." || toks[k - 1].text == ":");
         const bool rhs_fn = eq + 1 < n && toks[eq + 1].kind == LT_KW
                             && toks[eq + 1].text == "function";
+        // 别名导出：X.f = g 或构造器内 { f = g } —— 字段真的在表里，
+        // 按名 call_out 就查得到（docs/guide/call_out.md 规则1 的合法形态）
+        const bool rhs_name = eq + 1 < n && toks[eq + 1].kind == LT_NAME;
 
         if (member_write) {
             // _G.name = ... 与 name = ... 等价：漏记定义会让别处的裸读被
@@ -595,21 +605,25 @@ void analyze_scope(const std::vector<LexTok>& toks, FileScan& fs)
             if (via_g) {
                 fs.defs.insert(t.text);
             }
-            else if (rhs_fn) {
+            else if (rhs_fn || rhs_name) {
                 // T.name = function(...) —— 挂在别的表上，属于脚本方法；
-                // 其余是字段写入，与全局无关
+                // T.name = g 是别名导出，字段同样在表里。其余写入与方法无关
                 fs.methods.insert(t.text);
             }
             continue;
         }
 
-        if (fs.locals.count(t.text)) continue;
-
         if (is_field[k]) {
-            // 表构造器内的 { name = function(...) } —— 脚本表方法
-            if (rhs_fn) fs.methods.insert(t.text);
+            // 表构造器内的 { name = function(...) } —— 脚本表方法；
+            // { name = g } 别名导出同理。先于 locals 判定：与局部同名不改变
+            // 「字段在表里」这一事实（chunjie_yh 的 local function + 表内导出
+            // 正是这个形态）
+            if (rhs_fn || rhs_name) fs.methods.insert(t.text);
             continue;
         }
+
+        if (fs.locals.count(t.text)) continue;
+
         // 语句级赋值即建立全局：x = 1、x = function(...) 都算
         // （damage_msg.lua 用 damage_msg = function 定义全局函数，
         //   只归到 methods 会漏掉，把它误报成未绑定全局）
@@ -629,7 +643,8 @@ void analyze_scope(const std::vector<LexTok>& toks, FileScan& fs)
 // ======================== 违规 ========================
 
 struct Violation {
-    std::string key;  // 基线条目（B:<file>:<lit> / A:<name> / M:<name>）
+    std::string key;  // 基线条目（B:<file>:<lit> / A:<name> / M:<name> /
+                      // C:<file>:<name>）
     int line = 0;
     std::string detail;
 };
@@ -710,6 +725,59 @@ void detect_string_arith(const std::vector<LexTok>& toks,
                    + "': Lua has no string arithmetic, use '..' to concatenate";
         v.key    = "B:" + rel_path + ":" + key_escape(lit->substr(0, 48));
         out.push_back(v);
+    }
+}
+
+// ======================== 防线 5：call_out 目标可见性 ========================
+//
+// 注册期引擎按名先查 owner 的脚本表、缺名回退当前执行脚本的表（见
+// CLuaEngine::register_callout），两处都查不到即 LOG_ERROR 拒绝注册。
+// 规则（docs/guide/call_out.md 规则1）：延迟函数必须是**发起 call_out 的
+// 脚本**的返回表字段（含 __index 基链与别名导出）。本道只判「发起脚本的表里
+// 有没有」：
+//   在表里                   → 通过
+//   本文件只以全局/local 定义 → 违规（两处表都查不到，注册必拒）
+//   别的脚本的表里有          → NOTE（跨文件 owner 契约形态，需人工核对）
+//   何处都无表字段            → 违规（注册必拒）
+// 非字面量实参与 remove_call_out 配对不在本道（见文件头盲区4）。
+
+struct CalloutCand {
+    size_t file_idx = 0;
+    int line        = 0;
+    std::string name;
+};
+
+void detect_callout_sites(const std::vector<LexTok>& toks,
+                          const std::string& rel_path, size_t file_idx,
+                          const FileScan& fs, std::vector<Violation>& out,
+                          std::vector<CalloutCand>& cross)
+{
+    for (size_t k = 0; k + 2 < toks.size(); ++k) {
+        const LexTok& t = toks[k];
+        if (t.kind != LT_NAME) continue;
+        if (t.text != "call_out" && t.text != "call_out_combat") continue;
+        if (k == 0 || toks[k - 1].kind != LT_OP
+            || (toks[k - 1].text != ":" && toks[k - 1].text != "."))
+            continue;  // 不是对象方法调用（裸 call_out 归防线3）
+        if (toks[k + 1].kind != LT_OP || toks[k + 1].text != "(") continue;
+        const LexTok& arg = toks[k + 2];
+        if (arg.kind != LT_STR) continue;  // 非字面量：静态不可判（盲区4）
+
+        const std::string& name = arg.text;
+        if (fs.methods.count(name)) continue;  // 规则1：表里有，通过
+
+        if (fs.defs.count(name) || fs.locals.count(name)) {
+            Violation v;
+            v.line = t.line;
+            v.key  = "C:" + rel_path + ":" + key_escape(name);
+            v.detail = "call_out target '" + name
+                       + "' is defined in this file but never exported to the "
+                         "script table (local/global); registration will be "
+                         "rejected at runtime (docs/guide/call_out.md rule 1)";
+            out.push_back(v);
+            continue;
+        }
+        cross.push_back({file_idx, t.line, name});
     }
 }
 
@@ -850,7 +918,8 @@ struct FileOutcome {
     bool syntax_ok = false;
     std::string syntax_err;
     std::string require_err;  // 非空 = 闭包解析失败
-    int dynamic_count = 0;
+    int dynamic_count    = 0;
+    int callout_contract = 0;  // 防线5：目标在别的脚本表里（NOTE，不判失败）
     std::vector<Violation> violations;  // 新增（未被基线豁免）
     int baselined = 0;
 };
@@ -920,6 +989,7 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
     std::vector<FileOutcome> outcomes(files.size());
     std::vector<std::string> rel_paths(files.size());
     std::vector<Cand> cands;
+    std::vector<CalloutCand> callout_cross;  // 防线5：待全量表定义消解的站点
     std::set<std::string> all_defs;
     std::set<std::string> all_methods;
 
@@ -975,6 +1045,10 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         all_methods.insert(fs.methods.begin(), fs.methods.end());
 
         detect_string_arith(toks, rel_paths[i], o.violations);
+
+        // 防线5：call_out 注册名在本文件的判定（跨文件的入候选，pass2 消解）
+        detect_callout_sites(toks, rel_paths[i], i, fs, o.violations,
+                             callout_cross);
 
         // A1 候选：全局读（先按活 _G 过滤，剩余待全量 script_defs 消解）
         // A2 候选：`x:name(` 冒号调用（先按对象/标准库方法过滤）
@@ -1061,6 +1135,22 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         }
     }
 
+    // ---- 防线 5 的跨文件候选：目标在别的脚本表里 → NOTE（owner 契约形态，
+    // 需人工核对 owner 的脚本确实定义它）；任何表里都没有 → 违规 ----
+    for (const CalloutCand& c : callout_cross) {
+        if (all_methods.count(c.name)) {
+            ++outcomes[c.file_idx].callout_contract;
+            continue;
+        }
+        Violation v;
+        v.line = c.line;
+        v.key  = "C:" + rel_paths[c.file_idx] + ":" + key_escape(c.name);
+        v.detail = "call_out target '" + c.name
+                   + "' is not a field of any script table; registration will "
+                     "be rejected at runtime (docs/guide/call_out.md rule 1)";
+        outcomes[c.file_idx].violations.push_back(v);
+    }
+
     // ---- 基线 ----
     Budget budget;
     const bool writing_baseline = opts && opts->write_baseline;
@@ -1124,6 +1214,13 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
                     "checked\n",
                     files[i].c_str(), o.dynamic_count);
             }
+            if (o.callout_contract > 0) {
+                printf(
+                    "NOTE: %s: %d call_out target(s) live in another "
+                    "file's table (owner-contract pattern - confirm the "
+                    "owner's script defines it)\n",
+                    files[i].c_str(), o.callout_contract);
+            }
             if (o.baselined > 0) {
                 printf("NOTE: %s: %d pre-existing violation(s) baselined\n",
                        files[i].c_str(), o.baselined);
@@ -1134,6 +1231,13 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         if (o.dynamic_count > 0) {
             printf("NOTE: %s: %d dynamic require(...) not statically checked\n",
                    files[i].c_str(), o.dynamic_count);
+        }
+        if (o.callout_contract > 0) {
+            printf(
+                "NOTE: %s: %d call_out target(s) live in another file's "
+                "table (owner-contract pattern - confirm the owner's "
+                "script defines it)\n",
+                files[i].c_str(), o.callout_contract);
         }
         if (o.baselined > 0) {
             printf("NOTE: %s: %d pre-existing violation(s) baselined\n",

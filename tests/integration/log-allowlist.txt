@@ -24,3 +24,13 @@ house/apply.sce 置业首建：per-owner 房间库中无行的预期回退
 db_load_container failed for house_
 	
 house/apply.sce 置业首建：房内箱随房间首建的预期失败
+#
+# reload 试验台（scenarios/reload/*）：坏文件变体的重载失败锚点行——失败分支
+# 必须报错并保留旧版本，这是被守护的契约本身（回溯栈帧已降 INFO，此处只登记
+# 锚点行）。签名按脚本名锚定：真异常若带别的脚本名（教材/配置脚本损坏）不命中。
+Lua reload loadfile failed [e2e_reload_npc] (keep old version	
+reload/fail_syntax、fail_missing、cmd_fail、reload_all_error：语法错/缺文件变体重载失败的锚点行
+Lua reload pcall failed [e2e_reload_npc] (keep old version	
+reload/fail_runtime：运行时错误变体重载失败的锚点行
+[Lua] e2e_reload_npc:	
+reload/*：上述失败分支的错误跟进行（errorMsg 随变体变化，按脚本名锚定）

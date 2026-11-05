@@ -325,8 +325,8 @@ void CFightRoom::advance_ap()
         for (int t = 0; t < 2; t++) {
             CChar* c = m_Team[t].obj[i];
             if (c == NULL) continue;
-            int ap = c->query_temp("fight/ap");
-            int tp = query_turn_ap(c) / 2;
+            mapping_value_t ap = c->query_temp("fight/ap");
+            int tp             = query_turn_ap(c) / 2;
             if (turn == 1) {
                 tp *= 2;
             }
@@ -361,7 +361,8 @@ bool CFightRoom::run_team_turn(int myTeam)
         }
         m_tick = 0;
         if (is_threshold_match()) {
-            int wimpy_ratio = self->query("hp") * 100 / self->query("max_hp");
+            mapping_value_t wimpy_ratio
+                = self->query("hp") * 100 / self->query("max_hp");
             if (wimpy_ratio <= m_hp_check) {
                 CChar* enemy = m_Team[enemy_team].obj[0];
                 if (enemy) {
@@ -681,7 +682,7 @@ int l_get_fight_team_num(lua_State* L)
         lua_pushinteger(L, 0);
         return 1;
     }
-    int team = me->query_temp("fight/fight_team");
+    mapping_value_t team = me->query_temp("fight/fight_team");
     lua_pushinteger(L, fr->get_team_count(team));
     return 1;
 }
@@ -699,9 +700,9 @@ int l_get_fight_team_char(lua_State* L)
         lua_pushnil(L);
         return 1;
     }
-    int team  = me->query_temp("fight/fight_team");
-    int idx   = (int)luaL_checkinteger(L, 2);
-    auto list = fr->get_team_list(team);
+    mapping_value_t team = me->query_temp("fight/fight_team");
+    int idx              = (int)luaL_checkinteger(L, 2);
+    auto list            = fr->get_team_list(team);
     if (!list) {
         lua_pushnil(L);
         return 1;

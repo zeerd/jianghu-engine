@@ -116,6 +116,33 @@ TEST(Protocol, EncodeDecodeRoundTrips)
     }
 }
 
+// ==================== 可配置密钥 ====================
+
+// 配置键生效：往返自逆，且输出必须真的随键变化（不变等于没配）。
+// 用完复位为空串 → 回退内置默认，后续用例不被污染。
+TEST(Protocol, SetCommKeyChangesEncodingAndRoundTrips)
+{
+    const std::string plain  = "login 1.2.3.4 v acc pwd card cp";
+    const std::string by_default = protocol::encode_str(plain);
+
+    protocol::set_comm_key("E2ECommKey6611");
+    EXPECT_EQ(protocol::decode_str(protocol::encode_str(plain)), plain);
+    EXPECT_NE(protocol::encode_str(plain), by_default);
+
+    protocol::set_comm_key("");
+    EXPECT_EQ(protocol::encode_str(plain), by_default)
+        << "空串必须回退内置默认，而不是留下空密钥";
+}
+
+// 未配置时用内置默认（与服务端 StringUtil 的默认值同源）
+TEST(Protocol, DefaultKeyIsLegacyHardcodedOne)
+{
+    protocol::set_comm_key("");
+    // 内置默认密钥首字节是 0x0D（字面量 "\15"）：'l' XOR 0x0D = 'a'
+    EXPECT_EQ(protocol::encode_str("l"), "a");
+    EXPECT_EQ(protocol::decode_str("a"), "l");
+}
+
 // ==================== GBK/UTF-8 转码 ====================
 
 TEST(Protocol, GbkUtf8RoundTrips)

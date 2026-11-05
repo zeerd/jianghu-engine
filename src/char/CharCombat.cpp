@@ -197,6 +197,8 @@ void CChar::start_busy(BUSYFUNCTION* new_busy, INTERRUPTFUNCTION* new_interrupt)
     m_busy_func = new_busy;
     m_interrupt = new_interrupt;
     set_heart_beat(1);
+    // 忙碌起始即翻转 STATE：客户端对 busy 的观测只有这一条通道
+    send_state(false);
 }
 
 void CChar::start_busy(int start, INTERRUPTFUNCTION* new_interrupt, CChar* src)
@@ -211,16 +213,16 @@ void CChar::start_busy(int start, INTERRUPTFUNCTION* new_interrupt, CChar* src)
 
     m_interrupt = new_interrupt;
     set_heart_beat(1);
+    // 忙碌起始即翻转 STATE：客户端对 busy 的观测只有这一条通道
+    send_state(false);
 }
 
 void CChar::continue_action()
 {
     if (m_busy_count > 0) {
         m_busy_count--;
-        return;
     }
-
-    if (m_busy_func) {
+    else if (m_busy_func) {
         if (!(*m_busy_func)(this)) {
             m_busy_func = 0;
             m_interrupt = 0;
@@ -229,7 +231,11 @@ void CChar::continue_action()
     else {
         m_busy_func = 0;
         m_interrupt = 0;
+        return;  // 入口本就不忙：没有翻转，不打扰客户端
     }
+
+    if (is_busy()) return;  // 本拍仍在忙：状态未翻转
+    send_state(false);  // 忙碌结束：STATE 缺失 bsy 即「不忙」，等待方据此收敛
 }
 
 // 打断Busy
@@ -242,6 +248,7 @@ void CChar::interrupt_me(CChar* who, char* how)
         m_busy_func  = 0;
         m_busy_count = 0;
         m_interrupt  = 0;
+        send_state(false);  // 中断同样是忙碌结束的翻转
     }
 }
 

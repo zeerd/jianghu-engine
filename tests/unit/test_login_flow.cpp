@@ -2,9 +2,10 @@
 //
 // on_login 的入参是网关帧：[0..254] 为 XOR 编码的登录串
 // （login <本地IP> <版本> <帐号> <密码> <卡号> <卡密>），[255..] 为对端
-// IP 串。测试用镜像编码器构帧；serial/sockfd 一律传 0——网关发送函数
-// （send_to_client/send_to_client_direct/open_client/close_client）把
-// serial 转成 CGateInfo*，空指针直接跳过，天然无 socket 依赖。
+// IP 串。测试用镜像编码器构帧；handle/sockfd 一律传 0——0 是保留的
+// 「无连接」句柄，网关发送函数（send_to_client/send_to_client_direct/
+// open_client/close_client）经句柄表查不到连接，直接跳过，
+// 天然无 socket 依赖。
 //
 // 帐号档案走 MockDatabase（cc_savedata/cc_freeze/cc_server 三条预置），
 // verify_user 走 mock_db 的 g_mock_db_succeed 开关。
@@ -278,7 +279,7 @@ TEST_F(LoginFlowTest, LoginFrameCodec_RoundTrips)
 }
 
 // =====================================================================
-// on_login 各拒绝分支（serial=0：网关发送为无操作）
+// on_login 各拒绝分支（handle=0：网关发送为无操作）
 // =====================================================================
 TEST_F(LoginFlowTest, OnLogin_NotLoginCommand_Rejected)
 {
@@ -389,6 +390,32 @@ TEST_F(LoginFlowTest, OnLogin_StartObj_OverridesStartCity)
     ASSERT_NE(nullptr, me->environment());
     EXPECT_STREQ("login_obj_room", me->environment()->querystr("base_name"));
     EXPECT_EQ('\0', me->querystr("start_obj")[0]) << "start_obj 用后删除";
+}
+
+// =====================================================================
+// on_login 受理即绑定连接句柄——必须早于 me->online()：open_client 凭它
+// 把门闸置 NORMAL，晚绑定会让 online 拿到 0、门闸停在 LOGGING_IN，
+// 后续命令全被丢弃
+// =====================================================================
+TEST_F(LoginFlowTest, OnLogin_BindsConnectionHandleBeforeOnline)
+{
+    CGateInfo gate;
+    gate.m_sock       = INVALID_SOCKET;
+    gate.m_login      = GATE_LOGIN_NOT_LOGGED_IN;
+    const auto handle = CConnectionHandleManager::allocate(&gate);
+    gate.m_handle     = handle;
+
+    MakeFrame(kLoginCmd, "9.9.9.9");
+    ASSERT_TRUE(on_login(handle, 0, frame));
+
+    CUser* me = find_online("10001");
+    ASSERT_NE(nullptr, me) << "登录成功后帐号应在线";
+    // 绑定的可观测证据：open_client(m_connection_handle) 只有在句柄绑对时
+    // 才会命中本 gate（句柄表内该句柄唯一指向它）
+    EXPECT_EQ(GATE_LOGIN_NORMAL, gate.m_login) << "open_client 已命中门闸";
+    EXPECT_EQ(me->object_id(), gate.m_player);
+
+    CConnectionHandleManager::release(handle);  // 配对归还（用例不驱动关闭）
 }
 
 // =====================================================================
@@ -655,6 +682,12 @@ TEST_F(LoginFlowTest, OnOffline_KicksOnlineUser)
     CRoom* room                   = new CRoom();
     room->set_name("测试房", "login_off_room");
     user.move(room);
+    // 预置一个已绑定的连接句柄：断线必须把它清掉
+    CGateInfo gate;
+    gate.m_sock       = INVALID_SOCKET;
+    const auto handle = CConnectionHandleManager::allocate(&gate);
+    gate.m_handle     = handle;
+    user.set_connection_handle(handle);
 
     // 负对照：未知对象号静默返回，不影响在线用户
     on_offline(999999);
@@ -662,12 +695,46 @@ TEST_F(LoginFlowTest, OnOffline_KicksOnlineUser)
 
     on_offline(user.object_id());
     EXPECT_NE(0, user.query_temp("net_dead")) << "断线标记已置";
-    EXPECT_EQ(0, user.query_temp("client/serial")) << "连接序号已清";
+    EXPECT_EQ(CConnectionHandleManager::INVALID_CONNECTION_HANDLE,
+              user.connection_handle())
+        << "断线后连接句柄已清";
+    // 被动断线不代关连接对象（关闭路径自行完成），句柄由本用例归还
+    CConnectionHandleManager::release(handle);
 
     user.set_heart_beat(0);
     user.move(nullptr);
     g_user_list.erase(user.object_id());
     delete room;
+}
+
+// =====================================================================
+// CUser::offline 主动断线：凭句柄关闭连接、归还句柄、清本人标识
+// =====================================================================
+TEST_F(LoginFlowTest, Offline_ClosesGateAndClearsConnectionHandle)
+{
+    StateRecordingUser user;
+    user.set("id", "10011");
+    CGateInfo gate;
+    gate.m_sock       = INVALID_SOCKET;
+    gate.m_login      = GATE_LOGIN_NORMAL;
+    const auto handle = CConnectionHandleManager::allocate(&gate);
+    gate.m_handle     = handle;
+    user.set_connection_handle(handle);
+
+    user.offline();  // flag=0：主动断线
+
+    EXPECT_EQ(GATE_LOGIN_CLOSING, gate.m_login) << "凭句柄关闭了连接";
+    EXPECT_EQ(CConnectionHandleManager::INVALID_CONNECTION_HANDLE,
+              user.connection_handle())
+        << "本人句柄已清";
+    EXPECT_EQ(nullptr, CConnectionHandleManager::lookup(handle))
+        << "连接句柄已随关闭归还";
+    EXPECT_NE(0, user.query_temp("net_dead")) << "断线标记已置";
+
+    auto* exitMsg = reinterpret_cast<_LPTRECVBUFF>(gate.m_recv_buff_q.pop_q());
+    ASSERT_NE(exitMsg, nullptr) << "主动关闭必须入队 RECV_MSG_EXIT";
+    EXPECT_EQ(RECV_MSG_EXIT, exitMsg->type);
+    delete exitMsg;
 }
 
 TEST_F(LoginFlowTest, OnSendOnline_NotifiesSelf)
@@ -700,7 +767,7 @@ TEST_F(LoginFlowTest, GetAllOnlineUsers_ReturnsTableOfUsers)
     g_user_list.erase(user.object_id());
 }
 
-// ---------------- GateClient.cpp: open_client 绑定玩家与登录态（29-33）
+// ---------------- GateClient.cpp: open_client 凭句柄绑定玩家与登录态 ----
 // ----------------
 TEST_F(LoginFlowTest, OpenClientBindsPlayerAndLoginState)
 {
@@ -708,8 +775,16 @@ TEST_F(LoginFlowTest, OpenClientBindsPlayerAndLoginState)
     gate.m_player = 0;
     gate.m_login  = 0;
 
-    open_client(reinterpret_cast<uint32_t>(&gate), 4242);
+    const auto handle = CConnectionHandleManager::allocate(&gate);
+    gate.m_handle     = handle;
+    open_client(handle, 4242);
 
-    EXPECT_EQ(4242, gate.m_player) << "serial 反解并绑定玩家(30)";
-    EXPECT_EQ(GATE_LOGIN_NORMAL, gate.m_login) << "登录态置正常(31)";
+    EXPECT_EQ(4242, gate.m_player) << "句柄查表命中并绑定玩家";
+    EXPECT_EQ(GATE_LOGIN_NORMAL, gate.m_login) << "登录态置正常";
+
+    // 句柄归还后再调用：查表落空，不再改动对象
+    CConnectionHandleManager::release(handle);
+    gate.m_player = 0;
+    open_client(handle, 7777);
+    EXPECT_EQ(0, gate.m_player) << "句柄失效 → open_client 为空操作";
 }

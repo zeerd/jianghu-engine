@@ -385,6 +385,9 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
                 }
                 if (msg.has("sta")) player_attr_.state = (int8_t)msg.get_int("sta");
                 if (msg.has("idl")) player_attr_.idle = msg.get_int("idl") != 0;
+                // bsy 每次私发 STATE 都是全量标志集：缺失即「翻回不忙」，
+                // 所以这里无条件重算，而不是只在有字段时置真
+                player_attr_.busy = msg.has("bsy") && msg.get_int("bsy") != 0;
                 if (msg.has("hp")) player_attr_.hp = msg.get_int("hp");
                 if (msg.has("mp")) player_attr_.mp = msg.get_int("mp");
                 if (msg.has("eh")) player_attr_.eff_hp = msg.get_int("eh");

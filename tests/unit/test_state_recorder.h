@@ -36,6 +36,12 @@ public:
         msgs.clear();
     }
 
+    // 连接句柄只读访问：CUser 的成员受保护，测试经此断言绑定/清零契约
+    CConnectionHandleManager::Handle connection_handle() const
+    {
+        return m_connection_handle;
+    }
+
     int sent = 0;
     std::vector<std::string> msgs;
 };

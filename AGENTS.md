@@ -12,10 +12,16 @@
 - 测试侧的动机只写在测试与计划文档里，不写进生产代码。
 - 完整条款见 `.claude/rules/copilot-instructions.md` 的编码铁律节。
 
+## 文档分工（铁律）
+
+**指令文件（`.claude/rules/*.instructions.md`）只写怎么做；为什么、机制、沿革进 `docs/design/`，指令侧留指针。**
+完整条款见 `.claude/rules/copilot-instructions.md` 的「指令文件与设计文档的分工」铁律；
+改过指令文件后按 `.claude/rules/self-verification.instructions.md` 逐段自检。
+
 ## 编码规范/风格
 
 遵循`.claude/rules/copilot-instructions.md`中的指令文件。
-遵循`.claude/rules/naming-convention.instructions.md`中的指令文件。
+遵循`.claude/rules/naming.instructions.md`中的指令文件。
 
 ## 测试
 

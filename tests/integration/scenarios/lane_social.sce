@@ -1,9 +1,10 @@
 # lane_social.sce — L4 道：社交生活
 #
-# 职责：账号类命令（前置段，含 DB 密集的改密链）→ 睡觉恢复 → 观察师父
+# 职责：账号类命令（前置段，含 DB 密集的改密链）→ NPC 师徒家门查询（family/user
+#   回归）→ 睡觉恢复 → 观察师父
 #   （同门关系分支）→ 毒药与补药对照（涂毒挂 poison/modu + 状态生命周期）→ 传送符换场景 →
 #   观察人物两条路 → 说话反应 → 钱庄四条分支 → 频道发言回显与新手频道回显
-#   → 社交表情 → 频道禁词 → 频道切换（tune 尾段）。
+#   → 社交表情 → 频道禁词 → answer 频道接管（天下大考）→ 频道切换（tune 尾段）。
 #
 # 为什么这些归同一条道：
 #   · 毒药对照要先把气血打残再按序补满，是同一位角色身上的一段连贯流程；
@@ -17,6 +18,8 @@ include common/login.sce
 include provision/social_supplies.sce
 include social/account.sce
 include common/apprentice.sce
+# 紧接拜师发家门查询请求（链首发请求，L9 尽早消费；本道随后才进长睡）
+include social/npc_master_family_user.sce
 include social/sleep_and_observe.sce
 include social/poison_and_cure.sce
 include social/look_and_emote.sce

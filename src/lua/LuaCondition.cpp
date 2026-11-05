@@ -56,7 +56,7 @@ bool CLuaCondition::init(CChar* me)
 }
 
 // 调用 Lua 脚本的 update_condition 函数，写回 duration 引用
-int CLuaCondition::update_condition(CChar* me, LONG& duration)
+int CLuaCondition::update_condition(CChar* me, mapping_value_t& duration)
 {
     if (m_script_ref == LUA_NOREF)
         return CCondition::update_condition(me, duration);
@@ -73,7 +73,7 @@ int CLuaCondition::update_condition(CChar* me, LONG& duration)
 
     lua_bind_push_object(L, this);
     lua_bind_push_object(L, me);
-    lua_pushinteger(L, duration);
+    lua_pushinteger(L, (lua_Integer)duration);
 
     // 期望两个返回值：flag、new_duration
     if (lua_pcall(L, 3, 2, 0) != LUA_OK) {
@@ -88,7 +88,7 @@ int CLuaCondition::update_condition(CChar* me, LONG& duration)
     if (lua_isnumber(L, -2)) flag = (int)lua_tointeger(L, -2);
 
     // 第二返回值：new_duration（number 才写回引用；nil 则不修改）
-    if (lua_isnumber(L, -1)) duration = (int32_t)lua_tointeger(L, -1);
+    if (lua_isnumber(L, -1)) duration = (mapping_value_t)lua_tointeger(L, -1);
 
     lua_pop(L, 3);  // 弹出 new_duration、flag、table
     return flag;

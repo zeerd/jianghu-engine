@@ -316,7 +316,7 @@ TEST_F(CharCoreTest, HeartBeat_CombatExpFloor)
     t->set("combat_exp", (long)-2100000000);
     t->move(room);
     t->heart_beat();
-    EXPECT_EQ(2147483647L, t->query("combat_exp"))
+    EXPECT_EQ(MAPPING_VALUE_MAX, t->query("combat_exp"))
         << "经验值低于下限 → 回收为上限(133)";
     t->move(nullptr);
     delete t;

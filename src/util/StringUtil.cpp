@@ -3,10 +3,28 @@
 #include "StringUtil.h"
 #include "../object/Global.h"
 
+#include "IniParser.h"
+
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
+namespace {
+
+// 通讯帧 XOR 密钥的内置默认值（历史硬编码密钥）：留空配置时的回退基线，
+// 旧客户端不升级也能互联。配置 [security] comm_key 给出非空值时改用它，
+// 服务端与 CLI 必须写成同一份（见 docs/design/encryption.md）。
+// 空值一律回退默认：密钥长度为 0 会让游标恒停在 key[0] 上越界读。
+const char kDefaultCommKey[] = "\15L\26A\18N\12W\25O\33O\6D";
+
+const char* comm_key()
+{
+    const char* configured = ini_get("security", "comm_key", "");
+    return (configured && configured[0]) ? configured : kDefaultCommKey;
+}
+
+}  // namespace
 
 //---------------------------------------------------------
 // 分析指令：将命令和参数分离
@@ -72,12 +90,12 @@ char* snprintf(char* buf, int len, const char* fmt, ...)
 }
 
 //---------------------------------------------------------
-// 译码
+// 译码（自逆：编解码同一变换，收发两侧用同一密钥）
 //---------------------------------------------------------
 char* decode_str(char* msg)
 {
     int p = 0, t = 0;
-    const char* decode = "\15L\26A\18N\12W\25O\33O\6D";
+    const char* decode = comm_key();
 
     int len = strlen(decode);
     while (msg[p]) {

@@ -8,7 +8,7 @@
 > 覆盖后从 §6 销账移出的条目，证据留在本台账作沿革，不回流 §6。
 >
 > **计划书不进本文件**：计划书是任务清单、用完即删；只有会被后来读者需要的甄别证据才落这里
-> （分工铁律见 `.claude/rules/integration-test.instructions.md` §1）。
+> （分工铁律见 `.claude/rules/copilot-instructions.md`「铁律：计划书与设计文档的分工」）。
 
 ## §0 与未命中清单的关系
 

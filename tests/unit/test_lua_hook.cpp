@@ -22,6 +22,7 @@
 #include "lua/LuaEngine.h"
 #include "lua/LuaHook.h"
 #include "test_lua_env.h"
+#include "test_tmp_dir.h"
 
 class LuaHookTest : public ::testing::Test {
 protected:
@@ -198,10 +199,9 @@ TEST_F(LuaHookTest, BootLoadsHookTables)
 // 9. script_root 钩子脚本损坏：记错后回退 default 参考脚本，不阻断开机
 TEST_F(LuaHookTest, BootFallsBackWhenScriptRootScriptBroken)
 {
-    // 运行时在系统临时目录构造损坏脚本（不入库，避免污染工程脚本检查）
-    namespace fs = std::filesystem;
-    const fs::path root
-        = fs::temp_directory_path() / "jianghu_broken_hook_root";
+    // 运行时在测试临时目录构造损坏脚本（不入库，避免污染工程脚本检查）
+    namespace fs        = std::filesystem;
+    const fs::path root = test_tmp_dir() / "jianghu_broken_hook_root";
     fs::remove_all(root);  // 清理上次残留
     fs::create_directories(root / "data");
     {
@@ -257,11 +257,11 @@ TEST_F(LuaHookTest, ResultReaderEdges)
 }
 
 // 11. 命令模块加载失败（文件存在但执行出错）：分发返回 -1 回落，不崩。
-//     损坏夹具在系统临时目录运行时构造，不入库（避免污染工程脚本检查）。
+//     损坏夹具在测试临时目录运行时构造，不入库（避免污染工程脚本检查）。
 TEST_F(LuaHookTest, CommandModuleLoadErrorFallsBack)
 {
     namespace fs        = std::filesystem;
-    const fs::path root = fs::temp_directory_path() / "jianghu_broken_cmd_root";
+    const fs::path root = test_tmp_dir() / "jianghu_broken_cmd_root";
     fs::remove_all(root);
     fs::create_directories(root / "command");
     {

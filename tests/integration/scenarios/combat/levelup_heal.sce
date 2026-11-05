@@ -29,7 +29,9 @@ cmd /t jin chuang yao
 clear
 cmd /use
 wait text 你吃下一包金创药 timeout=10000
-sleep 3200
+# 必吃分支必产生 busy：wait busy 收下起始 STATE（轮询容忍在途），再等结束
+wait busy timeout=5000
+wait not_busy timeout=10000
 end
 
 # 有效上限追平最大上限：升级造成的缺口被补满

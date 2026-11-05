@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "ConnectionHandleManager.h"
 #include "LoginAuth.h"
 #include "LuaLogin.h"
 #include "LoginRegister.h"
@@ -14,7 +15,9 @@
 class CUser;
 
 // --- 登录主流程 ---
-int on_login(uint32_t serial, int sockfd, char* arg);
+// handle：本连接的句柄（见 CConnectionHandleManager），受理时即绑定进
+// CUser，必须早于 me->online()（open_client 依赖它把门闸置为 NORMAL）
+int on_login(CConnectionHandleManager::Handle handle, int sockfd, char* arg);
 void on_send_online(CUser* me);
 
 // --- 游客登录（guest/guest 进游戏大厅 rk） ---

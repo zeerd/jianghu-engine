@@ -246,9 +246,9 @@ int CCmdUser::verify_pass(CChar* me, int32_t target, char* arg)
 // 升级系统
 int CCmdUser::upgrade(CChar* me, int32_t target, char* arg)
 {
-    int level         = me->query("level");
-    int32_t valid_exp = me->query_valid_exp();  // 可用来升级的经验
-    int32_t need_exp  = CChar::level2_exp(level + 1) - CChar::level2_exp(level);
+    mapping_value_t level = me->query("level");
+    int32_t valid_exp     = me->query_valid_exp();  // 可用来升级的经验
+    int32_t need_exp = CChar::level2_exp(level + 1) - CChar::level2_exp(level);
 
     if (valid_exp < need_exp) return notify_fail("你当前的经验不够升一级！");
 

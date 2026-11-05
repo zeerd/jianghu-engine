@@ -13,6 +13,8 @@ char* get_value(const char* cmd_str, const char* keyword, char* pValue,
 char* snprintf(char* buf, int len, const char* fmt, ...);
 
 // --- 编码 ---
+// 通讯帧 XOR 自逆编解码（收发两侧同一变换、同一密钥）。密钥取
+// [security] comm_key，缺省或留空回退内置默认密钥。
 char* decode_str(char* msg);
 
 // --- 校验 ---

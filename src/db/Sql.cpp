@@ -10,6 +10,7 @@
 #include "IDatabase.h"
 #include "Sql.h"
 #include "IniParser.h"
+#include "Crypto.h"
 
 bool prepare_tables(void);
 char* check_legal_name(const char* name);
@@ -99,14 +100,28 @@ bool ensure_wizard_accounts()
         // 从配置文件读取巫师默认密码，读不到则使用 12345678
         const char* wizard_passwd = ini_get("wizard", "password", "12345678");
 
+        // 巫师口令与玩家同制：盐+哈希落库、明文列不写值。规范化与登录口
+        // 同语义（剥单引号），否则配置里带引号的口令永远登不上。
+        std::string cred_salt, cred_hash;
+        if (!has_wizard1 || !has_wizard2) {
+            char pass[80];
+            snprintf(pass, sizeof(pass), "%s", wizard_passwd);
+            normalize_password(pass);
+            if (!make_password_credential(pass, cred_salt, cred_hash)) {
+                LOG_ERROR("EnsureWizardAccounts: derive key fail!");
+                return false;
+            }
+        }
+
         // 创建巫师1（男性）
         if (!has_wizard1) {
-            snprintf(
-                msg, sizeof(msg),
-                "INSERT INTO jianghudb (cc_id, cc_name, cc_passwd, "
-                "cc_str, cc_int, cc_con, cc_dex, cc_gender, cc_grant) "
-                "VALUES (1, '巫师一号', '%s', 21, 21, 21, 21, '男性', 100)",
-                wizard_passwd);
+            snprintf(msg, sizeof(msg),
+                     "INSERT INTO jianghudb (cc_id, cc_name, cc_passwd, "
+                     "cc_passwd_salt, cc_passwd_hash, "
+                     "cc_str, cc_int, cc_con, cc_dex, cc_gender, cc_grant) "
+                     "VALUES (1, '巫师一号', '', '%s', '%s', 21, 21, 21, 21, "
+                     "'男性', 100)",
+                     cred_salt.c_str(), cred_hash.c_str());
             if (g_db->execute(msg) != 0) {
                 LOG_ERROR("EnsureWizardAccounts: create wizard1 fail! %s",
                           g_db->error());
@@ -117,12 +132,13 @@ bool ensure_wizard_accounts()
 
         // 创建巫师2（女性）
         if (!has_wizard2) {
-            snprintf(
-                msg, sizeof(msg),
-                "INSERT INTO jianghudb (cc_id, cc_name, cc_passwd, "
-                "cc_str, cc_int, cc_con, cc_dex, cc_gender, cc_grant) "
-                "VALUES (2, '巫师二号', '%s', 21, 21, 21, 21, '女性', 100)",
-                wizard_passwd);
+            snprintf(msg, sizeof(msg),
+                     "INSERT INTO jianghudb (cc_id, cc_name, cc_passwd, "
+                     "cc_passwd_salt, cc_passwd_hash, "
+                     "cc_str, cc_int, cc_con, cc_dex, cc_gender, cc_grant) "
+                     "VALUES (2, '巫师二号', '', '%s', '%s', 21, 21, 21, 21, "
+                     "'女性', 100)",
+                     cred_salt.c_str(), cred_hash.c_str());
             if (g_db->execute(msg) != 0) {
                 LOG_ERROR("EnsureWizardAccounts: create wizard2 fail! %s",
                           g_db->error());
@@ -215,31 +231,30 @@ bool init_sql_server(const char* ipaddress, const char* name,
 bool verify_user(const char* userid, char* passwd)
 {
     try {
-        DbResultSet result;
-        char szQuery[512];
+        // 口令核对走账号域：哈希优先、旧明文行校验通过后原地迁移；
+        // 「查不到匹配凭据」的失败日志也记在那里
+        if (!db_authenticate_account(userid, passwd)) {
+            return false;
+        }
 
-        // 检查用户ID和密码是否正确
-        snprintf(szQuery, 512,
-                 "select * from jianghudb where cc_id=%s and cc_passwd='%s'",
-                 userid, passwd);
+        DbResultSet result;
+        char szQuery[256];
+
+        // 取账号行：建档字段（四维/性别/存档/权限）按 select * 的位置读取，
+        // 凭据新列一律追加在表末（见 DbTables 的建表列清单）
+        snprintf(szQuery, sizeof(szQuery),
+                 "select * from jianghudb where cc_id=%s", userid);
         if (0 != g_db->query(szQuery, result)) {
-            LOG_ERROR("user:%s passwd:%s query db fail!", userid, passwd);
+            LOG_ERROR("user:%s query db fail!", userid);
             return false;
         }
         if (result.empty()) {
-            LOG_ERROR("database fail: user:%s passwd:%s store null", userid,
-                      passwd);
+            LOG_ERROR("user:%s account row missing", userid);
             return false;
         }
-        int n = result.size();
-        if (n == 0) {
-            return false;
-        }
-        // paswd pass OK!
 
         if (result.rows[0].columns.empty()) {
-            LOG_ERROR("database fail: user:%s passwd:%s row null", userid,
-                      passwd);
+            LOG_ERROR("database fail: user:%s row null", userid);
             return false;
         }
 

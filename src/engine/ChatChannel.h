@@ -67,7 +67,7 @@ public:
     int check_channel_msg(CChar* me, const char* verb, const char* msg,
                           const char* block_key);
 
-    /** @brief 初始化频道配置表并加载禁词。 */
+    /** @brief 初始化频道配置表（基础频道 + Lua 扩展频道）并加载禁词。 */
     void create();
 
     /** @brief 清空频道配置与禁词。 */
@@ -88,6 +88,12 @@ private:
 
     /** @brief 分组成员判定：同 key 同值（巫师恒通过）（内部）。 */
     int group_listener(CUser* ppl, const char* value, const char* key);
+
+    /** @brief 注册引擎基础频道（机制频道，硬编码为引擎默认）。 */
+    void register_base_channels();
+
+    /** @brief 从 channel_config.lua 加载扩展频道（唯一来源，缺失不注册）。 */
+    void load_lua_channels();
 
     /** @brief 从 Lua 配置加载聊天禁词。 */
     void load_ban_words_from_lua();

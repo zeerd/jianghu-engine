@@ -192,7 +192,7 @@ void CMapping::set(const char* key, const char* val)
     s->u.string = make_string(val);
 }
 
-void CMapping::set(const char* key, long val)
+void CMapping::set(const char* key, mapping_value_t val)
 {
     if (!key || !key[0]) {
         LOG_ERROR("set: key is null!");
@@ -276,7 +276,7 @@ void CMapping::del(const char* key)
     }
 }
 
-long CMapping::query(const char* key)
+mapping_value_t CMapping::query(const char* key)
 {
     if (!key || !key[0]) return 0;
 
@@ -348,7 +348,7 @@ CVector* CMapping::queryvec(const char* key)
     return 0;
 }
 
-long CMapping::add(const char* key, long value)
+mapping_value_t CMapping::add(const char* key, mapping_value_t value)
 {
     if (!key || !key[0]) return 0;
 
@@ -412,7 +412,7 @@ void CMapping::values(CVector& v)
     }
 }
 
-LONG& CMapping::operator[](const char* key)
+mapping_value_t& CMapping::operator[](const char* key)
 {
     svalue_t* nvalue = find_string_in_mapping(key);
     if (nvalue != &const0u && nvalue->type == T_NUMBER) return nvalue->u.number;
@@ -484,7 +484,7 @@ void CMapping::from_json_object(JSON::ValueT<char>& val)
             case JSON::INTEGER: {
                 svalue_t* s = insert_in_mapping(key.c_str());
                 s->type     = T_NUMBER;
-                s->u.number = static_cast<LONG>(child.i());
+                s->u.number = static_cast<mapping_value_t>(child.i());
             } break;
             case JSON::STRING: {
                 svalue_t* s = insert_in_mapping(key.c_str());

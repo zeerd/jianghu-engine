@@ -3,6 +3,7 @@
 #include "../engine/HeartBeat.h"
 #include "Container.h"
 #include "GameSvr.h"
+#include "GateClient.h"
 #include "GateRecvDispatch.h"
 #include "Global.h"
 #include "NetCompletion.h"
@@ -27,7 +28,6 @@ extern void on_offline(long objectid);
 extern bool splite_command_parse(long userid, char* Comm, int len);
 void call_heart_beat();
 void user_command_loop();
-void close_client(uint32_t serial);
 
 DWORD WINAPI server_worker_thread(LPVOID CompletionPortID)
 {
@@ -153,10 +153,10 @@ void process_user_message()
                             std::lock_guard<std::recursive_mutex> lock(
                                 gate_info->m_cs);
                             if (gate_info->m_login == GATE_LOGIN_LOGGING_IN) {
-                                if (!on_login((uint32_t)gate_info,
+                                if (!on_login(gate_info->m_handle,
                                               gate_info->m_sock,
                                               lpRecvBuff->szData)) {
-                                    close_client((uint32_t)gate_info);
+                                    close_client(gate_info->m_handle);
                                 }
                             }
                         } break;

@@ -204,7 +204,7 @@ int CChar::skill_death_recover()
 // 消除判师记录
 void CChar::remove_betrayer(CChar* me)
 {
-    int lv = me->query("betrayer");
+    mapping_value_t lv = me->query("betrayer");
     me->del("betrayer");
     me->add("erase/betrayer", lv);
 

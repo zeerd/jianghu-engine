@@ -231,8 +231,14 @@ void handle_accept_completion(LPACCEPTOVERLAPPED lpAcceptOv)
     if (gate_info) {
         gate_info->m_sock = lpAcceptOv->AcceptSocket;
 
+        // 先分配连接句柄再对外可见：句柄是游戏层寻址本连接的唯一标识，
+        // 分配由 IOCP worker 线程并发执行，句柄表内部加锁（见头注）
+        gate_info->m_handle = CConnectionHandleManager::allocate(gate_info);
+
+        // 完成键直接携带对象地址（ULONG_PTR 不截断）：完成路径不查句柄表，
+        // 对象存活由未完成 IO 各持的一份引用保证，见 CConnectionHandleManager
         CreateIoCompletionPort((HANDLE)gate_info->m_sock, g_iocp,
-                               (uint32_t)gate_info, 0);
+                               reinterpret_cast<ULONG_PTR>(gate_info), 0);
 
         g_gate_list.push_back(gate_info);
 

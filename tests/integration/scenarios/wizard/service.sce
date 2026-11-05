@@ -1,10 +1,13 @@
 # service.sce — 巫师服务链（固定顺序收请求 → 执行 → 私发回执）+ 链尾房间重整
 #
-# 业务：按固定 wait 顺序消费八路供能请求——冲级(L5) → 毒术/内力(L4) →
-#   山贼技能/内力(L8 两次) → 偷袭(L3) → 剑气(L2) → 组合(L2) → 激励(L2) →
-#   练功(L10)。请求词与 capture 标记
+# 业务：按固定 wait 顺序消费十路供能/查询请求——收徒资格(L5) → NPC 师徒家门
+#   查询(L4) → 冲级(L5) → 毒术/内力(L4) → 山贼技能/内力(L8 两次) → 偷袭(L3) →
+#   剑气(L2) → 组合(L2) → 激励(L2) → 练功(L10)。请求词与 capture 标记
 #   全服唯一，先到者滞留缓冲、由后续 wait 按序消费；receipt timeout 均 300s——
 #   仅失败路径才真正等满。
+# 前两段是链首请求（L5 的 master_recruit_prep、L4 的 common/apprentice 之后立刻
+#   发出，约 25~50s），按到达时刻排在最前：既让这两道尽早拿到回执，也不推迟
+#   后面任何一段（顺序依据见 §2.6）。
 #
 # 判定：每段 = 请求到达（capture 账号）→ 巫师命令改定目标账号 → 私发回执；
 #   需求道侧断回执或直接断状态。**本段全程不 clear**（§8.6⑦：单发私聊会在途，
@@ -22,10 +25,34 @@
 # ---------------------------------------------------------------------------
 # 服务段：需求道 /t 1 + tell 请求 → 本道按**固定 wait 顺序**
 #   收请求 → 执行服务 → 私发回执。wait 顺序（≠到达顺序，靠缓冲匹配兜住）：
-#   冲级(L5) → 毒术/内力(L4) → 山贼技能/内力(L8 两次) → 偷袭(L3) → 剑气(L2) →
-#   组合(L2) → 激励(L2) → 练功(L10)。
+#   收徒资格(L5) → NPC 师徒家门查询(L4) → 冲级(L5) → 毒术/内力(L4) →
+#   山贼技能/内力(L8 两次) → 偷袭(L3) → 剑气(L2) → 组合(L2) → 激励(L2) →
+#   练功(L10)。
 #   各道的 receipt 都是毫秒级；多请求先后不保证时 capture 也不会抓错账号。
 # ---------------------------------------------------------------------------
+
+# L5 玩家师父的收徒资格（master_recruit_prep 段）：/recruit 与 /apprentice 的
+# 资格守卫读 dbase recruit_exp，新人恒 0（用户命令 /rexp 只在已有收徒记录时
+# 才回填）→ 由本道直设 50。L6 在会合点等 L5，回执越早、会合越不空等。
+wait text 收徒资格供能请求 timeout=360000
+capture 收徒资格供能账号是 as rec_acct
+cmd /t $rec_acct
+cmd /call set recruit_exp 50
+cmd /tell 收徒资格供能完毕
+cmd /t 0
+
+# L4 场景 C 的家门查询：NPC 师父收徒不写 family/user → 直读 dbase 断言。
+# 回执带值（capture 抓数字回传），L4 断「family/user=0」。
+wait text NPC师徒家门查询请求 timeout=360000
+capture NPC师徒家门查询账号是 as fam_acct
+cmd /t $fam_acct
+cmd /call query family/user
+# 回包先等到再抓（capture 不等网络回包，紧跟 cmd 会空抓）
+wait text family/user= timeout=10000
+capture family/user= as fam_user
+cmd /tell NPC师徒家门查询完毕 family/user=$fam_user
+cmd /t 0
+
 wait text 冲级供能请求 timeout=360000
 capture 冲级供能账号是 as lvl_acct
 cmd /t $lvl_acct

@@ -8,8 +8,10 @@
 #include "User.h"
 #include "Room.h"
 #include "CmdUser.h"
+#include "Crypto.h"
 #include "HeartBeat.h"  // g_destruct_list：quit 成功后回收自毁对象
 #include "Mapping.h"
+#include "test_credential_sql.h"
 #include "test_state_recorder.h"
 #include "mock/mock_database.h"
 
@@ -341,8 +343,8 @@ TEST_F(CmdUserAccountTest, Mudage_ComputesBreakdownAndCostsHp)
     // 1月2天3小时4分 → 触发 mon/day/hrs/min 全部分支
     long age = (((1L * 30 + 2) * 24 + 3) * 60 + 4) * 60;
     me->set("mud_age", age);
-    long hp_before = me->query("hp");
-    char arg[256]  = "";
+    mapping_value_t hp_before = me->query("hp");
+    char arg[256]             = "";
     EXPECT_EQ(CallMudage(me, 0, arg), 1);
     EXPECT_EQ(me->query("hp"), hp_before - 5);
 }
@@ -372,7 +374,7 @@ TEST_F(CmdUserAccountTest, Passwd_WrongVerifyPassRejected)
 TEST_F(CmdUserAccountTest, Passwd_FirstStageSetsPending)
 {
     db->SetQueryResultMatching("cc_verifypass",
-                               MockDatabase::MakeSingleRow({"x"}));
+                               MockDatabase::MakeSingleRow({"", ""}));
     char arg[] = "oldpass newpass";
     ASSERT_EQ(CallPasswd(me, 0, arg), 1);
     EXPECT_NE(me->query_temp("pending/modify_pass"), 0);
@@ -421,7 +423,7 @@ TEST_F(CmdUserAccountTest, Passwd_ChangePasswordSucceeds)
 TEST_F(CmdUserAccountTest, Passwd_OldPasswordQuoteStrippedBeforeVerify)
 {
     db->SetQueryResultMatching("cc_verifypass",
-                               MockDatabase::MakeSingleRow({"x"}));
+                               MockDatabase::MakeSingleRow({"", ""}));
     g_mock_last_verify_passwd.clear();
     char arg[] = "old'pass verifycode";
     ASSERT_EQ(CallPasswd(me, 0, arg), 1);
@@ -446,9 +448,17 @@ TEST_F(CmdUserAccountTest, Passwd_NewPasswordQuoteStrippedBeforeDb)
     me->set_temp("pending/modify_pass", (long)1);
     char arg[] = "new'pass";
     ASSERT_EQ(CallPasswd(me, 0, arg), 1);
-    EXPECT_TRUE(db->ExecutedContaining("cc_passwd='newpass'"))
-        << "落库形态与登录比对形态一致（无引号）";
-    EXPECT_FALSE(db->ExecutedContaining("new'pass"));
+
+    std::string update_sql;
+    for (const std::string& sql : db->GetExecutedSqls()) {
+        if (sql.find("update jianghudb set cc_passwd=''") != std::string::npos)
+            update_sql = sql;
+    }
+    ASSERT_FALSE(update_sql.empty()) << "改密码必须落库";
+    EXPECT_TRUE(credential_sql::matches(update_sql, "cc_passwd", "newpass"))
+        << "剥引号后的形态才参与派生（与登录比对形态一致）";
+    EXPECT_EQ(update_sql.find("new'pass"), std::string::npos)
+        << "含引号的口令原样不得进 SQL";
 }
 
 TEST_F(CmdUserAccountTest, Validate_WrongPasswordRejected)
@@ -473,7 +483,7 @@ TEST_F(CmdUserAccountTest, Validate_WrongVerifyPassRejected)
 TEST_F(CmdUserAccountTest, Validate_SuccessSetsFlag)
 {
     db->SetQueryResultMatching("cc_verifypass",
-                               MockDatabase::MakeSingleRow({"x"}));
+                               MockDatabase::MakeSingleRow({"", ""}));
     char arg[] = "secret code12";
     ASSERT_EQ(CallValidate(me, 0, arg), 1);
     EXPECT_NE(me->query_temp("validate"), 0);
@@ -482,7 +492,7 @@ TEST_F(CmdUserAccountTest, Validate_SuccessSetsFlag)
 TEST_F(CmdUserAccountTest, Validate_PasswordQuoteStrippedBeforeVerify)
 {
     db->SetQueryResultMatching("cc_verifypass",
-                               MockDatabase::MakeSingleRow({"x"}));
+                               MockDatabase::MakeSingleRow({"", ""}));
     g_mock_last_verify_passwd.clear();
     char arg[] = "sec'ret code12";
     ASSERT_EQ(CallValidate(me, 0, arg), 1);
@@ -512,7 +522,7 @@ TEST_F(CmdUserAccountTest, VerifyPass_TooShortRejected)
 {
     // 单 token：msg 拿副本、arg 清空；靠模式匹配让 verify_password 通过
     db->SetQueryResultMatching("cc_verifypass",
-                               MockDatabase::MakeSingleRow({"x"}));
+                               MockDatabase::MakeSingleRow({"", ""}));
     char arg[]           = "abc";
     g_notify_fail_msg[0] = '\0';
     EXPECT_EQ(CallVerifyPass(me, 0, arg), 0);
@@ -522,7 +532,7 @@ TEST_F(CmdUserAccountTest, VerifyPass_TooShortRejected)
 TEST_F(CmdUserAccountTest, VerifyPass_TooLongRejected)
 {
     db->SetQueryResultMatching("cc_verifypass",
-                               MockDatabase::MakeSingleRow({"x"}));
+                               MockDatabase::MakeSingleRow({"", ""}));
     char arg[]           = "abcdefghij12345678901";  // 21 > 20
     g_notify_fail_msg[0] = '\0';
     EXPECT_EQ(CallVerifyPass(me, 0, arg), 0);
@@ -531,8 +541,12 @@ TEST_F(CmdUserAccountTest, VerifyPass_TooLongRejected)
 
 TEST_F(CmdUserAccountTest, VerifyPass_DbChangeFails)
 {
-    db->SetQueryResultMatching("cc_verifypass",
-                               MockDatabase::MakeSingleRow({"x"}));
+    // 暗码以哈希存储：校验走哈希分支（不产生迁移写），execute 0 才会
+    // 落在改暗码的 UPDATE 上
+    std::string cred_salt, cred_hash;
+    ASSERT_TRUE(make_password_credential("oldcode", cred_salt, cred_hash));
+    db->SetQueryResultMatching(
+        "cc_verifypass", MockDatabase::MakeSingleRow({cred_salt, cred_hash}));
     db->SetExecuteFailAt(0);
     char arg[]           = "oldcode newcode1";
     g_notify_fail_msg[0] = '\0';
@@ -543,7 +557,7 @@ TEST_F(CmdUserAccountTest, VerifyPass_DbChangeFails)
 TEST_F(CmdUserAccountTest, VerifyPass_Succeeds)
 {
     db->SetQueryResultMatching("cc_verifypass",
-                               MockDatabase::MakeSingleRow({"x"}));
+                               MockDatabase::MakeSingleRow({"", ""}));
     char arg[] = "oldcode newcode1";
     EXPECT_EQ(CallVerifyPass(me, 0, arg), 1);
     EXPECT_TRUE(db->ExecutedContaining("cc_verifypass"));

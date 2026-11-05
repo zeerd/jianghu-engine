@@ -12,9 +12,11 @@
 //
 #include <cstdarg>
 #include <cstdio>
+#include <limits>
 #include "Logger.h"
 
 #include "gtest/gtest.h"
+#include "CObject.h"
 #include "Mapping.h"
 
 // ---------------------------------------------------------------------------
@@ -605,4 +607,80 @@ TEST(CVector, RoundTrip_SpecialCharElements)
     EXPECT_STREQ(w[0], "a\"b");
     EXPECT_STREQ(w[1], "c\\d");
     EXPECT_STREQ(w[2], "e/f");
+}
+
+// ---------------------------------------------------------------------------
+// mapping_value_t 值域边界
+//
+// 槽位（CMapping::u.number）、CMainObject 的 query/set 系列、Lua 绑定三层
+// 共用 MainConfig.h 的 mapping_value_t，位宽随编译开关走。这里钉住两件事：
+//   1) 位宽确实跟随构建——任一层被改回写死的 int32_t / long，槽位与接口
+//      就会重新错位，static_assert 在编译期即拦下；
+//   2) 值域两端（最大 / 最小）能原样写入、读出、累加并序列化往返。
+// ---------------------------------------------------------------------------
+
+TEST(MappingValueType, SlotWidthFollowsBuild)
+{
+#if defined(_WIN64) || defined(__LP64__)
+    static_assert(sizeof(mapping_value_t) == 8,
+                  "64 位构建下映射槽位必须是 8 字节");
+#else
+    static_assert(sizeof(mapping_value_t) == 4,
+                  "32 位构建下映射槽位必须是 4 字节");
+#endif
+    // 值域必须仍能表达旧 32 位时代的全部取值（存档里 2147483647 级的数值
+    // 读回不得变形），否则加宽别名会连带改坏既有数据。
+    EXPECT_GE((std::numeric_limits<mapping_value_t>::max)(), 2147483647);
+    // 守卫常量由别名推导，与槽位结构上不可能再各宽各的
+    EXPECT_EQ(MAPPING_VALUE_MAX, (std::numeric_limits<mapping_value_t>::max)());
+}
+
+TEST(MappingValueType, DomainExtremes_RoundTripInSlot)
+{
+    const mapping_value_t hi = (std::numeric_limits<mapping_value_t>::max)();
+    const mapping_value_t lo = (std::numeric_limits<mapping_value_t>::min)();
+
+    CMapping m;
+    m.set("hi", hi);
+    m.set("lo", lo);
+    EXPECT_EQ(m.query("hi"), hi);
+    EXPECT_EQ(m.query("lo"), lo);
+
+    // 累加落在值域上沿不得回绕
+    m.set("acc", hi - 1);
+    EXPECT_EQ(m.add("acc", 1), hi);
+    EXPECT_EQ(m.add("acc", -1), hi - 1);
+    EXPECT_EQ(m.add("fresh", hi), hi);  // 缺键首加即为给定值
+}
+
+TEST(MappingValueType, DomainExtremes_SurviveSerialization)
+{
+    const mapping_value_t hi = (std::numeric_limits<mapping_value_t>::max)();
+    const mapping_value_t lo = (std::numeric_limits<mapping_value_t>::min)();
+
+    CMapping m;
+    m.set("hi", hi);
+    m.set("lo", lo);
+
+    // 写出与读回必须同宽：出侧放大、入侧收窄，都会让存盘值静默变形
+    CMapping back;
+    ASSERT_GT(back.load_buffer(m.get_buffer()), 0L);
+    EXPECT_EQ(back.query("hi"), hi);
+    EXPECT_EQ(back.query("lo"), lo);
+}
+
+TEST(MappingValueType, CMainObject_PersistentAndTempShareValueDomain)
+{
+    const mapping_value_t hi = (std::numeric_limits<mapping_value_t>::max)();
+
+    CMainObject obj;
+    obj.set("hi", hi);
+    obj.set_temp("hi", hi);
+    EXPECT_EQ(obj.query("hi"), hi);
+    EXPECT_EQ(obj.query_temp("hi"), hi);
+
+    // 持久与临时两组接口同源于一个别名，add 的极值落点必须一致
+    EXPECT_EQ(obj.add("acc", hi), hi);
+    EXPECT_EQ(obj.add_temp("acc", hi), hi);
+    EXPECT_EQ(obj.query("acc"), obj.query_temp("acc"));
 }

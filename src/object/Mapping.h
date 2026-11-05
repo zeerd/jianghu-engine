@@ -95,7 +95,7 @@ protected:
  * @section sec_overview 概述
  *
  * CMapping 是一个以 **字符串为键** 的异构映射表，每个值可以是以下四种类型之一：
- *  - T_NUMBER  (LONG 整数)
+ *  - T_NUMBER  (mapping_value_t 整数)
  *  - T_STRING  (以 \\0 结尾的 C 字符串，拥有所有权)
  *  - T_MAPPING (嵌套的 CMapping 子映射，拥有所有权)
  *  - T_ARRAY   (CVector 字符串阵列，拥有所有权)
@@ -113,7 +113,7 @@ protected:
  * 每个键值对以 svalue_t 存储，type 字段标识实际类型：
  * | type       | u 字段      | 说明                          |
  * |------------|-------------|-------------------------------|
- * | T_NUMBER   | u.number    | LONG 整数                     |
+ * | T_NUMBER   | u.number    | mapping_value_t 整数          |
  * | T_STRING   | u.string    | 拥有所有权的 C 字符串          |
  * | T_MAPPING  | u.map       | 拥有所有权的子映射             |
  * | T_ARRAY    | u.arr       | 拥有所有权的字符串阵列          |
@@ -168,14 +168,14 @@ protected:
  * @code
  *   CMapping m;
  *   m.set("name", "张三");
- *   m.set("age", 25L);
- *   m.set("skills/force", 100L);     // 嵌套键
+ *   m.set("age", 25);
+ *   m.set("skills/force", 100);     // 嵌套键
  *
  *   const char* name = m.querystr("name");      // "张三"
- *   long age = m.query("age");                   // 25
- *   long force = m.query("skills/force");        // 100
+ *   mapping_value_t age = m.query("age");       // 25
+ *   mapping_value_t force = m.query("skills/force");  // 100
  *
- *   m.add("age", 5L);                            // age 变为 30
+ *   m.add("age", 5);                             // age 变为 30
  *   m.del("skills/force");                       // 删除叶子节点
  *
  *   const char* buf = m.GetBuffer();             // 序列化
@@ -192,7 +192,7 @@ public:
         int subtype;
 
         struct {
-            LONG number = 0;
+            mapping_value_t number = 0;
             std::unique_ptr<char[]> string;
             std::unique_ptr<CMapping> map;
             std::unique_ptr<CVector> arr;
@@ -210,16 +210,16 @@ public:
     virtual ~CMapping();
 
     void set(const char* key, const char* val);
-    void set(const char* key, long val);
+    void set(const char* key, mapping_value_t val);
     void set(const char* key, CMapping& mapping);
     void set(const char* key, CVector& v);
     void del(const char* key);
 
-    long query(const char* key);
+    mapping_value_t query(const char* key);
     const char* querystr(const char* key);
     CMapping* querymap(const char* key);
     CVector* queryvec(const char* key);
-    long add(const char* key, long n);
+    mapping_value_t add(const char* key, mapping_value_t n);
     int undefinedp(const char* key);
     int get_count();
     void keys(CVector& v);
@@ -234,7 +234,7 @@ public:
 
     svalue_t* find_string_in_mapping(const char* p);
 
-    LONG& operator[](const char* key);
+    mapping_value_t& operator[](const char* key);
 
     // 核心存储：std::string 键 -> svalue_t 值。
     // svalue_t 的资源（字符串/嵌套映射/数组）由 free_svalue
@@ -258,7 +258,7 @@ private:
     // 从一个 JSON object 值填充本映射（递归处理嵌套 object/array）。
     void from_json_object(JSON::ValueT<char>& val);
 
-    LONG m_value;
+    mapping_value_t m_value;
 };
 
 // 未命中哨兵（定义于 Mapping.cpp）。find_string_in_mapping

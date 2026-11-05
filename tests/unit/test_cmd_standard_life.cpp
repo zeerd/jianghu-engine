@@ -275,7 +275,7 @@ TEST_F(CmdStandardLifeTest, Exercise_RoundCompletesAndRaisesMp)
 
     // 只剩 1 点额度：一轮结算后必然收工
     me->set_temp("exercise_cost", 1);
-    long mp_before = me->query("mp");
+    mapping_value_t mp_before = me->query("mp");
 
     EXPECT_EQ(call_exercising(me), 0);
     EXPECT_GT(me->query("mp"), mp_before) << "打坐必须增长内力";
@@ -693,7 +693,7 @@ TEST_F(CmdStandardLifeTest, SleepTargetedGuardsWalkthrough)
     target.enable_player();
 
     // 178: 血量不足 50%（此前各守卫全过）
-    long saved_hp = me->query("hp");
+    mapping_value_t saved_hp = me->query("hp");
     me->set("hp", (long)10);
     g_notify_fail_msg[0] = '\0';
     EXPECT_EQ(0, CallSleep(me, target.object_id(), (char*)""))
@@ -763,7 +763,7 @@ TEST_F(CmdStandardLifeTest, Wakeup2CostCapMpRefillAndNestedJump)
     // kee_cost = 50 + 5*(str-con) → str 高/con 低使 kee_cost 超过 max_hp/2(266)
     me->set("str", (long)100);
     me->set("con", (long)0);
-    long hp_before = me->query("hp");
+    mapping_value_t hp_before = me->query("hp");
     me->set("mp", (long)10);  // mp < max_mp → 268 回填
 
     call_wakeup2(me, 0, 0);

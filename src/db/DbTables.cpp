@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -54,6 +55,74 @@ std::string BuildCreateTable(const char* name, const std::string& columns,
 std::string AutoPkColumn(const char* mysql_def, const char* sqlite_def)
 {
     return backend_is_sqlite() ? sqlite_def : mysql_def;
+}
+
+// 账号口令凭据列：登录/改密把盐与派生哈希写进这两对列，明文列只作为
+// 历史数据的比对来源（见 docs/design/encryption.md）。
+// 建表与历史库补列共用这份定义；列一律排在表末——verify_user 按
+// select * 的位置读取既有列，插在中间会让建档字段整体错位。
+struct CredentialColumn {
+    const char* name;
+    const char* type_def;
+};
+
+const CredentialColumn kCredentialColumns[] = {
+    {"cc_passwd_salt", "varchar(32) NOT NULL DEFAULT ''"},
+    {"cc_passwd_hash", "varchar(64) NOT NULL DEFAULT ''"},
+    {"cc_verifypass_salt", "varchar(32) NOT NULL DEFAULT ''"},
+    {"cc_verifypass_hash", "varchar(64) NOT NULL DEFAULT ''"},
+};
+
+// 建表用的列片段：`name` type_def,...（不含首尾逗号）
+std::string CredentialColumnsDdl()
+{
+    std::string sql;
+    for (const CredentialColumn& col : kCredentialColumns) {
+        if (!sql.empty()) sql += ",";
+        sql += "`";
+        sql += col.name;
+        sql += "` ";
+        sql += col.type_def;
+    }
+    return sql;
+}
+
+// 历史库补齐凭据列：CREATE TABLE IF NOT EXISTS 不会为已有表补列，启动时
+// 按列名探测，缺失的才 ALTER 追加。探测不到列（查询失败）即启动失败——
+// 缺列时注册与登录都会在运行期报错，不如在开机阶段暴露。
+bool ensure_credential_columns()
+{
+    DbResultSet rs;
+    const char* probe
+        = backend_is_sqlite()
+              ? "PRAGMA table_info(jianghudb)"
+              : "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema=DATABASE() AND table_name='jianghudb'";
+    if (g_db->query(probe, rs) != 0) {
+        LOG_ERROR("Prepare_tables: probe jianghudb columns fail! %s",
+                  g_db->error());
+        return false;
+    }
+
+    // 列名位置：PRAGMA 行为 (cid,name,type,...)，information_schema 为单列
+    const int name_idx = backend_is_sqlite() ? 1 : 0;
+    std::set<std::string> existing;
+    for (const DbRow& row : rs.rows) {
+        if ((int)row.columns.size() > name_idx) existing.insert(row[name_idx]);
+    }
+
+    for (const CredentialColumn& col : kCredentialColumns) {
+        if (existing.count(col.name)) continue;
+        const std::string sql
+            = std::string("ALTER TABLE jianghudb ADD COLUMN `") + col.name
+              + "` " + col.type_def;
+        if (g_db->execute(sql.c_str()) != 0) {
+            LOG_ERROR("Prepare_tables: add column %s fail! %s", col.name,
+                      g_db->error());
+            return false;
+        }
+    }
+    return true;
 }
 
 // jianghudb 是否已存在——账号 ID 起点只在首建时播种，重跑
@@ -140,7 +209,9 @@ bool prepare_tables(void)
                   "'0000-00-00 00:00:00',"
                   "`cc_savetime` datetime NOT NULL DEFAULT "
                   "'0000-00-00 00:00:00',"
-                  "`cc_freeze` tinyint(1) NOT NULL DEFAULT '0'",
+                  "`cc_freeze` tinyint(1) NOT NULL DEFAULT '0',"
+                // 凭据列固定排在末尾：verify_user 按 select * 位置读列
+                + CredentialColumnsDdl(),
             sqlite ? "" : "PRIMARY KEY (`cc_id`)",
             "KEY `cc_id` (`cc_id`),KEY `cc_grant` (`cc_grant`),"
             "KEY `cc_server` (`cc_server`),KEY `cc_experice` (`cc_experice`),"
@@ -217,6 +288,11 @@ bool prepare_tables(void)
 
         // 首次建表时播种账号 ID 起点；已有库跳过，避免重置计数器
         if (first_creation && !seed_first_id()) {
+            return false;
+        }
+
+        // 账号口令凭据列：历史库补齐（新库建表已含，探测后无动作）
+        if (!ensure_credential_columns()) {
             return false;
         }
 

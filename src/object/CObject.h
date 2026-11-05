@@ -64,7 +64,7 @@ public:
     // 玩家（协议没有「改名」消息，见 CContainer::on_name_changed）。
     virtual void on_name_changed() {}
 
-    void set(const char* key, int32_t value)
+    void set(const char* key, mapping_value_t value)
     {
         if (!this) return;
         _M.set(key, value);
@@ -88,7 +88,7 @@ public:
         _M.set(key, value);
     }
 
-    int32_t query(const char* key)
+    mapping_value_t query(const char* key)
     {
         if (!this) return 0;
         return _M.query(key);
@@ -112,7 +112,7 @@ public:
         return _M.queryvec(key);
     }
 
-    int32_t add(const char* key, int32_t value)
+    mapping_value_t add(const char* key, mapping_value_t value)
     {
         if (!this) return 0;
         return _M.add(key, value);
@@ -136,7 +136,7 @@ public:
         _T.set(key, value);
     }
 
-    void set_temp(const char* key, int32_t value)
+    void set_temp(const char* key, mapping_value_t value)
     {
         if (!this) return;
         _T.set(key, value);
@@ -160,7 +160,7 @@ public:
         return _T.querystr(key);
     }
 
-    int32_t query_temp(const char* key)
+    mapping_value_t query_temp(const char* key)
     {
         if (!this) return 0;
         return _T.query(key);
@@ -178,7 +178,7 @@ public:
         return _T.queryvec(key);
     }
 
-    int32_t add_temp(const char* key, int32_t value)
+    mapping_value_t add_temp(const char* key, mapping_value_t value)
     {
         if (!this) return 0;
         return _T.add(key, value);

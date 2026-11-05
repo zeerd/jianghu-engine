@@ -25,7 +25,7 @@ int CBankOwner::do_deposit(CChar* me, int32_t amount)
     if (!CMoney::player_pay(me, amount))
         return notify_fail("你身上没有那麽多钱。");
 
-    if (me->query("balance") > LONGMAX - amount) {
+    if (me->query("balance") > MAPPING_VALUE_MAX - amount) {
         return notify_fail("我们没办法帮你保存更多的钱了。");
     }
 
@@ -80,7 +80,7 @@ int CBankOwner::do_loan(CChar* me, int32_t amount)
         return notify_fail("这么有名的人物还来借钱？肯定是假冒的，不借！");
 
     if (amount <= 0) return 0;
-    if (amount > 0 && hamount < 0 && amount > LONGMAX - abs(hamount))
+    if (amount > 0 && hamount < 0 && amount > MAPPING_VALUE_MAX - abs(hamount))
         return notify_fail("$HIR别想刷钱！");
     if (CChar::level2_exp(me->query("level")) < amount - hamount)
         return notify_fail("你借不到这么多钱．．．");
@@ -121,7 +121,7 @@ int32_t CBankOwner::query_attr(int attr)
 int CBankOwner::do_balance(CChar* me)
 {
     char msg[255];
-    int32_t value = me->query("balance");
+    mapping_value_t value = me->query("balance");
 
     if (value == 0) {
         message_vision_room(me, "tell", "你现在没有存款。");

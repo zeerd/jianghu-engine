@@ -270,7 +270,7 @@ TEST_F(BankOwnerTest, Do_Deposit_Positive_CreditsBalanceAndAnnounces)
 
 TEST_F(BankOwnerTest, Do_Deposit_NearLongMax_GuardRejects)
 {
-    const long near_cap = 2147483647L - 5;  // Win32 LONGMAX 逼近值
+    const mapping_value_t near_cap = MAPPING_VALUE_MAX - 5;  // 值域上限逼近值
     player->set("balance", near_cap);
     ASSERT_EQ(1, CMoney::pay_player(player, 20));
 

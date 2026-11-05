@@ -77,7 +77,7 @@
 
 - [ ] **C1**〔甲·推荐〕`cli/src/scenario_steps.cc` 加 `noitem <名>`（镜像 `item`
       `:84-92` 取反，读 `st.inventory()`）+ `cli/tests/scenario_steps_test.cc` 用例
-      （照 `notext` 测试写法）+ 指令文件 §4.1 条件表加行。
+      （照 `notext` 测试写法）+ design §7.1 条件表加行。
 - [ ] **C2**〔乙·零代码〕`clear` + `cmd .inventory`（`cli/src/input.cc:150` 本地面板）+
       `wait notext <名> timeout=3000`。
 

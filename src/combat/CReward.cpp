@@ -27,9 +27,9 @@ int CReward::victim_lose(CChar* killer, CChar* victim)
         || (!is_wizard(victim) && is_wizard(killer)))
         return 0;
 
-    exp_k              = killer->query("combat_exp");
-    exp_v              = victim->query("combat_exp");
-    int32_t valid_lose = exp_v - victim->query("sk_exp");
+    exp_k                      = killer->query("combat_exp");
+    exp_v                      = victim->query("combat_exp");
+    mapping_value_t valid_lose = exp_v - victim->query("sk_exp");
 
     if (exp_k > exp_v)
         lose = 10 * exp_v / (exp_k + 1) * (4000 + exp_v) / 1500;
@@ -63,8 +63,8 @@ void CReward::victim_penalty(CChar* victim)
 // 计算NK基础经验值
 int CReward::calc_nkgain_base(CChar* victim)
 {
-    int32_t eff_dx = victim->query("combat_exp");
-    int32_t nkgain = victim->query("nkgain");
+    mapping_value_t eff_dx = victim->query("combat_exp");
+    mapping_value_t nkgain = victim->query("nkgain");
 
     if (!nkgain) {
         if (eff_dx > 667000)
@@ -107,7 +107,7 @@ void CReward::distribute_party_exp(CChar* killer, CChar* victim, int32_t reward,
     char msg[255];
     int32_t exp, nk_limit;
     double bili;
-    int count = killer->query_temp("party/battle_count");
+    mapping_value_t count = killer->query_temp("party/battle_count");
 
     // 计算队长经验
     bili     = (double)(killer->query("combat_exp") + 1) / (double)(cx + 1);
@@ -236,8 +236,8 @@ int CReward::nk_gain(CChar* killer, CChar* victim)
                     victim->querystr("family/family_name")))
         return 0;
 
-    nkgain     = calc_nkgain_base(victim);
-    int32_t cx = killer->query("combat_exp");
+    nkgain             = calc_nkgain_base(victim);
+    mapping_value_t cx = killer->query("combat_exp");
 
     // 假如玩家处于组队状态且启用经验共享
     if (CPartyConfig::share_exp() && killer->query_temp("party/number")) {
@@ -254,9 +254,9 @@ int CReward::nk_gain(CChar* killer, CChar* victim)
                 continue;
             if (killer->query_temp(snprintf(msg, 255, "party/friend_%s",
                                             target->querystr("id")))) {
-                int32_t tx = target->query("combat_exp");
+                mapping_value_t tx = target->query("combat_exp");
                 if (tx > cx) cx = tx;
-                int32_t n = killer->add_temp("party/battle_count", 1);
+                mapping_value_t n = killer->add_temp("party/battle_count", 1);
                 if (n == 1)
                     player1 = static_cast<CUser*>(target);
                 else if (n == 2)
@@ -398,7 +398,7 @@ void CReward::handle_npc_kill_reward(CChar* killer, CChar* victim,
                                      int32_t reward)
 {
     char msg[255];
-    int nk_limit = killer->query("level") * 4 + 100;
+    mapping_value_t nk_limit = killer->query("level") * 4 + 100;
     if (reward > nk_limit) reward = nk_limit;
 
     // 击杀奖励的数据集结算（彩票、经验倍率、朱果配额、固定保底经验）：

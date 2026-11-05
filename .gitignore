@@ -35,6 +35,9 @@ jianghu.ncb
 /tests/unit/log/
 /tests/integration/log/
 /tests/integration/e2e.db*
+/tests/integration/e2e_persist.db*
+/test_tmp/
+/tmp/
 /x64
 /Release
 /Debug

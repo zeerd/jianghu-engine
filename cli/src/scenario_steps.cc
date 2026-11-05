@@ -1,7 +1,9 @@
 #include "scenario_runner.h"
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <thread>
@@ -29,6 +31,11 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
     if (key == "dialog") return st.in_dialog();
     if (key == "battle") return st.in_battle();
     if (key == "battle_end") return !st.in_battle();
+
+    // 忙碌起止都随 STATE 翻转推送，故两个方向都可等：
+    // `busy` 等起始（避免把「还没观测到 busy」误当不忙），`not_busy` 等结束
+    if (key == "busy") return st.player_attr().busy;
+    if (key == "not_busy") return !st.player_attr().busy;
 
     if (key == "room") {
         return st.room_name() == val || st.room_map() == val
@@ -310,6 +317,84 @@ bool CScenarioRunner::run_step(const Step &step)
     }
 
     if (verb == "capture") return run_capture_step(subst(args));
+
+    // 文件准备动词：热重载类剧本要在运行中切换被测脚本的变体（A/B/损坏版），
+    // 改文件与断言必须同处一个剧本，因果才读得出来。
+    // 安全边界：写入只允许落在测试暂存区（test_tmp\ 或直跑兜底 tmp\）——
+    // 落点一旦漂进 lua-sample、lua-default 等教材或生产目录，会直接污染
+    // 被测世界，白名单把剧本的文件写入钉死在暂存区。
+    if (verb == "filecopy" || verb == "filedelete") {
+        std::string a = subst(args);
+        if (a.empty()) {
+            return fail(verb + " needs: " + verb + " <path>");
+        }
+        auto scratch_ok = [](std::string p) {
+            std::replace(p.begin(), p.end(), '\\', '/');
+            if (p.rfind("test_tmp/", 0) == 0 || p.rfind("tmp/", 0) == 0)
+                return true;
+            return p.find("/test_tmp/") != std::string::npos
+                   || p.find("/tmp/") != std::string::npos;
+        };
+
+        if (verb == "filedelete") {
+            if (!scratch_ok(a)) {
+                return fail("file write refused, destination must be under "
+                            "test_tmp/ or tmp/: "
+                            + a);
+            }
+            std::error_code ec;
+            if (!std::filesystem::exists(a)) {
+                return fail("filedelete target not found: " + a);
+            }
+            std::filesystem::remove(a, ec);
+            if (ec) return fail("filedelete failed: " + ec.message());
+            return true;
+        }
+
+        // filecopy <src> <dst>：源取首个空白前的 token，目标取行尾余下
+        // 全文（目标允许含空格；路径含空格时源侧不受支持，与其余动词的
+        // 空白切分约定一致）
+        size_t sp = a.find_first_of(" \t");
+        if (sp == std::string::npos) {
+            return fail("filecopy needs: filecopy <src> <dst>");
+        }
+        std::string src = a.substr(0, sp);
+        std::string dst = trim(a.substr(sp + 1));
+        if (!scratch_ok(dst)) {
+            return fail("file write refused, destination must be under "
+                        "test_tmp/ or tmp/: "
+                        + dst);
+        }
+
+        std::error_code ec;
+        if (!std::filesystem::exists(src)) {
+            return fail("filecopy source not found: " + src);
+        }
+        if (!dst.empty()) {
+            std::filesystem::create_directories(
+                std::filesystem::path(dst).parent_path(), ec);
+        }
+        std::filesystem::copy_file(
+            src, dst, std::filesystem::copy_options::overwrite_existing, ec);
+        if (ec) return fail("filecopy failed: " + ec.message());
+
+        // 目标 mtime 盖成「单调递增的此刻」：filecopy 的语义是「现在应用这
+        // 个变体」，模板的创作时间对目标毫无意义——保留模板时间戳时，刚定稿
+        // 的 A/B 变体可能带同一个文件系统时间戳，被 mtime 快筛当成「没变」。
+        // 单调错开 ≥1 秒保证快筛必然看见本次变更（script.mtime 只在重载
+        // 成功时更新，失败重试期间新旧时间戳同样不能撞）。noop（内容不变）
+        // 仍由哈希裁决：盖时间戳只让快筛放行，哈希相同照样不重载。
+        static std::filesystem::file_time_type s_lastStamp;
+        auto stamp = std::filesystem::file_time_type::clock::now();
+        if (stamp <= s_lastStamp + std::chrono::seconds(1)) {
+            stamp = s_lastStamp + std::chrono::seconds(1);
+        }
+        s_lastStamp = stamp;
+        std::error_code tec;
+        std::filesystem::last_write_time(dst, stamp, tec);
+        if (tec) return fail("filecopy cannot stamp mtime: " + tec.message());
+        return true;
+    }
 
     return fail("unknown step verb: " + verb);
 }

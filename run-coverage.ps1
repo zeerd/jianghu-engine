@@ -6,6 +6,8 @@
 #   powershell -File run-coverage.ps1 -ListNotInstrumented  # also list files absent from the report
 #   powershell -File run-coverage.ps1 -CovKeepCount 3       # 只保留最近 3 份 .cov（0 = 不清理）
 #   powershell -File run-coverage.ps1 -SummaryKeepCount 5   # summary.csv 与 summary-*.txt 各留最近 5 份（0 = 不清理）
+#   powershell -File run-coverage.ps1 -TestTmpDir D:\jt     # 测试临时目录（默认 <仓库根>\test_tmp）
+#   powershell -File run-coverage.ps1 -Shards 4             # 引擎测试分片数（0 = 自动）
 #
 # Requires: OpenCppCoverage (https://github.com/OpenCppCoverage/OpenCppCoverage)
 #           installed and on PATH, or set $OpenCppCoveragePath below.
@@ -14,15 +16,20 @@
 #   1. Builds tests (Release|Win32 — 生产同构配置；Debug 构建的
 #      测试程序内含 TestConfigGate，运行即报错，故默认禁止)。
 #      引擎测试（tests）与 CLI 测试（cli\tests）分别构建。
-#   2. Runs engine tests then CLI tests under OpenCppCoverage
-#      （分别运行，CLI 那轮以 --input_coverage 合并引擎覆盖率）
-#   3. Generates HTML report in coverage_report/
-#   4. Exports Cobertura XML for CI
-#   5. Saves binary .cov to coverage_history/ (pruned to newest -CovKeepCount)
-#   6. Appends summary to coverage_history/summary.csv
+#   2. Discovers test suites (--gtest_list_tests), packs them into
+#      -Shards deterministic groups, gives each shard a private working
+#      directory (per-shard fixture tree + JIANGHU_TEST_TMP), then runs
+#      all engine shards + the CLI lane in parallel under OpenCppCoverage,
+#      each exporting a binary .cov and a gtest XML.
+#      Aggregates results per shard (exit code / gtest failures / test-count
+#      cross-check against discovery).
+#   3. Merges every shard .cov into one report with a final pass
+#      (multiple --input_coverage) → HTML in coverage_report/ + Cobertura.
+#   4. Saves binary .cov to coverage_history/ (pruned to newest -CovKeepCount)
+#   5. Appends summary to coverage_history/summary.csv
 #      (pruned to newest -SummaryKeepCount rows; per-run summary txt likewise)
-#   7. Shows coverage delta vs previous run (同配置基线比较)
-#   8. Saves the Coverage Summary text to
+#   6. Shows coverage delta vs previous run (同配置基线比较)
+#   7. Saves the Coverage Summary text to
 #      coverage_history/summary-<timestamp>.txt
 #      （csv 行与该类 txt 均只保留最近 -SummaryKeepCount 份）
 #
@@ -50,7 +57,13 @@ param(
     # csv 是给人看的趋势记录，delta 只依赖同配置最近一条，条数下限不受影响；
     # 若某种配置连续被 N 轮其他配置隔开，其基线被清理后下一轮显示 n/a 并重建基线。
     # 0 = 不清理（保留全部）。
-    [int]$SummaryKeepCount = 5
+    [int]$SummaryKeepCount = 5,
+    # 测试临时目录（单测/CLI 测试经 JIANGHU_TEST_TMP 消费，见 tests\test_tmp_dir.h）。
+    # 路径由本脚本决定、测试代码只读不写死；0/空 = <仓库根>\test_tmp。
+    [string]$TestTmpDir = "",
+    # 引擎测试分片数：0 = 自动（逻辑核数，上限 8、下限 1，且不超过套件数）。
+    # CLI 测试（274 例）作为独立一路与引擎分片同时跑，不参与分片数。
+    [int]$Shards = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -142,65 +155,407 @@ Write-Host "Build succeeded." -ForegroundColor Green
 # --- Step 2: Ensure directories ---
 if (-not (Test-Path $HistoryDir)) { New-Item -ItemType Directory -Path $HistoryDir | Out-Null }
 
-# --- Step 3: Run coverage ---
+# 测试临时目录：路径由本脚本决定，经 JIANGHU_TEST_TMP 注入给两个测试工程
+# （消费点见 tests\test_tmp_dir.h；未注入时测试回落 <CWD>\tmp，仅供直跑）。
+# 必须规范化为绝对路径：引擎分片的 CWD 是各自分片目录，相对路径会各落各家。
+if (-not $TestTmpDir) { $TestTmpDir = Join-Path $RootDir "test_tmp" }
+$TestTmpDir = [System.IO.Path]::GetFullPath($TestTmpDir)
+New-Item -ItemType Directory -Force -Path $TestTmpDir | Out-Null
+$env:JIANGHU_TEST_TMP = $TestTmpDir
+Write-Host "Test temp dir: $TestTmpDir" -ForegroundColor DarkGray
+
+# --- Step 2.5: 套件发现与分片（确定性装箱） ---
+Write-Host "`n=== Discovering test suites ===" -ForegroundColor Cyan
+
+# --gtest_list_tests 只列不跑；CWD 钉在仓库根（配置按相对路径读取）。
+# 解析格式：套件行 = `Name.`（行首无缩进），用例行 = 缩进 + 首 token；
+# DISABLED_ 用例默认不执行，不计入发现数（与 gtest XML 的 tests 口径对齐）。
+function Get-GtestSuites {
+    param([string]$ExePath)
+    Push-Location $RootDir
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $lines = & $ExePath --gtest_list_tests 2>$null
+        $listExit = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $prevEAP
+        Pop-Location
+    }
+    if ($listExit -ne 0) {
+        Write-Host "ERROR: --gtest_list_tests failed for $ExePath (exit $listExit)!" -ForegroundColor Red
+        exit 1
+    }
+    $suites = [ordered]@{}
+    $current = $null
+    foreach ($line in $lines) {
+        if ($line -match '^(\S+)\.\s*$') {
+            $current = $Matches[1]
+            if (-not $suites.Contains($current)) { $suites[$current] = 0 }
+        }
+        elseif ($null -ne $current -and $line -match '^\s+\S') {
+            $first = ($line.Trim() -split '\s+')[0]
+            if ($first -notlike 'DISABLED_*') { $suites[$current] = [int]$suites[$current] + 1 }
+        }
+    }
+    return , $suites
+}
+
+$engineSuites = Get-GtestSuites $TestExe
+$cliSuites    = Get-GtestSuites $CliTestExe
+$engineTotal = 0
+foreach ($v in $engineSuites.Values) { $engineTotal += [int]$v }
+$cliTotal = 0
+foreach ($v in $cliSuites.Values) { $cliTotal += [int]$v }
+if ($engineSuites.Count -eq 0 -or $engineTotal -eq 0) {
+    Write-Host "ERROR: no test suites discovered in $TestExe!" -ForegroundColor Red
+    exit 1
+}
+# 套件名必须能安全进 --gtest_filter（空格/`-`/`:`/`*`/`?` 会破坏 filter 语义）
+foreach ($suiteName in $engineSuites.Keys) {
+    if ($suiteName -notmatch '^[A-Za-z0-9_/.]+$') {
+        Write-Host "ERROR: suite name '$suiteName' contains chars unsafe for --gtest_filter!" -ForegroundColor Red
+        exit 1
+    }
+}
+
+# 分片数：0 = 自动（逻辑核数、上限 8），再夹紧到 [1, 套件数]
+$shardCount = $Shards
+$shardSource = "manual"
+if ($shardCount -le 0) {
+    $shardCount = [Math]::Min([Environment]::ProcessorCount, 8)
+    $shardSource = "auto"
+}
+if ($shardCount -gt $engineSuites.Count) { $shardCount = $engineSuites.Count }
+if ($shardCount -lt 1) { $shardCount = 1 }
+
+# 贪心装箱（LPT）：按用例数降序、并列按名序 → 每套件进当前最轻的分片
+# （并列取序号小者）。排序键唯一（套件名不重复）→ 装箱结果与机器无关、可复现。
+$entries = foreach ($kv in $engineSuites.GetEnumerator()) {
+    [pscustomobject]@{ Name = [string]$kv.Key; Count = [int]$kv.Value }
+}
+$sortedEntries = $entries | Sort-Object -Property @{Expression = "Count"; Descending = $true}, @{Expression = "Name"}
+$bucketNames = @()
+$bucketCounts = @()
+for ($i = 0; $i -lt $shardCount; $i++) { $bucketNames += , @(); $bucketCounts += 0 }
+foreach ($e in $sortedEntries) {
+    $minIdx = 0
+    for ($i = 1; $i -lt $shardCount; $i++) {
+        if ($bucketCounts[$i] -lt $bucketCounts[$minIdx]) { $minIdx = $i }
+    }
+    $bucketNames[$minIdx] += $e.Name
+    $bucketCounts[$minIdx] += $e.Count
+}
+# 硬校验：装箱无遗漏、无空分片（filter 为空会退化成“跑全部”，必须拦死）
+$packedTotal = 0
+foreach ($c in $bucketCounts) { $packedTotal += $c }
+if ($packedTotal -ne $engineTotal) {
+    Write-Host "ERROR: partition lost tests: packed $packedTotal != discovered $engineTotal!" -ForegroundColor Red
+    exit 1
+}
+$filters = @()
+for ($i = 0; $i -lt $shardCount; $i++) {
+    $members = @($bucketNames[$i])
+    if ($members.Count -eq 0) {
+        Write-Host "ERROR: shard s$i is empty (filter would run ALL tests)!" -ForegroundColor Red
+        exit 1
+    }
+    $filters += (($members | ForEach-Object { "$_.*" }) -join ':')
+}
+
+Write-Host ("engine: {0} suites / {1} tests -> {2} shard(s) [{3}]; cli: {4} suites / {5} tests -> 1 lane" -f `
+        $engineSuites.Count, $engineTotal, $shardCount, $shardSource, $cliSuites.Count, $cliTotal) -ForegroundColor DarkGray
+for ($i = 0; $i -lt $shardCount; $i++) {
+    Write-Host ("  s{0}: {1} suites / {2} tests" -f $i, @($bucketNames[$i]).Count, $bucketCounts[$i]) -ForegroundColor DarkGray
+}
+
+# --- Step 2.6: 分片工作目录（隔离靠构造，不靠「哪些套件有冲突」的名单） ---
+# 测试对仓库的一切相对路径读写（test_config.ini、lua-tests 夹具改写、
+# lua-default/lua-sample、map.txt、日志）都相对 CWD 解析；tests.exe 还依赖
+# CWD 命中仓库根的 libmySQL.dll（Release\ 无该 DLL，换 CWD 即 0xC0000135）。
+# 因此每分片拷出一棵完整私有树 + DLL，跨进程互踩在结构上不存在；
+# 每轮重建 → 夹具必然新鲜（上轮崩溃残留不会污染本轮）。
+Write-Host "`n=== Preparing shard workspaces ===" -ForegroundColor Cyan
+$ShardsRoot = Join-Path $TestTmpDir "shards"
+if (Test-Path -LiteralPath $ShardsRoot) {
+    Remove-Item -LiteralPath $ShardsRoot -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $ShardsRoot | Out-Null
+for ($i = 0; $i -lt $shardCount; $i++) {
+    $wd = Join-Path $ShardsRoot "s$i"
+    New-Item -ItemType Directory -Force -Path (Join-Path $wd "tests\unit\log") | Out-Null
+    Copy-Item (Join-Path $RootDir "tests\unit\*.ini") (Join-Path $wd "tests\unit") -Force
+    Copy-Item (Join-Path $RootDir "tests\unit\lua-tests") (Join-Path $wd "tests\unit") -Recurse -Force
+    Copy-Item (Join-Path $RootDir "lua-default") $wd -Recurse -Force
+    Copy-Item (Join-Path $RootDir "lua-sample") $wd -Recurse -Force
+    Copy-Item (Join-Path $RootDir "libmySQL.dll") $wd -Force
+}
+Write-Host "Shard workspaces: $ShardsRoot (rebuilt this run)" -ForegroundColor DarkGray
+
+# --- Step 3: 并行执行（N 个引擎分片 + 1 路 CLI，各自独立 OCC 实例） ---
 Write-Host "`n=== Running tests with coverage ===" -ForegroundColor Cyan
 
 $sourcePath = Join-Path $RootDir $ServerSrc
 $cliSourcePath = Join-Path $RootDir $CliSrc
 
-# 分支覆盖率开关（仅在请求时添加）
+# 分支覆盖率开关（仅在请求时添加；与串行版一致——每个 instrumenting 的
+# OCC 实例与末尾合并通行证都带上）
 $branchArg = @()
 if ($CoverageType -eq "branch") {
     $branchArg = @("--branch_coverage")
 }
 
-# 第一次：只跑引擎测试，导出二进制覆盖率。
-$engineCov = Join-Path $CoverageDir "engine.cov"
-# 参数一律传纯值，不手工包引号：PowerShell 调用原生程序时会按需自动加引号。
-# 手工写入的 `"` 在 Windows PowerShell 5.1 下会被命令行解析顺手吃掉（侥幸可用），
-# 但 GitHub Actions 默认 shell 是 pwsh 7（Standard 参数传递），引号会作为字面量送达子进程，
-# 使 OpenCppCoverage 收到带引号的路径而报 Working directory does not exist。
-$engineCovArgs = $branchArg + @(
-    "--sources", "$sourcePath\*",
-    "--modules", $TestExe,
-    "--working_dir", $RootDir,
-    "--export_type", "binary:$engineCov",
-    "--"
-) + @($TestExe)
+# 给子进程参数逐项加引号（ProcessStartInfo.Arguments 只收单个字符串）。
+function Quote-Arg([string]$s) {
+    if ($s -match '[\s"]') { return '"' + ($s -replace '"', '\"') + '"' }
+    return $s
+}
 
-$prevEAP = $ErrorActionPreference
-$ErrorActionPreference = "Continue"
-& $OpenCppCoveragePath @engineCovArgs
-$ErrorActionPreference = $prevEAP
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Engine test execution failed!" -ForegroundColor Red
+# 无窗口启动一路测试（OCC → 测试进程），stdout/stderr 异步排空到内存
+# （不读管道会堵死子进程），退出后由调用方落盘到分片目录。
+function Start-LaneProcess {
+    param([string]$Exe, [string[]]$Arguments, [string]$WorkDir)
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $Exe
+    $psi.Arguments = (($Arguments | ForEach-Object { Quote-Arg $_ }) -join ' ')
+    $psi.WorkingDirectory = $WorkDir
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $psi
+    [void]$p.Start()
+    return [pscustomobject]@{
+        Process = $p
+        StdOut  = $p.StandardOutput.ReadToEndAsync()
+        StdErr  = $p.StandardError.ReadToEndAsync()
+    }
+}
+
+$lanes = @()
+try {
+    for ($i = 0; $i -lt $shardCount; $i++) {
+        $wd = Join-Path $ShardsRoot "s$i"
+        $xmlPath = Join-Path $wd "s$i.xml"
+        $covPath = Join-Path $wd "s$i.cov"
+        $laneArgs = $branchArg + @(
+            "--sources", "$sourcePath\*",
+            "--modules", $TestExe,
+            "--working_dir", $wd,
+            "--export_type", "binary:$covPath",
+            "--"
+        ) + @($TestExe, "--gtest_filter=$($filters[$i])", "--gtest_output=xml:$xmlPath")
+        # 本分片独立的测试临时目录：固定名文件（jh_baseline_* 等）跨片不相撞
+        $env:JIANGHU_TEST_TMP = Join-Path $wd "tmp"
+        $run = Start-LaneProcess -Exe $OpenCppCoveragePath -Arguments $laneArgs -WorkDir $wd
+        $lanes += [pscustomobject]@{
+            Name     = "s$i"
+            Run      = $run
+            Expected = $bucketCounts[$i]
+            Xml      = $xmlPath
+            Cov      = $covPath
+            OutLog   = Join-Path $wd "s$i.out.log"
+            ErrLog   = Join-Path $wd "s$i.err.log"
+            Started  = Get-Date
+            ExitCode = $null
+            Elapsed  = $null
+        }
+        Write-Host ("  -> s{0}: {1} suites / {2} tests" -f $i, @($bucketNames[$i]).Count, $bucketCounts[$i]) -ForegroundColor DarkGray
+    }
+    # CLI 路：工作目录与测试临时目录保持串行版原样（CLI 测试全部经
+    # JIANGHU_TEST_TMP 写临时目录、无仓库相对路径依赖）。
+    $env:JIANGHU_TEST_TMP = $TestTmpDir
+    $cliXml = Join-Path $ShardsRoot "cli.xml"
+    $cliCov = Join-Path $ShardsRoot "cli.cov"
+    $cliArgs = $branchArg + @(
+        "--sources", "$sourcePath\*",
+        "--sources", "$cliSourcePath\*",
+        "--modules", $CliTestExe,
+        "--working_dir", $RootDir,
+        "--export_type", "binary:$cliCov",
+        "--"
+    ) + @($CliTestExe, "--gtest_output=xml:$cliXml")
+    $cliRun = Start-LaneProcess -Exe $OpenCppCoveragePath -Arguments $cliArgs -WorkDir $RootDir
+    $lanes += [pscustomobject]@{
+        Name     = "cli"
+        Run      = $cliRun
+        Expected = $cliTotal
+        Xml      = $cliXml
+        Cov      = $cliCov
+        OutLog   = Join-Path $ShardsRoot "cli.out.log"
+        ErrLog   = Join-Path $ShardsRoot "cli.err.log"
+        Started  = Get-Date
+        ExitCode = $null
+        Elapsed  = $null
+    }
+    Write-Host ("  -> cli: {0} suites / {1} tests" -f $cliSuites.Count, $cliTotal) -ForegroundColor DarkGray
+}
+catch {
+    # 启动失败：终止本轮已启动的自有进程（按对象/句柄，不按进程名），不留孤儿
+    foreach ($l in $lanes) {
+        if ($l.Run -and -not $l.Run.Process.HasExited) {
+            try { $l.Run.Process.Kill() } catch { }
+        }
+    }
+    $env:JIANGHU_TEST_TMP = $TestTmpDir
+    Write-Host "ERROR: failed to start test lanes: $_" -ForegroundColor Red
+    exit 1
+}
+$env:JIANGHU_TEST_TMP = $TestTmpDir
+
+# 等待全部分片退出；每片退出即落盘输出并报告（失败片当场变红）
+$totalStart = Get-Date
+$pending = @($lanes)
+while ($pending.Count -gt 0) {
+    Start-Sleep -Milliseconds 300
+    $still = @()
+    foreach ($l in $pending) {
+        if ($l.Run.Process.HasExited) {
+            $proc = $l.Run.Process
+            $proc.WaitForExit()
+            $l.ExitCode = $proc.ExitCode
+            $l.Elapsed = (Get-Date) - $l.Started
+            try {
+                Set-Content -LiteralPath $l.OutLog -Value $l.Run.StdOut.Result -Encoding UTF8
+                Set-Content -LiteralPath $l.ErrLog -Value $l.Run.StdErr.Result -Encoding UTF8
+            } catch { }
+            $laneColor = if ($l.ExitCode -eq 0) { "Gray" } else { "Red" }
+            Write-Host ("  <- {0}: exit={1} ({2:N1}s)" -f $l.Name, $l.ExitCode, $l.Elapsed.TotalSeconds) -ForegroundColor $laneColor
+        }
+        else { $still += $l }
+    }
+    $pending = $still
+}
+$wallSec = ((Get-Date) - $totalStart).TotalSeconds
+
+# --- Step 3.1: 结果聚合（gtest XML 为事实源 + 三重硬校验） ---
+# 每片独立判定：退出码、XML 失败数、执行数 == 发现数（filter 拼错/漏套件/
+# 进程崩溃都会在这里被拦下）；任一片不过即整轮失败、不进合并。
+Write-Host "`n=== Test results ===" -ForegroundColor Cyan
+$allIssues = @()
+$failedNames = @()
+$engineRan = 0
+$cliRan = 0
+foreach ($l in $lanes) {
+    $doc = $null
+    if (Test-Path -LiteralPath $l.Xml) {
+        try { $doc = [xml](Get-Content -LiteralPath $l.Xml -Raw -Encoding UTF8) } catch { $doc = $null }
+    }
+    $tests = -1
+    $failed = 0
+    if ($null -ne $doc -and $null -ne $doc.testsuites) {
+        $tests = [int]$doc.testsuites.tests
+        $failed = [int]$doc.testsuites.failures
+        foreach ($ts in @($doc.testsuites.testsuite)) {
+            foreach ($tc in @($ts.testcase)) {
+                if ($tc.failure) { $failedNames += "$($ts.name).$($tc.name)" }
+            }
+        }
+    }
+    $issues = @()
+    if ($l.ExitCode -ne 0) { $issues += "exit $($l.ExitCode)" }
+    if ($null -eq $doc) { $issues += "gtest XML 缺失/不可解析（疑似崩溃）" }
+    else {
+        if ($null -eq $doc.testsuites) { $issues += "gtest XML 结构异常" }
+        else {
+            if ($failed -gt 0) { $issues += "$failed failed" }
+            if ($tests -ne $l.Expected) { $issues += "执行 $tests != 发现 $($l.Expected)（filter 分片有误）" }
+        }
+    }
+    $status = if ($issues.Count -eq 0) { "OK  " } else { "FAIL" }
+    $rowColor = if ($issues.Count -eq 0) { "Green" } else { "Red" }
+    $elapsedSec = if ($l.Elapsed) { $l.Elapsed.TotalSeconds } else { 0.0 }
+    Write-Host ("  [{0}] {1,-4} tests={2,-5} expected={3,-5} exit={4,-4} {5,6:N1}s" -f `
+            $status, $l.Name, $tests, $l.Expected, $l.ExitCode, $elapsedSec) -ForegroundColor $rowColor
+    if ($issues.Count -gt 0) {
+        $allIssues += ("{0}: {1}  [log: {2}]" -f $l.Name, ($issues -join ', '), $l.OutLog)
+    }
+    if ($l.Name -eq "cli") { $cliRan += [Math]::Max($tests, 0) }
+    else { $engineRan += [Math]::Max($tests, 0) }
+}
+if ($engineRan -ne $engineTotal) {
+    $allIssues += ("engine 汇总执行 {0} != 发现总数 {1}" -f $engineRan, $engineTotal)
+}
+if ($cliRan -ne $cliTotal) {
+    $allIssues += ("cli 汇总执行 {0} != 发现总数 {1}" -f $cliRan, $cliTotal)
+}
+Write-Host ("  engine: {0}/{1} executed; cli: {2}/{3} executed; wall {4:N1}s" -f `
+        $engineRan, $engineTotal, $cliRan, $cliTotal, $wallSec) -ForegroundColor DarkGray
+if ($failedNames.Count -gt 0) {
+    Write-Host "`nFailed tests:" -ForegroundColor Red
+    foreach ($n in ($failedNames | Select-Object -First 100)) { Write-Host "  $n" -ForegroundColor Red }
+    if ($failedNames.Count -gt 100) { Write-Host ("  ... and {0} more" -f ($failedNames.Count - 100)) -ForegroundColor Red }
+}
+if ($allIssues.Count -gt 0) {
+    Write-Host "`nERROR: tests failed:" -ForegroundColor Red
+    foreach ($issue in $allIssues) { Write-Host "  $issue" -ForegroundColor Red }
+    Write-Host "Shard workspaces kept for diagnosis: $ShardsRoot" -ForegroundColor Yellow
     exit 1
 }
 
-# 第二次：跑 CLI 测试，并以 --input_coverage 合并引擎的覆盖率，
-# 使最终 HTML/Cobertura/二进制报告同时包含两套测试的结果。
-$covArgs = $branchArg + @(
+# --- Step 3.2: 覆盖率合并通行证（多路 --input_coverage 并集 → 最终报告） ---
+# 与 run-integration-tests.ps1 的合并通行证同款：child 用立即退出的 cmd
+# （--sources 只圈 src/cli\src，child 不贡献覆盖）。OCC 0.9.x 重建该 child
+# 命令行时 cmd 会报 `not recognized` 并以 1 退出（集测同款既有行为，见
+# coverage_history\e2e-sample-opencppcoverage-merge.log）——输入覆盖已加载，
+# 产物不受影响，故**退出码不作判据、以产物为准**：先删旧 coverage.xml，
+# 合并后它必须重新出现且行数非零——这是 delta 历史不被空报告污染的闸门。
+# 输出捕获落盘（不直喷控制台：stderr 会变错误记录，2>&1 调用方 $? 为 false）。
+Write-Host "`n=== Merging coverage ($($lanes.Count) inputs) ===" -ForegroundColor Cyan
+$coberturaOut = Join-Path $CoverageDir "coverage.xml"
+Remove-Item -LiteralPath $coberturaOut -Force -ErrorAction SilentlyContinue
+# 参数一律传纯值、不手工包引号：PowerShell 调用原生程序按需自动加引号；
+# 手工写入的 `"` 在 pwsh 7（Standard 传递）下会作为字面量送达子进程。
+$mergeArgs = $branchArg + @(
     "--sources", "$sourcePath\*",
     "--sources", "$cliSourcePath\*",
-    "--modules", $CliTestExe,
     "--working_dir", $RootDir,
-    "--input_coverage", $engineCov,
     "--export_type", "html:$CoverageDir",
-    "--export_type", "cobertura:$CoverageDir\coverage.xml",
-    "--export_type", "binary:$CovBinary",
-    "--"
-) + @($CliTestExe)
+    "--export_type", "cobertura:$coberturaOut",
+    "--export_type", "binary:$CovBinary"
+)
+foreach ($l in $lanes) { $mergeArgs += @("--input_coverage", $l.Cov) }
+$mergeArgs += @("--", (Join-Path $env:SystemRoot "System32\cmd.exe"), "/c", "exit 0")
 
-$ErrorActionPreference = "Continue"
-& $OpenCppCoveragePath @covArgs
-$ErrorActionPreference = $prevEAP
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: CLI test execution failed!" -ForegroundColor Red
+$mergeRun = Start-LaneProcess -Exe $OpenCppCoveragePath -Arguments $mergeArgs -WorkDir $RootDir
+$mergeProc = $mergeRun.Process
+$mergeDeadline = (Get-Date).AddSeconds(300)
+while ((Get-Date) -lt $mergeDeadline -and -not $mergeProc.HasExited) {
+    Start-Sleep -Milliseconds 500
+}
+if (-not $mergeProc.HasExited) {
+    Write-Host "ERROR: merge pass did not exit within 300s!" -ForegroundColor Red
+    try { $mergeProc.Kill() } catch { }
+    Write-Host "Shard workspaces kept for diagnosis: $ShardsRoot" -ForegroundColor Yellow
     exit 1
 }
-
-# 合并完成，中间文件不再需要
-Remove-Item -LiteralPath $engineCov -Force -ErrorAction SilentlyContinue
+$mergeLog = Join-Path $HistoryDir "merge-opencppcoverage.log"
+try {
+    @($mergeRun.StdOut.Result, $mergeRun.StdErr.Result) |
+        Where-Object { $_ } | Set-Content -Encoding UTF8 $mergeLog
+}
+catch { }
+if (-not (Test-Path -LiteralPath $coberturaOut)) {
+    Write-Host "ERROR: merge pass did not produce coverage.xml!" -ForegroundColor Red
+    Write-Host "Shard workspaces kept for diagnosis: $ShardsRoot" -ForegroundColor Yellow
+    exit 1
+}
+try {
+    [xml]$mergeCheck = Get-Content -LiteralPath $coberturaOut -Raw
+    if ([int]$mergeCheck.coverage.'lines-valid' -le 0) {
+        Write-Host "ERROR: merged coverage.xml has zero lines-valid (empty report)!" -ForegroundColor Red
+        Write-Host "Shard workspaces kept for diagnosis: $ShardsRoot" -ForegroundColor Yellow
+        exit 1
+    }
+}
+catch {
+    Write-Host "ERROR: merged coverage.xml is unparsable: $_" -ForegroundColor Red
+    Write-Host "Shard workspaces kept for diagnosis: $ShardsRoot" -ForegroundColor Yellow
+    exit 1
+}
+# 合并完成且产物合格：分片工作目录（含中间 .cov/.xml/日志）不再需要
+Remove-Item -LiteralPath $ShardsRoot -Recurse -Force -ErrorAction SilentlyContinue
 
 # --- Step 3.5: Prune old .cov binaries ---
 # delta 比较只依赖 summary.csv（Step 5），不读 .cov；旧 .cov 纯属占磁盘，

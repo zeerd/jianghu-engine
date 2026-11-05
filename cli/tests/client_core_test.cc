@@ -7,6 +7,8 @@
 
 #include "client_core.h"
 #include "mock_connection.h"
+#include "protocol.h"
+#include "test_tmp_dir.h"
 
 namespace {
 
@@ -17,14 +19,15 @@ struct CoreFixture {
     MockConnection *conn = nullptr;
     std::unique_ptr<ClientCore> core;
 
-    explicit CoreFixture(int heartbeat_interval = 0)
+    explicit CoreFixture(int heartbeat_interval = 0,
+                         const std::string &comm_key = std::string())
     {
-        logs_dir = std::filesystem::temp_directory_path()
-                   / "jianghu_cli_client_core_test";
+        logs_dir = test_tmp_dir() / "jianghu_cli_client_core_test";
         std::filesystem::create_directories(logs_dir);
         Config cfg;
         cfg.logs_dir           = logs_dir.string();
         cfg.heartbeat_interval = heartbeat_interval;
+        cfg.comm_key           = comm_key;
         mock                   = std::make_unique<MockConnection>();
         conn                   = mock.get();
         core = std::make_unique<ClientCore>(cfg, std::move(mock));
@@ -69,4 +72,26 @@ TEST(ClientCoreHeartbeat, StopWakesAndJoinsHeartbeatThread)
     EXPECT_TRUE(f.core->running());
     f.core->stop();
     EXPECT_FALSE(f.core->running());
+}
+
+// 通讯密钥随连接配置下发：ClientCore 构造后收发两侧按配置键变换，
+// 留空配置回退内置默认（服务端 [security] comm_key 为空时同为默认）。
+TEST(ClientCoreConfig, AppliesCommKeyFromConfig)
+{
+    const std::string plain = "look\t";
+    std::string by_default;
+    {
+        CoreFixture f;  // 顺带把进程内密钥态归位到默认，取基准编码
+        by_default = protocol::encode_str(plain);
+    }
+    {
+        CoreFixture f(0, "E2ECommKey6611");
+        EXPECT_EQ(protocol::decode_str(protocol::encode_str(plain)), plain);
+        EXPECT_NE(protocol::encode_str(plain), by_default)
+            << "配置键必须改变线上字节，否则等于没配";
+    }
+    {
+        CoreFixture f;  // 空配置 → 回退内置默认，同时复位给后续用例
+        EXPECT_EQ(protocol::encode_str(plain), by_default);
+    }
 }

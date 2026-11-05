@@ -353,7 +353,7 @@ void CAttack::resolve_parry(AttackContext& ctx)
 void CAttack::calculate_damage(AttackContext& ctx)
 {
     // Base damage from apply/damage + skill level
-    int damage_temp = ctx.me->query_temp("apply/damage");
+    mapping_value_t damage_temp = ctx.me->query_temp("apply/damage");
     if (damage_temp < 0) damage_temp = 0;
     ctx.damage_base = damage_temp;
     ctx.damage      = damage_temp + ctx.me->query_skill(ctx.attack_type) / 4;
@@ -530,8 +530,8 @@ void CAttack::replace_placeholders(AttackContext& ctx)
 // ====================================================================
 void CAttack::dispatch_message(AttackContext& ctx)
 {
-    int max_hp = ctx.victim->query("max_hp");
-    int hp     = 0;
+    mapping_value_t max_hp = ctx.victim->query("max_hp");
+    int hp                 = 0;
     if (max_hp > 0) hp = ctx.victim->query("hp") * 100 / max_hp;
 
     if (ctx.flag == CCombatd::TYPE_REGULAR) {

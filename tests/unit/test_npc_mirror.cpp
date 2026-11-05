@@ -275,7 +275,7 @@ TEST_F(NpcMirrorTest, MirrorHooksSurviveScriptReload)
     ASSERT_NE(warmup, nullptr);
 
     CLuaEngine* engine = CLuaEngine::instance();
-    EXPECT_NE(LUA_NOREF, engine->reload_script_by_name("t_mirror_npc"))
+    EXPECT_TRUE(engine->reload_script_by_name("t_mirror_npc"))
         << "夹具脚本重载失败";
 
     CNpc* dummy = load_mirror("t_mirror_npc");

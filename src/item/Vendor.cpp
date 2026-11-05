@@ -100,7 +100,7 @@ int CVendor::do_sell(CChar* me, CContainer* obj)
     if (obj->query("food_supply"))
         return notify_fail("剩菜剩饭留给您自己用吧。");
 
-    int32_t value = obj->query("value");
+    mapping_value_t value = obj->query("value");
     if (value < 10) return notify_fail("%s一文不值！", obj->name());
 
     message_vision(snprintf(msg, 255, "$N卖掉了数量1的%s给$n。", obj->name()),

@@ -25,6 +25,7 @@
 #include "lua/LuaNpc.h"
 #include "mock/mock_database.h"
 #include "mock/mock_itemmgr.h"
+#include "test_credential_sql.h"
 #include "test_lua_env.h"
 #include "test_state_recorder.h"
 
@@ -331,7 +332,16 @@ TEST_F(RegisterClerkTest, Regdone_FullFlow_CreatesAccountAndClearsState)
 
     EXPECT_TRUE(db->ExecutedContaining("insert into jianghudb"));
     EXPECT_TRUE(db->ExecutedContaining("'测试小侠'")) << "名字入库";
-    EXPECT_TRUE(db->ExecutedContaining("'secret88'")) << "密码入库";
+
+    std::string insert_sql;
+    for (const std::string& sql : db->GetExecutedSqls()) {
+        if (sql.find("insert into jianghudb") != std::string::npos)
+            insert_sql = sql;
+    }
+    EXPECT_TRUE(credential_sql::matches(insert_sql, "cc_passwd", "secret88"))
+        << "口令以哈希入库，且对应注册时输入的口令";
+    EXPECT_EQ(insert_sql.find("secret88"), std::string::npos)
+        << "口令明文不得进 SQL";
     EXPECT_TRUE(db->ExecutedContaining("'test@example.com'")) << "邮箱入库";
     EXPECT_TRUE(db->ExecutedContaining("'男性'")) << "性别入库";
     EXPECT_TRUE(db->ExecutedContaining("cc_email")) << "含邮箱字段";

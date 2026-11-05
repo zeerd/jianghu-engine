@@ -189,7 +189,7 @@ int CCmdHandle::command(char* Command, CChar* me)
         if (g_current_time - me->query_temp("cmd/time")
             < 5)  // 5秒内发超过15条指令。
         {
-            int warning = me->add_temp("cmd/warning", 1);
+            mapping_value_t warning = me->add_temp("cmd/warning", 1);
 
             if (warning < 4) {
                 tell_object(

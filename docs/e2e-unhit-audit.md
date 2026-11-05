@@ -2,18 +2,23 @@
 
 > **性质**：阶段工具（查缺补漏清单），**不是设计文档**。批次收口后随条目一起删除；
 > 不进 `docs/design/`，设计文档也不引用它。
-> 依据：`.claude/rules/integration-test.instructions.md`「计划书是任务清单，用完即删」
-> 「查缺补漏清单是阶段工具，不是文档」「逐函数细节不进设计文档正文」。
-> 本文内的文件和行号仅供参考。不会也不需要实时更新。
+> 依据：`copilot-instructions.md`「铁律：计划书与设计文档的分工」
+> （计划书是任务清单、用完即删；查缺补漏清单是阶段工具，不是文档；逐函数细节不进设计文档正文）。
 >
 > **数据基线**
 >
 > | 项 | 来源 |
 > |---|---|
-> | E2E 覆盖率 | `coverage_report_e2e_sample\coverage.xml`（2026-11-02 20:53，pass，10 道，266s，`src` 行 65.6%） |
-> | 单测覆盖率 | `coverage_report\coverage.xml`（2026-11-02 20:41，94.6%） |
-> | 官方清单 | `coverage_history\e2e-sample-unhit-functions.txt`（**271** 条） |
+> | E2E 覆盖率 | `coverage_report_e2e_sample\coverage.xml`（2026-11-05 01:41，pass，10 道 + persist 两段 + **reload 试验台**三者并行，exec 244s，`src` 行 **68.3%**（10624/15557），较 11-04 的 67%（10403/15534）Δ+1.3——增量来自热重载 E2E 打实的 reload 链与 sys 广播链） |
+> | 单测覆盖率 | `coverage_report\coverage.xml`（2026-11-05 01:39，94.7%，delta +0.0） |
+> | 官方清单 | `coverage_history\e2e-sample-unhit-functions.txt`（**251** 条 = 决策认领 220 + 待推进 31；11-04 时为 264，热重载链 13 条已随 reload 试验台转绿） |
 > | 本审计结论 | 271 + 74 漏收 = **345** 条 |
+>
+> **2026-11-05 加密策略实施后复跑**（`run-integration-tests.ps1` 全绿，未登记 ERROR 0）：
+> E2E `src` 行 **68.6%**（10831/15788）、单测 **94.7%**（delta +0.1）、官方清单 **249** 条（-2）。
+> 本次改动未新增未命中函数——新口令/密钥函数全部落在登录、注册、开机建表三条链上；
+> 未被 E2E 打实的只有派生失败等错误分支，由单测覆盖（见 `docs/design/encryption.md`）。
+> 上表其余计数仍是 01:41 基线，未逐条重算。
 >
 > **方法与局限**（读数字前先看）
 >
@@ -99,7 +104,7 @@
 - [ ] `CCombatd::do_attack_weapon` — `src\combat\Combatd.cpp:29` 体 29-31 ｜ 盲区①
 - [ ] `CReward::distribute_party_exp` — `src\combat\CReward.cpp:106` 体 106-159 ｜ 盲区①
 - [ ] `CWeaponEffect::bash_weapon` — `src\combat\WeaponEffect.cpp:17` 体 17-51 ｜ 盲区①
-- [ ] `db_update_recruit` — `src\db\SqlAccount.cpp:350` 体 350-391 ｜ 盲区①
+- [x] ~~`db_update_recruit` — `src\db\SqlAccount.cpp:350` 体 350-391 ｜ 盲区①~~ **2026-11-04 20:19 起已命中**：玩家收徒场景（L6 存盘 → `CharSave` 师徒经验写链）
 - [ ] `db_query_relative` — `src\db\SqlAccount.cpp:395` 体 395-422 ｜ 盲区①
 - [ ] `db_save_object` — `src\db\SqlContainer.cpp:174` 体 174-232 ｜ 盲区①
 - [ ] `db_load_object` — `src\db\SqlContainer.cpp:236` 体 236-264 ｜ 盲区①
@@ -107,8 +112,8 @@
 - [ ] `create_database` — `src\db\SqliteDb.cpp:92` 体 92-98 ｜ 盲区①
 - [ ] `sql_update_record` — `src\db\SqlRank.cpp:78` 体 78-139 ｜ 盲区①
 - [ ] `CChannel::update_relative` — `src\engine\Channel.cpp:93` 体 93-95 ｜ 盲区①
-- [ ] `CChannel::update_recruit` — `src\engine\Channel.cpp:104` 体 104-106 ｜ 盲区①
-- [ ] `CRelationshipTracker::update_recruit` — `src\engine\RelationshipTracker.cpp:47` 体 47-51 ｜ 盲区①
+- [x] ~~`CChannel::update_recruit` — `src\engine\Channel.cpp:104` 体 104-106 ｜ 盲区①~~ **2026-11-04 20:19 起已命中**：同上（写链入口）
+- [x] ~~`CRelationshipTracker::update_recruit` — `src\engine\RelationshipTracker.cpp:47` 体 47-51 ｜ 盲区①~~ **2026-11-04 20:19 起已命中**：同上（写链入口）
 - [ ] `CRelationshipTracker::query_relative` — `src\engine\RelationshipTracker.cpp:56` 体 56-69 ｜ 盲区①
 - [ ] `CRelationshipTracker::update_relative` — `src\engine\RelationshipTracker.cpp:74` 体 74-78 ｜ 盲区①
 - [ ] `CContainer::call_out_combat` — `src\object\ContainerMisc.cpp:44` 体 44-57 ｜ 盲区①
@@ -148,7 +153,7 @@
 - [ ] `wiz_level` — `src\engine\GameObject.cpp:46`
 - [ ] `CItem::do_use` — `src\item\Item.cpp:116`
 - [ ] `lua_commands_flush` — `src\lua\LuaHook.cpp:150`
-- [ ] `CGateInfo::x_send` — `src\net\GateInfo.cpp:95`
+- [ ] `CGateInfo::x_send` — `src\net\GateInfo.cpp:102`
 - [ ] `CNpc::chat_msg` — `src\npc\Npc.cpp:62`
 - [ ] `CNpc::chat_msg_combat` — `src\npc\Npc.cpp:64`
 - [ ] `CNpc::create` — `src\npc\Npc.cpp:86`
@@ -281,7 +286,7 @@
 - [ ] `l_ini_get` — `src\lua\LuaBindGlue.cpp:671` `[ini_get]`
 - [ ] `l_utf8_to_gbk` — `src\lua\LuaBindGlue.cpp:681` `[utf8_to_gbk]`
 - [ ] `l_get_no_force_conflict` — `src\lua\LuaBindGlue.cpp:690` `[get_no_force_conflict]`
-- [ ] `l_get_all_online_users` — `src\net\Login.cpp:566` `[get_all_online_users]`
+- [ ] `l_get_all_online_users` — `src\net\Login.cpp:563` `[get_all_online_users]`
 - [ ] `l_message_vision_self` — `src\net\Message.cpp:440` `[message_vision_self]`
 - [ ] `l_message_channel` — `src\net\Message.cpp:468` `[message_channel]`
 - [ ] `l_chinese_number` — `src\net\Message.cpp:482` `[chinese_number]`
@@ -312,8 +317,8 @@
 - [ ] `l_room_exits` — `src\room\Room.cpp:521` `[room_exits]`
 - [ ] `l_valid_force` — `src\skill\Skill.cpp:276` `[valid_force]`
 - [ ] `l_load_skill` — `src\skill\SkillMgr.cpp:112` `[load_skill]`
-- [ ] `l_do_active` — `src\user\User.cpp:499` `[DoActive]`
-- [ ] `l_ready_pk` — `src\user\User.cpp:512` `[ready_pk]`
+- [ ] `l_do_active` — `src\user\User.cpp:453` `[DoActive]`
+- [ ] `l_ready_pk` — `src\user\User.cpp:466` `[ready_pk]`
 - [ ] `l_find_player` — `src\user\UserMgr.cpp:110` `[find_player]`
 - [ ] `l_log_trace` — `src\util\Logger.cpp:179` `[log_trace]` **【盲区③】**
 - [ ] `l_log_debug` — `src\util\Logger.cpp:180` `[log_debug]` **【盲区③】**
@@ -393,7 +398,6 @@
 - [ ] `CCmdWizard::reward_exp` — `src\cmd\CmdWizardSystem.cpp:486`
 - [ ] `CCmdWizard::sub_exp` — `src\cmd\CmdWizardSystem.cpp:511`
 - [ ] `CCmdWizard::print_mapping` — `src\cmd\CmdWizardSystem.cpp:536`
-- [ ] `CCmdWizard::reload_lua` — `src\cmd\CmdWizardSystem.cpp:564`
 - [ ] `CCmdWizard::save` — `src\cmd\CmdWizardSystem.cpp:586`
 - [ ] `CCmdWizard::where_me` — `src\cmd\CmdWizardWorld.cpp:9`
 - [ ] `CCmdWizard::clone_npc` — `src\cmd\CmdWizardWorld.cpp:33`
@@ -402,7 +406,7 @@
 - [ ] `CCmdWizard::print_svalue` — `src\cmd\CmdWizardWorld.cpp:117` **【盲区①】**
 - [ ] `CCmdWizard::show_data` — `src\cmd\CmdWizardWorld.cpp:148`
 - [ ] `CCmdWizard::data` — `src\cmd\CmdWizardWorld.cpp:179`
-- [ ] `set_invalid_account` — `src\net\LoginAuth.cpp:101`（只被 `freeze`/`unfreeze` 调）
+- [ ] `set_invalid_account` — `src\net\LoginAuth.cpp:97`（只被 `freeze`/`unfreeze` 调）
 - [ ] `db_set_freeze` — `src\db\SqlAccount.cpp:306`（同上）
 
 **连带的 3 条非巫师函数**（因巫师域不追而断链）
@@ -452,7 +456,7 @@
 - [ ] 确认处置：**补接线 or 整链下线**（见 §8 A3）
 
 > 注：`CChannel::update_recruit` / `CRelationshipTracker::update_recruit` / `db_update_recruit`
-> 同属"上游命中但分支没进"，已归 §5.2。
+> 同属"上游命中但分支没进"，已归 §5.2；**2026-11-04 20:19 三条均已转正**（玩家收徒场景）。
 
 ### 5.2 调用方本身也未命中（链上断点）：48 条列于本节
 
@@ -466,9 +470,9 @@
 
 - [ ] `CChannel::do_snooping` — `src\engine\Channel.cpp:82` ← `User.cpp`（`client/snoop` 需巫师 `snoop` 命令）
 - [ ] `CChannel::query_snooping` — `src\engine\Channel.cpp:77` ← `CmdWizardAdmin.cpp`（巫师域）
-- [ ] `CChannel::update_recruit` — `src\engine\Channel.cpp:104` ← `CharFamily.cpp` / `CharSave.cpp`（`family/user` 恒 0）
-- [ ] `CRelationshipTracker::update_recruit` — `src\engine\RelationshipTracker.cpp:47` ← 同上
-- [ ] `db_update_recruit` — `src\db\SqlAccount.cpp:350` ← 同上
+- [x] ~~`CChannel::update_recruit` — `src\engine\Channel.cpp:104` ← `CharFamily.cpp` / `CharSave.cpp`（`family/user` 恒 0）~~ **2026-11-04 20:19 起已命中**：玩家收徒场景补上 `family/user=1` 侧
+- [x] ~~`CRelationshipTracker::update_recruit` — `src\engine\RelationshipTracker.cpp:47` ← 同上~~ **2026-11-04 20:19 起已命中**
+- [x] ~~`db_update_recruit` — `src\db\SqlAccount.cpp:350` ← 同上~~ **2026-11-04 20:19 起已命中**
 - [ ] `CChar::clear_condition` — `src\char\Char.cpp:310` ← `l_clear_condition`（教材没调）
 - [ ] `CChar::clear_skill` — `src\char\CharSkill.cpp:198` ← `l_clear_skill`（教材没调）
 - [ ] `CChar::clear_skill_map` — `src\char\CharSkill.cpp:195` ← 同上
@@ -490,7 +494,7 @@
 - [ ] `CCombatd::do_attack_weapon` — `src\combat\Combatd.cpp:29` ← `l_combat_attack_weapon`（教材没调）**【盲区①】**
 - [ ] `CContainer::call_out_combat` — `src\object\ContainerMisc.cpp:44` ← `l_call_out_combat`（教材没调）**【盲区①】**
 - [ ] `CContainer::query_entire_temp_dbase` — `src\object\ContainerDbase.cpp:25` ← `l_querymap_temp_keys` 类链 **【盲区③】**
-- [ ] `CGateInfo::x_send` — `src\net\GateInfo.cpp:95` ← `close_client` 改走 `close_connection()` 后已无生产调用方（死代码，归死代码批次处置）
+- [ ] `CGateInfo::x_send` — `src\net\GateInfo.cpp:102` ← `close_client` 改走 `close_connection()` 后已无生产调用方（死代码，归死代码批次处置）
 - [ ] `CItem::destruct_me` — `src\item\Item.cpp:238` ← `CItem::receive_damage`（本身零调用）
 - [ ] `CLuaSkill::has_query_action` — `src\lua\LuaSkill.cpp:228` ← `LuaSkill.cpp` 内部
 - [ ] `CNpc::add_money` — `src\npc\Npc.cpp:135` ← `l_add_money`（教材没调）
@@ -513,20 +517,13 @@
 - [ ] `lua_do_action_base` — `src\lua\LuaItem.inl:526` ← `l_do_action_base`（教材没调）
 - [ ] `tray_icon_restore` — `src\main.cpp:138` ← `WndProc`（托盘双击，需人工点）
 
-### 5.3 调用方 0 命中（上游没跑到）：29 条
+### 5.3 调用方 0 命中（上游没跑到）：19 条
 
-- [ ] `c_lua_item_t_reload_bridge` — `src\lua\LuaItem.inl:17` ← 脚本热重载桥，E2E 不改脚本文件
-- [ ] `c_lua_npc_t_reload_bridge` — `src\lua\LuaNpc.inl:18` ← 同上
-- [ ] `c_lua_room_t_reload_bridge` — `src\lua\LuaRoom.inl:17` ← 同上
-- [ ] `clear_loaded_shared_scripts` — `src\lua\LuaEngine.cpp:53` ← 同上
-- [ ] `lua_npc_notify_reload` — `src\lua\LuaReload.cpp:39` ← 同上
-- [ ] `lua_item_notify_reload` — `src\lua\LuaReload.cpp:77` ← 同上
-- [ ] `lua_room_notify_reload` — `src\lua\LuaReload.cpp:115` ← 同上
-- [ ] `skill_release_one` — `src\skill\SkillMgr.cpp:64` ← 同上
-- [ ] `lua_commands_flush` — `src\lua\LuaHook.cpp:150` ← 同上 **【盲区③】**
-- [ ] `CLuaEngine::dump_caller_info` — `src\lua\LuaEngine.cpp:272` ← Lua 报错诊断路径，本轮无 Lua 异常
+（原热重载链 10 条——三桥 ×3、`clear_loaded_shared_scripts`、notify ×3、
+`skill_release_one`、`lua_commands_flush`、`dump_caller_info`——已随 2026-11-05
+reload 试验台转绿移出）
 - [ ] `CContainer::remove_call_out` — `src\object\ContainerMisc.cpp:61` ← `l_remove_call_out` 改走 `remove_call_out_by_id`
-- [ ] `close_client` — `src\net\GateClient.cpp:13` ← `User.cpp:167`（`offline`）/ `ServerSockWorker.cpp:159`（登录失败），本轮两条都没走
+- [ ] `close_client` — `src\net\GateClient.cpp:13` ← `User.cpp:171`（`offline`）/ `ServerSockWorker.cpp:159`（登录失败），本轮两条都没走
 - [ ] `send_to_client_direct` — `src\net\GateClient.cpp:47` ← `Login.cpp` 各错误分支（密码错/非 login 指令），本轮全部登录成功
 - [ ] `set_charset` — `src\db\IDatabase.h:78` ← `Sql.cpp:185` **MySQL 分支**，E2E 走 SQLite
 - [ ] `select_database` — `src\db\SqliteDb.cpp:101` ← `Sql.cpp:180` **MySQL 分支**
@@ -542,7 +539,7 @@
 - [ ] `CReward::victim_penalty` — `src\combat\CReward.cpp:46` ← `CharState.cpp:109`（受害者死亡惩罚，E2E 无合法触发面，`design §6` 已裁定）
 - [ ] `CReward::distribute_party_exp` — `src\combat\CReward.cpp:106` ← **缺"组队状态下杀怪"场景**（见 §7）
 - [ ] `CWeaponEffect::bash_weapon` — `src\combat\WeaponEffect.cpp:17` ← `Attack.cpp`，要求 `attack_type` ∈ {hammer, club, staff}，样本世界只有剑/拳/暗器 **【盲区①】**
-- [ ] `CUser::user_dump` — `src\user\User.cpp:219` ← 需 `idle > IDLE_TIMEOUT(900s)`，单轮 266s 不够
+- [ ] `CUser::user_dump` — `src\user\User.cpp:223` ← 需 `idle > IDLE_TIMEOUT(900s)`，单轮 266s 不够
 - [ ] `tray_icon_menu` — `src\main.cpp:146` ← `WndProc WM_RBUTTONUP`，需人工点托盘
 
 ### 5.4 调用方已命中（分支没走到 / 同名噪声）：63 条
@@ -557,12 +554,12 @@
 - [ ] ✅ `CChar::apply_condition`（4 参带 `who`）— `src\char\CharSkill.cpp:287` ← 教材 `apply_condition(cnd,duration)` 只传 3 参，`who` 恒 NULL → 走 3 参重载
 - [ ] ✅ `CChar::handle_action`（4 参）— `src\char\CharInterface.cpp:46` ← 只有 `where`（环境）是角色才走，E2E 玩家永远在房间里
 - [ ] ✅ `CRoom::download` / `CRoom::get_info` — `src\room\RoomInterface.cpp:70/80` ← 只有"房间对象被塞进容器"或 `downloadobject <房间id>` / `room:DownLoad(me)` 才走；`sample_master.lua:94 self:DownLoad(me)` 的 `self` 是 NPC → 走 `CChar::download`
-- [ ] ✅ `CRelationshipTracker::update_recruit` 相关的 `CharSave.cpp:59` 分支 ← `family/user` 恒 0（E2E 收的都是 NPC 师父）
+- [ ] ~~✅ `CRelationshipTracker::update_recruit` 相关的 `CharSave.cpp:59` 分支 ← `family/user` 恒 0（E2E 收的都是 NPC 师父）~~ **2026-11-04 20:19 起已命中**：玩家收徒场景（L6 存盘触发 `if (query("family/user"))` 分支），NPC 师父侧另由 L4 的巫师 `call query family/user=0` 钉住
 - [ ] ✅ `CFBRoom::CFBRoom(CFB*)` — `src\room\FBRoom.cpp:48` ← `create_fb_room` 的兜底分支（脚本缺失才走）
 - [ ] ✅ `seed_first_id` — `src\db\DbTables.cpp:81` ← 只在**首建库**时调，E2E 库已存在
 - [ ] ✅ `CChannel::group_listener` — `src\engine\ChatChannel.cpp:327` ← `hooks.channel_group` 教材未实现 → `group_key` 恒空
 - [ ] ✅ `finish_kill`（`CLuaNpcT`）— `src\lua\LuaNpc.inl:446` ← `killer->finish_kill()`，需 **NPC 击杀玩家**，E2E 中 NPC 从未杀死玩家
-- [ ] ✅ `CChar::load` — `src\char\CharSave.cpp:290` ← `LuaObjects.cpp` 恢复路径，E2E 用 `-ResetDb` 外的常驻库
+- [ ] ~~✅ `CChar::load` — `src\char\CharSave.cpp:290` ← `LuaObjects.cpp` 恢复路径，E2E 用 `-ResetDb` 外的常驻库~~ **2026-11-04 起已命中**：persist 阶段黑风寨主 `create()` 的 `self:Load()` 走非用户分支（重启后 `restore_data` 恢复挑战计数即其实证）
 
 **待甄别（同名噪声嫌疑，需逐条确认调用点是否真是本函数）**
 
@@ -573,7 +570,6 @@
 - [ ] `create_int_impl` — `src\lua\LuaRoom.inl:116` **【单测也未覆盖】**（模板标签分派 `false_type` 支）
 - [ ] `desc_impl` — `src\lua\LuaRoom.inl:443` **【单测也未覆盖】**（同上）
 - [ ] `valid_leave_impl` — `src\lua\LuaRoom.inl:375` **【单测也未覆盖】**（同上）
-- [ ] `reload_script` — `src\lua\LuaItem.inl:39` **【单测也未覆盖】**
 - [ ] `CChar::attempt_apprentice` — `src\char\CharFamily.cpp:73` **【盲区③】**
 - [ ] `CChar::send_off` — `src\char\CharFamily.cpp:87` **【盲区③】**
 - [ ] `CChar::owner_is_killed` — `src\char\CharInterface.cpp:27` **【盲区③】**
@@ -594,7 +590,7 @@
 - [ ] `CNpc::set_inquiry` ×2 — `src\npc\Npc.cpp:146/156`
 - [ ] `CNpc::return_home` — `src\npc\Npc.cpp:68`
 - [ ] `CChar::wield_position` — `src\char\Char.cpp:242`
-- [ ] `CChar::load` — `src\char\CharSave.cpp:290`
+- [ ] ~~`CChar::load` — `src\char\CharSave.cpp:290`~~ **2026-11-04 起已命中**（persist 阶段 `self:Load()`，见 §5.4 同名噪声节）
 - [ ] `CChar::is_defeated` 已在 §5.2
 - [ ] `CCombatd::do_attack_weapon` 已在 §5.2
 - [ ] `CContainer::set_amount` — `src\object\ContainerWeight.cpp:65` **【盲区③】**
@@ -604,7 +600,6 @@
 - [ ] `CItem::destruct_me` 已在 §5.2
 - [ ] `IDatabase::create` — `src\db\SqliteDb.cpp:135`（实际用 `create_sqlite_db`/`create_my_sql_db` 自由函数）
 - [ ] `handle_action` ×3（`LuaRoom.inl` / `LuaNpc.inl` / `LuaItem.inl`）— 短名噪声，需按签名区分 3 参/4 参
-- [ ] `reload_script` ×2（`LuaRoom.inl` / `LuaNpc.inl`）
 - [ ] `CCmdUser::mv` — `src\cmd\CmdUserSocial.cpp:453`（`design §6` 低价值透传）
 - [ ] `CCmdUser::nullify_vote` — `src\cmd\CmdUserSocial.cpp:297`（`call_out 600s`，超单轮；`design §6` 已裁定）
 
@@ -631,7 +626,7 @@
 
 ---
 
-## 6. 单测也没覆盖的 29 条（真正的双盲缺口）
+## 6. 单测也没覆盖的 28 条（真正的双盲缺口）
 
 ### 6.1 单测报告里有行但 0 命中（11 条）
 
@@ -642,12 +637,12 @@
 - [ ] `l_remove_betrayer` — `src\char\CharLevel.cpp:242`
 - [ ] `can_combine_in_box` — `src\lua\LuaItem.inl:575`（`m_script_ref == LUA_NOREF` 兜底支）
 - [ ] `CContainer::add_amount` — `src\object\ContainerWeight.cpp:67`（空实现，调用行 0）
-- [ ] `CChar::user_dump` — `src\user\User.cpp:219`（需 idle > 900s）
+- [ ] `CChar::user_dump` — `src\user\User.cpp:223`（需 idle > 900s）
 - [ ] `CCmdWizard::reboot` — `src\cmd\CmdWizardSystem.cpp:473`
 - [ ] `CCmdWizard::do_reboot` — `src\cmd\CmdWizardSystem.cpp:480`
 - [ ] `CCmdHandle::do_revive` — `src\cmd\CmdHandle.cpp:344`（`rate_limit=0` 关掉刷屏封禁）
 
-### 6.2 单测报告里根本没有这些行（18 条）
+### 6.2 单测报告里根本没有这些行（17 条）
 
 `unit_NODATA` = 单测覆盖率报告里**完全没有这些行**。按成因分三组：
 
@@ -675,11 +670,10 @@
 - [ ] `valid_leave_impl`（`false_type` 支）— `src\lua\LuaRoom.inl:375`
 - [ ] `desc_impl`（`false_type` 支）— `src\lua\LuaRoom.inl:443`
 
-**④ 其余 — 1 条**
+（原 ④ 其余 1 条 `reload_script`（`LuaItem.inl:39`）已随 2026-11-05 reload 试验台
+在 E2E 侧转绿，不再是双盲缺口）
 
-- [ ] `reload_script` — `src\lua\LuaItem.inl:39`
-
-- [ ] 逐条确认上表 18 条归因（尤其 ② 组 12 条 → 归 §5.1 死代码）
+- [ ] 逐条确认上表 17 条归因（尤其 ② 组 12 条 → 归 §5.1 死代码）
 
 ---
 
@@ -688,7 +682,7 @@
 - [ ] **组队状态下杀怪**：`party_a.sce` 只验组队命令不杀怪，7 个含 `kill` 的剧本（`sneak_and_battle`/`servant`/`fight_a`/`pk_a`/`raid_assault`/`prepare_combine`）都不组队 → `CReward::distribute_party_exp`（经验共享）整块 0 覆盖。**这是唯一一条"补场景即得"的高价值缺口。**
 - [ ] **`house_base.lua` 的 `player/` 映射全仓无人写** → `CFB::end_fb` 排行写入分支（`sql_update_record`）永远走不到；`rank.sce` 覆盖的只是查询侧。确认是补内容还是标废弃。
 - [x] ~~`poison_base.lua` 的涂毒成功支与 `l_send_state` 到不了~~ **已注销**：E2E（`poison_and_cure.sce` 的涂毒链）打实 `do_look` → `do_mo` 成功支挂 `poison/modu` → 二涂被拒 → `remove_effect` 到点解除，`l_send_state` 随之进覆盖（未命中清单已无此项）；模块由 `sample_shedan.lua` `require`，不再是孤儿。单测侧另有 `SampleFoodPoisonTest` 的 `Shedan_TumoWithPoisonSkillCoatsWeapon` / `PoisonBase_HandleActionRoutesUseTumoAndUnknown` 兜底（毒术等三前置的分支矩阵）。
-- [ ] **`family/user` 恒为 0**：E2E 收的都是 NPC 师父，`recruit_apprentice` 只在 `is_user(master)` 时写 `family/user=1` → 师徒经验**写**链（`update_recruit`→`db_update_recruit`）不可达。确认是否补"玩家收徒"场景。
+- [x] ~~**`family/user` 恒为 0**：E2E 收的都是 NPC 师父，`recruit_apprentice` 只在 `is_user(master)` 时写 `family/user=1` → 师徒经验**写**链（`update_recruit`→`db_update_recruit`）不可达。确认是否补"玩家收徒"场景。~~ **已注销（2026-11-04）**：补上玩家收徒场景——L5/L6 师徒四段（`interaction/recruit_*`/`rexp_*`/`expell_*`/`apprentice_*`，A 扮师父、B 扮徒弟）+ L4 的 `social/npc_master_family_user.sce`（NPC 师父 `family/user=0` 反向锚点）。写链（存盘→`update_recruit`→`db_update_recruit`）与 `release_master` 翻标记两侧都有断言，未命中清单已无 `update_recruit`/`db_update_recruit`/`release_master`/`CCmdStandard::recruit|expell`/`CCmdUser::recruit_exp`
 - [ ] **`CFB` 的 `querymap("player")` 恒 NULL**（见上）
 - [ ] **`mirror_base` 缺省 `die` 从不装配**：`sample_wooden_dummy` 自定义了 `die` → `find_object` 不可达。确认是否需要一个不自定义 `die` 的镜像 NPC。
 
@@ -708,6 +702,7 @@
 
 ## 9. 复核用数据文件
 
-- [ ] 确认以下中间产物已归档或随本文件一起清理：
+- [x] 确认以下中间产物已归档或随本文件一起清理：
   - `coverage_history\e2e-unhit-claimed.txt`（既有认领登记，保持不动）
-  - 本审计中间产物（当前在 `%TEMP%`）：`blind2.csv`、`blind3.csv`、`bind_never_called.csv`、`final_matrix_e2e.csv`、`final_domains.csv`
+  - 本审计中间产物（原在 `%TEMP%`，已随「测试临时文件一律入仓库」清理删除）：
+    `blind2.csv`、`blind3.csv`、`bind_never_called.csv`、`final_matrix_e2e.csv`、`final_domains.csv`

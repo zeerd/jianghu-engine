@@ -31,6 +31,37 @@ std::string CreateDdl(const char* table)
     return std::string("CREATE TABLE IF NOT EXISTS `") + table + "`";
 }
 
+// 预置 jianghudb 列探测结果：真实库的 information_schema 必然返回列清单，
+// mock 默认空行集会把凭据列全判为缺失。
+void PresetColumnProbe(MockDatabase& db, std::vector<std::string> columns)
+{
+    DbResultSet rs;
+    for (const std::string& name : columns) {
+        DbRow row;
+        row.columns.push_back(name);
+        rs.rows.push_back(row);
+    }
+    db.SetQueryResultMatching("information_schema.columns", rs);
+}
+
+// 新库形态：建表语句里已含全部凭据列
+void PresetAllCredentialColumnsPresent(MockDatabase& db)
+{
+    PresetColumnProbe(
+        db, {"cc_id", "cc_name", "cc_passwd", "cc_verifypass", "cc_passwd_salt",
+             "cc_passwd_hash", "cc_verifypass_salt", "cc_verifypass_hash"});
+}
+
+int CountAlterTables(const MockDatabase& db)
+{
+    int n = 0;
+    for (const std::string& sql : db.GetExecutedSqls()) {
+        if (sql.find("ALTER TABLE jianghudb ADD COLUMN") != std::string::npos)
+            n++;
+    }
+    return n;
+}
+
 class DbTablesTest : public ::testing::Test {
 protected:
     MockDatabase db;
@@ -43,6 +74,7 @@ protected:
         g_db      = &db;
         saved_ddl = g_dataset_table_ddl;
         g_dataset_table_ddl.clear();
+        PresetAllCredentialColumnsPresent(db);
     }
     void TearDown() override
     {
@@ -70,7 +102,8 @@ TEST_F(DbTablesTest, PrepareTables_CreatesEveryGameTable)
             << "missing DDL for table " << table;
     }
     // 1 次 jianghudb 存在性查询 + kTableCount 条建表 DDL + 1 次起点播种
-    EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), kTableCount + 2);
+    // + 1 次凭据列探测
+    EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), kTableCount + 3);
 }
 
 // 玩家 ID 起点：jianghudb 首次建表时把自增起点抬到 1000（1~999 预留给
@@ -137,6 +170,7 @@ protected:
 
 TEST_F(DbTablesDatasetTest, PrepareTables_ExecutesRegisteredDdl)
 {
+    PresetAllCredentialColumnsPresent(db);
     g_dataset_table_ddl.push_back(
         "CREATE TABLE IF NOT EXISTS `t_ds_a` (`x` "
         "int)engine=InnoDB default charset=utf8;");
@@ -147,12 +181,13 @@ TEST_F(DbTablesDatasetTest, PrepareTables_ExecutesRegisteredDdl)
     EXPECT_TRUE(prepare_tables());
     EXPECT_TRUE(db.ExecutedContaining("CREATE TABLE IF NOT EXISTS `t_ds_a`"));
     EXPECT_TRUE(db.ExecutedContaining("CREATE TABLE IF NOT EXISTS `t_ds_b`"));
-    // 1 次存在性查询 + 核心表 + 起点播种 + 2 条注册表
-    EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), kTableCount + 4);
+    // 1 次存在性查询 + 核心表 + 起点播种 + 凭据列探测 + 2 条注册表
+    EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), kTableCount + 5);
 }
 
 TEST_F(DbTablesDatasetTest, PrepareTables_StopsAtFailingDatasetDdl)
 {
+    PresetAllCredentialColumnsPresent(db);
     g_dataset_table_ddl.push_back(
         "CREATE TABLE IF NOT EXISTS `t_ds_fail` (`x` "
         "int)engine=InnoDB default charset=utf8;");
@@ -161,5 +196,62 @@ TEST_F(DbTablesDatasetTest, PrepareTables_StopsAtFailingDatasetDdl)
     db.SetExecuteFailAt(kTableCount + 1);
 
     EXPECT_FALSE(prepare_tables());
-    EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), kTableCount + 3);
+    EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), kTableCount + 4);
+}
+
+// ====================================================================
+// 历史库补列：CREATE TABLE IF NOT EXISTS 不给已有表加列，靠探测 + ALTER
+// ====================================================================
+
+// 老库没有凭据列 → 逐列追加（类型/默认值与建表语句同源）
+TEST_F(DbTablesTest, PrepareTables_AddsMissingCredentialColumns)
+{
+    db.Clear();  // 清掉夹具的「列齐全」预置，改用历史库形态
+    PresetColumnProbe(db, {"cc_id", "cc_name", "cc_passwd", "cc_verifypass"});
+
+    EXPECT_TRUE(prepare_tables());
+    EXPECT_EQ(CountAlterTables(db), 4);
+    EXPECT_TRUE(db.ExecutedContaining(
+        "ALTER TABLE jianghudb ADD COLUMN `cc_passwd_salt`"));
+    EXPECT_TRUE(db.ExecutedContaining(
+        "ALTER TABLE jianghudb ADD COLUMN `cc_passwd_hash`"));
+    EXPECT_TRUE(db.ExecutedContaining(
+        "ALTER TABLE jianghudb ADD COLUMN `cc_verifypass_salt`"));
+    EXPECT_TRUE(db.ExecutedContaining(
+        "ALTER TABLE jianghudb ADD COLUMN `cc_verifypass_hash`"));
+}
+
+// 新库建表已含凭据列 → 探测后不再动表
+TEST_F(DbTablesTest, PrepareTables_SkipsCredentialColumnsWhenPresent)
+{
+    EXPECT_TRUE(prepare_tables());
+    EXPECT_EQ(CountAlterTables(db), 0);
+}
+
+// 探测失败即启动失败：缺列时注册与登录会在运行期报错，不如开机阶段暴露
+TEST_F(DbTablesTest, PrepareTables_FailsWhenColumnProbeFails)
+{
+    db.SetQueryErrorCode(1);
+    EXPECT_FALSE(prepare_tables());
+    EXPECT_EQ(CountAlterTables(db), 0) << "探测没结论就不猜列的存在性";
+}
+
+// 账号 ID 起点播种失败必须中止启动：起点没播下去就建号，新号会撞上
+// 已发的 cc_id（主键冲突）
+TEST_F(DbTablesTest, PrepareTables_FailsWhenIdFloorSeedFails)
+{
+    db.SetExecuteFailAt(kTableCount);  // 核心表之后的第一条 execute 即播种
+    EXPECT_FALSE(prepare_tables());
+    EXPECT_TRUE(db.ExecutedContaining("AUTO_INCREMENT = 1000"));
+}
+
+// 补列失败必须中止启动：缺列的库跑起来，注册与登录会逐条报错
+TEST_F(DbTablesTest, PrepareTables_FailsWhenAddingColumnFails)
+{
+    db.Clear();  // 换成历史库形态（缺凭据列）
+    PresetColumnProbe(db, {"cc_id", "cc_name", "cc_passwd", "cc_verifypass"});
+    db.SetExecuteFailAt(kTableCount + 1);  // 播种之后的第一条 execute 即 ALTER
+
+    EXPECT_FALSE(prepare_tables());
+    EXPECT_EQ(CountAlterTables(db), 1) << "首条补列语句已下发并失败";
 }

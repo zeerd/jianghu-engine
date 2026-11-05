@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -21,6 +22,7 @@
 #include "game_state.h"
 #include "mock_connection.h"
 #include "protocol.h"
+#include "test_tmp_dir.h"
 
 namespace {
 
@@ -60,8 +62,7 @@ protected:
 
     void SetUp() override
     {
-        logs_dir_ = std::filesystem::temp_directory_path()
-                    / "jianghu_cli_scenario_steps_test_logs";
+        logs_dir_ = test_tmp_dir() / "jianghu_cli_scenario_steps_test_logs";
         std::filesystem::create_directories(logs_dir_);
         cfg_.logs_dir = logs_dir_.string();
 
@@ -161,6 +162,22 @@ TEST_F(ScenarioStepsTest, EvalCondFlagsReflectState)
     core_->state().set_battle_flag_for_test(true);
     EXPECT_TRUE(runner.eval_cond("battle", detail));
     EXPECT_FALSE(runner.eval_cond("battle_end", detail));
+}
+
+// busy / not_busy：两个方向都从真实的 STATE 报文驱动（不加测试专用 setter），
+// `busy` 等起始、`not_busy` 等结束，正是剧本「等到不忙」的用法。
+TEST_F(ScenarioStepsTest, EvalCondBusyFollowsState)
+{
+    login();
+    auto runner = make_runner();
+    std::string detail;
+
+    EXPECT_TRUE(runner.eval_cond("not_busy", detail));
+    EXPECT_FALSE(runner.eval_cond("busy", detail));
+
+    core_->state().handle_message(make_msg(23, {{"T", "1001"}, {"bsy", "1"}}));
+    EXPECT_TRUE(runner.eval_cond("busy", detail));
+    EXPECT_FALSE(runner.eval_cond("not_busy", detail));
 }
 
 TEST_F(ScenarioStepsTest, EvalCondMenuAndDialog)
@@ -599,4 +616,97 @@ TEST_F(ScenarioStepsTest, SubstReplacesKnownVarsOnly)
     runner.mutable_vars()["x"] = "7";
     EXPECT_EQ(runner.subst("a${x}b"), "a7b");
     EXPECT_EQ(runner.subst("a${missing}b"), "a${missing}b");
+}
+
+// ==================== filecopy / filedelete ====================
+// 热重载剧本的文件准备动词。写入钉死在测试暂存区（test_tmp/ 或 tmp/）：
+// 剧本一旦能把落点写进 lua-sample / lua-default 等教材或生产目录，就等于
+// 给被测世界开了个污染口。
+
+TEST_F(ScenarioStepsTest, RunStepFilecopyWritesIntoScratchArea)
+{
+    auto root = test_tmp_dir() / "jianghu_cli_filecopy_test";
+    std::filesystem::create_directories(root);
+    auto src = root / "variant_a.lua";
+    auto dst = root / "scripts" / "npc" / "target.lua";
+    {
+        std::ofstream out(src);
+        out << "return { a = 1 }";
+    }
+
+    auto runner = make_runner();
+    // 目标经 $var 替换（E2E 剧本正是这样引用私有脚本副本）
+    runner.mutable_vars()["dst_dir"] = (root / "scripts" / "npc").string();
+    EXPECT_TRUE(runner.run_step(
+        {"filecopy", src.string() + " $dst_dir/target.lua"}))
+        << runner.fail_reason();
+
+    std::string body;
+    {
+        // 读完立即关闭句柄：Windows 下开着句柄 remove_all 会被文件锁拒绝
+        std::ifstream in(dst);
+        body.assign((std::istreambuf_iterator<char>(in)),
+                    std::istreambuf_iterator<char>());
+    }
+    EXPECT_EQ(body, "return { a = 1 }");
+
+    // 覆盖写：目标已存在时直接覆盖，不报错
+    EXPECT_TRUE(runner.run_step({"filecopy", src.string() + " " + dst.string()}))
+        << runner.fail_reason();
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_F(ScenarioStepsTest, RunStepFilecopyMissingSourceFails)
+{
+    auto root = test_tmp_dir() / "jianghu_cli_filecopy_test";
+    std::filesystem::create_directories(root);
+
+    auto runner = make_runner();
+    EXPECT_FALSE(runner.run_step({"filecopy",
+                                  (root / "nope.lua").string() + " "
+                                      + (root / "dst.lua").string()}));
+    EXPECT_NE(runner.fail_reason().find("source not found"), std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_F(ScenarioStepsTest, RunStepFileWriteOutsideScratchAreaRefused)
+{
+    auto runner = make_runner();
+    EXPECT_FALSE(
+        runner.run_step({"filecopy", "anywhere.lua lua-sample/pollute.lua"}));
+    EXPECT_NE(runner.fail_reason().find("file write refused"),
+              std::string::npos)
+        << "教材目录必须被拒";
+
+    EXPECT_FALSE(runner.run_step({"filedelete", "lua-default/command/x.lua"}));
+    EXPECT_NE(runner.fail_reason().find("file write refused"),
+              std::string::npos);
+
+    EXPECT_FALSE(runner.run_step({"filedelete", "src/main.cpp"}));
+    EXPECT_NE(runner.fail_reason().find("file write refused"),
+              std::string::npos);
+}
+
+TEST_F(ScenarioStepsTest, RunStepFiledeleteRemovesAndRequiresExisting)
+{
+    auto root = test_tmp_dir() / "jianghu_cli_filedelete_test";
+    std::filesystem::create_directories(root);
+    auto victim = root / "victim.lua";
+    {
+        std::ofstream out(victim);
+        out << "x";
+    }
+
+    auto runner = make_runner();
+    EXPECT_TRUE(runner.run_step({"filedelete", victim.string()}))
+        << runner.fail_reason();
+    EXPECT_FALSE(std::filesystem::exists(victim));
+
+    // 目标不存在即失败：路径笔误必须立刻暴露，不许静默通过
+    EXPECT_FALSE(runner.run_step({"filedelete", victim.string()}));
+    EXPECT_NE(runner.fail_reason().find("not found"), std::string::npos);
+
+    std::filesystem::remove_all(root);
 }

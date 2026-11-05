@@ -19,6 +19,7 @@
 #include "game_state.h"
 #include "mock_connection.h"
 #include "terminal_ui.h"
+#include "test_tmp_dir.h"
 
 namespace {
 
@@ -50,8 +51,7 @@ protected:
           cmd_handler_(state_, conn_, ui_),
           input_(cmd_handler_, state_, conn_, ui_)
     {
-        logs_dir_ = std::filesystem::temp_directory_path()
-                    / "jianghu_cli_input_test_logs";
+        logs_dir_ = test_tmp_dir() / "jianghu_cli_input_test_logs";
         ui_.set_logs_dir(logs_dir_.string());
     }
 

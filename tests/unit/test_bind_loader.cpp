@@ -3,12 +3,13 @@
 // loaders + g_LuaEngine-backed queries). Uses the engine-initialized fixture.
 
 #include "test_bind_common.h"
+#include "test_tmp_dir.h"
 
 #include "Item.h"
 
 #include <cstdio>
 
-#include <cstdlib>
+#include <filesystem>
 
 // LuaEngine.cpp 自由函数：文件读取转 GBK（空文件支在 93-95）
 
@@ -133,9 +134,7 @@ TEST_F(BindLoaderTest, GetMyHouseNonCharArg)
 // ---- LuaEngine.cpp: load_file_as_gbk 空文件 → fclose+空串(93-95) ----
 TEST_F(BindLoaderTest, LoadFileAsGbkEmptyFileReturnsEmpty)
 {
-    const char* tmp = getenv("TEMP");
-    ASSERT_NE(tmp, nullptr);
-    std::string path = std::string(tmp) + "\\lua_engine_empty_probe.tmp";
+    std::string path = (test_tmp_dir() / "lua_engine_empty_probe.tmp").string();
 
     FILE* f = fopen(path.c_str(), "wb");
     ASSERT_NE(f, nullptr);

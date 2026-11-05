@@ -67,6 +67,8 @@ Config load_config(const std::string &path)
             cfg.password = val;
         else if (key == "logs_dir")
             cfg.logs_dir = val;
+        else if (key == "comm_key")
+            cfg.comm_key = val;
         else if (key == "heartbeat_interval")
             cfg.heartbeat_interval = std::stoi(val);
     }

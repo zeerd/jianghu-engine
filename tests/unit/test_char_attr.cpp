@@ -217,8 +217,9 @@ TEST_F(CharAttrTest, AddBalance_Negative)
 
 TEST_F(CharAttrTest, AddBalance_OverflowTakesMoneyPath)
 {
-    // balance near LONGMAX so the overflow branch (Pay_Player) runs
-    ch->set("balance", (long)(LONGMAX - 10));
+    // balance near the value-domain cap so the overflow branch (Pay_Player)
+    // runs
+    ch->set("balance", (mapping_value_t)(MAPPING_VALUE_MAX - 10));
     ch->add_balance(1000);
     // Pay_Player loads "coin" via mock item mgr (returns null) -> no crash
     EXPECT_GE(ch->query("balance"), 0);

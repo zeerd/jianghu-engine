@@ -91,7 +91,7 @@ verified-by: pending（待作者确认 Open Questions）
   | 游戏线程（`main_worker_thread`） | 1 | **整个游戏模拟 + 全部 DB I/O**（`src/net/ServerSockWorker.cpp:224-246`，由 `WM_CREATE` 启动，`src/main.cpp:150`） |
 
 - 一个完成端口 `g_iocp`；监听 socket 以 `IOCP_ACCEPT_KEY` 为 completion key，
-  每个已接受 socket 直接以 `CGateInfo*` 为 completion key（`src/net/ServerSockHandler.cpp:133,234-235`）；
+  每个已接受 socket 直接以 `CGateInfo*` 为 completion key（`src/net/ServerSockHandler.cpp:133,240-241`）；
   预投 4 个 `AcceptEx` 并在完成时补投（`ServerSockHandler.h:39`、`ServerSockHandler.cpp:138-140,263`）。
 - 收包路径：worker 完成 → `dispatch_gate_recv` 分帧成 `_TRECVBUFF`
   （`RECV_MSG_LOGIN` / `RECV_MSG_COMMAND` / `RECV_MSG_EXIT`）→ 推入该连接的
@@ -139,6 +139,14 @@ verified-by: pending（待作者确认 Open Questions）
 - **热更**：心跳每 5 s `check_for_reload()`（mtime 快筛 + 哈希确认），
   通知存活实例刷新 `m_script_ref` 并调 Lua `reload(self)`；
   `reload_script` 先装新版本，**失败则保留旧 ref**（`LuaEngine.cpp:783-878,936-981`）。
+- **频道配置数据驱动**：C++ 只硬编码 10 个机制频道（sys/new/news/wiz/chat/ad/noise/
+  rumor/party/corps——`do_channel` 的按动词特判渲染与权限/分组机制依赖这些键）；
+  f1-f4、answer 等**扩展频道属数据集内容**，由各数据集自带 `data/channel_config.lua`
+  提供（`CChatChannel::create → CLuaEngine::get_channel_config`，启动期读一次、改文件
+  需重启；引擎默认 lua-default 不带该文件，缺失 = 未配置、扩展频道不注册）。
+  数值字段（wiz_only/wiz_use/all_receive/newbie/use_mp/interMain_emote）经白名单转整数
+  落库——`CMapping::query()` 只命中 T_NUMBER，字符串存入会静默失效。
+  频道发言的行为接管走 `hooks.do_channel`（示例：`lua-sample/data/exam.lua` 天下大考）。
 - **分工铁律**：引擎不知道"任务"这种类型；法术一律 Lua（`CSkill::Magic_t.lua_func`）；
   但战斗主循环、命令框架、移动、网络、持久化、心跳调度在 C++。
 
@@ -308,13 +316,15 @@ MySQL/SQLite 切换点，测试据此注入 `MockDatabase`/`ThrowingDatabase`
 需要同一把 `m_cs`（`GateRecvDispatch.cpp:19-27`）—— 慢 DB 不只冻结世界，
 还会冻结**该连接的收包**。MySQL 连接超时 5 s，但语句**没有超时**。
 
-⚠️ **`g_gate_list` 存在数据竞争**：`push_back`（`ServerSockHandler.cpp:237`）与
+⚠️ **`g_gate_list` 存在数据竞争**：`push_back`（`ServerSockHandler.cpp:243`）与
 erase 循环（`ServerSockWorker.cpp:213-221`）**未加锁**，与已加锁的迭代
 （`ServerSockWorker.cpp:142`）并发 —— 锁存在但未覆盖全部访问点。
 
-⚠️ **硬性 32 位约束**：`GateClient.cpp:12-53` 把 `CGateInfo*` 截断成
-`uint32_t serial` 当作连接标识；一旦迁到 x64 立即失效，且陈旧 serial 有
-use-after-free 隐患（引用计数部分缓解，但 `close_client` 路径不持引用）。
+⚠️ **完成键仍是裸指针（刻意保留）**：连接标识已改为句柄表（`CConnectionHandleManager`：
+64 位不透明序号、0=无连接，accept 分配、`close_connection` 即刻归还，指针只存在于表内），
+但 IOCP 完成键与 `OVERLAPPEDSEND::gate` 继续直接携带 `CGateInfo*`（`ULONG_PTR` 不截断）——
+连接关闭后完成包仍会回来，走句柄表必然落空，未完成 IO 的引用与发送缓冲将无人归还；
+该路径依赖「每个未完成 IO 各持一份引用计数」保证对象存活（见 Implementation Notes）。
 
 ⚠️ **属性袋无类型安全**：`query("hp")` 全靠字符串约定，键名拼错在编译期与运行期都无告警；
 `enum` 与字符串键两套寻址方式并存。
@@ -361,7 +371,7 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 - **Proactor（IOCP）**：网络层；完成事件驱动，不做阻塞 recv。
 - **单线程 Actor / 游戏循环 + 生产者-消费者交接**：`CWHQueue` 每连接互斥队列
   把 N 个 I/O 线程与 1 个模拟线程解耦 —— 经典 MUD"网络线程 + 单模拟线程"结构。
-- **引用计数跨线程生命周期 + 延迟删除列表**：`CGateInfo` 引用计数（`GateInfo.cpp:16-21`）；
+- **引用计数跨线程生命周期 + 延迟删除列表**：`CGateInfo` 引用计数（`GateInfo.cpp:18-23`）；
   世界对象走 `g_destruct_list`。
 - **表驱动分派 + 链式回落**：三张 C++ 命令表 → Lua `commands[cmd]` 回落；
   频道 / 环境 / 目标拦截层在表之前。
@@ -395,7 +405,8 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 
 - **模型**：模拟层单线程；网络层 N 线程；二者仅通过 4 把锁保护的队列/列表交接。
 - **锁清单**：每连接队列 `std::mutex`、`CGateInfo::m_cs`（recursive）、`g_gate_list_mutex`、
-  `g_destruct_list_mutex`；另有 `Interlocked*` 用于 gate 引用计数与 `m_do_sending`。
+  `g_destruct_list_mutex`、句柄表锁（`CConnectionHandleManager` 的 allocate/lookup/release）；
+  另有 `Interlocked*` 用于 gate 引用计数与 `m_do_sending`。
 - **世界状态：无锁，且这是设计而非疏漏。**
 - 未加锁的访问点见 Consequences 的 `g_gate_list` 条目。
 
@@ -438,7 +449,9 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 **Risks**:
 
 - 慢 DB / DB 断连 → 全服冻结（无语句超时、无重连：`m_mysql` 保持非空、后续调用全部失败）。
-- 迁 x64 → `uint32_t serial` 立即失效。
+- 迁 x64：连接句柄已不承载指针（截断缺陷消除，编译可过），但 `3rd/lib` 只有 x86 版
+  `lua55.lib`/`libmysql.lib`，且 `Release|x64` 与 `Release|Win32` 共用 `bin\` 输出目录
+  —— x64 链接与产物隔离尚未打通。
 - 增加任何第二模拟线程 → 世界态免锁前提瓦解，且已存在 `static` 返回值等隐性依赖。
 - 脚本包若为第三方来源 → 无沙箱 + `db_execute` 构成全域读写面。
 - `jianghudb` 列顺序一旦变更 → `verify_user` 下标映射静默错位。

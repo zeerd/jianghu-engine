@@ -134,8 +134,8 @@ protected:
         u->set_skill("force", 30);
         // 物品 move() 的重量检查上限
         u->set_max_encumbrance(1000000);
-        // 空连接：client 映射存在（has_client 为真）；serial=0 使真实投递
-        // 路径的 (CGateInfo*) 判空为安全空操作（非 0 = 解引用假指针崩溃）。
+        // 空连接：client 映射存在（has_client 为真）；句柄 0 使真实投递
+        // 路径查表落空，为安全空操作（本用例不持有任何真实连接句柄）。
         u->set_temp("client/serial", 0);
     }
 
@@ -512,7 +512,7 @@ TEST_F(CharFlushTest, SendTable_MultiRows_Frame)
 // ---------------- 真实传输层（CUser::send_command） ----------------
 // 本文件是该路径的唯一测试 owner：
 //  1) buffered 追加（wait=1 或缓冲非空合并）、
-//  2) wait=0 且缓冲空 → 立即 send_off → send_to_client(serial=0 判空)、
+//  2) wait=0 且缓冲空 → 立即 send_off → send_to_client(句柄 0 查表落空)、
 //  3) 无客户端 → has_client 早退，缓冲不动。
 TEST_F(CharFlushTest, Transport_BufferedAndImmediate)
 {
@@ -535,7 +535,7 @@ TEST_F(CharFlushTest, Transport_BufferedAndImmediate)
     EXPECT_GT(probe.buffered_len(), len_after_flush);
 
     // 3) wait=0 且缓冲空 → 立即投递：send_off 恰一次、缓冲归零。
-    //    send_to_client(serial=0) → (CGateInfo*)null → 安全空操作。
+    //    send_to_client(句柄 0) → 查表落空 → 安全空操作。
     TransportProbeUser fresh;
     fresh.set_temp("client/serial", 0);
     fresh.send_table("t", &table, 1, 1);

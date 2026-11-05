@@ -11,6 +11,7 @@
 #include "CombatCalc.h"
 #include "Char.h"
 #include "Skill.h"
+#include "test_lua_env.h"
 
 // ====================================================================
 // Test fixture: lightweight CChar with controllable properties
@@ -21,6 +22,10 @@ protected:
 
     void SetUp() override
     {
+        // 必须先起 Lua 环境再 set_skill：set_skill → load_skill 会把技能
+        // 缓存进全局 g_skill_list，无环境加载会留下未绑定脚本的僵尸技能
+        // （query_dodge_msg/query_action 恒空），毒化后续依赖脚本数据的套件
+        ensure_lua_env();
         ch = new CChar();
         ch->set("combat_exp", 100000);
         ch->set("level", 50);

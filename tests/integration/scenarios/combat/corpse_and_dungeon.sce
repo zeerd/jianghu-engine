@@ -34,15 +34,18 @@ wait text 黑风寨已清 timeout=90000
 # 0~2 拍内可能吃 1~2 击（68 点/击）——先补 2 粒回春把 hp 顶到 eff 上限
 # （N4 拆分后本道不再升级，上限为 1 级的 405、eff 342）再进；两只山贼此刻
 # 都处于与 L8 的战斗或刚脱战的 idle，L3 停留极短。
-# 每粒间 sleep 3200（use 成功分支 start_busy(2)，busy 拒后续 use 与 /go——
+# 每粒间 sleep 500 + wait not_busy（use 成功分支 start_busy，busy 拒后续 use 与 /go——
 # 旧链 3 级满血两粒都走拒绝分支不 busy，拆分后本道战后必掉血走成功分支，
-# 必须逐粒等 busy 过拍；否则第二粒被拒、回执被第一粒旧文本假匹配）
+# 必须逐粒等到真实不忙；否则第二粒被拒、回执被第一粒旧文本假匹配。
+# sleep 500 是信令间隙：回执先发、STATE 随命令末发出，跳过分段在途（§8.1））
 repeat 2
 cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
-sleep 3200
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
 end
 cmd /t 0
 cmd /look

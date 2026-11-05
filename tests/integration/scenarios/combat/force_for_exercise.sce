@@ -21,7 +21,9 @@ cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
-sleep 3200
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
 end
 
 cmd /t qing yun zi
@@ -36,7 +38,9 @@ cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
-sleep 3200
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
 end
 
 cmd /t qing yun zi
@@ -51,7 +55,9 @@ cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
-sleep 3200
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
 end
 
 cmd /t qing yun zi

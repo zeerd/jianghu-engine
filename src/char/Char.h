@@ -115,7 +115,7 @@ public:
     static int skill2level(int sk);
     static void reset_level_exp_cache();  // 重置 level_exp 缓存（供测试使用）
 
-    // 将状态标志（战斗/中毒/发呆/disabled 等）追加到 msg。
+    // 将状态标志（战斗/中毒/发呆/disabled/忙碌 等）追加到 msg。
     void get_state_msg(std::string& msg);
     // 发送角色状态包。broadcast=true 时额外广播给房间内其他玩家；
     // 非玩家对象仅在广播时发送精简包，不计算/私发完整状态。

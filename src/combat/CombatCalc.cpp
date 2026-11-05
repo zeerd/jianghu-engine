@@ -28,7 +28,7 @@ double CCombatCalc::skill_power(CChar* ob, const char* skill, int usage)
             break;
     }
 
-    int32_t combat_exp = ob->query("combat_exp");
+    mapping_value_t combat_exp = ob->query("combat_exp");
 
     if (is_user(ob) && combat_exp > 10000)
         combat_exp = 6000 + combat_exp / 2;  // 玩家的经验值只有1/2是有效的。

@@ -14,10 +14,12 @@
 #include <vector>
 #include <map>
 #include "Container.h"
+#include "Crypto.h"
 #include "IDatabase.h"
 #include "IniParser.h"
 #include "Sql.h"
 #include "mock/mock_database.h"
+#include "test_credential_sql.h"
 
 // 全局 mock 实例（测试 fixture 设置/恢复 g_db）
 static MockDatabase* s_mockDb = nullptr;
@@ -39,6 +41,42 @@ protected:
         g_db = nullptr;
         delete s_mockDb;
         s_mockDb = nullptr;
+    }
+
+    // 预置「主密码已以哈希存储」的账号行（查询三列：明文、盐、哈希）
+    void PresetHashedLoginCredential(const std::string& pass)
+    {
+        std::string salt, hash;
+        ASSERT_TRUE(make_password_credential(pass.c_str(), salt, hash));
+        s_mockDb->SetQueryResultMatching(
+            "select cc_passwd, cc_passwd_salt, cc_passwd_hash",
+            MockDatabase::MakeSingleRow({"", salt, hash}));
+    }
+
+    // 预置「主密码仍是历史明文」的账号行（哈希列为空）
+    void PresetLegacyLoginCredential(const std::string& plaintext)
+    {
+        s_mockDb->SetQueryResultMatching(
+            "select cc_passwd, cc_passwd_salt, cc_passwd_hash",
+            MockDatabase::MakeSingleRow({plaintext, "", ""}));
+    }
+
+    // 预置「暗码已以哈希存储」的账号行（查询两列：盐、哈希）
+    void PresetHashedVerifyCredential(const std::string& pass)
+    {
+        std::string salt, hash;
+        ASSERT_TRUE(make_password_credential(pass.c_str(), salt, hash));
+        s_mockDb->SetQueryResultMatching(
+            "select cc_verifypass_salt, cc_verifypass_hash",
+            MockDatabase::MakeSingleRow({salt, hash}));
+    }
+
+    // 预置「暗码仍是历史形态」的账号行（哈希列为空）
+    void PresetLegacyVerifyCredential()
+    {
+        s_mockDb->SetQueryResultMatching(
+            "select cc_verifypass_salt, cc_verifypass_hash",
+            MockDatabase::MakeSingleRow({"", ""}));
     }
 };
 
@@ -298,18 +336,21 @@ TEST_F(DbLayerTest, change_password)
 {
     EXPECT_TRUE(db_change_password("1", "newpass"));
     std::string sql = s_mockDb->GetLastSql();
-    EXPECT_NE(sql.find("cc_passwd"), std::string::npos);
-    EXPECT_NE(sql.find("newpass"), std::string::npos);
+    EXPECT_NE(sql.find("update jianghudb set cc_passwd=''"), std::string::npos)
+        << "明文列写入即清空";
+    EXPECT_TRUE(credential_sql::matches(sql, "cc_passwd", "newpass"))
+        << "落库哈希对应新口令";
+    EXPECT_EQ(sql.find("newpass"), std::string::npos) << "口令明文不得进 SQL";
 }
 
-// 写路径契约：密码先剥单引号（与登录/注册同语义），字面量再转义
-TEST_F(DbLayerTest, ChangePassword_QuoteStrippedAndEscaped)
+// 写路径契约：密码先剥单引号（与登录/注册同语义），再按规范化后的形态派生
+TEST_F(DbLayerTest, ChangePassword_QuoteStrippedBeforeHash)
 {
     EXPECT_TRUE(db_change_password("1", "a'b'c"));
     std::string sql = s_mockDb->GetLastSql();
     EXPECT_EQ(sql.find("a'b"), std::string::npos) << "裸引号不得进 SQL";
-    EXPECT_NE(sql.find("cc_passwd='abc'"), std::string::npos)
-        << "剥引号后与登录比对形态一致";
+    EXPECT_TRUE(credential_sql::matches(sql, "cc_passwd", "abc"))
+        << "剥引号后的形态才参与派生（与登录比对形态一致）";
 }
 
 TEST_F(DbLayerTest, ChangePassword_Fails)
@@ -322,17 +363,21 @@ TEST_F(DbLayerTest, change_verify_password)
 {
     EXPECT_TRUE(db_change_verify_password("1", "newpass"));
     std::string sql = s_mockDb->GetLastSql();
-    EXPECT_NE(sql.find("cc_verifypass"), std::string::npos);
-    EXPECT_NE(sql.find("OLD_PASSWORD"), std::string::npos);
+    EXPECT_NE(sql.find("update jianghudb set cc_verifypass=''"),
+              std::string::npos)
+        << "旧明文/弱哈希列写入即清空";
+    EXPECT_TRUE(credential_sql::matches(sql, "cc_verifypass", "newpass"))
+        << "落库哈希对应新暗码";
 }
 
-// 暗码写路径转义兜底：调用方（LoginAuth）已剥引号，此处保证字面量安全
-TEST_F(DbLayerTest, ChangeVerifyPassword_QuoteEscaped)
+// 暗码写路径：单引号替换为空格（与 LoginAuth 调用口径一致）后参与派生
+TEST_F(DbLayerTest, ChangeVerifyPassword_QuoteReplacedBeforeHash)
 {
     EXPECT_TRUE(db_change_verify_password("1", "x'y"));
     std::string sql = s_mockDb->GetLastSql();
     EXPECT_EQ(sql.find("x'y"), std::string::npos) << "裸引号不得进 SQL";
-    EXPECT_NE(sql.find("x''y"), std::string::npos) << "转义后入字面量";
+    EXPECT_TRUE(credential_sql::matches(sql, "cc_verifypass", "x y"))
+        << "暗码契约：单引号替换为空格后参与派生";
 }
 
 // ====================================================================
@@ -453,20 +498,49 @@ TEST(DbCoreLink, GetDbType_ReadsConfiguredType)
 
 // --- SqlAccount.cpp: db_verify_password ---
 
+// 历史形态（哈希列为空）：SQL 侧等值比对命中 → 通过并就地迁移为哈希
 TEST_F(DbLayerTest, VerifyPassword_Found)
 {
+    PresetLegacyVerifyCredential();
     DbResultSet rs = MockDatabase::MakeSingleRow({"测试用户"});
-    s_mockDb->SetQueryResult(
-        "select cc_name from jianghudb where cc_id=1 and "
-        "cc_verifypass=OLD_PASSWORD('pass')",
-        rs);
+    s_mockDb->SetQueryResultMatching("cc_verifypass=OLD_PASSWORD('pass')", rs);
+
     EXPECT_TRUE(db_verify_password("1", "pass"));
+
+    std::string sql = s_mockDb->GetLastSql();
+    EXPECT_NE(sql.find("update jianghudb set cc_verifypass=''"),
+              std::string::npos)
+        << "历史行校验通过后原地迁移，旧列清空";
+    EXPECT_TRUE(credential_sql::matches(sql, "cc_verifypass", "pass"));
 }
 
+// 哈希形态：重算派生比对，命中即通过（不再走 SQL 等值分支）
+TEST_F(DbLayerTest, VerifyPassword_HashedMatch)
+{
+    PresetHashedVerifyCredential("secret1");
+    EXPECT_TRUE(db_verify_password("1", "secret1"));
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("OLD_PASSWORD"))
+        << "哈希行不得再走历史比对";
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update")) << "哈希行无需迁移";
+}
+
+TEST_F(DbLayerTest, VerifyPassword_HashedMismatch)
+{
+    PresetHashedVerifyCredential("secret1");
+    EXPECT_FALSE(db_verify_password("1", "wrong"));
+}
+
+// 账号存在但暗码不匹配：历史比对无命中 → false
 TEST_F(DbLayerTest, VerifyPassword_EmptyResult)
 {
-    // 默认空结果 → 返回 false
+    PresetLegacyVerifyCredential();
     EXPECT_FALSE(db_verify_password("1", "wrong"));
+}
+
+// 账号不存在（首查无行）→ false
+TEST_F(DbLayerTest, VerifyPassword_NoAccountRow)
+{
+    EXPECT_FALSE(db_verify_password("9999", "pass"));
 }
 
 TEST_F(DbLayerTest, VerifyPassword_QueryFails)
@@ -475,15 +549,117 @@ TEST_F(DbLayerTest, VerifyPassword_QueryFails)
     EXPECT_FALSE(db_verify_password("1", "pass"));
 }
 
+// 暗码含单引号：替换为空格后才比对（与写入侧同口径）
 TEST_F(DbLayerTest, VerifyPassword_EscapesQuote)
 {
-    // 密码含单引号，应被替换为空格
+    PresetLegacyVerifyCredential();
     DbResultSet rs = MockDatabase::MakeSingleRow({"u"});
-    s_mockDb->SetQueryResult(
-        "select cc_name from jianghudb where cc_id=1 and "
-        "cc_verifypass=OLD_PASSWORD('a b')",
-        rs);
+    s_mockDb->SetQueryResultMatching("cc_verifypass=OLD_PASSWORD('a b')", rs);
     EXPECT_TRUE(db_verify_password("1", "a'b"));
+}
+
+// ====================================================================
+// SqlAccount.cpp: db_authenticate_account（登录口主密码校验）
+// ====================================================================
+
+// 哈希行 + 口令匹配 → 通过，且不产生任何写操作
+TEST_F(DbLayerTest, AuthenticateAccount_HashedMatch)
+{
+    PresetHashedLoginCredential("pass1234");
+    EXPECT_TRUE(db_authenticate_account("1001", "pass1234"));
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update"))
+        << "哈希行不存在迁移写";
+}
+
+TEST_F(DbLayerTest, AuthenticateAccount_HashedMismatch)
+{
+    PresetHashedLoginCredential("pass1234");
+    EXPECT_FALSE(db_authenticate_account("1001", "wrongpass"));
+}
+
+// 哈希行对规范化敏感：含引号的入参剥引号后才能命中
+TEST_F(DbLayerTest, AuthenticateAccount_NormalizesQuotesBeforeHashing)
+{
+    PresetHashedLoginCredential("abcd");
+    EXPECT_TRUE(db_authenticate_account("1001", "ab'cd"));
+    EXPECT_FALSE(db_authenticate_account("1001", "ab'cde"));
+}
+
+// 历史明文行：等值比对通过后原地迁移（明文列清空、盐与哈希写入）
+TEST_F(DbLayerTest, AuthenticateAccount_LegacyPlaintextMigrates)
+{
+    PresetLegacyLoginCredential("oldpass");
+    EXPECT_TRUE(db_authenticate_account("1001", "oldpass"));
+
+    std::string sql = s_mockDb->GetLastSql();
+    EXPECT_NE(sql.find("update jianghudb set cc_passwd=''"), std::string::npos)
+        << "迁移必须清空明文列";
+    EXPECT_TRUE(credential_sql::matches(sql, "cc_passwd", "oldpass"));
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("oldpass"))
+        << "明文只作比对来源，不回写";
+}
+
+TEST_F(DbLayerTest, AuthenticateAccount_LegacyPlaintextMismatch)
+{
+    PresetLegacyLoginCredential("oldpass");
+    EXPECT_FALSE(db_authenticate_account("1001", "wrongpass"));
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update")) << "比对不过不得迁移";
+}
+
+// 凭据两列皆空（迁移后的账号 / 从未设过口令）：空口令也不得放行——
+// 明文列迁移后恒为空串，若仍参与等值比对，空口令就能顶替真口令
+TEST_F(DbLayerTest, AuthenticateAccount_EmptyCredentialAlwaysDenied)
+{
+    PresetLegacyLoginCredential("");
+    EXPECT_FALSE(db_authenticate_account("1001", ""));
+    EXPECT_FALSE(db_authenticate_account("1001", "whatever"));
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update"));
+}
+
+// 账号不存在（首查无行）→ false，且不落任何写操作
+TEST_F(DbLayerTest, AuthenticateAccount_NoAccountRow)
+{
+    EXPECT_FALSE(db_authenticate_account("9999", "pass1234"));
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update"));
+}
+
+TEST_F(DbLayerTest, AuthenticateAccount_QueryFails)
+{
+    s_mockDb->SetShouldFail(true);
+    EXPECT_FALSE(db_authenticate_account("1001", "pass1234"));
+}
+
+// 迁移写失败不阻断登录：口令本身已验证通过，下次登录会再试一次迁移
+TEST_F(DbLayerTest, AuthenticateAccount_MigrationExecuteFailsStillPasses)
+{
+    PresetLegacyLoginCredential("oldpass");
+    s_mockDb->SetExecuteErrorCode(1);
+    EXPECT_TRUE(db_authenticate_account("1001", "oldpass"));
+    s_mockDb->SetExecuteErrorCode(0);
+}
+
+// DB 异常不得穿透到登录口：认证层自己兜住并按失败返回
+TEST_F(DbLayerTest, AuthenticateAccount_DbExceptionDoesNotEscape)
+{
+    ThrowingDatabase boom;
+    boom.throwOnQuery = true;
+    g_db              = &boom;
+
+    EXPECT_FALSE(db_authenticate_account("1001", "pass1234"));
+
+    g_db = s_mockDb;  // 恢复 fixture mock（EXPECT 非致命 → 必达）
+}
+
+// 暗码历史行迁移写失败：校验结论不变（已通过），只记日志
+TEST_F(DbLayerTest, VerifyPassword_MigrationExecuteFailsStillPasses)
+{
+    PresetLegacyVerifyCredential();
+    DbResultSet rs = MockDatabase::MakeSingleRow({"u"});
+    s_mockDb->SetQueryResultMatching("cc_verifypass=OLD_PASSWORD('pass')", rs);
+    s_mockDb->SetExecuteErrorCode(1);
+
+    EXPECT_TRUE(db_verify_password("1", "pass"));
+    s_mockDb->SetExecuteErrorCode(0);
 }
 
 // --- SqlAccount.cpp: query/execute 失败路径 ---

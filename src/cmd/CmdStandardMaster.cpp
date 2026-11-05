@@ -259,7 +259,7 @@ int CCmdStandard::teach(CChar* me, int32_t target, char* arg)
 
         skills = me->query_skills();
 
-        int pt = who->query("level") * who->query_int() / 50;
+        mapping_value_t pt = who->query("level") * who->query_int() / 50;
         if (pt <= 0) pt = 1;
 
         CVector v;
@@ -830,7 +830,7 @@ int CCmdStandard::study(CChar* me, int32_t target, char* arg)
     if (!me->can_learn(skill_name))
         return notify_fail("这项技能你永世不得修习！");
 
-    int cost = skill->query("jing_cost");
+    mapping_value_t cost = skill->query("jing_cost");
 
     cost = cost + cost * (skill->query("difficulty") - me->query_int()) / 20;
 

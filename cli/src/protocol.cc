@@ -87,7 +87,18 @@ std::string iconv_convert(const char *dst_code, const char *src_code,
 
 #endif
 
+// 通讯帧 XOR 密钥：内置默认值与服务端同源（历史硬编码值），配置留空时
+// 的回退基线。空密钥是非法态（游标会恒停在 key[0] 上越界），由
+// set_comm_key 拦截回退。
+const char kDefaultCommKey[] = "\15L\26A\18N\12W\25O\33O\6D";
+std::string g_comm_key       = kDefaultCommKey;
+
 }  // namespace
+
+void set_comm_key(const std::string &key)
+{
+    g_comm_key = key.empty() ? std::string(kDefaultCommKey) : key;
+}
 
 void dump_hex(const std::string &data, size_t offset, size_t len)
 {
@@ -244,10 +255,10 @@ std::string format_chat(int64_t uid, const std::string &content)
 
 std::string encode_str(const std::string &input)
 {
-    // XOR cipher matching server's DecodeStr (Globle.cpp:1314-1339)
-    // Key from Globle.cpp:1317: "\15L\26A\18N\12W\25O\33O\6D"
-    static const unsigned char key[] = "\15L\26A\18N\12W\25O\33O\6D";
-    static const int key_len         = strlen((const char *)key);
+    // XOR cipher matching server's DecodeStr，双向同一变换、同一密钥
+    // （密钥来源见 set_comm_key）
+    const std::string &key = g_comm_key;
+    const int key_len      = static_cast<int>(key.size());
 
     std::string result = input;
     int t              = 0;

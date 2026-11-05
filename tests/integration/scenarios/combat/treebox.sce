@@ -42,7 +42,9 @@ cmd /use
 wait text 你吃下一粒经验果 timeout=10000
 wait attr max_mp >= 100 timeout=10000
 # 经验果的 do_use 会 start_busy(2)（sample_xp.lua），后续 sneak 的 cast 准入
-# 拒 busy（CmdStandardCombat cast 入口），心跳拍计时只能等时间过拍
-sleep 3200
+# 拒 busy（CmdStandardCombat cast 入口）——必吃分支必产生 busy：wait busy
+# 收下起始 STATE（轮询容忍在途），再等结束
+wait busy timeout=5000
+wait not_busy timeout=10000
 cmd .info
 cmd /t 0

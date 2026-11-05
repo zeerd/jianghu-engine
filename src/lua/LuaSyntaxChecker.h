@@ -42,11 +42,13 @@ struct CheckLuaOptions {
 // --write-baseline   : 把发现的违规写入基线（违规不判失败；语法/require
 // 错误仍失败）
 //
-// 校验内容（四道防线，详见 LuaSyntaxChecker.cpp 文件头）：
+// 校验内容（五道防线，详见 LuaSyntaxChecker.cpp 文件头）：
 //   1. 语法          luaL_loadbuffer
 //   2. require 闭包  字面量 require("...") 须能被 package.searchers[2] 解析
 //   3. 未绑定全局    脚本读到的全局必须在 _G 或由某个脚本定义
 //   4. 未绑定方法    x:foo() 的 foo 必须在对象元表、标准库，或由某个脚本定义
+//   5. call_out 目标 延迟函数须是发起脚本返回表的字段（docs/guide/call_out.md
+//                    规则1），否则注册期按名查不到、回调挂不上
 //
 // 返回: 0=全部通过, 1=有失败
 int run_lua_checker(const char* cmdLine);

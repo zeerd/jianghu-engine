@@ -15,6 +15,7 @@
 
 #include "Encoding.h"
 #include "Container.h"
+#include "Channel.h"
 #include "Global.h"
 #include "Skill.h"
 #include "Condition.h"
@@ -39,27 +40,37 @@ CLuaEngine::CLuaEngine()
 
 CLuaEngine::~CLuaEngine() { shutdown(); }
 
-// 获取文件最后修改时间
-static time_t get_file_m_time(const char* path)
+// 获取文件最后修改时间（FILETIME，100ns 粒度）
+// 秒级 st_mtime 会让「同一秒内的第二次编辑」与上次重载记录判相等、被 mtime
+// 快筛当成没变跳过——最后一次保存恰好落在重载同秒时，改动永不生效直到再次
+// 保存。快筛两段设计（mtime 快筛 + 哈希确认）不变，只把比较精度提到文件
+// 系统原生粒度。读取失败返回 0（与任何真实 FILETIME 都不相等 → 放行哈希确认）。
+static long long get_file_m_time(const char* path)
 {
-    struct _stat64 st;
-    if (_stat64(path, &st) != 0) return 0;
-    return (time_t)st.st_mtime;
+    WIN32_FILE_ATTRIBUTE_DATA fad;
+    if (!GetFileAttributesExA(path, GetFileExInfoStandard, &fad)) return 0;
+    return (static_cast<long long>(fad.ftLastWriteTime.dwHighDateTime) << 32)
+           | static_cast<long long>(fad.ftLastWriteTime.dwLowDateTime);
 }
 
-// 清空 package.loaded 全部模块缓存，使重载后的脚本 require 到全新加载的版本。
-// 用于"全部重载"：直接新建空表替换 loaded，简单彻底，名副其实的全部刷新。
+// 清空 require 的模块缓存，使重载后的脚本 require 到全新加载的版本。
+// 用于"全部重载"。require 的缓存读写走 registry["_LOADED"]（luaopen_package
+// 初始把 package.loaded 与它指成同一张表）——只把 package.loaded 字段重绑
+// 新表，require 会继续在旧表上命中启动时的缓存，「reload all 换掉共享模块」
+// 就永远不生效。故两张引用一起换到同一张新表，保持身份一致。
 static void clear_loaded_shared_scripts(lua_State* L)
 {
     if (!L) return;
-    lua_getglobal(L, "package");  // stack: package
-    if (!lua_istable(L, -1)) {
-        lua_pop(L, 1);
-        return;
+    lua_newtable(L);  // 新缓存表；stack: new
+    lua_pushvalue(L, -1);
+    lua_setfield(L, LUA_REGISTRYINDEX, "_LOADED");  // require 读这里
+    lua_getglobal(L, "package");                    // stack: new, package
+    if (lua_istable(L, -1)) {
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, "loaded");  // 脚本读 package.loaded 这里
+        lua_pop(L, 1);                  // stack: new
     }
-    lua_newtable(L);                // stack: package, {}
-    lua_setfield(L, -2, "loaded");  // package.loaded = {}; stack: package
-    lua_pop(L, 1);                  // stack: (empty)
+    lua_pop(L, 1);  // stack: (empty)
 }
 
 // 计算文件内容哈希（用于热重载检测，比 mtime 更可靠）
@@ -270,9 +281,13 @@ std::string CLuaEngine::get_script_path(const char* name, LuaScriptType type)
 // 仅异常路径调用，正常加载零开销。
 void CLuaEngine::dump_caller_info(const char* what)
 {
-    LOG_ERROR("=========================================================");
-    LOG_ERROR("========== BACKTRACE  context: [%s] ==========", what);
-    LOG_ERROR("=========================================================");
+    // 回溯是错误的**上下文**而非错误本身：真正的错误已由各失败分支的
+    // 锚点行（脚本名 + 原因）以 ERROR 上报，这里整体降为 INFO——否则
+    // 一次语法错误会产出十几条泛化 ERROR（分隔线 / 栈帧前缀），白名单
+    // 只能靠登记这类泛化签名来过闸，会把未来真异常一并遮蔽。
+    LOG_INFO("=========================================================");
+    LOG_INFO("========== BACKTRACE  context: [%s] ==========", what);
+    LOG_INFO("=========================================================");
 
     // ---- 1. Lua 调用栈（从内向外，最多 8 层）----
     bool luaPrinted = false;
@@ -284,14 +299,14 @@ void CLuaEngine::dump_caller_info(const char* what)
             lua_getinfo(m_state, "Sln", &ar);
             if (!ar.short_src) break;
             luaPrinted = true;
-            LOG_ERROR("  [lua  #%d] %s:%d in %s()", level, ar.short_src,
-                      ar.currentline,
-                      (ar.name && ar.name[0]) ? ar.name : "<anonymous>");
+            LOG_INFO("  [lua  #%d] %s:%d in %s()", level, ar.short_src,
+                     ar.currentline,
+                     (ar.name && ar.name[0]) ? ar.name : "<anonymous>");
         }
     }
     // Lua 栈为空 = 从纯 C++ 上下文（登录/restore/建 NPC）触发，明确提示
     if (!luaPrinted)
-        LOG_ERROR(
+        LOG_INFO(
             "  [lua   --] <no lua stack frame, called from pure C++ "
             "context>");
 
@@ -299,9 +314,9 @@ void CLuaEngine::dump_caller_info(const char* what)
     void* frames[8];
     int n = (int)CaptureStackBackTrace(1, 8, frames, NULL);
     if (n <= 0) {
-        LOG_ERROR("  [cpp   --] CaptureStackBackTrace failed (err=%lu)",
-                  GetLastError());
-        LOG_ERROR("=========================================================");
+        LOG_INFO("  [cpp   --] CaptureStackBackTrace failed (err=%lu)",
+                 GetLastError());
+        LOG_INFO("=========================================================");
         return;
     }
 
@@ -332,8 +347,8 @@ void CLuaEngine::dump_caller_info(const char* what)
         DWORD64 disp         = 0;
         if (!SymFromAddr(hProc, (DWORD64)frames[i], &disp, &sb.info)) {
             // 符号解析失败时仍输出原始地址（可配合 map 文件离线解析）
-            LOG_ERROR("  [cpp  #%d] <unresolved> addr=%p (err=%lu)", i + 1,
-                      frames[i], GetLastError());
+            LOG_INFO("  [cpp  #%d] <unresolved> addr=%p (err=%lu)", i + 1,
+                     frames[i], GetLastError());
             continue;
         }
         char undec[512];
@@ -341,11 +356,11 @@ void CLuaEngine::dump_caller_info(const char* what)
             strncpy_s(undec, sizeof(undec), sb.info.Name, _TRUNCATE);
         // 只保留模块名+函数名的可读部分：去掉路径前缀
         const char* slash = strrchr(undec, '\\');
-        LOG_ERROR("  [cpp  #%d] %s", i + 1, slash ? slash + 1 : undec);
+        LOG_INFO("  [cpp  #%d] %s", i + 1, slash ? slash + 1 : undec);
     }
     // 注意：不在这里调用 SymCleanup，因为 SymInitialize(TRUE) 加载的
     // 模块符号是全局共享的，Cleanup 会释放它们影响后续调用。
-    LOG_ERROR("=========================================================");
+    LOG_INFO("=========================================================");
 }
 
 // 递归扫描脚本目录树，建立 文件名 -> 完整路径 映射
@@ -742,8 +757,10 @@ void CLuaEngine::record_script_load_failure(const std::string& compositeKey,
     m_scripts[compositeKey] = script;
 }
 
-int CLuaEngine::reload_script(const char* compositeKey)
+int CLuaEngine::reload_script(const char* compositeKey, bool* reloaded)
 {
+    if (reloaded) *reloaded = false;
+
     // compositeKey 格式："type_dir/bareName"（如 "item/hammer"）
     std::map<std::string, LuaScript>::iterator it
         = m_scripts.find(compositeKey);
@@ -765,8 +782,8 @@ int CLuaEngine::reload_script(const char* compositeKey)
         script.errorTime = time(NULL);
         LOG_ERROR(
             "Lua reload loadfile failed [%s] (keep old version, ref=%d, "
-            "mtime=%ld, hash=%lu, in_tree=%s): cannot read file",
-            bareName, (int)script.ref, (long)script.mtime,
+            "mtime=%lld, hash=%lu, in_tree=%s): cannot read file",
+            bareName, (int)script.ref, (long long)script.mtime,
             (unsigned long)script.contentHash,
             m_script_map.count(compositeKey) ? "YES" : "NO");
         dump_caller_info(bareName);
@@ -785,8 +802,8 @@ int CLuaEngine::reload_script(const char* compositeKey)
         // 诊断信息：保留版本引用、文件时间戳、hash、名字是否在扫描树中
         LOG_ERROR(
             "Lua reload loadfile failed [%s] (keep old version, ref=%d, "
-            "mtime=%ld, hash=%lu, in_tree=%s): %s",
-            bareName, (int)script.ref, (long)script.mtime,
+            "mtime=%lld, hash=%lu, in_tree=%s): %s",
+            bareName, (int)script.ref, (long long)script.mtime,
             (unsigned long)script.contentHash,
             m_script_map.count(compositeKey) ? "YES" : "NO",
             err ? err : "unknown");
@@ -832,27 +849,32 @@ int CLuaEngine::reload_script(const char* compositeKey)
     script.loaded      = true;
     script.hasError    = false;
     script.errorMsg.clear();
+    if (reloaded) *reloaded = true;
 
     return script.ref;
 }
 
 // 按 bareName 搜索并重载所有匹配的脚本（供 wizard reload 命令调用）
-// 复合 key 格式 "type_dir/bareName"，遍历 m_scripts 匹配 bareName 部分
-int CLuaEngine::reload_script_by_name(const char* bareName)
+// 复合 key 格式 "type_dir/bareName"，遍历 m_scripts 匹配 bareName 部分。
+// 返回是否有条目重载成功：回执如实上报靠它，不以 ref 真值代替成败
+// （失败保留的旧 ref ≥0 恒为真，会把失败谎报成成功）。
+bool CLuaEngine::reload_script_by_name(const char* bareName)
 {
-    if (!bareName || !bareName[0]) return LUA_NOREF;
+    if (!bareName || !bareName[0]) return false;
 
-    int lastRef = LUA_NOREF;
+    bool any_reloaded = false;
     std::map<std::string, LuaScript>::iterator it;
     for (it = m_scripts.begin(); it != m_scripts.end(); it++) {
         const char* key   = it->first.c_str();
         const char* slash = strchr(key, '/');
         const char* name  = slash ? slash + 1 : key;
         if (strcmp(name, bareName) == 0) {
-            lastRef = reload_script(it->first.c_str());
+            bool ok = false;
+            reload_script(it->first.c_str(), &ok);
+            if (ok) any_reloaded = true;
         }
     }
-    return lastRef;
+    return any_reloaded;
 }
 
 LuaScript* CLuaEngine::get_script(const char* name, LuaScriptType type)
@@ -864,7 +886,7 @@ LuaScript* CLuaEngine::get_script(const char* name, LuaScriptType type)
     return &it->second;
 }
 
-void CLuaEngine::reload_all_scripts()
+int CLuaEngine::reload_all_scripts()
 {
     // 全部重载前，清空 package.loaded 全部模块缓存，使重载后的脚本 require
     // 到全新版本。 仅在"全部重载"时清除，不影响单个 reload
@@ -872,10 +894,18 @@ void CLuaEngine::reload_all_scripts()
     clear_loaded_shared_scripts(m_state);
 
     // 遍历所有已加载脚本并重载（跳过来自默认目录的脚本）
+    int failed = 0;
     std::map<std::string, LuaScript>::iterator it;
     for (it = m_scripts.begin(); it != m_scripts.end(); it++) {
         if (it->second.fromDefault) continue;  // 默认脚本不重载
-        reload_script(it->first.c_str());
+        bool ok = false;
+        reload_script(it->first.c_str(), &ok);
+        // 失败条目不通知实例：旧 ref 原地保留，通知只会让实例拿旧版本
+        // 白白重建一次（create 副作用重复执行）
+        if (!ok) {
+            failed++;
+            continue;
+        }
         // 从复合 key 提取 bareName 用于通知（实例注册表用 bareName 匹配）
         const char* compositeKey = it->first.c_str();
         const char* slash        = strchr(compositeKey, '/');
@@ -887,6 +917,33 @@ void CLuaEngine::reload_all_scripts()
 
     // 房间脚本重载后可能改变中文地名，刷新索引
     load_room_index();
+    return failed;
+}
+
+// 摘除脚本对应的状态缓存：技能与 condition 对象各自缓存着脚本引用，脚本
+// 换新后必须一并摘除，下次使用按新脚本重建。手动 reload 与自动重载共用此
+// 出口——两条路径语义必须一致（旧实现只有手动路径摘，自动重载后
+// CSkill/CCondition 仍持旧引用，改 skill 脚本行为不生效）。
+static void release_script_state_caches(const char* bareName)
+{
+    skill_release_one(bareName);
+    extern MAP2CND g_condition_list;
+    iterator_condition pc = g_condition_list.find(bareName);
+    if (pc != g_condition_list.end()) {
+        delete pc->second;
+        g_condition_list.erase(pc);
+    }
+}
+
+// 自动重载结果广播到 sys 频道（wiz_only：仅巫师可见）。
+// 自动重载没有操作者，游戏内巫师是「重载发生没发生、成没成功」的唯一
+// 知情渠道——只写服务端日志的话，改了脚本的人在游戏内分不清
+// 「没重载」与「重载了没生效」。
+static void broadcast_auto_reload(const char* text, const char* bareName)
+{
+    char msg[256];
+    snprintf(msg, sizeof(msg), "%s%s", text, bareName);
+    g_channel.do_channel(&g_channel, 0, "sys", msg);
 }
 
 // 检查所有已加载脚本是否有变化，自动重载（供心跳调用）
@@ -905,26 +962,36 @@ int CLuaEngine::check_for_reload()
         if (script.fromDefault) continue;
 
         // 快速过滤：mtime 没变则文件肯定没变（不读文件，开销极小）
-        time_t mtime = get_file_m_time(script.file.c_str());
+        long long mtime = get_file_m_time(script.file.c_str());
         if (mtime == script.mtime) continue;
 
         // mtime 变化，读内容算哈希确认（避免 mtime 精度导致的误判）
         unsigned long hash = get_file_hash(script.file.c_str());
         if (hash != script.contentHash) {
-            // 文件内容确实变化，重载
-            int newRef = reload_script(it->first.c_str());
-            if (newRef != LUA_NOREF) {
-                // 从复合 key 提取 bareName 用于日志和通知
-                const char* compositeKey = it->first.c_str();
-                const char* slash        = strchr(compositeKey, '/');
-                const char* bareName     = slash ? slash + 1 : compositeKey;
+            // 从复合 key 提取 bareName 用于日志和广播
+            const char* compositeKey = it->first.c_str();
+            const char* slash        = strchr(compositeKey, '/');
+            const char* bareName     = slash ? slash + 1 : compositeKey;
+
+            // 失败沿错误状态转换只广播一次：坏文件会每 5s 重试到修好为止，
+            // 每次重试都广播会把 sys 频道刷成噪音
+            const bool was_error = script.hasError;
+            bool ok              = false;
+            reload_script(compositeKey, &ok);
+            if (ok) {
                 LOG_INFO("Lua auto-reload: %s", bareName);
                 // 通知所有使用此脚本的已有实例刷新 m_scriptRef + 调 Lua
                 // reload()
                 lua_npc_notify_reload(bareName);
                 lua_item_notify_reload(bareName);
                 lua_room_notify_reload(bareName);
+                release_script_state_caches(bareName);
                 reloaded++;
+                broadcast_auto_reload("Lua 脚本自动重载完成：", bareName);
+            }
+            else if (!was_error) {
+                broadcast_auto_reload("Lua 脚本自动重载失败，保留旧版本：",
+                                      bareName);
             }
         }
         else {
@@ -1291,6 +1358,69 @@ bool CLuaEngine::get_emote_map(
     return true;
 }
 
+// 专用：获取扩展频道配置（channel_config.lua，可选数据脚本）
+// 遍历 频道名 -> { field -> 值 }，填入 out。值统一收成字符串：Lua 数字经
+// lua_tostring 归一，布尔收成 "1"/"0"；数值/布尔语义由调用方
+// （ChatChannel）按字段白名单解释，本层只负责搬运。
+bool CLuaEngine::get_channel_config(
+    std::map<std::string, std::map<std::string, std::string>>& out)
+{
+    out.clear();
+    if (!m_state) return false;
+
+    // 可选配置：文件缺失 = 数据集未配置扩展频道（引擎默认不带本文件，
+    // 扩展频道属数据集内容），不算加载错误
+    if (!script_exists("channel_config", LUA_SCRIPT_DATA)) {
+        LOG_INFO(
+            "GetChannelConfig: optional data script 'channel_config' not "
+            "provided, extension channels will not be registered");
+        return true;
+    }
+
+    int ref = load_data_script_internal("channel_config");
+    if (ref == LUA_NOREF) {
+        LOG_ERROR(
+            "GetChannelConfig: Failed to load data script 'channel_config'");
+        return false;
+    }
+
+    lua_rawgeti(m_state, LUA_REGISTRYINDEX, ref);
+    if (!lua_istable(m_state, -1)) {
+        lua_pop(m_state, 1);
+        LOG_ERROR("GetChannelConfig: 'channel_config' did not return a table");
+        return false;
+    }
+
+    int channelCount = 0;
+    lua_pushnil(m_state);
+    while (lua_next(m_state, -2)) {
+        // key(channel) at -2, value(subtable) at -1
+        if (lua_isstring(m_state, -2) && lua_istable(m_state, -1)) {
+            const char* channel = lua_tostring(m_state, -2);
+            std::map<std::string, std::string>& fields = out[channel];
+            lua_pushnil(m_state);
+            while (lua_next(m_state, -2)) {
+                if (lua_isstring(m_state, -2)) {
+                    const char* field = lua_tostring(m_state, -2);
+                    if (lua_isboolean(m_state, -1))
+                        fields[field] = lua_toboolean(m_state, -1) ? "1" : "0";
+                    else if (lua_isstring(m_state, -1))
+                        fields[field] = lua_tostring(m_state, -1);
+                    // 其余类型（table/function）无标量语义，跳过
+                }
+                lua_pop(m_state, 1);  // pop value, keep key
+            }
+            channelCount++;
+        }
+        lua_pop(m_state, 1);  // pop subtable, keep channel
+    }
+    lua_pop(m_state, 1);  // pop top table
+
+    LOG_DEBUG("GetChannelConfig: loaded %d channels from 'channel_config.lua'",
+              channelCount);
+    return true;
+}
+
 // 专用：获取公告列表（内部调用 LoadDataScript("bullet") 解析 bullet_lines）
 bool CLuaEngine::get_bullet_lines(std::vector<std::string>& out)
 {
@@ -1299,48 +1429,37 @@ bool CLuaEngine::get_bullet_lines(std::vector<std::string>& out)
 
 // 手动重载单个脚本（供 reload 命令调用）
 // bareName: 脚本文件名（不含 .lua），如 "hammer"
-// 搜索所有匹配的复合 key（如 "item/hammer"、"skill/hammer"）并逐个重载
-int lua_reload_script(const char* name)
+// 搜索所有匹配的复合 key（如 "item/hammer"、"skill/hammer"）并逐个重载。
+// 返回是否重载成功——供回执如实上报；只在成功时通知实例与清理缓存，
+// 失败时旧版本原地不动，通知只会让实例拿旧版本白白重建。
+bool lua_reload_script(const char* name)
 {
-    if (!name || !name[0]) return 0;
+    if (!name || !name[0]) return false;
 
-    int ret = g_LuaEngine->reload_script_by_name(name);
-    if (ret != LUA_NOREF) {
+    bool ok = g_LuaEngine->reload_script_by_name(name);
+    if (ok) {
         // 通知所有使用此脚本的已有实例刷新
         lua_npc_notify_reload(name);
         lua_item_notify_reload(name);
         lua_room_notify_reload(name);
 
-        // 重载成功后，从技能缓存中移除对应技能，下次 load_skill 会重新创建
-        // （应用新的脚本内容，如名字、法术等）
-        // 连带摘除继承自它的技能：继承项的归属指针指向基础技能，
-        // 基础技能被销毁后继承者必须一起重建，否则归属指针悬垂
-        skill_release_one(name);
-        // condition 缓存同样清理，下次 load_condition 会重新创建 CLuaCondition
-        extern MAP2CND g_condition_list;
-        iterator_condition pc = g_condition_list.find(name);
-        if (pc != g_condition_list.end()) {
-            delete pc->second;
-            g_condition_list.erase(pc);
-        }
+        // 状态缓存与自动重载共用同一摘除出口（技能/condition 持旧脚本引用
+        // 会导致改了脚本行为不生效）；连带摘除继承技能防归属指针悬垂
+        release_script_state_caches(name);
+
+        // 单个 reload 也可能换掉房间脚本的中文地名：reload all 与自动重载
+        // 成功后都会重建索引，手动单发同样要建——否则改了 name 后
+        // load_room 仍按旧名解析（陈旧到下一次全量/自动重载）。
+        g_LuaEngine->load_room_index();
     }
-    return ret;
+    return ok;
 }
 
 // 重载所有已加载脚本（供 reload all 命令调用）
-void lua_reload_all()
+// 返回重载失败的条目数（0 = 全部成功），供回执如实上报部分失败
+int lua_reload_all()
 {
-    // 遍历所有已加载脚本并重载
-    // 通过重新加载每个脚本实现
-    // 简化实现：遍历 m_scripts 并逐个 ReloadScript
-    // 由于 m_scripts 是 private，这里通过公开接口处理
-    // 这里用一个简单方案：遍历所有脚本名
-    // 实际实现依赖 CLuaEngine 提供遍历接口
-    // 为 PoC 简化，这里只重载通过 LoadScript 加载的脚本
-    // 通过重新调用 ReloadScript 实现
-    // 由于无法直接访问 m_scripts，这里留空，由 CLuaEngine 提供方法
-    // 见 CLuaEngine::ReloadAllScripts()
-    g_LuaEngine->reload_all_scripts();
+    int failed = g_LuaEngine->reload_all_scripts();
 
     // 重载所有技能后，清空技能缓存，下次 load_skill 会重新创建
     extern MAP2SKILL g_skill_list;
@@ -1359,11 +1478,29 @@ void lua_reload_all()
     // command/*.lua 经 require 缓存于 package.loaded（已随全部重载清空），
     // 分发器另有一层已解析命令缓存，不同步丢弃则新脚本内容不生效
     lua_commands_flush(g_LuaEngine->get_state());
+    return failed;
+}
+
+// 按名查脚本表里的函数（lua_getfield 走 __index 继承链，与执行期查法一致）
+static bool script_table_has_func(lua_State* L, int scriptRef,
+                                  const char* funcName)
+{
+    bool found = false;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, scriptRef);
+    if (lua_istable(L, -1)) {
+        lua_getfield(L, -1, funcName);
+        found = lua_isfunction(L, -1);
+        lua_pop(L, 1);  // 弹出函数字段
+    }
+    lua_pop(L, 1);  // 弹出脚本表
+    return found;
 }
 
 // 注册一个 Lua 延迟回调（owner 是发起 call_out 的对象，回调归属它）
-// 按名注册：当场在解析表里查一次函数，缺失立即报错并拒绝注册——
-// 执行期（延迟 delay 秒后）的“func not found”离因太远，此处是最近暴露点
+// 按名注册：先查 owner 自己的脚本表；查不到时回退到当前执行脚本——
+// 回调函数属于发起 call_out 的脚本（效果/技能作者写的代码），对象只是效果
+// 作用的目标，同一份效果代码因此对玩家与脚本 NPC 都能按名注册。
+// 两处都没有才报错并拒绝注册（错误在离因最近处暴露）。
 // 返回回调 ID（作为 call_out 的 param1 传递），-1 表示失败
 int CLuaEngine::register_callout(CContainer* owner, int scriptRef,
                                  const char* funcName, int32_t userParam1,
@@ -1373,20 +1510,18 @@ int CLuaEngine::register_callout(CContainer* owner, int scriptRef,
         || !funcName[0])
         return -1;
 
-    lua_rawgeti(m_state, LUA_REGISTRYINDEX, scriptRef);
-    bool found = false;
-    if (lua_istable(m_state, -1)) {
-        lua_getfield(m_state, -1, funcName);
-        found = lua_isfunction(m_state, -1);
-        lua_pop(m_state, 1);  // 弹出函数字段
-    }
-    lua_pop(m_state, 1);  // 弹出脚本表
-    if (!found) {
-        LOG_ERROR("call_out: func '%s' not found in script (owner=%s id=%ld)",
-                  funcName, owner->name(1), owner->object_id());
-        std::string ctx = std::string("call_out: ") + funcName;
-        dump_caller_info(ctx.c_str());
-        return -1;
+    if (!script_table_has_func(m_state, scriptRef, funcName)) {
+        const int active = get_active_script_ref();
+        if (active == LUA_NOREF || active == scriptRef
+            || !script_table_has_func(m_state, active, funcName)) {
+            LOG_ERROR(
+                "call_out: func '%s' not found in script (owner=%s id=%ld)",
+                funcName, owner->name(1), owner->object_id());
+            std::string ctx = std::string("call_out: ") + funcName;
+            dump_caller_info(ctx.c_str());
+            return -1;
+        }
+        scriptRef = active;
     }
 
     int32_t id = m_next_callout_id++;

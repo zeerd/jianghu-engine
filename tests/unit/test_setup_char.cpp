@@ -45,7 +45,7 @@ protected:
         ApplyConfig(force_add_hp);
         CChar* me = MakeHuman();
         setup_char(me);
-        long max_hp = me->query("max_hp");
+        mapping_value_t max_hp = me->query("max_hp");
         delete me;
         return max_hp;
     }
@@ -83,7 +83,7 @@ TEST_F(SetupCharTest, Beast_RaceDispatch_FillsUnitAttrsAndAgeLadder)
 
     EXPECT_STREQ(me->querystr("unit"), "只");
 
-    const long age = me->query("age");
+    const mapping_value_t age = me->query("age");
     EXPECT_GE(age, 5);
     EXPECT_LE(age, 44);
     for (const char* key : {"str", "int", "per", "con", "dex"}) {

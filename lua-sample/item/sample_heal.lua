@@ -31,7 +31,9 @@ return {
         me:receive_curing("hp", heal_amount)
         me:FlushMyInfo()
         message_vision("$N吃下一包金创药，气色看起来好多了。", me)
-        me:start_busy(2)
+        -- 正式的游戏数据集通常会使用一个1~3的随机数来决定忙碌时间，
+        -- 避免玩家在战斗中连续使用药品
+        me:start_busy(1)
         destruct(self)
 
         return 1

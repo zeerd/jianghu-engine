@@ -9,10 +9,17 @@
 //     但加载失败（语法错等）仍按错误路径返回 false。
 //   - get_ban_words：聊天禁词表 chanbanword 属可选配置，缺失时按空词表
 //     处理（禁词过滤不生效），不作为启动错误。
+//   - get_channel_config：扩展频道表 channel_config 属可选配置，缺失时
+//     out 清空返回 true（扩展频道不注册），不写 ERROR、不写 BACKTRACE；
+//     存在时按 频道名 -> { field -> 值 } 读出，值恒为字符串（Lua 数字
+//     归一为 "1" 这类文本，布尔归一为 "1"/"0"）。文件属数据集内容：
+//     夹具在 tests/unit/lua-tests/data/，引擎默认 lua-default 不带。
 //
 #include "pch.h"
 
 #include <cstdio>
+#include <filesystem>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -28,6 +35,11 @@ const char* kOptionalAbsent = "data_optional_absent_zzz";
 const char* kBanWordsFixture = "tests/unit/lua-tests/data/chanbanword.lua";
 const char* kBanWordsFixtureOff
     = "tests/unit/lua-tests/data/chanbanword.lua.disabled";
+
+const char* kChannelConfigFixture
+    = "tests/unit/lua-tests/data/channel_config.lua";
+const char* kChannelConfigFixtureOff
+    = "tests/unit/lua-tests/data/channel_config.lua.disabled";
 
 }  // namespace
 
@@ -120,4 +132,59 @@ TEST_F(LuaDataScriptTest, BanWordsWithoutConfigScriptYieldsEmptyTable)
         << "禁词表缺失不应写 ERROR";
     EXPECT_EQ(count_log_hits(bt_needle), bt_before)
         << "禁词表缺失不应写 BACKTRACE";
+}
+
+TEST_F(LuaDataScriptTest, ChannelConfigPresentLoadsExtChannels)
+{
+    std::map<std::string, std::map<std::string, std::string>> cfg;
+    ASSERT_TRUE(g_LuaEngine->get_channel_config(cfg))
+        << "数据集夹具 channel_config 必须可读";
+
+    // f1-f4 + answer 5 个扩展频道，键齐全
+    EXPECT_EQ(cfg.size(), 5u);
+    for (const char* name : {"f1", "f2", "f3", "f4", "answer"})
+        EXPECT_EQ(cfg.count(name), 1u) << "缺少扩展频道: " << name;
+
+    // 字段值原样搬运；数值字段在此层归一为字符串（整数化在 ChatChannel）
+    EXPECT_EQ(cfg["answer"]["msg_speak"], "$YEL【考试】%s: %s");
+    EXPECT_EQ(cfg["f1"]["newbie"], "1");
+    EXPECT_EQ(cfg["f1"]["channel"], "f1");
+}
+
+TEST_F(LuaDataScriptTest, ChannelConfigMissingYieldsEmptyNoError)
+{
+    const char* err_needle
+        = "GetChannelConfig: Failed to load data script 'channel_config'";
+    const char* bt_needle = "BACKTRACE  context: [channel_config]";
+
+    ASSERT_EQ(rename(kChannelConfigFixture, kChannelConfigFixtureOff), 0)
+        << "夹具改名失败（文件不存在？）";
+
+    const int err_before = count_log_hits(err_needle);
+    const int bt_before  = count_log_hits(bt_needle);
+
+    std::map<std::string, std::map<std::string, std::string>> cfg;
+    cfg["stale"]["msg_speak"] = "脏数据";
+    const bool ok             = g_LuaEngine->get_channel_config(cfg);
+    const bool empty          = cfg.empty();
+    const int err_after       = count_log_hits(err_needle);
+    const int bt_after        = count_log_hits(bt_needle);
+
+    // 夹具必须复原：断言放在复原之后，避免失败路径污染仓库
+    EXPECT_EQ(rename(kChannelConfigFixtureOff, kChannelConfigFixture), 0)
+        << "夹具必须复原";
+
+    EXPECT_TRUE(ok) << "扩展频道缺失 = 未配置，不是加载失败";
+    EXPECT_TRUE(empty) << "未配置时必须清空输出";
+    EXPECT_EQ(err_after, err_before) << "channel_config 缺失不应写 ERROR";
+    EXPECT_EQ(bt_after, bt_before) << "channel_config 缺失不应写 BACKTRACE";
+}
+
+// 契约：扩展频道属数据集内容——引擎默认（lua-default）不带
+// channel_config.lua，裸装引擎只有 10 个机制频道；扩展频道由各数据集
+// 自带本文件提供（缺失分支见 ChannelConfigMissingYieldsEmptyNoError）
+TEST_F(LuaDataScriptTest, DefaultScriptRootHasNoChannelConfig)
+{
+    EXPECT_FALSE(std::filesystem::exists("lua-default/data/channel_config.lua"))
+        << "扩展频道属数据集，引擎默认不得自带 channel_config.lua";
 }

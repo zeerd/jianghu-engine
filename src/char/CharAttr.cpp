@@ -125,7 +125,7 @@ void CChar::add_balance(int32_t val)
         add("balance", val);
     }
     else {
-        if (query("balance") < LONGMAX - val) {
+        if (query("balance") < MAPPING_VALUE_MAX - val) {
             add("balance", val);
         }
         else {

@@ -265,10 +265,95 @@ TEST_F(SqliteIntegrationTest, AccountRegistrationAndPasswordRoundTrip)
 
     ASSERT_TRUE(db_change_password(sid.c_str(), "newpass1"));
 
-    // SQLite 分支：cc_verifypass 明文存取并等值比较（无 OLD_PASSWORD）
+    // 暗码同样以盐+哈希落库；历史明文行在校验通过时迁移（无 OLD_PASSWORD）
     ASSERT_TRUE(db_change_verify_password(sid.c_str(), "secret"));
     EXPECT_TRUE(db_verify_password(sid.c_str(), "secret"));
     EXPECT_FALSE(db_verify_password(sid.c_str(), "wrong"));
+}
+
+// 主密码：注册即哈希落库，登录校验走哈希分支，改密后旧口令立即失效
+TEST_F(SqliteIntegrationTest, AuthenticateAccountHashRoundTrip)
+{
+    ASSERT_TRUE(prepare_tables());
+
+    char err[256] = "";
+    long id = db_register_account("张三", "pass1234", "zhangsan@example.com",
+                                  "男性", 21, 21, 21, 21, err, sizeof(err));
+    ASSERT_EQ(id, 1000) << err;
+    const std::string sid = std::to_string(id);
+
+    DbResultSet rs;
+    ASSERT_EQ(0, db->query(("select cc_passwd, cc_passwd_hash from jianghudb "
+                            "where cc_id="
+                            + sid)
+                               .c_str(),
+                           rs))
+        << db->error();
+    ASSERT_EQ(rs.size(), 1);
+    EXPECT_TRUE(rs.rows[0][0].empty()) << "明文列不写值";
+    EXPECT_FALSE(rs.rows[0][1].empty()) << "注册即写入哈希";
+
+    EXPECT_TRUE(db_authenticate_account(sid.c_str(), "pass1234"));
+    EXPECT_FALSE(db_authenticate_account(sid.c_str(), "wrongpass"));
+
+    ASSERT_TRUE(db_change_password(sid.c_str(), "newpass1"));
+    EXPECT_TRUE(db_authenticate_account(sid.c_str(), "newpass1"));
+    EXPECT_FALSE(db_authenticate_account(sid.c_str(), "pass1234"))
+        << "改密后旧口令必须失效";
+}
+
+// 历史明文行：首次校验通过后原地迁移（明文列清空、盐与哈希写入），
+// 迁移后空口令不得再放行
+TEST_F(SqliteIntegrationTest, LegacyPlaintextMigratesOnFirstLogin)
+{
+    ASSERT_TRUE(prepare_tables());
+    ASSERT_EQ(0, db->execute("insert into jianghudb (cc_id, cc_name, "
+                             "cc_passwd) values (42, '老号', 'legacy1')"));
+
+    EXPECT_TRUE(db_authenticate_account("42", "legacy1"));
+    EXPECT_FALSE(db_authenticate_account("42", "wrong"));
+
+    DbResultSet rs;
+    ASSERT_EQ(0, db->query("select cc_passwd, cc_passwd_salt, "
+                           "cc_passwd_hash from jianghudb where cc_id=42",
+                           rs))
+        << db->error();
+    ASSERT_EQ(rs.size(), 1);
+    EXPECT_TRUE(rs.rows[0][0].empty()) << "迁移后明文列清空";
+    EXPECT_FALSE(rs.rows[0][1].empty());
+    EXPECT_FALSE(rs.rows[0][2].empty());
+
+    EXPECT_TRUE(db_authenticate_account("42", "legacy1")) << "迁移后照常登录";
+    EXPECT_FALSE(db_authenticate_account("42", ""))
+        << "空口令不得顶替真口令（明文列已为空）";
+}
+
+// 暗码：历史行迁移 + 「空暗码校验」语义（未设暗码的账号空入参通过）
+TEST_F(SqliteIntegrationTest, LegacyVerifyPasswordMigratesAndKeepsEmptyCheck)
+{
+    ASSERT_TRUE(prepare_tables());
+    ASSERT_EQ(0, db->execute("insert into jianghudb (cc_id, cc_name, "
+                             "cc_verifypass) values (43, '暗码号', "
+                             "'legacysecret')"));
+
+    EXPECT_TRUE(db_verify_password("43", "legacysecret"));
+    EXPECT_FALSE(db_verify_password("43", "wrong"));
+
+    DbResultSet rs;
+    ASSERT_EQ(0, db->query("select cc_verifypass, cc_verifypass_salt, "
+                           "cc_verifypass_hash from jianghudb where cc_id=43",
+                           rs))
+        << db->error();
+    ASSERT_EQ(rs.size(), 1);
+    EXPECT_TRUE(rs.rows[0][0].empty()) << "迁移后旧列清空";
+    EXPECT_FALSE(rs.rows[0][1].empty());
+    EXPECT_FALSE(rs.rows[0][2].empty());
+
+    // 未设置暗码的账号：空入参通过（新号首次设暗码前的口令确认依赖它）
+    ASSERT_EQ(0, db->execute("insert into jianghudb (cc_id, cc_name) "
+                             "values (44, '无暗码')"));
+    EXPECT_TRUE(db_verify_password("44", ""));
+    EXPECT_FALSE(db_verify_password("44", "anything"));
 }
 
 TEST_F(SqliteIntegrationTest, RecruitRoundTrip)

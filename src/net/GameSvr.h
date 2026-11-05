@@ -7,6 +7,7 @@
 #pragma once
 #include <list>
 #include <mutex>
+#include "ConnectionHandleManager.h"
 #include "ServerSockHandler.h"
 #include "queue.h"
 
@@ -88,7 +89,7 @@ class CGateInfo {
 public:
     SOCKET m_sock;
 
-    LONG m_do_sending;  // 0/1 atomic send channel (only one outstanding send at
+    long m_do_sending;  // 0/1 atomic send channel (only one outstanding send at
                         // a time)
     CWHQueue m_send_buff_q;
     CWHQueue m_recv_buff_q;
@@ -96,7 +97,11 @@ public:
     int32_t m_player;  // 玩家OBJECTID，未登录时为0
     int32_t m_login;   // login state machine: 0 not logged in, 1 logging in, 2
                        // normal, -1..-3 closing/pending delete
-    LONG m_ref_count;  // reference count: list + each outstanding IO
+    CConnectionHandleManager::Handle
+        m_handle;      // 连接句柄（0=未分配）：
+                       // 对外标识，对象地址只存在于句柄表内，见
+                       // CConnectionHandleManager
+    long m_ref_count;  // reference count: list + each outstanding IO
     bool m_closing;    // closing in progress
 
     std::recursive_mutex m_cs;  // protects m_Login/m_player/m_bClosing

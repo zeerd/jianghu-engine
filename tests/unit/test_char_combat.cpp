@@ -6,6 +6,7 @@
 #include "Char.h"
 #include "User.h"
 #include "test_lua_env.h"
+#include "test_state_recorder.h"
 
 extern char g_notify_fail_msg[512];
 
@@ -428,4 +429,65 @@ TEST_F(CharCombatTest, Interrupt_HookReturningTrueClearsBusy)
     EXPECT_STREQ("被击退", g_intr_how) << "中断原因原样传递";
 
     delete b;
+}
+
+// ---------------- 忙碌翻转推 STATE ----------------
+// 客户端对 busy 的观测只有 STATE 这一条通道：三处翻转（起始 / 计数走完 /
+// 中断放行）少推任何一次，等待方就会在旧快照上一直等。
+namespace {
+struct BusyStateRecordingUser : StateRecordingUser {
+    using CChar::continue_action;
+    using CChar::interrupt_me;
+};
+}  // namespace
+
+class BusyStatePushTest : public ::testing::Test {
+protected:
+    BusyStateRecordingUser actor;
+    CChar* foe_char = nullptr;
+
+    void SetUp() override
+    {
+        ensure_lua_env();
+        foe_char = new CChar();
+        foe_char->set_name("foe", "f_push");
+        actor.set_name("actor", "a_push");
+        actor.set("hp", (long)100);
+        actor.set("max_hp", (long)100);
+        actor.set_temp("client/serial", 1);  // 已建立客户端连接，才允许私发
+        actor.clear();                       // 隔离出被测调用的效果
+    }
+    void TearDown() override { delete foe_char; }
+};
+
+TEST_F(BusyStatePushTest, StartBusyPushesStateToOwner)
+{
+    actor.start_busy(2);
+
+    EXPECT_TRUE(actor.is_busy());
+    EXPECT_TRUE(actor.has("bsy=1&")) << "进入忙碌即随 STATE 私发";
+}
+
+TEST_F(BusyStatePushTest, BusyCountExhaustedPushesStateToOwner)
+{
+    actor.start_busy(1);
+    actor.clear();  // 隔离出「走完这一拍」的效果
+
+    actor.continue_action();  // 1→0
+
+    EXPECT_FALSE(actor.is_busy());
+    EXPECT_GT(actor.sent, 0) << "忙碌结束必须推一次 STATE";
+    EXPECT_FALSE(actor.has("bsy=")) << "结束包不带 bsy，即「不忙」";
+}
+
+TEST_F(BusyStatePushTest, InterruptBusyPushesStateToOwner)
+{
+    actor.start_busy(&ProbeBusyKeep, &ProbeIntrClear);
+    actor.clear();  // 隔离出「中断放行」的效果
+
+    actor.interrupt_me(foe_char, (char*)"被击退");
+
+    EXPECT_FALSE(actor.is_busy());
+    EXPECT_GT(actor.sent, 0) << "中断同样是翻转，必须推一次 STATE";
+    EXPECT_FALSE(actor.has("bsy=")) << "中断包不带 bsy，即「不忙」";
 }

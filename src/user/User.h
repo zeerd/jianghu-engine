@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "Char.h"
+#include "ConnectionHandleManager.h"
 
 #define USERONLINE_NORMAL 0
 #define USERONLINE_PARTY  1
@@ -40,6 +41,9 @@ public:
     virtual void setup();
     void offline(int flag = 0);
     void online();
+    // 连接句柄（见 CConnectionHandleManager）：登录受理时绑定、断线时清零，
+    // 0 = 无连接；发送/关闭凭它查表寻址连接对象
+    void set_connection_handle(CConnectionHandleManager::Handle handle);
     virtual int32_t query_attr(int attr);
     virtual void send_command(const char* msg, int wait = SEND_WAIT_NONE);
     bool has_client() override;
@@ -48,6 +52,8 @@ public:
     virtual ~CUser();
 
 protected:
+    CConnectionHandleManager::Handle m_connection_handle
+        = 0;  // 连接句柄，0=无连接
     int m_start_idle;
     int last_age_set;
     char m_send_buffer[512];  // 发送缓冲区

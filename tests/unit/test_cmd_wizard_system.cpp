@@ -619,6 +619,18 @@ TEST_F(CmdWizardSystemTest, ReloadLua_ScriptReportsResult)
 
     char one[256] = "enable_sample";
     EXPECT_EQ(call_reload_lua(me, 0, one), 1);
+
+    // 回执分支的真值条件（文案本身由 E2E 剧本在真实服务端断言）：
+    // 未匹配 / 重载失败必须回 false 才能走「失败或未加载」文案。旧实现拿
+    // ref 真值判断——LUA_NOREF(-2) 与失败保留的旧 ref(≥0) 恒为真，任何
+    // 失败都回「已重载」。
+    extern bool lua_reload_script(const char* name);
+    EXPECT_FALSE(lua_reload_script(missing));
+    ASSERT_NE(
+        CLuaEngine::instance()->load_script("enable_sample", LUA_SCRIPT_SKILL),
+        LUA_NOREF)
+        << "先装入夹具，重载才有可匹配的条目";
+    EXPECT_TRUE(lua_reload_script(one));
 }
 
 TEST_F(CmdWizardSystemTest, PrintMapping_ReturnsOk)
@@ -689,10 +701,6 @@ TEST_F(CmdWizardSystemTest, Save_AllPlayersPath)
 
 // ---------------- reload all 缺陷定位 ----------------
 
-extern int lua_reload_script(const char* name);
-
-extern int lua_reload_script(const char* name);
-
 // 复现 reload all 的关键差异：清空 package.loaded 后再逐个重载
 
 // 清空 package.loaded 后重建房间索引（reload_all_scripts 的最后一段）
@@ -712,6 +720,32 @@ TEST_F(CmdWizardSystemTest, ReloadLua_AllPathSurvivesMissingDataScript)
 {
     char all[256] = "all";
     EXPECT_EQ(call_reload_lua(me, 0, all), 1);
+}
+
+// reload all 的核心契约：require 缓存必须真的换新。require 的读写走
+// registry["_LOADED"]（与 package.loaded 初始同表），旧实现只重绑
+// package.loaded 字段——require 继续在旧表命中启动时的缓存，共享模块
+// 永远换不新。判据：清缓存后再次 require 同一模块必须重新执行文件、
+// 拿到另一张表；没清则两次永远同一张。
+TEST_F(CmdWizardSystemTest, ReloadAll_RequireCacheGetsFreshTable)
+{
+    lua_State* L = CLuaEngine::instance()->get_state();
+    ASSERT_NE(L, nullptr);
+    ASSERT_EQ(
+        luaL_dostring(L, "e2e_first = require('room.fixture_blank_room')"),
+        LUA_OK)
+        << "前置：首次 require 必须成功";
+
+    extern int lua_reload_all();
+    lua_reload_all();
+
+    ASSERT_EQ(
+        luaL_dostring(L, "e2e_second = require('room.fixture_blank_room')"),
+        LUA_OK);
+    ASSERT_EQ(luaL_dostring(L, "return e2e_first ~= e2e_second"), LUA_OK);
+    EXPECT_TRUE(lua_toboolean(L, -1))
+        << "reload all 未清 require 缓存：二次 require 拿到的还是启动时那张表";
+    lua_pop(L, 1);
 }
 
 // ====================================================================

@@ -255,8 +255,8 @@ int CCmdUser::pair(CChar* me, int32_t target, char* arg)
     const char* yourid = me->querystr("couple/id");
     const char* myid   = who->querystr("couple/id");
 
-    int32_t melv  = me->query("level");
-    int32_t wholv = who->query("level");
+    mapping_value_t melv  = me->query("level");
+    mapping_value_t wholv = who->query("level");
 
     if (EQUALSTR(me->id(1), myid) && EQUALSTR(who->id(1), yourid)
         && (abs(melv - wholv) <= CPartyConfig::couple_level_diff())) {
@@ -275,8 +275,8 @@ int CCmdUser::accept_pair(CChar* me, int32_t target, char* arg)
     const char* yourid = me->querystr("couple/id");
     const char* myid   = who->querystr("couple/id");
 
-    int32_t melv  = me->query("level");
-    int32_t wholv = who->query("level");
+    mapping_value_t melv  = me->query("level");
+    mapping_value_t wholv = who->query("level");
 
     if (EQUALSTR(me->id(1), myid) && EQUALSTR(who->id(1), yourid)
         && (abs(melv - wholv) <= CPartyConfig::couple_level_diff())) {

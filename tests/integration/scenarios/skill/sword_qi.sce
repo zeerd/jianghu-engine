@@ -25,8 +25,8 @@
 # 段尾两步（顺序不可倒）：
 #   · /prepare none —— do_qi 的空手半边要 prepare，借完必须把 pmap 还成空，
 #     否则 prepare_combine 的两技能 /prepare 会撞「你已准备有一种技能了」；
-#   · sleep —— do_qi 收尾的 start_busy 是心跳拍计时（§8.1 心跳计时的合法
-#     sleep 用途），不睡满，下一段的 /unwield 会被「你正忙着。」拒掉。
+#   · wait not_busy —— do_qi 收尾的 start_busy（sword_adv.lua）由翻转 STATE
+#     推送收敛，等到真实不忙才放行，否则下一段的 /unwield 会被「你正忙着。」拒掉。
 
 cmd /t 1
 cmd /tell 剑气供能请求，剑气供能账号是 $acct
@@ -76,5 +76,5 @@ wait attr mp <= 50 timeout=10000
 clear
 cmd /prepare none
 wait text 取消全部技能准备 timeout=10000
-sleep 3000
+wait not_busy timeout=10000
 cmd /t 0

@@ -56,9 +56,9 @@ TEST_F(ForceAdvRecoverTest, Recover_Usable_AfterCreate)
     CLuaSkill* skill = new CLuaSkill("hitmsg_sample");
     skill->create();
 
-    CChar* me         = MakeWoundedChar();
-    int32_t hp_before = me->query("hp");
-    int32_t mp_before = me->query("mp");
+    CChar* me                 = MakeWoundedChar();
+    mapping_value_t hp_before = me->query("hp");
+    mapping_value_t mp_before = me->query("mp");
 
     // "recover" 继承自基本内功 → 转发到基本内功脚本的 do_recover
     int ret = skill->cast("recover", me, NULL);
@@ -200,9 +200,9 @@ TEST_F(ForceAdvRecoverTest, PrepareGate_SkippedWhenSwitchOn)
 {
     ApplyPrepareSwitch(true);
 
-    CLuaSkill* skill  = MakeRestrictedSkill();
-    CChar* me         = MakeWoundedChar();
-    int32_t hp_before = me->query("hp");
+    CLuaSkill* skill          = MakeRestrictedSkill();
+    CChar* me                 = MakeWoundedChar();
+    mapping_value_t hp_before = me->query("hp");
 
     EXPECT_EQ(skill->cast("recover", me, NULL), 1)
         << "force_no_need_prepare 打开时，已学会内功即可施法";

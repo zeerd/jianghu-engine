@@ -35,7 +35,8 @@ CLuaNpcT<T>::~CLuaNpcT()
 }
 
 // 刷新脚本引用并重新执行 create()（热重载用）
-// 默认行为：purge 背包 + 重新 create()，使脚本改动立即生效
+// 默认行为：purge（脚本声明 save_table 时删其存档行，不清背包）+ 重新
+// create()，使脚本改动立即生效
 // 脚本可定义 reload(self) 覆盖此行为（仅刷新引用，不重新 create）
 template <typename T>
 void CLuaNpcT<T>::reload_script()

@@ -56,7 +56,7 @@ wait text 中暗器了|躲过了你的偷袭|暗器伤害 timeout=15000
 sleep 3200
 end
 wait text 中暗器了 timeout=10000
-sleep 3000
+wait not_busy timeout=10000
 cmd /kill
 wait battle
 wait battle_end timeout=180000
@@ -65,9 +65,9 @@ cmd /t 0
 
 # --- 战利品与战后口粮（掉落 → 拾取 / 食物回血）----------------------------
 # 青蛇的 die 把蛇胆丢在脚下（见 npc/sample_qingshe.lua），battle_end 时已在地上。
-# 先 sleep 等战斗 busy 过拍——busy 由心跳驱动，是 sleep 的合法用途（§8.1）；
+# 战斗收尾的忙碌由翻转 STATE 推送收敛——wait not_busy 等到真实不忙才走；
 # 捡东西与吃东西都要求不忙
-sleep 5000
+wait not_busy timeout=10000
 wait object 蛇胆 timeout=10000
 cmd /t she dan
 cmd /get

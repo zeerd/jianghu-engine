@@ -6,6 +6,7 @@
 #   私聊、收定向说话/表情、收赠送物品、接受做客邀请、受邀同睡（wakeup2
 #   女性分支，本道注册为女性）、应战切磋，
 #   并在 PK 终局承担死亡→复活链（判定见 pk_b.sce 头注）。
+#   玩家收徒四段里 B 扮徒弟（收 A 的 /recruit 兑现、开革后先发起重拜）。
 #   本道无需自购补给（全部为接收方），故不设 provision 片段。
 #
 # 性别：本道注册为女性（vars 的 gender 键）——wakeup2 双人同睡要求异性，
@@ -14,11 +15,18 @@
 #
 # 稀缺资源归属声明（§8.4 / §8.6 ⑤）：本道与 L5 道**不得触碰**钉给唯一道的
 #   资源——山脚木箱与药箱（L1）、山顶树箱经验果与青蛇与副本（L3）、
-#   排行榜房间播报（L1）、蛇胆与传送符（L4）。
+#   排行榜房间播报（L1）、蛇胆与传送符（L4）。师徒关系只在本道与 L5 之间
+#   建立，不动物品、不占任何唯一资源。
 
 include common/login.sce
 include interaction/rendezvous.sce
 include interaction/party_b.sce
+# 玩家收徒四段排在组队**之后**（与 L5 同序配对；段落位置理由见 recruit_a 头注）：
+#   party 是全链唯一「对端推菜单」的段，师徒段只产生文本信号，放在它后面才不会
+#   被对端的 cmd 吞掉菜单
+include interaction/recruit_b.sce
+include interaction/expell_b.sce
+include interaction/apprentice_b.sce
 include interaction/tell_b.sce
 include interaction/say_emote_b.sce
 include interaction/give_b.sce

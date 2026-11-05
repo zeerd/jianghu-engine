@@ -24,7 +24,9 @@ cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
-sleep 3200
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
 end
 
 cmd /t qing yun zi
@@ -39,7 +41,9 @@ cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
-sleep 3200
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
 end
 
 cmd /t qing yun zi
@@ -54,7 +58,9 @@ cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
-sleep 3200
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
 end
 
 cmd /t qing yun zi
@@ -80,7 +86,9 @@ cmd /t hui chun dan
 clear
 cmd /use
 wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
-sleep 3200
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
 end
 
 cmd /t qing yun zi
@@ -93,6 +101,7 @@ cmd /enable throwing throw_adv
 wait text Ok. timeout=10000
 # throw_adv 的 learn 会 start_busy(random(2))（throw_adv.lua），而 enable 之后
 # 本道紧接着的 exercise_max_mp 要打坐——exercise 准入拒 busy（你现在正忙着呢）。
-# busy 以心跳拍计时，wait 等不到「忙完了」这种状态，只能等时间过拍。
-sleep 3200
+# learn 起始 STATE 早于 enable 回执在同一 TCP 有序流中到达（§8.1 信令间隙的
+# 屏障情形），此处 wait not_busy 收敛真结束，忙碌拍数走完即放行。
+wait not_busy timeout=10000
 cmd /t 0

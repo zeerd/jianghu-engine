@@ -23,6 +23,9 @@ ClientCore::ClientCore(const Config& cfg, std::unique_ptr<Connection> conn)
     host_ = cfg.host;
     port_ = cfg.port;
     ui_.set_logs_dir(cfg.logs_dir);
+    // 通讯密钥随连接配置下发：收发两侧共用 protocol 的密钥态，
+    // 留空即回退内置默认（服务端 comm_key 为空时同为默认）
+    protocol::set_comm_key(cfg.comm_key);
 }
 
 ClientCore::~ClientCore() { stop(); }

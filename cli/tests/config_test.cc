@@ -8,13 +8,13 @@
 
 #include "compat.h"
 #include "config.h"
+#include "test_tmp_dir.h"
 
 namespace {
 
 std::filesystem::path test_dir()
 {
-    auto dir
-        = std::filesystem::temp_directory_path() / "jianghu_cli_config_test";
+    auto dir = test_tmp_dir() / "jianghu_cli_config_test";
     std::filesystem::create_directories(dir);
     return dir;
 }
@@ -48,6 +48,17 @@ TEST(ConfigHeartbeat, ParsesIntervalAndKeepsDefaultEnabled)
     EXPECT_EQ(c.heartbeat_interval, 30);
     c = load_conf(logs_line() + "heartbeat_interval = 0\n");
     EXPECT_EQ(c.heartbeat_interval, 0);
+}
+
+// 通讯密钥契约：comm_key 正确解析；缺省为空串——协议层据此回退内置默认，
+// 与服务端 [security] comm_key 留空的行为对称。
+TEST(ConfigParse, ParsesCommKey)
+{
+    Config c = load_conf(logs_line() + "comm_key = E2ECommKey6611\n");
+    EXPECT_EQ(c.comm_key, "E2ECommKey6611");
+
+    c = load_conf(logs_line() + "host = 127.0.0.1\n");
+    EXPECT_EQ(c.comm_key, "");
 }
 
 // 连接配置契约：port/account/password 三个键正确解析。

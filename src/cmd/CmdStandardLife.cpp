@@ -260,7 +260,7 @@ void CCmdStandard::wakeup2(CContainer* ob, int32_t param1, int32_t param2)
 {
     CChar* me = static_cast<CChar*>(ob);
 
-    int kee_cost = 50 + 5 * (me->query("str") - me->query("con"));
+    mapping_value_t kee_cost = 50 + 5 * (me->query("str") - me->query("con"));
 
     if (kee_cost > me->query("max_hp") / 2)
         kee_cost = me->query("max_hp") / 2 + 1;
@@ -336,9 +336,9 @@ int CCmdStandard::exercise(CChar* me, int32_t target, char* arg)
 
 int CCmdStandard::exercising(CChar* me)
 {
-    int exercise_cost = me->query_temp("exercise_cost");
-    int neili_gain    = 1 + me->query_skill("force") / 5;
-    CContainer* where = me->environment();
+    mapping_value_t exercise_cost = me->query_temp("exercise_cost");
+    int neili_gain                = 1 + me->query_skill("force") / 5;
+    CContainer* where             = me->environment();
 
     if (exercise_cost < neili_gain) neili_gain = exercise_cost;
     if (exercise_cost < 1) {

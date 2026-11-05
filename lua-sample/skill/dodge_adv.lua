@@ -46,14 +46,19 @@ return {
         end
         me:add("mp", -40)
         message_vision("$N身形一纵，如仙人般凌空而起，轻功大进！", me)
-        me:set_temp("apply/dodge", me:query_temp("apply/dodge") + 100)
-        me:call_out("do_float_end", 10)
+        local dodge_bonus = 100
+        me:add_temp("apply/dodge", dodge_bonus)
+        -- 统一写法（docs/call_out.md）：回调写在发起 call_out 的脚本里，
+        -- 在效果作用的对象上注册——对象是玩家还是脚本 NPC 写法相同
+        -- 通过 param1 传递加成值，实现增量管理（不假设拥有整个 apply/dodge）
+        me:call_out("do_float_end", 10, dodge_bonus)
         me:start_busy(1)
         return 1
     end,
 
-    -- 凌空虚渡效果结束
+    -- 凌空虚渡效果结束（延迟函数：执行时 self = 受效果的对象）
+    -- param1: 当初加成的数值，直接回扣相同数量
     do_float_end = function(self, param1, param2)
-        self:delete_temp("apply/dodge")
+        self:add_temp("apply/dodge", -param1)
     end,
 }

@@ -11,10 +11,8 @@
 #include "Channel.h"
 #include "RegisterHall.h"
 #include "Sql.h"
+#include "GateClient.h"  // close_client/open_client/send_to_client（句柄契约）
 
-extern void close_client(uint32_t serial);
-extern int send_to_client(int object_id, uint32_t serial, const char* msg);
-extern void open_client(uint32_t id, int32_t user);
 // 关服标志（net/ServerSockHandler.cpp 定义）：关服路径不广播下线
 extern bool g_terminated;
 
@@ -46,6 +44,11 @@ CUser::~CUser()
 bool CUser::has_client()
 {
     return querymap_temp("client") && !query_temp("net_dead");
+}
+
+void CUser::set_connection_handle(CConnectionHandleManager::Handle handle)
+{
+    m_connection_handle = handle;
 }
 
 void CUser::send_command(const char* msg, int wait)
@@ -141,7 +144,7 @@ int32_t CUser::query_attr(int attr)
 // 设置在线
 void CUser::online()
 {
-    open_client(query_temp("client/serial"), object_id());
+    open_client(m_connection_handle, object_id());
     delete_temp("net_dead");
 
     if (set_online_flag(g_server_id)) set_temp("online", g_server_id);
@@ -155,7 +158,8 @@ void CUser::offline(int flag)
     LOG_TRACE("IN");
 
     if (flag) {
-        delete_temp("client/serial");
+        // 被动断线：连接对象已由关闭路径释放句柄，这里只清本人持有的标识
+        m_connection_handle = 0;
     }
 
     if (!query_temp("net_dead")) {
@@ -164,8 +168,8 @@ void CUser::offline(int flag)
         notify_offline();
 
         if (!flag) {
-            close_client(query_temp("client/serial"));
-            delete_temp("client/serial");
+            close_client(m_connection_handle);
+            m_connection_handle = 0;
         }
 
         set_temp("net_dead", g_current_time);  // 网掉了。
@@ -195,7 +199,7 @@ void CUser::send_off()
 {
     if (!m_buffer_len) return;
     m_send_buffer[m_buffer_len] = 0;
-    send_to_client(object_id(), query_temp("client/serial"), m_send_buffer);
+    send_to_client(object_id(), m_connection_handle, m_send_buffer);
     m_buffer_len = 0;
 }
 

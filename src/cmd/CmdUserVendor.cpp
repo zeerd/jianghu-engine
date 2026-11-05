@@ -18,8 +18,8 @@ int CCmdUser::list_goods(CChar* me, int32_t target, char* arg)
     int i            = 0;
 
     for (auto val : *list) {
-        CContainer* obj = val;
-        int32_t val     = obj->query_temp("trade/value");
+        CContainer* obj     = val;
+        mapping_value_t val = obj->query_temp("trade/value");
 
         if (!val) continue;
         if (DIFFERSTR(obj->querystr_temp("trade/owner"), who->id(1))) continue;

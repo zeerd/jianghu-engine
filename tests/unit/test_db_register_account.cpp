@@ -12,10 +12,12 @@
 #include <cstring>
 #include <string>
 
+#include "Crypto.h"
 #include "IDatabase.h"
 #include "Sql.h"
 #include "lua/LuaBindDecls.h"
 #include "mock/mock_database.h"
+#include "test_credential_sql.h"
 #include "test_lua_env.h"
 
 extern IDatabase* g_db;
@@ -50,6 +52,16 @@ protected:
         return db_register_account(name, passwd, email, gender, str, intel, con,
                                    dex, err, errlen);
     }
+
+    // 注册 INSERT（其后还有 LAST_INSERT_ID 查询，GetLastSql 拿不到它）
+    std::string InsertSql() const
+    {
+        for (const std::string& sql : db->GetExecutedSqls()) {
+            if (sql.find("insert into jianghudb") != std::string::npos)
+                return sql;
+        }
+        return "";
+    }
 };
 
 // ---------------- 成功路径 ----------------
@@ -70,13 +82,20 @@ TEST_F(DbRegisterAccountTest, Success_InsertsRowAndReturnsNextId)
     EXPECT_FALSE(db->ExecutedContaining("values (42, "))
         << "不再显式指定 cc_id";
     EXPECT_TRUE(db->ExecutedContaining("'男性'")) << "性别入库";
-    EXPECT_TRUE(db->ExecutedContaining("'abc12345'")) << "密码入库";
     EXPECT_TRUE(db->ExecutedContaining("21, 21, 21, 21")) << "四维入库";
     EXPECT_TRUE(db->ExecutedContaining("cc_age, cc_level"))
         << "起手年龄/等级两列入库";
     EXPECT_TRUE(
         db->ExecutedContaining(", " + std::to_string(g_start_age) + ", 1)"))
         << "起手年龄与建档同源（g_start_age）；等级1；经验保持缺省 0";
+
+    const std::string insert_sql = InsertSql();
+    EXPECT_TRUE(credential_sql::matches(insert_sql, "cc_passwd", "abc12345"))
+        << "落库哈希对应注册口令";
+    EXPECT_EQ(insert_sql.find("abc12345"), std::string::npos)
+        << "口令明文不得进 SQL";
+    EXPECT_EQ(credential_sql::plaintext_column(insert_sql, "cc_passwd"), "")
+        << "明文列取空值";
 }
 
 TEST_F(DbRegisterAccountTest, Success_NoNameDeduplication)
@@ -196,8 +215,12 @@ TEST_F(DbRegisterAccountTest, PasswordQuote_IsSanitizedLikeLogin)
     long id = Register("张三", "ab'cd12", "zhangsan@example.com", "男性", 21,
                        21, 21, 21, err, sizeof(err));
     EXPECT_EQ(42, id);
-    EXPECT_TRUE(db->ExecutedContaining("'abcd12'"))
-        << "单引号直接剥除，与登录侧 replace_string 剥除语义一致";
+
+    const std::string insert_sql = InsertSql();
+    EXPECT_TRUE(credential_sql::matches(insert_sql, "cc_passwd", "abcd12"))
+        << "单引号直接剥除后再派生，与登录侧 replace_string 剥除语义一致";
+    EXPECT_EQ(insert_sql.find("ab'cd12"), std::string::npos)
+        << "含引号的口令原样不得进 SQL";
 }
 
 TEST_F(DbRegisterAccountTest, IllegalGender_Fails)

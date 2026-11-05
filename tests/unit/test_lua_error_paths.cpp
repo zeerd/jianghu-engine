@@ -7,7 +7,9 @@
 //   2. 按该回调既定语义回退基类实现（或静默吞掉），绝不让 Lua 错误穿透
 //      到 C++ 调用方。
 // 脚本加载/重载的三态（语法错 / 运行错 / 未返回 table）同样归本文件所有：
-// 旧版本必须保留可用，且三种失败各打一条不同的日志。
+// 旧版本必须保留可用，且三种失败各打一条不同的日志；重载结果的成败回传
+// （reload_script 的 reloaded 出参、自动重载的计数与实例通知门槛）也归
+// 本文件——失败不得被当成「已重载」上报。
 //
 // 夹具：tests/unit/lua-tests/{npc,item,room,skill}/ 下的 t_error_* 夹具，
 // 每个回调都 error()，一条用例即可驱动整个报错面；通用挂点由用例直接往
@@ -18,7 +20,9 @@
 
 #include <windows.h>
 
+#include <chrono>
 #include <cstdio>
+#include <filesystem>
 #include <memory>
 #include <string>
 
@@ -34,6 +38,7 @@
 #include "RoomMgr.h"
 #include "Skill.h"
 #include "SkillMgr.h"
+#include "Condition.h"  // ScopedGlobalEntry<MAP2CND> delete 需要完整类型
 #include "User.h"
 #include "LuaEngine.h"
 #include "LuaItem.h"
@@ -46,7 +51,7 @@
 
 extern std::unique_ptr<CContainer> create_item(string base_name,
                                                string unique_id);
-extern int lua_reload_script(const char* name);
+extern bool lua_reload_script(const char* name);
 
 namespace {
 
@@ -114,6 +119,65 @@ void write_file(const std::string& path, const std::string& content)
     fwrite(content.data(), 1, content.size(), fp);
     fclose(fp);
 }
+
+// 把文件 mtime 往回拨 seconds 秒：自动重载先做 mtime 快筛，同一秒内改写
+// 会被当成「没变」跳过——测试不能 sleep 赌秒进位（禁用延时），直接改文件
+// 时间戳制造确定性差异。各次写入用不同拨幅，彼此必然错开。
+void rewind_file_mtime(const std::string& path, int seconds)
+{
+    std::error_code ec;
+    auto tp = std::filesystem::last_write_time(path, ec);
+    ASSERT_FALSE(ec) << path;
+    std::filesystem::last_write_time(path, tp - std::chrono::seconds(seconds),
+                                     ec);
+    ASSERT_FALSE(ec) << path;
+}
+
+// 把文件 mtime 钉到指定时刻（构造「同一整秒、不同毫秒」这类确定性场景）
+void set_file_mtime(const std::string& path, std::filesystem::file_time_type tp)
+{
+    std::error_code ec;
+    std::filesystem::last_write_time(path, tp, ec);
+    ASSERT_FALSE(ec) << path;
+}
+
+// 读文件全部字节（夹具改写前留档原文）
+std::string read_file_bytes(const std::string& path)
+{
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp) return "";
+    fseek(fp, 0, SEEK_END);
+    long n = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    std::string out(n > 0 ? static_cast<size_t>(n) : 0, '\0');
+    if (n > 0) fread(&out[0], 1, static_cast<size_t>(n), fp);
+    fclose(fp);
+    return out;
+}
+
+// RAII：临时改写提交夹具，作用域结束（含 ASSERT 早退）还原原文并重建房间
+// 索引——夹具是提交资产，绝不允许把改名/加注释的中间态留给后续用例。
+class ScopedFileContent {
+public:
+    ScopedFileContent(const std::string& path, const std::string& modified)
+        : m_path(path)
+    {
+        m_original = read_file_bytes(path);
+        if (!m_original.empty()) write_file(path, modified);
+    }
+    ~ScopedFileContent()
+    {
+        if (m_original.empty()) return;
+        write_file(m_path, m_original);
+        CLuaEngine::instance()->load_room_index();
+    }
+    ScopedFileContent(const ScopedFileContent&)            = delete;
+    ScopedFileContent& operator=(const ScopedFileContent&) = delete;
+
+private:
+    std::string m_path;
+    std::string m_original;
+};
 
 }  // namespace
 
@@ -710,6 +774,187 @@ TEST_F(LuaErrorPathTest, ReloadFailures_LogAndKeepOldVersion)
     lua_getfield(L, -1, "create");
     EXPECT_TRUE(lua_isfunction(L, -1)) << "旧版本的 create 必须仍可取用";
     lua_pop(L, 2);
+
+    // 结果语义：失败回传「仍持有可用旧引用」，但 reloaded 出参必须是 false
+    // ——两个问题不能混：调用方拿引用继续跑，结果上报（日志/回执/广播）
+    // 看出参。旧实现混为一谈，失败被当成成功上报。
+    {
+        bool ok = true;
+        EXPECT_EQ(engine->reload_script("item/t_reload_state_item", &ok),
+                  old_ref)
+            << "失败仍返回可用旧引用";
+        EXPECT_FALSE(ok) << "失败必须回传 reloaded=false";
+    }
+
+    // 修好后回传 true，且新内容真的生效（marker 字段可读）
+    write_file(path, "return { create = function(self) end, marker = 1 }\n");
+    {
+        bool ok = false;
+        engine->reload_script("item/t_reload_state_item", &ok);
+        EXPECT_TRUE(ok) << "修复后必须回传成功";
+    }
+    EXPECT_TRUE(engine->get_script_bool_field("t_reload_state_item",
+                                              LUA_SCRIPT_ITEM, "marker"))
+        << "成功重载后新内容必须生效";
+
+    std::remove(path.c_str());
+}
+
+// ====================================================================
+// 自动重载（check_for_reload）：计数与实例通知都以成功为门槛
+// ====================================================================
+
+// 失败的自动重载既不计入「已重载」，也不得通知实例重建——旧实现在拿
+// LUA_NOREF 判真值，失败保留的旧 ref(≥0) 恒真：失败照样记成功日志、
+// 照样 notify（实例每 5 秒拿旧版本 purge+create 一次，create 的副作用
+// 重复执行）。以实例 create 计数为证：通知一旦发生计数必增。
+TEST_F(LuaErrorPathTest, CheckForReload_GatesCountAndNotifyOnSuccess)
+{
+    const char* name       = "t_autoreload_npc";
+    const std::string path = "tests/unit/lua-tests/npc/t_autoreload_npc.lua";
+    const std::string good_script
+        = "local npc = {}\n"
+          "function npc.create(self)\n"
+          "    self:set_name(\"重载计数员\", \"t_autoreload_npc\")\n"
+          "    self:set(\"create_runs\","
+          " (self:query(\"create_runs\") or 0) + 1)\n"
+          "end\n"
+          "return npc\n";
+
+    write_file(path, good_script);
+    CLuaEngine* engine = CLuaEngine::instance();
+    CNpc* npc          = load_npc(name);
+    ASSERT_NE(npc, nullptr);
+    ScopedGlobalEntry<MAP2NPC> guard(g_npc_list, npc->object_id(),
+                                     detach_from_world);
+    ASSERT_EQ((long)npc->query("create_runs"), 1) << "首建跑过一次 create";
+
+    // 先空转一遍：把世界里其他 mtime 漂移的条目同步掉，本用例的计数
+    // 不受别的夹具串扰
+    engine->check_for_reload();
+
+    // 写坏（语法错误）+ 拨动 mtime：尝试自动重载但失败——不计数、不通知
+    {
+        ErrorLogProbe probe("Lua reload loadfile failed [t_autoreload_npc]");
+        write_file(path, "local npc = {}\nfunction npc.create(self)\n");
+        rewind_file_mtime(path, 200);
+        EXPECT_EQ(engine->check_for_reload(), 0) << "失败不得计入重载数";
+        probe.ExpectOnce();
+    }
+    EXPECT_EQ((long)npc->query("create_runs"), 1) << "失败重载不得通知实例重建";
+
+    // 修好 + 拨动 mtime：内容必须与首载不同——同内容哈希不变会被判成
+    // 「mtime 抖动、内容未变」的 noop 分支（那正是探针场景的语义），故
+    // 末尾追加一行注释再写回，语义不变、字节必变
+    write_file(path, good_script + "-- repaired, content differs\n");
+    rewind_file_mtime(path, 100);
+    EXPECT_EQ(engine->check_for_reload(), 1);
+    EXPECT_EQ((long)npc->query("create_runs"), 2) << "成功重载必须通知实例重建";
+
+    // 内容未再变化：mtime 已同步，空转不计数
+    EXPECT_EQ(engine->check_for_reload(), 0);
+
+    std::remove(path.c_str());
+}
+
+// ====================================================================
+// 结果语义的三处补齐（2026-11-05 批次）：索引重建 / 状态缓存 / 快筛精度
+// ====================================================================
+
+// 单个 reload 必须重建房间中文名索引：改掉房间 name 后，只调 reload（不手动
+// load_room_index）新名就要能解析——否则手动 reload 后 load_room 仍按旧名
+// 解析（陈旧到下一次全量/自动重载），与 reload all / 自动重载的行为不一致。
+TEST_F(LuaErrorPathTest, ReloadRoomScriptRefreshesNameIndex)
+{
+    const std::string path = "tests/unit/lua-tests/room/fixture_blank_room.lua";
+    std::string original   = read_file_bytes(path);
+    ASSERT_FALSE(original.empty()) << path;
+
+    // 只替换表级 name 的值（第一处 name = "..."），其余字节不动。
+    // 探针名用 ASCII：引擎内部房间名统一转 GBK（load_file_as_gbk），中文
+    // 字面量两侧编码不同会查表不中，ASCII 则天然一致
+    size_t k = original.find("name = \"");
+    ASSERT_NE(k, std::string::npos) << "夹具缺 name 字段";
+    size_t e = original.find('"', k + 8);
+    ASSERT_NE(e, std::string::npos);
+    std::string modified
+        = original.substr(0, k + 8) + "e2e_renamed_probe" + original.substr(e);
+    ScopedFileContent restore(path, modified);
+
+    EXPECT_TRUE(lua_reload_script("fixture_blank_room")) << "重载必须成功";
+
+    // 不显式调 load_room_index：索引重建必须由 reload 自己完成
+    EXPECT_STREQ(CLuaEngine::instance()->resolve_room_name("e2e_renamed_probe"),
+                 "fixture_blank_room")
+        << "单个 reload 未重建房间名索引：改名后新名解析不到";
+    // 还原由 ScopedFileContent 析构完成（含索引重建）
+}
+
+// 自动重载与手动 reload 必须同语义：脚本换新后技能/condition 缓存一并摘除。
+// 旧实现只有手动路径摘——自动重载后 CSkill/CCondition 仍持旧脚本引用，
+// 改 skill 脚本行为照旧（改了不生效）。
+TEST_F(LuaErrorPathTest, CheckForReload_ReleasesSkillAndConditionCaches)
+{
+    const std::string skill_path
+        = "tests/unit/lua-tests/skill/enable_sample.lua";
+    const std::string cnd_path = "tests/unit/lua-tests/condition/poison.lua";
+    std::string sk_orig        = read_file_bytes(skill_path);
+    std::string cd_orig        = read_file_bytes(cnd_path);
+    ASSERT_FALSE(sk_orig.empty()) << skill_path;
+    ASSERT_FALSE(cd_orig.empty()) << cnd_path;
+
+    // 挂载：load_skill 建技能缓存并把脚本载入 m_scripts；condition 的脚本
+    // 是惰性载入的（init 才 load_script），走 apply_condition 触发
+    ASSERT_NE(load_skill("enable_sample"), nullptr);
+    auto tmp = std::unique_ptr<CChar>(new CChar());
+    tmp->set("name", "缓存摘除探针");
+    tmp->set("id", "cnd_probe");
+    bool applied = tmp->apply_condition("poison", 3, 0);
+    tmp->set_heart_beat(0);  // 无论成败先摘心跳，析构安全
+    ASSERT_TRUE(applied);
+    ASSERT_EQ(g_skill_list.count("enable_sample"), 1u);
+    ASSERT_EQ(g_condition_list.count("poison"), 1u);
+
+    // 内容必须变字节（同内容会被 noop 分支吞掉）：追加注释行，语义不变
+    ScopedFileContent sk_guard(skill_path, sk_orig + "-- e2e reload probe\n");
+    ScopedFileContent cd_guard(cnd_path, cd_orig + "-- e2e reload probe\n");
+    ScopedGlobalEntry<MAP2SKILL> skill_guard(g_skill_list, "enable_sample");
+    ScopedGlobalEntry<MAP2CND> cnd_guard(g_condition_list, "poison");
+
+    EXPECT_GE(CLuaEngine::instance()->check_for_reload(), 1);
+
+    EXPECT_EQ(g_skill_list.count("enable_sample"), 0u)
+        << "自动重载未摘技能缓存：改 skill 脚本后仍拿到旧对象";
+    EXPECT_EQ(g_condition_list.count("poison"), 0u)
+        << "自动重载未摘 condition 缓存";
+}
+
+// 快筛必须看得见「同一秒内的第二次编辑」：记录与新写入落在同一整秒时，
+// 秒级比较会判相等直接跳过——最后一次保存恰好落在重载同秒，改动就永不
+// 生效。FILETIME(100ns) 粒度下同秒不同毫秒必须放行并按哈希确认重载。
+TEST_F(LuaErrorPathTest, CheckForReload_SameSecondEditStillReloads)
+{
+    const char* name       = "t_samesec_item";
+    const std::string path = "tests/unit/lua-tests/item/t_samesec_item.lua";
+    write_file(path, "return { create = function(self) end, first = 1 }\n");
+
+    // mtime 钉到「整秒 +200ms」，load 记录它
+    auto now     = std::filesystem::last_write_time(path);
+    auto floored = now - (now.time_since_epoch() % std::chrono::seconds(1));
+    auto base    = floored + std::chrono::milliseconds(200);
+    set_file_mtime(path, base);
+
+    CLuaEngine* engine = CLuaEngine::instance();
+    ASSERT_NE(engine->load_script(name, LUA_SCRIPT_ITEM), LUA_NOREF);
+
+    // 第二次编辑：内容变、mtime 钉回同一整秒的 +700ms——秒级比较会判相等
+    // 跳过（旧实现的漏检点），本用例按「新内容必须生效」判定
+    write_file(path, "return { create = function(self) end, second = 1 }\n");
+    set_file_mtime(path, base + std::chrono::milliseconds(500));
+
+    engine->check_for_reload();
+    EXPECT_TRUE(engine->get_script_bool_field(name, LUA_SCRIPT_ITEM, "second"))
+        << "同一秒内的第二次编辑被 mtime 快筛漏掉：新内容未生效";
 
     std::remove(path.c_str());
 }

@@ -12,6 +12,7 @@
 #include "Skill.h"
 #include "Combatd.h"
 #include "CombatConfig.h"
+#include "GateClient.h"  // send_to_client_direct（登录各分支的直发回执）
 #include "Money.h"
 #include "LoginAuth.h"
 #include "LuaLogin.h"
@@ -24,10 +25,6 @@
 int g_start_pk = 1;
 
 extern char g_notify_fail_msg[512];
-
-extern void close_client(uint32_t serial);
-extern int send_to_client(int object_id, uint32_t serial, const char* msg);
-extern int send_to_client_direct(int sockfd, uint32_t serial, const char* msg);
 
 const char* query_rank(CChar* ob);
 
@@ -158,7 +155,7 @@ void down_bullet_info(CChar* me)
     }
 }
 
-int on_login(uint32_t serial, int sockfd, char* arg)
+int on_login(CConnectionHandleManager::Handle handle, int sockfd, char* arg)
 {
     CUser* me;
     char passwd[255];
@@ -182,7 +179,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
         snprintf(msg, 255, "&C=%d&F=%d&M=请到主页注册&\t", NOTIFY,
                  PROTO_FIELD_ERROR);
 
-        send_to_client_direct(sockfd, serial, decode_str(msg));
+        send_to_client_direct(sockfd, handle, decode_str(msg));
 
         return false;  // 非登录指令
     }
@@ -215,7 +212,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
         snprintf(msg, 255, "&C=%d&F=%d&M=%s&\t", LOGINUSER, PROTO_FIELD_ERROR,
                  g_notify_fail_msg);
 
-        send_to_client_direct(sockfd, serial, decode_str(msg));
+        send_to_client_direct(sockfd, handle, decode_str(msg));
         return false;
     }
 
@@ -224,7 +221,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
         snprintf(msg, 255, "&C=%d&F=%d&M=%s&\t", LOGINUSER, PROTO_FIELD_ERROR,
                  "对不起，此帐号停止使用！");
 
-        send_to_client_direct(sockfd, serial, decode_str(msg));
+        send_to_client_direct(sockfd, handle, decode_str(msg));
         return false;
     }
 
@@ -250,7 +247,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
 
         me->delete_temp("client/loading");
 
-        me->set_temp("client/serial", serial);
+        me->set_connection_handle(handle);
         me->set_temp("client/sockfd", sockfd);
         me->set_temp("client/version", version_info);  // 设置客户端版本
 
@@ -271,7 +268,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
                      "d个帐号！&\t",
                      LOGINUSER, PROTO_FIELD_ERROR, loginlimit);
 
-            send_to_client_direct(sockfd, serial, decode_str(msg));
+            send_to_client_direct(sockfd, handle, decode_str(msg));
             return false;
         }
 
@@ -282,7 +279,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
                      "&C=%d&F=%d&M=对不起，该用户现在%d号服务器上！&\t",
                      LOGINUSER, PROTO_FIELD_ERROR, server);
 
-            send_to_client_direct(sockfd, serial, decode_str(msg));
+            send_to_client_direct(sockfd, handle, decode_str(msg));
             return false;
         }
 
@@ -313,7 +310,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
                 msg, 255, "&C=%d&F=%d&M=对不起，游戏限制为%ld，请稍候再连。&\t",
                 LOGINUSER, PROTO_FIELD_ERROR, g_combat_config.login_limit());
 
-            send_to_client_direct(sockfd, serial, decode_str(msg));
+            send_to_client_direct(sockfd, handle, decode_str(msg));
             return false;
         }
 
@@ -321,7 +318,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
 
         me->set("id", id);  // 设置帐号
 
-        me->set_temp("client/serial", serial);
+        me->set_connection_handle(handle);
         me->set_temp("client/sockfd", sockfd);
         me->set_temp("client/version", version_info);  // 设置客户端版本
 
@@ -339,7 +336,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
                      "\t",
                      LOGINUSER, PROTO_FIELD_ERROR);
 
-            send_to_client_direct(sockfd, serial, decode_str(msg));
+            send_to_client_direct(sockfd, handle, decode_str(msg));
 
             DESTRUCT_OB(me, "Login");
             return false;
@@ -355,7 +352,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
                      "d个帐号！&\t",
                      LOGINUSER, PROTO_FIELD_ERROR, loginlimit);
 
-            send_to_client_direct(sockfd, serial, decode_str(msg));
+            send_to_client_direct(sockfd, handle, decode_str(msg));
             DESTRUCT_OB(me, "Login");
             return false;
         }
@@ -368,7 +365,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
             snprintf(msg, 255,
                      "&C=%d&M=对不起，您的档案不存在，请重新申请。&\t", NOTIFY);
 
-            send_to_client_direct(sockfd, serial, decode_str(msg));
+            send_to_client_direct(sockfd, handle, decode_str(msg));
             DESTRUCT_OB(me, "Login");
             return false;
         }
@@ -380,7 +377,7 @@ int on_login(uint32_t serial, int sockfd, char* arg)
                      "&C=%d&F=%d&M=对不起，该用户现在%d号服务器上！&\t",
                      LOGINUSER, PROTO_FIELD_ERROR, server);
 
-            send_to_client_direct(sockfd, serial, decode_str(msg));
+            send_to_client_direct(sockfd, handle, decode_str(msg));
 
             DESTRUCT_OB(me, "Login");
             return false;

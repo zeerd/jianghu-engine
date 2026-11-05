@@ -28,6 +28,7 @@
 #include "config.h"
 #include "mock_connection.h"
 #include "protocol.h"
+#include "test_tmp_dir.h"
 
 namespace {
 
@@ -108,8 +109,7 @@ protected:
 
     void SetUp() override
     {
-        work_dir_    = std::filesystem::temp_directory_path()
-                       / "jianghu_cli_scenario_test";
+        work_dir_    = test_tmp_dir() / "jianghu_cli_scenario_test";
         logs_dir_    = work_dir_ / "logs";
         script_path_ = work_dir_ / "echo.sce";
         std::filesystem::create_directories(work_dir_);
@@ -169,8 +169,7 @@ protected:
 
     void SetUp() override
     {
-        work_dir_     = std::filesystem::temp_directory_path()
-                        / "jianghu_cli_scenario_repeat_test";
+        work_dir_     = test_tmp_dir() / "jianghu_cli_scenario_repeat_test";
         logs_dir_     = work_dir_ / "logs";
         script_path_  = work_dir_ / "loop.sce";
         report_path_  = work_dir_ / "report.txt";
@@ -384,7 +383,7 @@ protected:
     MockConnection* mock_conn_ = nullptr;  // 由 unique_ptr 管理，测试用裸指针访问
 
     WaitTextConditionTest() {
-        logs_dir_ = std::filesystem::temp_directory_path() / "jianghu_cli_wait_text_test";
+        logs_dir_ = test_tmp_dir() / "jianghu_cli_wait_text_test";
         std::filesystem::create_directories(logs_dir_);
         cfg_.logs_dir = logs_dir_.string();
         auto mock = std::make_unique<MockConnection>();

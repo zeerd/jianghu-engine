@@ -13,6 +13,8 @@
 --   （写法见 lua-default/data/hooks.lua）。
 require("data.rank").install(hooks)
 require("data.quest").install(hooks)
+-- 天下大考：answer 频道接管（出题 / 判分 / 奖励，见 data/exam.lua）
+require("data.exam").install(hooks)
 
 -- 新角色起步本金（金）
 -- 取值偏大：住宅区地价随住户数走阶梯（见 resident_base HOUSE_PRICES，最低档

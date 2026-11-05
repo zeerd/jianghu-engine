@@ -2,7 +2,7 @@ enable_testing()
 
 file(GLOB_RECURSE TEST_SOURCES "*.cc")
 add_executable(test_cases ${TEST_SOURCES})
-target_include_directories(test_cases PRIVATE ../src)
+target_include_directories(test_cases PRIVATE ../src ../../tests)
 target_link_libraries(test_cases PRIVATE jianghu_lib)
 
 # POSIX 平台使用系统安装的 GTest（如 libgtest-dev）。

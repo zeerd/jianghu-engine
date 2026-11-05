@@ -39,7 +39,7 @@ int l_set(lua_State* L)
     // 注意：不能用 lua_isnumber —— 它对可转数字的字符串（如 "1"）也返回 true，
     // 会把 set("owner", "1") 错存成数字，导致 querystr("owner") 读不到。
     if (lua_type(L, 3) == LUA_TNUMBER) {
-        obj->set(key, (int32_t)lua_tointeger(L, 3));
+        obj->set(key, (mapping_value_t)lua_tointeger(L, 3));
     }
     else if (lua_isstring(L, 3)) {
         obj->set(key, lua_tostring(L, 3));
@@ -60,7 +60,7 @@ int l_query(lua_State* L)
     }
 
     const char* key = luaL_checkstring(L, 2);
-    lua_pushinteger(L, obj->query(key));
+    lua_pushinteger(L, (lua_Integer)obj->query(key));
     return 1;
 }
 
@@ -82,8 +82,8 @@ int l_add(lua_State* L)
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
 
-    const char* key = luaL_checkstring(L, 2);
-    int32_t val     = (int32_t)luaL_checkinteger(L, 3);
+    const char* key     = luaL_checkstring(L, 2);
+    mapping_value_t val = (mapping_value_t)luaL_checkinteger(L, 3);
     obj->add(key, val);
     return 0;
 }
@@ -121,7 +121,7 @@ int l_set_temp(lua_State* L)
     const char* key = luaL_checkstring(L, 2);
     // 同上：lua_isnumber 会把 "1" 当数字，这里用 lua_type 精确区分
     if (lua_type(L, 3) == LUA_TNUMBER)
-        obj->set_temp(key, (int32_t)lua_tointeger(L, 3));
+        obj->set_temp(key, (mapping_value_t)lua_tointeger(L, 3));
     else if (lua_isstring(L, 3))
         obj->set_temp(key, lua_tostring(L, 3));
     return 0;
@@ -134,7 +134,7 @@ int l_query_temp(lua_State* L)
     if (!obj) return 0;
 
     const char* key = luaL_checkstring(L, 2);
-    lua_pushinteger(L, obj->query_temp(key));
+    lua_pushinteger(L, (lua_Integer)obj->query_temp(key));
     return 1;
 }
 
@@ -270,8 +270,8 @@ int l_add_temp(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
-    const char* key = luaL_checkstring(L, 2);
-    int32_t val     = (int32_t)luaL_checkinteger(L, 3);
+    const char* key     = luaL_checkstring(L, 2);
+    mapping_value_t val = (mapping_value_t)luaL_checkinteger(L, 3);
     obj->add_temp(key, val);
     return 0;
 }

@@ -146,8 +146,9 @@ static int resolve_script_ref(CMainObject* obj)
 }
 
 // self:call_out(func, delay, param1, param2)
-// func 可以是函数名（在 owner 自己的脚本表中按名查找，注册期校验存在性），
-// 也可以是函数值（模块定义的回调直接传函数，registry 引用由注册表持有）
+// func 可以是函数名（先在 owner 自己的脚本表中按名查找、缺名时回退到当前
+// 执行脚本，注册期校验存在性），也可以是函数值（模块定义的回调直接传函数，
+// registry 引用由注册表持有）
 // 返回回调 ID（成功）或 0（失败）
 
 int l_call_out(lua_State* L)

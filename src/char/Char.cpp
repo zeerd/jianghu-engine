@@ -130,7 +130,7 @@ void CChar::heart_beat()
     }
 
     if (query("combat_exp") < -2000000000) {
-        set("combat_exp", LONGMAX);
+        set("combat_exp", MAPPING_VALUE_MAX);
     }
 
     if (is_user(this)) {

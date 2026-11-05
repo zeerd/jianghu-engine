@@ -43,6 +43,7 @@ struct PlayerAttr {
     int str = 0, con = 0, intel = 0, dex = 0;
     int8_t state = 0;  // hp * 100 / max_hp
     bool idle    = false;
+    bool busy    = false;  // STATE 的 bsy：忙碌中（契约：字段缺失即不忙）
     int64_t hp = 0, max_hp = 0, eff_hp = 0;
     int64_t mp = 0, max_mp = 0;
     int64_t enforce = 0;

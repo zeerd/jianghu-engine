@@ -3,13 +3,17 @@
 // 经 l_call_out / l_remove_call_out 真实绑定边界驱动 CLuaEngine：
 // 1. remove_call_out 只删发起对象自己的挂起回调，跨对象同名函数互不影响；
 // 2. 回调执行期间 remove_call_out 删自己会被跳过，执行完由 execute_callout
-//    按 key 清理。
+//    按 key 清理；
+// 3. 按名注册的回退：owner 自己的脚本表缺名时回退到当前执行脚本（回调函数
+//    属于发起 call_out 的脚本），两处都没有才拒绝注册。
 #include "pch.h"
 
 #include "Container.h"
 #include "LuaBind.h"
 #include "LuaBindDecls.h"
 #include "LuaEngine.h"
+#include "LuaNpc.h"
+#include "LuaRoom.h"
 #include "test_lua_env.h"
 
 namespace {
@@ -238,4 +242,128 @@ TEST_F(LuaCalloutTest, RemoveSkipsExecutingCallback)
     EXPECT_EQ(1, LuaInt("callout_test_ran"));                // 回调确实执行了
     EXPECT_EQ(0, LuaInt("callout_test_removed"));            // 删自己 -> 跳过
     EXPECT_EQ(0, RemoveCallOut(&owner, "test_exec_reset"));  // 执行完清理
+}
+
+// 缺名回退：owner 自己的脚本表没有该名字时，回退到当前执行脚本——
+// 回调函数写在发起 call_out 的脚本里、对象只是效果作用目标的统一写法，
+// 对玩家与脚本 NPC 都能按名注册（同一份效果代码，不分目标类型）。
+TEST_F(LuaCalloutTest, NameFallsBackToIssuingScript)
+{
+    CLuaRoom owner("fixture_prefix_room");
+    owner.create();  // 加载 fixture 脚本，拿到 owner 自己的脚本引用
+    HeartBeatGuard beat(&owner);
+    owner.set_name("callout_owner");
+
+    // 发起脚本（active）：只有这张表里有回调；owner 自己的脚本（fixture）没有
+    ASSERT_TRUE(
+        LoadScriptTable("callout_test_script = {\n"
+                        "  test_fallback_cb = function(self)\n"
+                        "    callout_test_ran = 1\n"
+                        "  end\n"
+                        "}"));
+
+    ASSERT_GT(CallOut(&owner, "test_fallback_cb", 1), 0)
+        << "owner 脚本缺名时应回退到当前执行脚本";
+
+    // 回退注册的条目同样能按名取消（同对象、同名字）
+    EXPECT_EQ(1, RemoveCallOut(&owner, "test_fallback_cb"));
+
+    // 重新注册并执行：执行时 self = owner 对象
+    ASSERT_GT(CallOut(&owner, "test_fallback_cb", 1), 0);
+    owner.heart_beat();
+    EXPECT_EQ(1, LuaInt("callout_test_ran"));
+
+    // 一次性：再次心跳不重复执行
+    owner.heart_beat();
+    EXPECT_EQ(1, LuaInt("callout_test_ran"));
+}
+
+// 名字两边都有：owner 自己的脚本表优先（回退只在缺名时发生）
+TEST_F(LuaCalloutTest, OwnerScriptWinsOverIssuingScript)
+{
+    CLuaRoom owner("fixture_prefix_room");
+    owner.create();
+    HeartBeatGuard beat(&owner);
+    owner.set_name("callout_owner");
+
+    // 发起脚本也定义了同名 reset：必须执行 owner 脚本的版本（fixture 的
+    // reset 给对象置 reset_ran），而不是发起脚本的版本（写全局
+    // callout_test_ran）
+    ASSERT_TRUE(
+        LoadScriptTable("callout_test_script = {\n"
+                        "  reset = function(self) callout_test_ran = 99 end\n"
+                        "}"));
+
+    ASSERT_GT(CallOut(&owner, "reset", 1), 0);
+    owner.heart_beat();
+
+    EXPECT_EQ(1, owner.query("reset_ran")) << "应执行 owner 脚本表里的版本";
+    EXPECT_EQ(0, LuaInt("callout_test_ran")) << "不应执行发起脚本的同名版本";
+}
+
+// 两处都没有该名字：注册期拒绝（owner 有脚本、发起脚本也在，但都没有）
+TEST_F(LuaCalloutTest, RejectsWhenNeitherScriptHasName)
+{
+    CLuaRoom owner("fixture_prefix_room");
+    owner.create();
+    HeartBeatGuard beat(&owner);
+    owner.set_name("callout_owner");
+
+    ASSERT_TRUE(LoadScriptTable("callout_test_script = {}"));
+
+    EXPECT_EQ(0, CallOut(&owner, "no_such_function_anywhere", 1));
+    owner.heart_beat();
+    EXPECT_EQ(0, LuaInt("callout_test_ran"));
+}
+
+// 发起者销毁：按名回调定义在发起脚本、注册在目标身上——发起的 NPC 实例
+// 销毁后，脚本表仍由引擎脚本缓存持有，到点照常执行且 self = 目标。
+TEST_F(LuaCalloutTest, IssuerDestroyedCallbackStillFiresOnTarget)
+{
+    CContainer target;
+    HeartBeatGuard beat_target(&target);
+    target.set_name("callout_target");
+
+    {
+        CLuaNpc issuer("t_callout_issuer");
+        issuer.create();  // 加载夹具脚本（脚本表进引擎缓存）
+        const int issuer_ref = issuer.get_script_ref();
+        ASSERT_NE(issuer_ref, LUA_NOREF);
+
+        // 注册走「发起脚本」：目标无脚本 → 回退到当前执行脚本 = 发起脚本
+        CLuaEngine::instance()->set_active_script_ref(issuer_ref);
+        ASSERT_GT(CallOut(&target, "test_issuer_cb", 1), 0);
+    }  // 发起者 NPC 实例销毁（脚本表不随之失效）
+
+    target.heart_beat();  // 时达到点
+    EXPECT_EQ(1, LuaInt("callout_test_ran")) << "发起者销毁后回调仍应执行";
+    EXPECT_EQ(1, target.query("issuer_cb_mark")) << "执行时 self 必须是目标";
+}
+
+// 目标销毁：挂起的按名回调随析构释放、绝不触发；残留的注册表条目不影响
+// 其他对象之后的同名注册与执行（object_id 单调不复用，残留不可达）。
+TEST_F(LuaCalloutTest, DestroyedTargetReleasesNamedCallout)
+{
+    ASSERT_TRUE(
+        LoadScriptTable("callout_test_script = {\n"
+                        "  test_dead_cb = function(self)\n"
+                        "    callout_test_ran = 1\n"
+                        "  end\n"
+                        "}"));
+
+    CContainer* gone = new CContainer();
+    gone->set_name("callout_gone");
+    ASSERT_GT(CallOut(gone, "test_dead_cb", 1), 0);
+    gone->set_heart_beat(0);
+    delete gone;  // 目标销毁：队列随析构释放（契约：释放而非触发）
+
+    EXPECT_EQ(0, LuaInt("callout_test_ran")) << "销毁不得触发回调";
+
+    // 残留的注册表条目不影响其他对象的同名注册与执行
+    CContainer other;
+    HeartBeatGuard beat_other(&other);
+    other.set_name("callout_other");
+    ASSERT_GT(CallOut(&other, "test_dead_cb", 1), 0);
+    other.heart_beat();
+    EXPECT_EQ(1, LuaInt("callout_test_ran")) << "other 的同名注册照常执行";
 }

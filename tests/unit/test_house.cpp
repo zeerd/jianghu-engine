@@ -314,7 +314,7 @@ TEST_F(HouseTest, Create_SetsDefaultsAndSpawnsServant)
 
     // 仆人：load_npc("monster_yongren") 入房，temp 记 id，缺省 20000 经验
     // （TearDown 统一摘除：先于房间删除，避免 environment 悬垂）
-    const int32_t servant_id = h->query_temp("yongren");
+    const mapping_value_t servant_id = h->query_temp("yongren");
     ASSERT_NE(0, servant_id);
     CNpc* npc = find_npc_by_base_name("monster_yongren");
     ASSERT_NE(nullptr, npc);
@@ -901,7 +901,7 @@ TEST_F(HouseTest, CheckPays_OnlineOwnerAutoDeducts)
 
     call_house_script("check_pays", nullptr, {});
 
-    const long bal = owner.get()->query("balance");
+    const mapping_value_t bal = owner.get()->query("balance");
     EXPECT_LT(bal, 1000000) << "银行余额自动扣租";
     EXPECT_GT(bal, 900000) << "扣额=房租（size<2 减半，万金量级）";
     EXPECT_EQ(0, h->query("need_pays")) << "扣成不挂帐";

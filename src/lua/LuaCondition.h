@@ -23,7 +23,7 @@ public:
 
     // 重写 update_condition：调用 Lua 脚本的 update_condition 函数
     // 返回 flag，并将第二返回值（number）写回 duration 引用
-    virtual int update_condition(CChar* me, LONG& duration);
+    virtual int update_condition(CChar* me, mapping_value_t& duration);
 
     // 脚本名
     const char* get_script_name() { return m_script_name.c_str(); }

@@ -8,6 +8,8 @@
 //
 #include "pch.h"
 
+#include <cstdio>
+
 #include "Channel.h"
 #include "Char.h"
 #include "Container.h"
@@ -805,4 +807,66 @@ TEST_F(ChatChannelDeepTest, DoChannelHookLinesBroadcast)
         g_user_list.erase(p->object_id());
         delete p;
     }
+}
+
+// ====================================================================
+// 扩展频道来源：channel_config.lua（f1-f4、answer 的唯一提供方）
+// ====================================================================
+
+namespace {
+const char* kChannelConfigFixture
+    = "tests/unit/lua-tests/data/channel_config.lua";
+const char* kChannelConfigFixtureOff
+    = "tests/unit/lua-tests/data/channel_config.lua.disabled";
+}  // namespace
+
+// 扩展频道由数据脚本注册，且数值字段必须以整数落库：
+// age<15 用户在 f1 放行，只有 newbie 存成 T_NUMBER 才可能
+// （存成字符串时 query() 返回 0，年龄门槛会拒绝）
+TEST_F(ChatChannelDeepTest, ExtChannelsLoadedFromLuaWithNumericFields)
+{
+    CUser* u = MakeUser("少年", "ext_young");
+    u->set("age", 14);
+    u->move(&env);
+    g_user_list[u->object_id()] = u;
+
+    g_notify_fail_msg[0] = '\0';
+    EXPECT_EQ(cc.do_channel(u, nullptr, "f1", "少年在 f1 说话"), 1)
+        << "f1 由 channel_config.lua 注册且 newbie 为整数";
+    EXPECT_EQ(std::string(g_notify_fail_msg).find("年纪太小"),
+              std::string::npos)
+        << "newbie=1 应放行低龄发言";
+
+    u->move(nullptr);
+    g_user_list.erase(u->object_id());
+    delete u;
+}
+
+// channel_config.lua 缺失 = 扩展频道未配置：f1/answer 不注册，
+// 基础频道不受影响（缺文件时服务器照常启动的单元级契约）
+TEST_F(ChatChannelDeepTest, MissingChannelConfigRegistersOnlyBaseChannels)
+{
+    ASSERT_EQ(rename(kChannelConfigFixture, kChannelConfigFixtureOff), 0)
+        << "夹具改名失败（文件不存在？）";
+
+    cc.create();  // 缺文件状态下重建频道表
+
+    // 夹具必须复原：断言放在复原之后，避免失败路径污染仓库
+    EXPECT_EQ(rename(kChannelConfigFixtureOff, kChannelConfigFixture), 0)
+        << "夹具必须复原";
+
+    CUser* u = MakeUser("路人", "ext_missing");
+    u->move(&env);
+    g_user_list[u->object_id()] = u;
+
+    EXPECT_EQ(cc.do_channel(u, nullptr, "f1", "f1 还能说话吗"), 0)
+        << "缺文件时扩展频道不注册";
+    EXPECT_EQ(cc.do_channel(u, nullptr, "answer*", "答题"), 0)
+        << "缺文件时 answer 也不注册";
+    EXPECT_EQ(cc.do_channel(u, nullptr, "chat", "基础频道照常"), 1)
+        << "基础频道不受影响";
+
+    u->move(nullptr);
+    g_user_list.erase(u->object_id());
+    delete u;
 }

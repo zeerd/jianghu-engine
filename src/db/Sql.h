@@ -59,6 +59,8 @@ bool db_delete_box(const char* obj_id);
 // ------------------------------------------------------------
 // 用户/账号操作 (对应 Login.cpp, User.cpp, Char.cpp)
 // ------------------------------------------------------------
+// 主密码校验（哈希优先，旧明文行校验通过后原地迁移）；暗码校验见下。
+bool db_authenticate_account(const char* id, const char* passwd);
 bool db_verify_password(const char* id, const char* pass);
 long db_register_account(const char* name, const char* passwd,
                          const char* email, const char* gender, int str,

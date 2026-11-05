@@ -102,6 +102,19 @@ TEST_F(CharStateTest, GetStateMsg_Disabled)
     EXPECT_NE(msg.find("dis="), std::string::npos);
 }
 
+// bsy 的两侧：不忙时字段缺席（消费方按「缺失即不忙」判定），忙时必须在场。
+TEST_F(CharStateTest, GetStateMsg_BusyFlag)
+{
+    std::string msg = "&C=1&T=1&";
+    ch->get_state_msg(msg);
+    EXPECT_EQ(msg.find("bsy="), std::string::npos) << "不忙 → 字段缺席";
+
+    ch->start_busy(2);
+    msg = "&C=1&T=1&";
+    ch->get_state_msg(msg);
+    EXPECT_NE(msg.find("bsy=1&"), std::string::npos) << "忙 → 字段在场";
+}
+
 // ---------------- SendState ----------------
 // broadcast=true：房间内其他玩家收到状态标志精简包（含 tea=，不含 hp=/att=）。
 TEST_F(CharStateTest, SendState_Broadcast_ReachesOtherUsers)

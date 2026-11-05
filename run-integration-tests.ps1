@@ -39,6 +39,26 @@
 #      覆盖率汇总）；失败判定四通道与完整模式同一套。
 #      ⚠ 定位：仅供人类做「服务器还活着吗」的快速确认。AI/Agent 禁用——AI 的
 #      验证与交付验收必须跑完整模式，不许拿 -Simple 的绿当验收结论。
+#  10. persist 试验台（**并发中间重启机制**，仅完整模式）：一条后台任务在独立
+#      端口（config.persist.ini，6612）+ 独立库（e2e_persist.db）上驱动第二台
+#      服务器，按「跑段 → 停服 → 重启 → 跑下段」的 **N 段循环**执行段表
+#      （$PersistSegments；本次两段：persist_pre → 重启 → persist_post，断言
+#      can_save 挑战计数跨重启继续累加）。任务在阶段 1 之前启动，**与注册和
+#      全部道并行**——重启发生在各道跑到一半时，不占关键路径；段表加一项即
+#      可扩成三段（pre→重启→mid→重启→post），供后续需要重启/干净态的测试复用。
+#      覆盖率多路合并：主服与各试验台实例各导二进制，全部结束后跑一趟
+#      合并通行证（--input_coverage 可多次传入，启动时校验文件存在）出最终报告。
+#  11. reload 试验台（**热重载 E2E**，仅完整模式）：一条后台任务在独立端口
+#      （config.reload.ini，6613）+ 独立库（e2e_reload.db）+ 私有脚本副本
+#      （test_tmp\e2e_reload\scripts = lua-sample 每轮整树复制 + fixture A 变体）
+#      上起第二台服务器，跑一条连续剧本链（scenarios\reload\reload_suite.sce）：
+#      改文件（filecopy/filedelete 写在片段里）→ 等重载结果（sys 广播屏障）→
+#      断言行为切换——覆盖自动重载主路径、失败兜底、手动 reload 回执、共享
+#      模块 require 缓存语义与 mtime-noop。任务与各道并行、不占关键路径；
+#      收尾由任务断言服务端日志（auto-reload 行在案 / noop 探针未被误重载 /
+#      失败尝试在案），结果 JSON 并入失败判定四通道；覆盖率第四路
+#      coverage_history\e2e_reload.cov 随合并通行证并入总报告。编排与调试
+#      入口见 tests\integration\reload_testbed.ps1（可前台直跑快速迭代剧本）。
 #
 # 依赖：MSBuild（VS）、OpenCppCoverage。数据库为 SQLite（tests\integration\e2e.db），
 #        由服务端启动时自动建库建表，无需任何外部数据库服务。
@@ -57,7 +77,9 @@
 #     每个账号用唯一角色名，因此无需清库。需要全新库时用 -ResetDb 删除库文件，
 #     服务端下次启动自动重建。
 #   - 覆盖率与「未命中函数」都是近似口径，详见 docs\design\integration-test.md §5.3。
-#   - 各道的变量/报告/日志在 %TEMP%\e2e_lanes\（lane<N>.vars/.report/.log）。
+#   - 各道的变量/报告/日志在仓库根 test_tmp\e2e_lanes\（lane<N>.vars/.report/.log），
+#     与单测/CLI 测试共用 test_tmp\（.gitignore 已排除）：系统 %TEMP% 无人清理，
+#     测试残留会无限堆积。
 #   - 进程管理只认「监听测试端口的 jianghu」：启动前只回收上次残留的测试服务器，
 #     收尾只停本脚本起的那台，不会按进程名误杀你在其他端口（如 6600）跑的服务器；
 #     但也因此不要把功能测试服务器开在测试端口（tests\integration\config.ini 的 port）上。
@@ -126,6 +148,17 @@ $tServerReadySec = $null
 $tRegSec = $null
 $tLaneSec = $null
 $tExportSec = $null
+# persist 试验台（与各道并行，不进 exec 关键路径）：结果从任务的 JSON 回收，
+# pre/post 段耗时与段间重启耗时只作诊断展示
+$sideJob = $null
+$sideResult = $null
+# reload 试验台（文首第 11 条）：同为并行后台任务，链耗时只作诊断展示
+$reloadJob = $null
+$reloadResult = $null
+# 注意：此处早于 $RepoRoot 赋值，直接用 $PSScriptRoot（两者同值）
+$SideResultFile = Join-Path $PSScriptRoot "test_tmp\e2e_lanes\persist_testbed.result.json"
+# reload 试验台结果（文首第 11 条）：任务自产 JSON，主流程回收进失败判定
+$ReloadResultFile = Join-Path $PSScriptRoot "test_tmp\e2e_lanes\reload_testbed.result.json"
 # 整段墙钟（简单模式预算口径，文首第 9 条）：构建之后起算，至关服与观测收尾，
 # 不含覆盖率导出；未到起算点即为 $null（构建失败等，此时也不会有耗时记录）
 $tWallStart = $null
@@ -139,6 +172,16 @@ $IntDir = Join-Path $RepoRoot "tests\integration"
 $ConfPath = Join-Path $IntDir "config.ini"
 $ScenarioDir = Join-Path $IntDir "scenarios"
 $CliConf = Join-Path $IntDir "cli.conf"
+# persist 试验台（文首第 10 条）：独立端口/独立库的第二服务器配置
+$SideConfPath = Join-Path $IntDir "config.persist.ini"
+$SideCliConf = Join-Path $IntDir "cli.persist.conf"
+# reload 试验台（文首第 11 条）：独立端口/独立库/私有脚本副本的第二服务器配置
+$ReloadConfPath = Join-Path $IntDir "config.reload.ini"
+$ReloadCliConf = Join-Path $IntDir "cli.reload.conf"
+$ReloadTestbedScript = Join-Path $IntDir "reload_testbed.ps1"
+$ReloadFixturesDir = Join-Path $IntDir "reload_fixtures"
+$ReloadScriptsRoot = Join-Path $RepoRoot "test_tmp\e2e_reload\scripts"
+$ReloadDbPath = Join-Path $RepoRoot "test_tmp\e2e_reload\e2e.db"
 $ServerProj = Join-Path $RepoRoot "jianghu.vcxproj"
 $CliProj = Join-Path $RepoRoot "cli\jianghu_cli.vcxproj"
 # 集成测试用**专属**服务器 exe（bin\e2e\jianghu.exe）：与正常使用
@@ -147,6 +190,12 @@ $E2EDir = Join-Path $RepoRoot "bin\e2e"
 $ServerExe = Join-Path $E2EDir "jianghu.exe"
 $ReportDir = Join-Path $RepoRoot "coverage_report_e2e_sample"
 $CovBin = Join-Path $RepoRoot "coverage_history\e2e_sample.cov"
+# 三路覆盖率的中间产物：主服一路（试验台各段由后台任务自命名
+# e2e_persist_seg<k>.cov，末尾合并通行证把全部输入汇成上面的 $CovBin）。
+$CovBinMain = Join-Path $RepoRoot "coverage_history\e2e_sample_main.cov"
+$SideCovGlob = Join-Path $RepoRoot "coverage_history\e2e_persist_seg*.cov"
+# reload 试验台第四路（单服务器单寿命，一路即可）
+$ReloadCovGlob = Join-Path $RepoRoot "coverage_history\e2e_reload*.cov"
 # 汇总文件分模式：简单模式不采集覆盖率，若复用同名文件会把完整模式的覆盖率
 # 汇总（提交前清单的 delta 对比基准）冲掉——冒烟写自己的 summary-e2e-smoke.txt。
 $SummaryFile = Join-Path $RepoRoot ("coverage_history\" +
@@ -169,7 +218,9 @@ $Lanes = @(
     @{ Id = 1; Desc = "山脚基础+房屋"; Script = "lane_foot.sce" },
     @{ Id = 2; Desc = "武学链"; Script = "lane_skill.sce"; WizardId = 9 },
     @{ Id = 3; Desc = "山顶战斗尾"; Script = "lane_combat.sce"; WizardId = 9 },
-    @{ Id = 4; Desc = "社交生活"; Script = "lane_social.sce" },
+    # L4 依赖巫师服务（WizardId=9）：NPC 师徒家门查询（场景 C 的 family/user
+    # 回归断言）走 §2.6 的巫师直读 dbase 通道，本道自己没有只读 dbase 的命令。
+    @{ Id = 4; Desc = "社交生活"; Script = "lane_social.sce"; WizardId = 9 },
     # L5/L6 是配对互动道（PeerId 互相指认）：注册阶段把对方角色名写进对方
     # vars（peer 键），剧本以 $peer 会合后做玩家互动（组队/私聊/赠送/交易等）。
     # L5 的 WitnessId=7 指向观战道：L5 vars 收 spectator 键（对方角色名），
@@ -238,8 +289,23 @@ foreach ($lane in $ActiveLanes) {
     }
 }
 
-# 每道独立的变量文件 / 剧本报告 / 输出日志（变量文件承载本道自己的 acct）
-$WorkDir = Join-Path $env:TEMP "e2e_lanes"
+# persist 试验台的**段表**（N 段通用机制，头注第 10 条）：每项 = 试验台的
+# 一个服务器生命周期，段与段之间即一次重启；后台任务按本表循环执行，全程与
+# 各道并行。字段：Id 段名（变量/报告/日志文件名）｜Suffix 账号名后缀（避开
+# 道序号数字，段间不得重名）｜Script 段剧本｜Inject 段前注入（$null=无；
+# "expect_n_plus1"=读上一段 vars 的 n、注入 expect_n=n+1——跨重启断言用）。
+# 扩成三段只需追加一项并按需新增一种 Inject，任务循环与覆盖率合并自动适配。
+$PersistSegments = @()
+if (-not $Simple) {
+    $PersistSegments = @(
+        @{ Id = "pre"; Suffix = "p"; Script = "persist\persist_pre.sce"; Inject = $null },
+        @{ Id = "post"; Suffix = "q"; Script = "persist\persist_post.sce"; Inject = "expect_n_plus1" }
+    )
+}
+
+# 每道独立的变量文件 / 剧本报告 / 输出日志（变量文件承载本道自己的 acct）。
+# 落仓库根 test_tmp\ 而非系统 %TEMP%：临时文件必须留在项目内可查、可随仓库清理。
+$WorkDir = Join-Path $RepoRoot "test_tmp\e2e_lanes"
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 foreach ($lane in $ActiveLanes) {
     $lane.VarsFile = Join-Path $WorkDir ("lane{0}.vars" -f $lane.Id)
@@ -373,8 +439,8 @@ function ConvertTo-SrcRelative {
 #   · SnoopSystem：仅服务巫师 snoop 命令（§6 并入巫师行），剧本暂无 snoop 面；
 #   · MySqlDb：E2E 用 SQLite，MySQL 后端走不到（run-coverage 侧同名排除）；
 #   · CreateDump：正常轮不触发崩溃过滤器（run-coverage 侧同名排除）；
-#   · AutoFight：§6——E2E 无合法触发面（vendetta/berserk 无设置者、aggressive 只在
-#     L3 独占副本且不撞面），4 函数全 0。
+#   · AutoFight：§6——vendetta/berserk 无设置者；aggressive 由 persist 段二进房
+#     的喽啰 init 触发到分发器一层，策略 call_out 是否执行不稳定，不进分母。
 # CmdWizard* 已移出本表（N4 L9 巫师道落地）：巫师命令由 L9 真实执行（full/set_skill/
 # call…），整文件排除不再诚实；其未覆盖的巫师函数（reboot/ban/snoop/clone…）进
 # 未命中清单保持可见——**不追求覆盖度**（2026-11-01 决策，design §6 巫师行）：
@@ -389,7 +455,9 @@ $script:CoverageSkipPatterns = @(
     "SnoopSystem.cpp",        # 巫师 snoop 域（§6 并入巫师行）：整文件仅服务 snoop
     "MySqlDb.cpp",            # MySQL 后端：E2E 用 SQLite（§6）
     "CreateDump.cpp",         # 崩溃过滤器：正常轮不触发（§6，单测口径同名排除）
-    "AutoFight.cpp"           # §6：E2E 无合法触发面，4 函数全 0
+    "AutoFight.cpp"           # §6：vendetta/berserk 无触发面；persist 段二进房时
+                              # 喽啰 init 会调 auto_fight 分发器，但其策略 call_out
+                              # 是否执行不稳定，整文件仍按 §6 排除不进分母
 )
 
 function Test-CoverageSkippedFile {
@@ -564,6 +632,67 @@ function Stop-OrphanTestServer {
     }
 }
 
+# 启动主套件「被测服务器」（单实例）：-NoCoverage 下由本脚本直接拉起；
+# 覆盖率模式经 OpenCppCoverage 拉起、只导二进制 e2e_sample_main.cov——
+# 最终 html/cobertura 由末尾的**合并通行证**统一产出（主服 + persist 试验台
+# 各段三路 --input_coverage 合并；OCC 启动时校验输入文件存在，故只能等
+# 全部实例导出完毕后再跑这一趟）。
+function Start-E2EServer {
+    if ($NoCoverage) {
+        $script:serverRun = Start-HiddenProcess -Exe $ServerExe -WorkingDirectory $RepoRoot `
+            -Arguments @("--config", $ConfPath, "--log-run-id", $LogRunId)
+        $script:serverProc = $script:serverRun.Process
+        return
+    }
+
+    if (Test-Path $ReportDir) { Remove-Item $ReportDir -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path (Split-Path $CovBin) | Out-Null
+    $occArgs = @(
+        "--modules", $ServerExe,
+        "--sources", (Join-Path $RepoRoot "src"),
+        "--optimized_build",
+        "--working_dir", $RepoRoot,
+        "--export_type", "binary:$CovBinMain",
+        "--",
+        $ServerExe, "--config", $ConfPath, "--log-run-id", $LogRunId
+    )
+    $script:occRun = Start-HiddenProcess -Exe $OccExe -WorkingDirectory $RepoRoot -Arguments $occArgs
+    Write-Host "-- OpenCppCoverage 已启动（pid $($occRun.Process.Id)，无窗口）"
+}
+
+# 等待 OpenCppCoverage 进程退出并导出二进制覆盖率，返回等待耗时（秒）。
+# 采集日志留档，便于排查报告异常。
+function Wait-CoverageExport {
+    param($OccRun, [string]$LogName)
+
+    Write-Host "-- 等待 OpenCppCoverage 导出报告..."
+    $occProc = $OccRun.Process
+    $occStart = Get-Date
+    $occDeadline = $occStart.AddSeconds(180)
+    $occBeat = $occStart.AddSeconds(30)
+    while ((Get-Date) -lt $occDeadline) {
+        if ($occProc.HasExited) { break }
+        $now = Get-Date
+        if ($now -ge $occBeat) {
+            $occBeat = $now.AddSeconds(30)
+            Write-Host ("   ... 服务器已停止，等待导出报告（已 {0}s，上限 180s）" -f `
+                    [int]($now - $occStart).TotalSeconds)
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    if (-not $occProc.HasExited) {
+        Write-Warning "OpenCppCoverage 未退出，强制结束"
+        $occProc | Stop-Process -Force
+    }
+    else {
+        # 采集日志留档，便于排查报告异常
+        $occLog = Join-Path (Split-Path $CovBin) $LogName
+        @($OccRun.StdOut.Result, $OccRun.StdErr.Result) |
+            Where-Object { $_ } | Set-Content -Encoding UTF8 $occLog
+    }
+    return [int]((Get-Date) - $occStart).TotalSeconds
+}
+
 # 给子进程参数加引号（Start-Process / ProcessStartInfo.Arguments 只接受单个字符串）
 function Quote-Arg([string]$s) {
     if ($s -match '[\s"]') { return '"' + ($s -replace '"', '\"') + '"' }
@@ -609,17 +738,29 @@ function Start-HiddenProcess {
 # 准备
 # ===========================================================================
 
-foreach ($p in @($ConfPath, $CliConf, $ServerProj)) {
+foreach ($p in @($ConfPath, $CliConf, $SideConfPath, $SideCliConf,
+        $ReloadConfPath, $ReloadCliConf, $ReloadTestbedScript, $ServerProj)) {
     if (-not (Test-Path $p)) { throw "缺少文件：$p" }
 }
 
 $Port = [int](Get-IniValue $ConfPath "server" "port")
+# persist 试验台：独立端口 / 独立库（配置见 tests\integration\config.persist.ini）
+$SidePort = [int](Get-IniValue $SideConfPath "server" "port")
+if ($SidePort -eq $Port) { throw "$SideConfPath 的 [server] port 必须与主配置错开（当前都是 $Port）" }
+# reload 试验台：独立端口 / 独立库 / 私有脚本副本（config.reload.ini）
+$ReloadPort = [int](Get-IniValue $ReloadConfPath "server" "port")
+if ($ReloadPort -eq $Port -or $ReloadPort -eq $SidePort) {
+    throw "$ReloadConfPath 的 [server] port 必须与主配置（$Port）及 persist 试验台（$SidePort）都错开，当前：$ReloadPort"
+}
 $DbType = Get-IniValue $ConfPath "database" "type"
 if ($DbType -ne "sqlite") { throw "$ConfPath 的 [database] type 必须为 sqlite（E2E 已不依赖外部数据库服务），当前：'$DbType'" }
 $DbPath = Get-IniValue $ConfPath "database" "path"
 if ($DbPath -eq "") { throw "无法从 $ConfPath 解析 [database] path" }
 # config 里的 path 相对仓库根（服务器以仓库根为工作目录启动）；脚本侧拼成绝对路径
 if (-not [System.IO.Path]::IsPathRooted($DbPath)) { $DbPath = Join-Path $RepoRoot ($DbPath -replace "/", "\") }
+$SideDbPath = Get-IniValue $SideConfPath "database" "path"
+if ($SideDbPath -eq "") { throw "无法从 $SideConfPath 解析 [database] path" }
+if (-not [System.IO.Path]::IsPathRooted($SideDbPath)) { $SideDbPath = Join-Path $RepoRoot ($SideDbPath -replace "/", "\") }
 if ($CliExe -eq "") { $CliExe = Join-Path $RepoRoot "bin\cli\jianghu_cli.exe" }
 
 if ($Simple) {
@@ -642,10 +783,10 @@ if (-not $SkipBuild) {
     # 使集成测试写自己的 exe，不与正在运行的 bin\jianghu.exe 抢文件锁（LNK1104）。
     # 注意用双写结尾反斜杠：既满足 OutDir 必须以 \ 结尾，又避开 PowerShell 向
     # 原生命令传「单个结尾反斜杠」被吃掉的坑。
-    & $msb $CliProj /p:Configuration=Release /p:Platform=Win32 /nologo /verbosity:minimal
+    & $msb $CliProj /p:Configuration=Release /p:Platform=Win32 /m /nologo /verbosity:minimal
     if ($LASTEXITCODE -ne 0) { throw "构建失败：$CliProj" }
     New-Item -ItemType Directory -Force -Path $E2EDir | Out-Null
-    & $msb $ServerProj /p:Configuration=Release /p:Platform=Win32 "/p:OutDir=$E2EDir\\" /nologo /verbosity:minimal
+    & $msb $ServerProj /p:Configuration=Release /p:Platform=Win32 /m "/p:OutDir=$E2EDir\\" /nologo /verbosity:minimal
     if ($LASTEXITCODE -ne 0) { throw "构建失败：$ServerProj" }
     # 虽然 E2E 数据库走 SQLite（sqlite3 静态编入），但 jianghu.exe 仍隐式链接
     # libmysql.lib（非 delay-load），进程启动时加载器就要求 libmySQL.dll 在场——
@@ -1069,7 +1210,13 @@ function Get-TimingReport {
     $buildTxt = if ($null -ne $Cur.build_sec) { "$($Cur.build_sec)s" } else { "-" }
     $readyTxt = if ($null -ne $Cur.server_ready_sec) { "$($Cur.server_ready_sec)s" } else { "-" }
     $exportTxt = if ($null -ne $Cur.export_sec) { "$($Cur.export_sec)s" } else { "-" }
-    [void]$out.Add(("本次总耗时（剧本执行）: {0}s = 注册 {1}s + 各道并行 {2}s" -f $curExec, $regCur, $laneCur))
+    # 构成行只含 exec 关键路径（persist 试验台与各道并行、不占关键路径，另起一行）
+    $compTxt = "注册 {0}s + 各道并行 {1}s" -f $regCur, $laneCur
+    [void]$out.Add(("本次总耗时（剧本执行）: {0}s = {1}" -f $curExec, $compTxt))
+    if ($null -ne $Cur.persist_sec) {
+        [void]$out.Add(("  persist 试验台（与各道并行）: 段 {0}s + 重启 {1}s（不计入执行总耗时）" -f `
+                [int]$Cur.persist_sec, [int]$Cur.restart_sec))
+    }
     [void]$out.Add(("  构建 {0} ｜ 起服 {1} ｜ 覆盖率导出 {2}（不计入对比）" -f $buildTxt, $readyTxt, $exportTxt))
 
     # --- 绝对预算三行硬指标（预算是唯一的通过标尺；Δ 归因在其后，纯诊断） ---
@@ -1138,7 +1285,16 @@ function Get-TimingReport {
     $newScen = New-Object System.Collections.ArrayList
     $addedReg = @(@($Cur.reg_scenarios) | Where-Object { @($Prev.reg_scenarios) -notcontains $_ })
     if ($addedReg.Count -gt 0) {
-        [void]$newScen.Add([pscustomobject]@{ Lane = $null; Files = $addedReg })
+        [void]$newScen.Add([pscustomobject]@{ Lane = $null; Files = $addedReg; Where = "注册阶段" })
+    }
+    # persist 阶段（跨重启验证）的新增场景 diff：旧基线没有 persist_scenarios 字段
+    # → 全部算新增，把 Δ 归因到 persist/重启而不是「环境波动」。
+    $addedPersist = @(@($Cur.persist_scenarios) |
+            Where-Object { @($Prev.persist_scenarios) -notcontains $_ })
+    if ($addedPersist.Count -gt 0) {
+        [void]$newScen.Add([pscustomobject]@{
+                Lane = $null; Files = $addedPersist; Where = "persist 阶段（跨重启验证）"
+            })
     }
     $stepChanged = New-Object System.Collections.ArrayList
     foreach ($l in @($Cur.lanes)) {
@@ -1147,7 +1303,7 @@ function Get-TimingReport {
         if ($prevLanes.ContainsKey([int]$l.id)) { $p = $prevLanes[[int]$l.id]; $prevSet = @($p.scenarios) }
         $added = @(@($l.scenarios) | Where-Object { $prevSet -notcontains $_ })
         if ($added.Count -gt 0) {
-            [void]$newScen.Add([pscustomobject]@{ Lane = $l; Files = $added })
+            [void]$newScen.Add([pscustomobject]@{ Lane = $l; Files = $added; Where = $null })
         }
         if ($null -ne $p -and [int]$l.steps -ne [int]$p.steps) {
             [void]$stepChanged.Add(("L{0} {1} steps {2}→{3}" -f $l.id, $l.desc, $p.steps, $l.steps))
@@ -1174,7 +1330,9 @@ function Get-TimingReport {
 
     # --- 归因到新增场景 -------------------------------------------------------
     foreach ($ns in $newScen) {
-        $where = if ($null -eq $ns.Lane) { "注册阶段" } else { "L{0} {1}" -f $ns.Lane.id, $ns.Lane.desc }
+        $where = if ($ns.Where) { [string]$ns.Where }
+        elseif ($null -eq $ns.Lane) { "注册阶段" }
+        else { "L{0} {1}" -f $ns.Lane.id, $ns.Lane.desc }
         [void]$out.Add(("归因：新增场景 → {0} + {1}" -f $where, ($ns.Files -join '、')))
     }
 
@@ -1247,8 +1405,14 @@ function Get-TimingReport {
 
 try {
     # --- 启动服务器（--config 指向集成测试配置） -----------------------------
-    # 只回收上次运行残留的测试服务器（认端口不认进程名，不碰其他端口上的 jianghu）
+    # 只回收上次运行残留的测试服务器（认端口不认进程名，不碰其他端口上的 jianghu）。
+    # persist / reload 试验台端口同样先回收——残留实例会握着独立库文件句柄，删不掉库。
     Stop-OrphanTestServer -Port $Port
+    Stop-OrphanTestServer -Port $SidePort
+    Stop-OrphanTestServer -Port $ReloadPort
+    # 上一轮的试验台结果先删：任务没跑起来时报告不得误读陈旧结果
+    Remove-Item -LiteralPath $SideResultFile -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $ReloadResultFile -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
 
     # --- 数据库（可选重建） ---------------------------------------------------
@@ -1259,6 +1423,11 @@ try {
     if ($ResetDb) {
         Write-Host "-- 重建测试库 $DbPath"
         foreach ($f in @($DbPath, "$DbPath-wal", "$DbPath-shm")) {
+            if (Test-Path $f) { Remove-Item -Force $f }
+        }
+        # 试验台独立库一并重建（跨重启持久化的就是它）
+        Write-Host "-- 重建试验台库 $SideDbPath"
+        foreach ($f in @($SideDbPath, "$SideDbPath-wal", "$SideDbPath-shm")) {
             if (Test-Path $f) { Remove-Item -Force $f }
         }
     }
@@ -1291,32 +1460,306 @@ try {
     }
 
     $tServerStart = Get-Date
-    if ($NoCoverage) {
-        $serverRun = Start-HiddenProcess -Exe $ServerExe -WorkingDirectory $RepoRoot `
-            -Arguments @("--config", $ConfPath, "--log-run-id", $LogRunId)
-        $serverProc = $serverRun.Process
-    }
-    else {
-        if (Test-Path $ReportDir) { Remove-Item $ReportDir -Recurse -Force }
-        New-Item -ItemType Directory -Force -Path (Split-Path $CovBin) | Out-Null
-        $occArgs = @(
-            "--modules", $ServerExe,
-            "--sources", (Join-Path $RepoRoot "src"),
-            "--optimized_build",
-            "--working_dir", $RepoRoot,
-            "--export_type", "html:$ReportDir",
-            "--export_type", "cobertura:$ReportDir\coverage.xml",
-            "--export_type", "binary:$CovBin",
-            "--",
-            $ServerExe, "--config", $ConfPath, "--log-run-id", $LogRunId
-        )
-        $occRun = Start-HiddenProcess -Exe $OccExe -WorkingDirectory $RepoRoot -Arguments $occArgs
-        Write-Host "-- OpenCppCoverage 已启动（pid $($occRun.Process.Id)，无窗口）"
-    }
+    Start-E2EServer
 
     if (-not (Wait-Port $Port $ServerReadyTimeoutSec)) { throw "服务器未在端口 $Port 就绪（超时 $ServerReadyTimeoutSec 秒）" }
     $tServerReadySec = [int]((Get-Date) - $tServerStart).TotalSeconds
     Write-Host "-- 服务器就绪"
+
+    # --- persist 试验台：后台任务（文首第 10 条） ----------------------------
+    # 独立端口/独立库的第二台服务器，按段表跑「段 → 重启 → 段」循环；在阶段 1
+    # 之前启动，与注册和全部道**并行**——它的重启发生在各道跑到一半时，
+    # 不占关键路径。任务自成一体（起服/注册/跑段/停服/重启/导出/结果 JSON），
+    # 主流程只在道跑完后收结果。
+    if ($PersistSegments.Count -gt 0) {
+        # 上一轮残留的段覆盖率清掉：段数变化时避免误并入旧文件
+        foreach ($f in @(Get-Item $SideCovGlob -ErrorAction SilentlyContinue)) {
+            Remove-Item -Force $f.FullName
+        }
+        $SideLogRunId = "$LogRunId-pt"
+        Write-Host "-- 启动 persist 试验台（端口 $SidePort，与各道并行，段间即重启）"
+        $sideJob = Start-Job -Name "persist-testbed" -ArgumentList @(
+            $RepoRoot, $ServerExe, $OccExe, $CliExe,
+            [bool]$NoCoverage, [bool]$Dbg, $StepTimeout,
+            $SideConfPath, $SideCliConf, $ScenarioDir, $WorkDir,
+            $RunHex, $SidePort, $SideLogRunId,
+            (ConvertTo-Json -InputObject @($PersistSegments) -Compress -Depth 5),
+            $SideResultFile
+        ) -ScriptBlock {
+            param($Repo, $ServerExe, $OccExe, $CliExe, $NoCoverage, $Dbg, $StepTimeout,
+                $SideConf, $SideCliConf, $ScenarioDir, $WorkDir,
+                $RunHex, $SidePort, $SideLogRunId, $SegmentsJson, $ResultFile)
+
+            $ErrorActionPreference = "Stop"
+            # PS5.1 的 ConvertFrom-Json 把数组作为一个对象输出，管道外再套 @()
+            # 会包成「单元素内含数组」的嵌套结构——直接赋值保扁平，仅对
+            # 单对象 JSON（未来单段表）做标量兜底。
+            $segments = $SegmentsJson | ConvertFrom-Json
+            if ($segments -isnot [array]) { $segments = @($segments) }
+            $result = [pscustomobject]@{
+                status      = "fail"
+                reason      = ""
+                n           = $null
+                expect_n    = $null
+                persist_sec = 0
+                restart_sec = 0
+                segments    = @()
+            }
+            $serverHandle = $null
+            $occHandle = $null
+
+            # 参数拼接统一走引号（仓库路径可能含空格）
+            function Join-Args([string[]]$a) {
+                return (($a | ForEach-Object {
+                        if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+                    }) -join ' ')
+            }
+
+            # 无窗口启动子进程并异步排空输出（与主流程 New-HiddenStartInfo 同构）
+            function Start-HiddenProcess {
+                param([string]$Exe, [string]$Arguments, [string]$OutFile, [string]$ErrFile)
+                $psi = New-Object System.Diagnostics.ProcessStartInfo
+                $psi.FileName = $Exe
+                $psi.Arguments = $Arguments
+                $psi.WorkingDirectory = $Repo
+                $psi.UseShellExecute = $false
+                $psi.CreateNoWindow = $true
+                $psi.RedirectStandardOutput = $true
+                $psi.RedirectStandardError = $true
+                $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+                $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+                $p = New-Object System.Diagnostics.Process
+                $p.StartInfo = $psi
+                [void]$p.Start()
+                return [pscustomobject]@{
+                    Proc    = $p
+                    StdOut  = $p.StandardOutput.ReadToEndAsync()
+                    StdErr  = $p.StandardError.ReadToEndAsync()
+                    OutFile = $OutFile
+                    ErrFile = $ErrFile
+                }
+            }
+
+            function Save-ProcessOutput($h, [int]$TimeoutMs = 20000) {
+                try {
+                    [void]$h.StdOut.Wait($TimeoutMs)
+                    [void]$h.StdErr.Wait($TimeoutMs)
+                    if ($h.StdOut.Result) { Set-Content -LiteralPath $h.OutFile -Value $h.StdOut.Result -Encoding UTF8 }
+                    if ($h.StdErr.Result) { Set-Content -LiteralPath $h.ErrFile -Value $h.StdErr.Result -Encoding UTF8 }
+                }
+                catch { }
+            }
+
+            function Wait-SidePort([int]$Port, [int]$TimeoutSec) {
+                $deadline = (Get-Date).AddSeconds($TimeoutSec)
+                while ((Get-Date) -lt $deadline) {
+                    if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $Port -WarningAction SilentlyContinue).TcpTestSucceeded) { return $true }
+                    Start-Sleep -Milliseconds 300
+                }
+                return $false
+            }
+
+            # 起试验台第 $SegNo 段实例：-NoCoverage 直接拉起；覆盖率模式经 OCC
+            # 只导该段二进制 e2e_persist_seg<No>.cov（最终报告由主流程合并通行证出）
+            function Start-SideServer([int]$SegNo) {
+                if ($NoCoverage) {
+                    $h = Start-HiddenProcess -Exe $ServerExe `
+                        -Arguments (Join-Args @("--config", $SideConf, "--log-run-id", $SideLogRunId)) `
+                        -OutFile (Join-Path $WorkDir ("side_server.seg{0}.stdout.log" -f $SegNo)) `
+                        -ErrFile (Join-Path $WorkDir ("side_server.seg{0}.stderr.log" -f $SegNo))
+                    $script:serverHandle = $h
+                }
+                else {
+                    $cov = Join-Path $Repo ("coverage_history\e2e_persist_seg{0}.cov" -f $SegNo)
+                    $occLog = Join-Path $WorkDir ("side_occ.seg{0}.log" -f $SegNo)
+                    $h = Start-HiddenProcess -Exe $OccExe `
+                        -Arguments (Join-Args @(
+                                "--modules", $ServerExe,
+                                "--sources", (Join-Path $Repo "src"),
+                                "--optimized_build",
+                                "--working_dir", $Repo,
+                                "--export_type", "binary:$cov",
+                                "--",
+                                $ServerExe, "--config", $SideConf, "--log-run-id", $SideLogRunId
+                            )) `
+                        -OutFile $occLog -ErrFile "$occLog.err"
+                    $script:occHandle = $h
+                }
+                if (-not (Wait-SidePort $SidePort 180)) {
+                    throw "试验台第 $SegNo 段服务器未在端口 $SidePort 就绪"
+                }
+                Write-Output "试验台第 $SegNo 段服务器就绪"
+            }
+
+            # 优雅停服（认端口不认进程名，按 PID 关窗）→ 等 OCC 导出该段二进制
+            function Stop-SideServer([int]$SegNo) {
+                $conn = Get-NetTCPConnection -LocalPort $SidePort -State Listen -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
+                if ($null -ne $conn) {
+                    $p = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+                    if ($null -ne $p -and $p.ProcessName -eq 'jianghu') {
+                        $serverPid = $p.Id
+                        try { [void]$p.CloseMainWindow() } catch { }
+                        $deadline = (Get-Date).AddSeconds(30)
+                        while ((Get-Date) -lt $deadline -and (Get-Process -Id $serverPid -ErrorAction SilentlyContinue)) {
+                            Start-Sleep -Milliseconds 500
+                        }
+                        Get-Process -Id $serverPid -ErrorAction SilentlyContinue | Stop-Process -Force
+                    }
+                }
+                if ($script:serverHandle) {
+                    Save-ProcessOutput $script:serverHandle
+                    $script:serverHandle = $null
+                }
+                if ($script:occHandle) {
+                    $occ = $script:occHandle.Proc
+                    $deadline = (Get-Date).AddSeconds(180)
+                    while ((Get-Date) -lt $deadline -and -not $occ.HasExited) { Start-Sleep -Milliseconds 500 }
+                    if (-not $occ.HasExited) { try { $occ | Stop-Process -Force } catch { } }
+                    Save-ProcessOutput $script:occHandle
+                    $script:occHandle = $null
+                    if (-not $NoCoverage) {
+                        $cov = Join-Path $Repo ("coverage_history\e2e_persist_seg{0}.cov" -f $SegNo)
+                        if (-not (Test-Path $cov)) { throw "试验台第 $SegNo 段覆盖率未导出（$cov）" }
+                    }
+                }
+            }
+
+            # 同步跑一段剧本：CLI 输出直接落盘（UTF-8），按剧本报告判定
+            function Invoke-SideScenario {
+                param([string]$ScriptRel, [string]$Vars, [string]$Report, [string]$Log)
+                $cliArgs = @("--config", $SideCliConf,
+                    "--script", (Join-Path $ScenarioDir $ScriptRel),
+                    "--vars", $Vars,
+                    "--step-timeout", "$StepTimeout",
+                    "--report", $Report)
+                if ($Dbg) { $cliArgs += "--dbg" }
+                $h = Start-HiddenProcess -Exe $CliExe -Arguments (Join-Args $cliArgs) `
+                    -OutFile $Log -ErrFile "$Log.err"
+                $h.Proc.WaitForExit()
+                Save-ProcessOutput $h
+                $exit = $h.Proc.ExitCode
+
+                $rep = @{}
+                if (Test-Path $Report) {
+                    foreach ($l in Get-Content -LiteralPath $Report -Encoding UTF8) {
+                        if ($l -match '^([^=]+)=(.*)$') { $rep[$Matches[1]] = $Matches[2] }
+                    }
+                }
+                $steps = 0
+                if (Test-Path $Log) {
+                    $raw = Get-Content -LiteralPath $Log -Raw -Encoding UTF8
+                    $m = [regex]::Match($raw, '\[scenario\] PASS:\s*(\d+)\s*steps')
+                    if ($m.Success) { $steps = [int]$m.Groups[1].Value }
+                }
+                $ok = ($exit -eq 0 -and $rep['status'] -eq 'pass')
+                $reason = $rep['reason']
+                if (-not $ok) {
+                    if (-not $reason) { $reason = "CLI 退出码 $exit" }
+                    if ($rep['line']) { $reason = "$reason（剧本行 $($rep['line'])）" }
+                }
+                return [pscustomobject]@{ Ok = $ok; Steps = $steps; Reason = $reason }
+            }
+
+            try {
+                # 段 1 的服务器先起（注册也要打在试验台独立库上）
+                Start-SideServer -SegNo 1
+
+                # --- 注册各段账号（同 register.sce；名 = e2e<hex><Suffix>） -----
+                foreach ($seg in $segments) {
+                    $vars = Join-Path $WorkDir ("persist_{0}.vars" -f $seg.Id)
+                    $name = "e2e$RunHex$($seg.Suffix)"
+                    $varsText = "name=$($name)`npass=e2e1234`nemail=$($name)@example.com`ngender=男性`nattrs=21 21 21 21`n"
+                    [System.IO.File]::WriteAllText($vars, $varsText,
+                        (New-Object System.Text.UTF8Encoding($false)))
+                    $r = Invoke-SideScenario -ScriptRel "register.sce" -Vars $vars `
+                        -Report (Join-Path $WorkDir ("persist_{0}.register.report" -f $seg.Id)) `
+                        -Log (Join-Path $WorkDir ("persist_{0}.register.log" -f $seg.Id))
+                    if (-not $r.Ok) { throw "试验台账号注册失败（$($name)）：$($r.Reason)" }
+                }
+                Write-Output "试验台账号注册完成（$(($segments | ForEach-Object { $_.Id }) -join '、')）"
+
+                # --- N 段循环：段间即一次重启 --------------------------------
+                for ($i = 0; $i -lt $segments.Count; $i++) {
+                    $seg = $segments[$i]
+                    if ($i -gt 0) {
+                        $t0 = Get-Date
+                        Stop-SideServer -SegNo $i
+                        Start-SideServer -SegNo ($i + 1)
+                        $result.restart_sec += [int]((Get-Date) - $t0).TotalSeconds
+                        Write-Output "试验台重启完成 → 第 $($i + 1) 段（$($seg.Id)）"
+                    }
+
+                    $vars = Join-Path $WorkDir ("persist_{0}.vars" -f $seg.Id)
+                    if ($seg.Inject -eq "expect_n_plus1") {
+                        # 跨段注入：读上一段 vars 捕获的 n，注入 expect_n = n+1
+                        $prevVars = Join-Path $WorkDir ("persist_{0}.vars" -f $segments[$i - 1].Id)
+                        $m = Select-String -LiteralPath $prevVars -Pattern '^n=(\d+)$' |
+                            Select-Object -Last 1
+                        if (-not $m) {
+                            throw "上一段（$($segments[$i - 1].Id)）未捕获挑战计数 n（$prevVars），无法注入 expect_n"
+                        }
+                        $n = [int]$m.Matches[0].Groups[1].Value
+                        $result.n = $n
+                        $result.expect_n = $n + 1
+                        Add-Content -LiteralPath $vars -Value "expect_n=$($n + 1)" -Encoding ASCII
+                    }
+
+                    $t0 = Get-Date
+                    $r = Invoke-SideScenario -ScriptRel $seg.Script -Vars $vars `
+                        -Report (Join-Path $WorkDir ("persist_{0}.report" -f $seg.Id)) `
+                        -Log (Join-Path $WorkDir ("persist_{0}.log" -f $seg.Id))
+                    $dur = [int]((Get-Date) - $t0).TotalSeconds
+                    $result.persist_sec += $dur
+                    $result.segments = @($result.segments) + [pscustomobject]@{
+                        id     = $seg.Id
+                        ok     = $r.Ok
+                        steps  = $r.Steps
+                        reason = $r.Reason
+                        sec    = $dur
+                    }
+                    if (-not $r.Ok) { throw "段 $($seg.Id) 失败：$($r.Reason)" }
+                    Write-Output "试验台段 $($seg.Id) PASS（${dur}s，$($r.Steps) steps）"
+                }
+
+                Stop-SideServer -SegNo $segments.Count
+                $result.status = "pass"
+            }
+            catch {
+                $result.reason = $_.Exception.Message
+                try { Stop-SideServer -SegNo 0 } catch { }
+            }
+            finally {
+                try {
+                    $result | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $ResultFile -Encoding UTF8
+                }
+                catch { }
+            }
+        }
+    }
+
+    # --- reload 试验台：后台任务（文首第 11 条） -----------------------------
+    # 独立端口/独立库/私有脚本副本的第二台服务器，跑一条连续剧本链：改文件
+    # （filecopy 写在片段里）→ 等重载结果（sys 广播）→ 断言行为。任务自成
+    # 一体（重建副本/起服/跑链/日志断言/停服/导出/结果 JSON），主流程只在
+    # 道跑完后收结果；与注册和全部道并行，不占关键路径。
+    # 以 ScriptBlock 方式加载编排脚本：Start-Job 子进程的执行策略不受本脚本
+    # 启动参数控制（-ExecutionPolicy Bypass 只作用于当前进程），读文件建块
+    # 绕开「子进程禁跑脚本」；脚本内部靠注入的 $IntDir 定位路径。
+    if (-not $Simple) {
+        # 上一轮残留的 reload 覆盖率清掉：避免误并入旧文件
+        foreach ($f in @(Get-Item $ReloadCovGlob -ErrorAction SilentlyContinue)) {
+            Remove-Item -Force $f.FullName
+        }
+        Write-Host "-- 启动 reload 试验台（端口 $ReloadPort，与各道并行，链内改文件）"
+        $testbedSb = [scriptblock]::Create(
+            [System.IO.File]::ReadAllText($ReloadTestbedScript, [System.Text.Encoding]::UTF8))
+        $reloadJob = Start-Job -Name "reload-testbed" -ScriptBlock $testbedSb -ArgumentList @(
+            $ServerExe, $OccExe, $CliExe,
+            [bool]$NoCoverage, [bool]$Dbg, $StepTimeout,
+            $LogRunId, $ReloadResultFile, $IntDir
+        )
+    }
 
     # --- 阶段 1：一次性注册 N 个账号（并行） ---------------------------------
     $t0 = Get-Date
@@ -1456,13 +1899,122 @@ try {
     else {
         throw "$($badLanes.Count)/$($ActiveLanes.Count) 条道失败"
     }
+
+    # --- persist 试验台结果回收（任务与各道全程并行，此处汇合） --------------
+    if ($sideJob) {
+        Write-Host "-- 等待 persist 试验台任务收口..."
+        $null = Wait-Job -Job $sideJob -Timeout 600
+        $sideOut = (Receive-Job -Job $sideJob -ErrorAction SilentlyContinue | Out-String)
+        if ($sideOut) {
+            foreach ($l in ($sideOut -split "`r?`n")) {
+                if ($l.Trim()) { Write-Host "   [试验台] $l" }
+            }
+        }
+        $job = Get-Job -Id $sideJob.Id -ErrorAction SilentlyContinue
+        $jobState = if ($job) { [string]$job.State } else { "Missing" }
+        if ($jobState -eq 'Running') { Stop-Job -Job $sideJob -ErrorAction SilentlyContinue }
+        Remove-Job -Job $sideJob -Force -ErrorAction SilentlyContinue
+        $sideJob = $null
+        if ($jobState -ne 'Completed') {
+            throw "persist 试验台任务未正常结束（state=$jobState）"
+        }
+        if (-not (Test-Path $SideResultFile)) {
+            throw "persist 试验台未产出结果文件（$SideResultFile）"
+        }
+        $sideResult = Get-Content -LiteralPath $SideResultFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($sideResult.status -ne 'pass') {
+            throw "persist 试验台失败：$($sideResult.reason)"
+        }
+        Write-Host ("-- persist 试验台通过：n={0} expect_n={1}（段耗时 {2}s + 重启 {3}s，与各道并行、不占关键路径）" -f `
+                $sideResult.n, $sideResult.expect_n, $sideResult.persist_sec, $sideResult.restart_sec)
+    }
+
+    # --- reload 试验台结果回收（任务与各道全程并行，此处汇合） --------------
+    if ($reloadJob) {
+        Write-Host "-- 等待 reload 试验台任务收口..."
+        $null = Wait-Job -Job $reloadJob -Timeout 600
+        $reloadOut = (Receive-Job -Job $reloadJob -ErrorAction SilentlyContinue | Out-String)
+        if ($reloadOut) {
+            foreach ($l in ($reloadOut -split "`r?`n")) {
+                if ($l.Trim()) { Write-Host "   [reload] $l" }
+            }
+        }
+        $job = Get-Job -Id $reloadJob.Id -ErrorAction SilentlyContinue
+        $jobState = if ($job) { [string]$job.State } else { "Missing" }
+        if ($jobState -eq 'Running') { Stop-Job -Job $reloadJob -ErrorAction SilentlyContinue }
+        Remove-Job -Job $reloadJob -Force -ErrorAction SilentlyContinue
+        $reloadJob = $null
+        if ($jobState -ne 'Completed') {
+            throw "reload 试验台任务未正常结束（state=$jobState）"
+        }
+        if (-not (Test-Path $ReloadResultFile)) {
+            throw "reload 试验台未产出结果文件（$ReloadResultFile）"
+        }
+        $reloadResult = Get-Content -LiteralPath $ReloadResultFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($reloadResult.status -ne 'pass') {
+            throw "reload 试验台失败：$($reloadResult.reason)"
+        }
+        Write-Host ("-- reload 试验台通过：链 {0}s / {1} steps + 服务端日志断言 {2} 项（与各道并行、不占关键路径）" -f `
+                $reloadResult.chain_sec, $reloadResult.steps, @($reloadResult.log_checks).Count)
+    }
 }
 catch {
+    $status = "fail"
     $failReason = $_.Exception.Message
     Write-Warning "运行失败：$failReason"
 }
 finally {
     Stop-ServerGraceful -Port $Port
+
+    # persist 试验台收尾：道失败提前跳出时任务可能还在跑——有界等待后强停，
+    # 残留的试验台服务器按端口回收（只认 jianghu，与主套件同规）。
+    if ($sideJob) {
+        $null = Wait-Job -Job $sideJob -Timeout 120
+        $sideOut = (Receive-Job -Job $sideJob -ErrorAction SilentlyContinue | Out-String)
+        if ($sideOut) {
+            foreach ($l in ($sideOut -split "`r?`n")) {
+                if ($l.Trim()) { Write-Host "   [试验台] $l" }
+            }
+        }
+        $job = Get-Job -Id $sideJob.Id -ErrorAction SilentlyContinue
+        if ($job -and $job.State -eq 'Running') { Stop-Job -Job $sideJob -ErrorAction SilentlyContinue }
+        Remove-Job -Job $sideJob -Force -ErrorAction SilentlyContinue
+        $sideJob = $null
+        try { Stop-OrphanTestServer -Port $SidePort }
+        catch { Write-Warning "试验台端口 $SidePort 回收失败：$($_.Exception.Message)" }
+    }
+    # 道失败路径下也尽量带上试验台结果（报告要展示它）
+    if ($null -eq $sideResult -and (Test-Path $SideResultFile)) {
+        try {
+            $sideResult = Get-Content -LiteralPath $SideResultFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        }
+        catch { }
+    }
+
+    # reload 试验台收尾：道失败提前跳出时任务可能还在跑——有界等待后强停，
+    # 残留的试验台服务器按端口回收（只认 jianghu，与主套件同规）。
+    if ($reloadJob) {
+        $null = Wait-Job -Job $reloadJob -Timeout 120
+        $reloadOut = (Receive-Job -Job $reloadJob -ErrorAction SilentlyContinue | Out-String)
+        if ($reloadOut) {
+            foreach ($l in ($reloadOut -split "`r?`n")) {
+                if ($l.Trim()) { Write-Host "   [reload] $l" }
+            }
+        }
+        $job = Get-Job -Id $reloadJob.Id -ErrorAction SilentlyContinue
+        if ($job -and $job.State -eq 'Running') { Stop-Job -Job $reloadJob -ErrorAction SilentlyContinue }
+        Remove-Job -Job $reloadJob -Force -ErrorAction SilentlyContinue
+        $reloadJob = $null
+        try { Stop-OrphanTestServer -Port $ReloadPort }
+        catch { Write-Warning "reload 试验台端口 $ReloadPort 回收失败：$($_.Exception.Message)" }
+    }
+    # 道失败路径下也尽量带上 reload 试验台结果（报告要展示它）
+    if ($null -eq $reloadResult -and (Test-Path $ReloadResultFile)) {
+        try {
+            $reloadResult = Get-Content -LiteralPath $ReloadResultFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        }
+        catch { }
+    }
 
     # 崩溃检测：停服后 diff dump 快照。崩溃发生在关服路径（WM_DESTROY →
     # wait_for_all_worker_threads 期间工作线程仍在跑），剧本结果此时早已判定，
@@ -1490,16 +2042,17 @@ finally {
     # 本次新增日志区间——未登记的 ERROR/FATAL 判 FAIL（与崩溃检测同级）；
     # 已登记的预期错误（故意负测等）静默；WARN 仅计数入报告。
     # 先点名本轮日志文件（按启动时传下的 run id 匹配，不猜日期——月日不补零的
-    # 拼接交给通配）；找不到说明 --log-run-id 没生效，如实说明而不是静默。
+    # 拼接交给通配）；试验台用 <runid>-pt 落同目录另一份，故后缀用通配一并点名。
+    # 找不到说明 --log-run-id 没生效，如实说明而不是静默。
     $runLogFiles = @(Get-ChildItem -LiteralPath $ServerLogDir `
-            -Filter "*-$LogRunId.txt" -File -ErrorAction SilentlyContinue)
+            -Filter "*-$LogRunId*" -File -ErrorAction SilentlyContinue)
     if ($runLogFiles.Count -gt 0) {
         $srvLogFileLine = "本轮服务端日志：" +
         (($runLogFiles | ForEach-Object { $_.FullName }) -join "、")
         Write-Host $srvLogFileLine
     }
     else {
-        Write-Host "本轮服务端日志：未生成 *-$LogRunId.txt（查 $ServerLogDir）"
+        Write-Host "本轮服务端日志：未生成 *-$LogRunId*（查 $ServerLogDir）"
     }
 
     $srvLog = $null
@@ -1565,31 +2118,61 @@ finally {
     }
 
     if (-not $NoCoverage -and $occRun) {
-        Write-Host "-- 等待 OpenCppCoverage 导出报告..."
-        $occProc = $occRun.Process
-        $occStart = Get-Date
-        $occDeadline = $occStart.AddSeconds(180)
-        $occBeat = $occStart.AddSeconds(30)
-        while ((Get-Date) -lt $occDeadline) {
-            if ($occProc.HasExited) { break }
-            $now = Get-Date
-            if ($now -ge $occBeat) {
-                $occBeat = $now.AddSeconds(30)
-                Write-Host ("   ... 服务器已停止，等待导出报告（已 {0}s，上限 180s）" -f `
-                        [int]($now - $occStart).TotalSeconds)
-            }
-            Start-Sleep -Milliseconds 500
-        }
-        $tExportSec = [int]((Get-Date) - $occStart).TotalSeconds
-        if (-not $occProc.HasExited) {
-            Write-Warning "OpenCppCoverage 未退出，强制结束"
-            $occProc | Stop-Process -Force
+        # 主服实例导出二进制（最终报告由下方的合并通行证统一产出）
+        $tExportSec = Wait-CoverageExport -OccRun $occRun `
+            -LogName "e2e-sample-opencppcoverage.log"
+    }
+
+    # --- 覆盖率合并通行证（三路二进制 → 最终 html/cobertura/binary） ---------
+    # OCC 启动时校验 --input_coverage 文件必须存在，故只能等主服与 persist
+    # 试验台各段全部导出完毕后跑这一趟；child 用立即退出的 cmd（--sources 限定
+    # 在 src 下，child 不贡献覆盖），合并结果 = 各输入的并集。
+    if ($status -eq "pass" -and -not $NoCoverage) {
+        $sideCovs = @(Get-Item $SideCovGlob -ErrorAction SilentlyContinue |
+                Sort-Object Name | ForEach-Object { $_.FullName })
+        $reloadCovs = @(Get-Item $ReloadCovGlob -ErrorAction SilentlyContinue |
+                Sort-Object Name | ForEach-Object { $_.FullName })
+        $mergeInputs = @($CovBinMain) + $sideCovs + $reloadCovs
+        $missing = @($mergeInputs | Where-Object { -not (Test-Path $_) })
+        if ($missing.Count -gt 0) {
+            $status = "fail"
+            $reason = "覆盖率输入缺失、无法合并：" + ($missing -join "、")
+            if ($failReason) { $failReason = "$failReason；$reason" } else { $failReason = $reason }
+            Write-Warning $reason
         }
         else {
-            # 采集日志留档，便于排查报告异常
-            $occLog = Join-Path (Split-Path $CovBin) "e2e-sample-opencppcoverage.log"
-            @($occRun.StdOut.Result, $occRun.StdErr.Result) |
-                Where-Object { $_ } | Set-Content -Encoding UTF8 $occLog
+            Write-Host "-- 覆盖率合并通行证（主服 + persist 试验台 $($sideCovs.Count) 段 + reload 试验台 $($reloadCovs.Count) 路）..."
+            $tMerge = Get-Date
+            $mergeArgs = @(
+                "--sources", (Join-Path $RepoRoot "src"),
+                "--working_dir", $RepoRoot,
+                "--export_type", "html:$ReportDir",
+                "--export_type", "cobertura:$ReportDir\coverage.xml",
+                "--export_type", "binary:$CovBin"
+            )
+            foreach ($c in $mergeInputs) { $mergeArgs += @("--input_coverage", $c) }
+            $mergeArgs += @("--", (Join-Path $env:SystemRoot "System32\cmd.exe"), "/c", "exit 0")
+            $mergeRun = Start-HiddenProcess -Exe $OccExe -WorkingDirectory $RepoRoot -Arguments $mergeArgs
+            $mp = $mergeRun.Process
+            $deadline = (Get-Date).AddSeconds(180)
+            while ((Get-Date) -lt $deadline -and -not $mp.HasExited) { Start-Sleep -Milliseconds 500 }
+            if (-not $mp.HasExited) {
+                Write-Warning "覆盖率合并通行证未退出，强制结束"
+                try { $mp | Stop-Process -Force } catch { }
+            }
+            $mergeLog = Join-Path (Split-Path $CovBin) "e2e-sample-opencppcoverage-merge.log"
+            try {
+                @($mergeRun.StdOut.Result, $mergeRun.StdErr.Result) |
+                    Where-Object { $_ } | Set-Content -Encoding UTF8 $mergeLog
+            }
+            catch { }
+            $tExportSec = [int]$tExportSec + [int]((Get-Date) - $tMerge).TotalSeconds
+            if (-not (Test-Path (Join-Path $ReportDir "coverage.xml"))) {
+                $status = "fail"
+                $reason = "覆盖率合并通行证未产出 coverage.xml（见 $mergeLog）"
+                if ($failReason) { $failReason = "$failReason；$reason" } else { $failReason = $reason }
+                Write-Warning $reason
+            }
         }
     }
 }
@@ -1662,6 +2245,42 @@ foreach ($lane in $ActiveLanes) {
         Write-Host ("      原因：{0}" -f $lane.Reason)
     }
 }
+if ($sideResult) {
+    foreach ($seg in @($sideResult.segments)) {
+        $mark = if ($seg.ok) { "PASS" } else { "FAIL" }
+        $detail = @()
+        if ($null -ne $sideResult.n -and $seg.id -eq 'pre') { $detail += "n=$($sideResult.n)" }
+        if ($null -ne $sideResult.expect_n -and $seg.id -eq 'post') { $detail += "expect_n=$($sideResult.expect_n)" }
+        if ($seg.steps -gt 0) { $detail += "$($seg.steps) steps" }
+        $detail += "$($seg.sec)s"
+        Write-Host ("  persist_{0} {1,-12} {2}  （试验台段，与各道并行 {3}）" -f `
+                $seg.id, "跨重启", $mark, ($detail -join ' '))
+        if (-not $seg.ok -and $seg.reason) {
+            Write-Host ("      原因：{0}" -f $seg.reason)
+        }
+    }
+    if ($sideResult.status -ne 'pass' -and $sideResult.reason) {
+        Write-Host ("  persist 试验台    FAIL：{0}" -f $sideResult.reason)
+    }
+}
+elseif ($PersistSegments.Count -gt 0) {
+    Write-Host "  persist 试验台    未产出结果（排查见上方 [试验台] 日志与 test_tmp\e2e_lanes）"
+}
+if ($reloadResult) {
+    $mark = if ($reloadResult.status -eq 'pass') { "PASS" } else { "FAIL" }
+    $detail = @()
+    if ($reloadResult.steps -gt 0) { $detail += "$($reloadResult.steps) steps" }
+    $detail += "$($reloadResult.chain_sec)s"
+    $detail += "日志断言 $(@($reloadResult.log_checks).Count) 项"
+    Write-Host ("  reload 试验台    {0,-10} {1}  （与各道并行 {2}）" -f `
+            "热重载链", $mark, ($detail -join ' '))
+    if ($reloadResult.status -ne 'pass' -and $reloadResult.reason) {
+        Write-Host ("      原因：{0}" -f $reloadResult.reason)
+    }
+}
+elseif (-not $Simple) {
+    Write-Host "  reload 试验台    未产出结果（排查见上方 [reload] 日志与 test_tmp\e2e_lanes）"
+}
 if ($status -ne "pass" -and -not $NoCoverage -and (Test-Path $ReportDir)) {
     Write-Host ""
     Write-Host "（集成测试失败：跳过覆盖率与未命中函数展示；报告仍在 $ReportDir）"
@@ -1687,9 +2306,15 @@ if ($status -eq "pass" -and $null -ne $tRegSec -and $null -ne $tLaneSec) {
         wall_sec         = $tWallSec
         reg_sec          = $tRegSec
         lane_sec         = $tLaneSec
+        # persist / reload 试验台与各道并行，其耗时只作诊断展示、不进 exec 关键路径
+        persist_sec      = $(if ($sideResult) { [int]$sideResult.persist_sec } else { $null })
+        restart_sec      = $(if ($sideResult) { [int]$sideResult.restart_sec } else { $null })
+        reload_sec       = $(if ($reloadResult) { [int]$reloadResult.chain_sec } else { $null })
         exec_sec         = $tRegSec + $tLaneSec
         export_sec       = $tExportSec
         reg_scenarios    = $(if ($regRan) { @(Get-LaneScenarioList "register.sce") } else { @() })
+        persist_scenarios = @(foreach ($s in $PersistSegments) { Get-LaneScenarioList $s.Script })
+        reload_scenarios = $(if ($reloadResult) { @(Get-LaneScenarioList "reload\reload_suite.sce") } else { @() })
         lanes            = @(foreach ($lane in $ActiveLanes) {
                 [pscustomobject]@{
                     id        = [int]$lane.Id
@@ -1747,6 +2372,31 @@ $lines += "workers=$($ActiveLanes.Count)"
 foreach ($lane in $ActiveLanes) {
     $lines += ("L{0}={1} name={2} steps={3}{4}" -f $lane.Id, $lane.Status, $lane.Name,
         $lane.Steps, $(if ($lane.Reason) { " reason=$($lane.Reason)" } else { "" }))
+}
+if ($sideResult) {
+    foreach ($seg in @($sideResult.segments)) {
+        $extra = ""
+        if ($null -ne $sideResult.n -and $seg.id -eq 'pre') { $extra += " n=$($sideResult.n)" }
+        if ($null -ne $sideResult.expect_n -and $seg.id -eq 'post') { $extra += " expect_n=$($sideResult.expect_n)" }
+        if ($seg.reason) { $extra += " reason=$($seg.reason)" }
+        $lines += ("persist_{0}={1} steps={2} sec={3}{4}" -f $seg.id,
+            $(if ($seg.ok) { "pass" } else { "fail" }), $seg.steps, $seg.sec, $extra)
+    }
+    $lines += ("persist_testbed={0} restart_sec={1}{2}" -f $sideResult.status,
+        $sideResult.restart_sec, $(if ($sideResult.reason) { " reason=$($sideResult.reason)" } else { "" }))
+}
+elseif ($PersistSegments.Count -gt 0) {
+    $lines += "persist_testbed=missing"
+}
+if ($reloadResult) {
+    $extra = ""
+    if ($reloadResult.reason) { $extra = " reason=$($reloadResult.reason)" }
+    $lines += ("reload_testbed={0} steps={1} sec={2} log_checks={3}{4}" -f `
+            $reloadResult.status, $reloadResult.steps, $reloadResult.chain_sec, `
+        @($reloadResult.log_checks).Count, $extra)
+}
+elseif (-not $Simple) {
+    $lines += "reload_testbed=missing"
 }
 $lines += "time=$(Get-Date -Format s)"
 foreach ($tl in $timingLines) { $lines += $tl }

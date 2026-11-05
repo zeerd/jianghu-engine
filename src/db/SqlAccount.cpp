@@ -9,7 +9,9 @@
 #include <stdio.h>
 
 #include <string>
+#include <vector>
 
+#include "Crypto.h"
 #include "Global.h"
 #include "IDatabase.h"
 #include "Sql.h"
@@ -20,23 +22,71 @@
 // 用户/账号操作 (对应 Login.cpp, User.cpp, Char.cpp)
 // ============================================================
 
+namespace {
+
+// 口令的比对形态：登录口对整条登录串剥除单引号，所有写入与校验入口
+// 必须先规范化，否则含引号口令存进去后与登录侧不一致（自我锁死）。
+std::string normalized_password(const char* pass)
+{
+    char buf[256];
+    snprintf(buf, sizeof(buf), "%s", pass ? pass : "");
+    normalize_password(buf);
+    return std::string(buf);
+}
+
+// 比对已落库的哈希：解码盐与哈希后重新派生，再定长比较。
+bool matches_password_credential(const std::string& pass,
+                                 const std::string& salt_b64,
+                                 const std::string& hash_b64)
+{
+    std::vector<uint8_t> salt, expected;
+    if (!base64_decode(salt_b64, salt)) return false;
+    if (!base64_decode(hash_b64, expected)) return false;
+    if (expected.size() != CRYPTO_HASH_LEN) return false;
+
+    uint8_t derived[CRYPTO_HASH_LEN];
+    if (!pbkdf2_hmac_sha256(pass.c_str(), salt.data(), salt.size(),
+                            PBKDF2_ITERATIONS, derived, sizeof(derived)))
+        return false;
+    return constant_time_equal(derived, expected.data(), expected.size());
+}
+
+}  // namespace
+
+// 暗码校验：哈希列非空时比对哈希；否则按历史存储形态在 SQL 侧等值比对
+// （SQLite 存明文、MySQL 存 OLD_PASSWORD 弱哈希），通过后原地迁移为哈希
+// 并清空旧列。未设置暗码的账号两列皆空，空入参与空存储等值——「空暗码
+// 校验」依赖这条语义（新号首次设暗码前的口令确认走这里）。
+// 暗码契约：单引号替换为空格，与写入侧同口径（主密码的契约是剥除）。
 bool db_verify_password(const char* id, const char* pass)
 {
     if (!g_db) return false;
 
     try {
         char msg[512], tmp[80];
-        strncpy(tmp, pass, sizeof(tmp) - 1);
+        strncpy(tmp, pass ? pass : "", sizeof(tmp) - 1);
         tmp[sizeof(tmp) - 1] = 0;
-        // 简单的转义处理
         for (char* p = tmp; *p; ++p) {
             if (*p == '\'') *p = ' ';
         }
 
         DbResultSet result;
-        // SQLite 无 OLD_PASSWORD()：cc_verifypass 由应用层按明文存取并等值比较
-        // （见 db_change_verify_password）；MySQL 沿用服务端 OLD_PASSWORD
-        // 哈希。
+        snprintf(msg, sizeof(msg),
+                 "select cc_verifypass_salt, cc_verifypass_hash from "
+                 "jianghudb where cc_id=%s",
+                 id);
+        if (g_db->query(msg, result) != 0) {
+            LOG_ERROR("db_verify_password: query db fail! %s", g_db->error());
+            return false;
+        }
+        if (result.empty() || result.rows[0].columns.size() < 2) return false;
+
+        const std::string& salt = result.rows[0][0];
+        const std::string& hash = result.rows[0][1];
+
+        if (!hash.empty()) return matches_password_credential(tmp, salt, hash);
+
+        // 历史形态等值比对（方言分支沿用原查询）
         if (g_db->is_sqlite()) {
             snprintf(msg, sizeof(msg),
                      "select cc_name from jianghudb where cc_id=%s and "
@@ -49,19 +99,101 @@ bool db_verify_password(const char* id, const char* pass)
                      "cc_verifypass=OLD_PASSWORD('%s')",
                      id, tmp);
         }
-        int ret_code = g_db->query(msg, result);
-        if (ret_code != 0) {
+        if (g_db->query(msg, result) != 0) {
             LOG_ERROR("db_verify_password: query db fail! %s", g_db->error());
             return false;
         }
+        if (result.empty()) return false;
 
-        if (result.empty()) {
+        // 无感迁移：写入盐与哈希、清空旧列。校验已通过，迁移写失败只记
+        // 日志，不改变本次结论。
+        std::string new_salt, new_hash;
+        if (!make_password_credential(tmp, new_salt, new_hash)) {
+            LOG_ERROR("db_verify_password: derive key fail! id=%s", id);
+            return true;
+        }
+        snprintf(msg, sizeof(msg),
+                 "update jianghudb set cc_verifypass='', "
+                 "cc_verifypass_salt='%s', cc_verifypass_hash='%s' "
+                 "where cc_id=%s",
+                 new_salt.c_str(), new_hash.c_str(), id);
+        if (g_db->execute(msg) != 0) {
+            LOG_ERROR("db_verify_password: migrate fail! id=%s", id);
+        }
+        return true;
+    } catch (...) {
+        LOG_ERROR("db_verify_password: unknown exception");
+        return false;
+    }
+}
+
+// 主密码校验（登录口与账号命令的身份核对都走这里）：哈希列非空时比对
+// 哈希；否则按历史明文等值比对，通过后原地迁移为哈希并清空明文列。
+// 明文列为空（迁移后的账号、或从未设过口令）不参与比对——迁移会把明文
+// 列清成空串，若仍等值比对，空口令就能顶替真口令。
+bool db_authenticate_account(const char* id, const char* passwd)
+{
+    if (!g_db) return false;
+
+    try {
+        const std::string pass = normalized_password(passwd);
+
+        DbResultSet result;
+        char msg[512];
+        snprintf(msg, sizeof(msg),
+                 "select cc_passwd, cc_passwd_salt, cc_passwd_hash from "
+                 "jianghudb where cc_id=%s",
+                 id);
+        if (g_db->query(msg, result) != 0) {
+            LOG_ERROR("db_authenticate_account: query db fail! %s",
+                      g_db->error());
+            return false;
+        }
+        if (result.empty() || result.rows[0].columns.size() < 3) {
+            LOG_ERROR("database fail: user:%s passwd:%s store null", id,
+                      pass.c_str());
             return false;
         }
 
-        return result.size() > 0;
+        const std::string& stored = result.rows[0][0];
+        const std::string& salt   = result.rows[0][1];
+        const std::string& hash   = result.rows[0][2];
+
+        bool matched = false;
+        if (!hash.empty()) {
+            matched = matches_password_credential(pass, salt, hash);
+        }
+        else if (!stored.empty()) {
+            matched = (stored == pass);
+        }
+
+        if (!matched) {
+            // 账号不存在与口令不符同形：库里查不到与该口令匹配的凭据
+            LOG_ERROR("database fail: user:%s passwd:%s store null", id,
+                      pass.c_str());
+            return false;
+        }
+
+        if (hash.empty()) {
+            // 无感迁移：写入盐与哈希、清空明文列。口令本身已验证通过，
+            // 迁移写失败只记日志，不阻断本次登录。
+            std::string new_salt, new_hash;
+            if (!make_password_credential(pass.c_str(), new_salt, new_hash)) {
+                LOG_ERROR("db_authenticate_account: derive key fail! id=%s",
+                          id);
+                return true;
+            }
+            snprintf(msg, sizeof(msg),
+                     "update jianghudb set cc_passwd='', cc_passwd_salt='%s', "
+                     "cc_passwd_hash='%s' where cc_id=%s",
+                     new_salt.c_str(), new_hash.c_str(), id);
+            if (g_db->execute(msg) != 0) {
+                LOG_ERROR("db_authenticate_account: migrate fail! id=%s", id);
+            }
+        }
+        return true;
     } catch (...) {
-        LOG_ERROR("db_verify_password: unknown exception");
+        LOG_ERROR("db_authenticate_account: unknown exception");
         return false;
     }
 }
@@ -136,15 +268,24 @@ long db_register_account(const char* name, const char* passwd,
         std::string esc_name  = sql_escape_literal(name);
         std::string esc_email = sql_escape_literal(email);
 
+        // 凭据：明文列不写值，注册即写入盐与派生哈希（Base64 字符集不含
+        // 引号，直接进字面量）。派生放在全部校验之后：口令非法时不白算。
+        std::string cred_salt, cred_hash;
+        if (!make_password_credential(pass, cred_salt, cred_hash)) {
+            if (err) snprintf(err, errlen, "注册失败，请稍后再试。");
+            return 0;
+        }
+
         // 起手值列与建档（init_new_char）同源：年龄取 config 的 g_start_age、
         // 等级取 NEW_CHAR_LEVEL——在首次登录建档之前，账号行的年龄/等级就应是
         // 新角色的真实起手值，而不是列默认的 0。
         // 经验保持缺省 0；cc_savedata 仍按设计由首次登录的新人分支建立
         // （见 verify_user）。
         std::string sql
-            = "insert into jianghudb (cc_name, cc_passwd, cc_email, cc_gender, "
-              "cc_str, cc_int, cc_con, cc_dex, cc_age, cc_level) values ('"
-              + esc_name + "', '" + sql_escape_literal(pass) + "', '"
+            = "insert into jianghudb (cc_name, cc_passwd, cc_passwd_salt, "
+              "cc_passwd_hash, cc_email, cc_gender, cc_str, cc_int, cc_con, "
+              "cc_dex, cc_age, cc_level) values ('"
+              + esc_name + "', '', '" + cred_salt + "', '" + cred_hash + "', '"
               + esc_email + "', '" + sql_escape_literal(gender) + "', "
               + std::to_string(str) + ", " + std::to_string(intel) + ", "
               + std::to_string(con) + ", " + std::to_string(dex) + ", "
@@ -182,14 +323,18 @@ bool db_change_password(const char* id, const char* new_pass)
 
     try {
         // 写路径契约：密码先规范化（剥单引号，与登录/注册同语义，否则
-        // 含引号密码存进去登录时对不上），字面量再转义兜底——同一入口也
-        // 覆盖巫师 chpass 这条不经命令层规范化的调用。
-        char pass[256];
-        snprintf(pass, sizeof(pass), "%s", new_pass ? new_pass : "");
-        normalize_password(pass);
-        std::string sql = "update jianghudb set cc_passwd='"
-                          + sql_escape_literal(pass) + "' where cc_id=" + id;
-        int ret         = g_db->execute(sql.c_str());
+        // 含引号密码存进去登录时对不上），再派生盐与哈希落库；明文列清空。
+        // 同一入口也覆盖巫师 chpass 这条不经命令层规范化的调用。
+        const std::string pass = normalized_password(new_pass);
+        std::string cred_salt, cred_hash;
+        if (!make_password_credential(pass.c_str(), cred_salt, cred_hash)) {
+            LOG_ERROR("db_change_password: derive key fail! id=%s", id);
+            return false;
+        }
+        const std::string sql
+            = "update jianghudb set cc_passwd='', cc_passwd_salt='" + cred_salt
+              + "', cc_passwd_hash='" + cred_hash + "' where cc_id=" + id;
+        int ret = g_db->execute(sql.c_str());
         return ret == 0;
     } catch (...) {
         LOG_ERROR("db_change_password: unknown exception");
@@ -202,24 +347,25 @@ bool db_change_verify_password(const char* id, const char* new_pass)
     if (!g_db) return false;
 
     try {
-        // 暗码写路径：调用方（LoginAuth::change_verify_password）已剥除
-        // 单引号，这里转义兜底保证字面量安全。
-        const std::string esc = sql_escape_literal(new_pass);
-        char msg[256];
-        // SQLite 无 OLD_PASSWORD()：直接写入明文，由 db_verify_password
-        // 等值比较
-        if (g_db->is_sqlite()) {
-            snprintf(msg, sizeof(msg),
-                     "update jianghudb set cc_verifypass='%s' where cc_id=%s",
-                     esc.c_str(), id);
+        // 暗码写路径：单引号替换为空格（与 LoginAuth 的调用口径一致、幂等），
+        // 再派生盐与哈希落库；旧明文/弱哈希列清空。
+        char tmp[80];
+        strncpy(tmp, new_pass ? new_pass : "", sizeof(tmp) - 1);
+        tmp[sizeof(tmp) - 1] = 0;
+        for (char* p = tmp; *p; ++p) {
+            if (*p == '\'') *p = ' ';
         }
-        else {
-            snprintf(msg, sizeof(msg),
-                     "update jianghudb set cc_verifypass = OLD_PASSWORD('%s') "
-                     "where cc_id=%s",
-                     esc.c_str(), id);
+
+        std::string cred_salt, cred_hash;
+        if (!make_password_credential(tmp, cred_salt, cred_hash)) {
+            LOG_ERROR("db_change_verify_password: derive key fail! id=%s", id);
+            return false;
         }
-        int ret = g_db->execute(msg);
+        const std::string sql
+            = "update jianghudb set cc_verifypass='', cc_verifypass_salt='"
+              + cred_salt + "', cc_verifypass_hash='" + cred_hash
+              + "' where cc_id=" + id;
+        int ret = g_db->execute(sql.c_str());
         return ret == 0;
     } catch (...) {
         LOG_ERROR("db_change_verify_password: unknown exception");

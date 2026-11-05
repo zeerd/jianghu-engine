@@ -293,7 +293,7 @@ int CCmdWizard::recover(CChar* me, int32_t target, char* arg)
 
     if (!(who = find_player(target))) return notify_fail("没有这个人。");
 
-    int32_t exp = who->query("death/combat_exp_loss");
+    mapping_value_t exp = who->query("death/combat_exp_loss");
     who->add("combat_exp", exp);
 
     LOG_INFO("%s恢复了%ld点死亡经验！", who->name(1), exp);

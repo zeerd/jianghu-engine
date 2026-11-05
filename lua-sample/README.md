@@ -212,7 +212,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | NPC | 文件 | 说明 |
 |-----|------|------|
 | 小喽啰 | `npc/sample_bandit_low.lua` | 战斗NPC，弱 |
-| 大当家 | `npc/sample_bandit_boss.lua` | 战斗NPC，自动出绝招 |
+| 大当家 | `npc/sample_bandit_boss.lua` | 战斗NPC，自动出绝招；`can_save` 存盘演示（挑战计数跨重启恢复） |
 
 **战斗NPC机制**（参照 `lua/npc/pub/pub_wokou1.lua`）：
 - `chat_chance_combat` 控制战斗中自动出招概率
