@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file SkillMgr.cpp
  * @brief 技能 / 状态管理  */
 
@@ -100,17 +100,4 @@ void condition_release()
         delete p->second;
 
     g_condition_list.clear();
-}
-
-//---------------------------------------------------------
-// [LuaBind] auto-managed bindings
-//---------------------------------------------------------
-#include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// load_skill(name) -> object - 加载技能
-int l_load_skill(lua_State* L)
-{
-    const char* name = luaL_checkstring(L, 1);
-    lua_bind_push_object(L, load_skill(name));
-    return 1;
 }

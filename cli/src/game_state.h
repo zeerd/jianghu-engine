@@ -48,6 +48,12 @@ public:
 
     bool is_logged_in() const { return logged_in_; }
 
+    // 忙碌起始锁存：bsy=1 在接收线程即时记账——起始/结束 STATE 的窗口可窄于
+    // wait 的轮询粒度，wait busy 靠它不漏；wait busy 命中或 wait not_busy
+    // 收口时消费（clear），不串进下一次命令。实时 player_attr().busy 契约不变。
+    bool busy_latched() const { return busy_latched_; }
+    void clear_busy_latched() { busy_latched_ = false; }
+
     // Target system: note target_id() and set_target_id() are declared above.
 
     // Exits of the current room
@@ -139,6 +145,7 @@ private:
 
     // --- Player ---
     PlayerAttr player_attr_;
+    bool busy_latched_ = false;  // 忙碌起始锁存，见 busy_latched()
 
     // --- Skills ---
     std::vector<SkillInfo> skills_;

@@ -21,6 +21,8 @@ return {
         self:set("wield_msg", "$N迅速地从怀中夹出一枚棋子！")
         self:set("unwield_msg", "$N将手里剩下的棋子放回怀中。")
         self:set_amount(50)
-        self:set("apply/damage", 35)
+        -- 暗器的实打伤害走投掷技能线（持械者 apply/技能），此值只在被握持
+        -- 时作为武器加成——与铁剑同档，不因一叠棋子越级
+        self:set("apply/damage", 10)
     end,
 }

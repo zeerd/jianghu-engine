@@ -5,7 +5,7 @@
 --   2. 命令分发中「物件截获玩家命令」先于内建命令（见 CCmdHandle::command），
 --      所以对它 talk 不走 CCmdUser::talk，而是进本脚本的 handle_action，
 --      由脚本决定「和怪树聊天即摘果」；
---   3. 摘下的果子用 load_item 取货、move 交给玩家（与盲盒开盒同路）。
+--   3. 摘下的果子用 load("item", ...) 取货、move 交给玩家（与盲盒开盒同路）。
 
 return {
     create = function(self, nFlag)
@@ -31,7 +31,7 @@ return {
             return 1
         end
 
-        local fruit = load_item("sample_xp")
+        local fruit = load("item", "sample_xp")
         if not fruit then
             tell_object(me, "怪树抖了抖叶子，果子不知去了哪里。")
             return 1

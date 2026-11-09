@@ -43,7 +43,7 @@ function npc.do_talk(self, me, ask)
     me:FlushMySkill()
     tell_object(me, string.format("你已散尽本门武学：青云心法 %d 级已废。", had))
 
-    me:release_master()
+    me:apprentice("release")
     me:del("family")
     me:del("class")
     me:add("betrayer", 1)

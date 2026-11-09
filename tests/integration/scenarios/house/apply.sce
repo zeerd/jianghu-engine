@@ -5,8 +5,8 @@
 #   do_look 住户统计与申请入口 / applyhouse / applyroom / housename /
 #   housedesc / registerhouse（缴银登记）/ update_register / set_house
 #
-# 前置：本道在前面已备好现金（起步本金 + 山脚木箱金币）；本区地价低廉，
-#   单人间折半仅需 2500 金。
+# 前置：本道在前面已备好现金（起步本金 + 山脚木箱金币）；地价走
+#   resident_base 缺省阶梯价，单人间折半 25 万金（60 万起步金可负担）。
 #
 # 说明：登记会触发住宅区首次落盘的锁等待（约 4 秒），故登记段用显式超时。
 

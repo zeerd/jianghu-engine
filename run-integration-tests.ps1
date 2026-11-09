@@ -1,7 +1,7 @@
 ﻿# run-integration-tests.ps1 — 集成测试入口（lua-sample 多账号并行 E2E）
 #
 # 与单元测试入口 run-coverage.ps1 并列。作用：
-#   1. 构建 Release|Win32 的服务器 bin\jianghu.exe 与 CLI bin\cli\jianghu_cli.exe；
+#   1. 构建 Release|Win32 的服务器 bin\e2e\jianghu.exe 与 CLI bin\cli\jianghu_cli.exe；
 #   2. 用 tests\integration\config.ini 启动真实服务器（服务端命令行 --config 指定配置，
 #      不再临时改写 data\config.ini），独立测试库 + 独立端口；
 #   3. **一次性注册 $Workers 个账号**（并行），再**同时开跑各道剧本**
@@ -87,7 +87,7 @@
 param(
     # CLI 可执行文件；默认 bin\cli\jianghu_cli.exe
     [string]$CliExe = "",
-    # 跳过 MSBuild 构建（直接使用现有 bin\jianghu.exe / CLI）
+    # 跳过 MSBuild 构建（直接使用现有 bin\e2e\jianghu.exe / CLI）
     [switch]$SkipBuild,
     # 跳过 OpenCppCoverage（快速调试剧本，不出覆盖率报告）
     [switch]$NoCoverage,

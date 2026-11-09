@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Attack.cpp
  * @brief CAttack implementation */
 
@@ -244,7 +244,7 @@ void CAttack::resolve_dodge(AttackContext& ctx)
         if (ctx.dp < ctx.ap
             && (!ctx.me->query_attr(CChar::IS_USER)
                 || !ctx.victim->query_attr(CChar::IS_USER))
-            && g_utils.random(50) < ctx.victim->query_int()) {
+            && g_utils.random(50) < ctx.victim->attr("int")) {
             ctx.add_exp_victim
                 = 1 + g_utils.random(ctx.me->learn_bonus() / 20 + 1);
             ctx.victim->add("combat_exp", ctx.add_exp_victim);
@@ -254,7 +254,7 @@ void CAttack::resolve_dodge(AttackContext& ctx)
         // NPC attacker gains exp when dodged
         if (ctx.ap <= ctx.dp && !is_user(ctx.me)) {
             ctx.add_exp_me = 1 + g_utils.random(ctx.me->query("level") / 5 + 1);
-            if (g_utils.random(ctx.me->query_int()) > 15)
+            if (g_utils.random(ctx.me->attr("int")) > 15)
                 ctx.me->add("combat_exp", ctx.add_exp_me);
             ctx.me->improve_skill(ctx.attack_type,
                                   g_utils.random(ctx.me->query("int")));
@@ -317,7 +317,7 @@ void CAttack::resolve_parry(AttackContext& ctx)
         if (ctx.pp < ctx.ap
             && (!ctx.me->query_attr(CChar::IS_USER)
                 || !ctx.victim->query_attr(CChar::IS_USER))
-            && g_utils.random(50) < ctx.victim->query_int()) {
+            && g_utils.random(50) < ctx.victim->attr("int")) {
             ctx.add_exp_victim
                 = 1 + g_utils.random(ctx.me->learn_bonus() / 20 + 1);
             ctx.victim->add("combat_exp", ctx.add_exp_victim);
@@ -363,7 +363,7 @@ void CAttack::calculate_damage(AttackContext& ctx)
     ctx.damage = ctx.damage * (100 + ctx.damage_ratio) / 100;
     ctx.damage = ctx.damage * (100 + ctx.me->query("level")) / 100;
 
-    ctx.damage_bonus = ctx.me->query_str();
+    ctx.damage_bonus = ctx.me->attr("str");
 
     // Force skill hit_ob effect
     if (ctx.me->query("mp_factor")
@@ -467,7 +467,7 @@ void CAttack::calculate_damage(AttackContext& ctx)
     // Experience gain (NPC vs player)
     if (!ctx.me->query_attr(CChar::IS_USER)
         || !ctx.victim->query_attr(CChar::IS_USER)) {
-        if (ctx.ap < ctx.dp && g_utils.random(100 + ctx.me->query_int()) > 30) {
+        if (ctx.ap < ctx.dp && g_utils.random(100 + ctx.me->attr("int")) > 30) {
             ctx.add_exp_me = 1 + g_utils.random(2 + ctx.me->learn_bonus() / 15);
             ctx.me->add("combat_exp", ctx.add_exp_me);
             ctx.me->improve_skill(ctx.attack_type, 1);

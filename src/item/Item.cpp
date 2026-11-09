@@ -192,56 +192,6 @@ int CItem::do_look(CChar* me)
     return 0;
 }
 
-int32_t CItem::receive_damage(const char* szType, int32_t damage)
-{
-    int val;
-
-    if (damage <= 0) return 0;
-    if (DIFFERSTR(szType, "dp")) return 0;
-
-    val = query(szType) - damage;
-
-    if (val > 0)
-        set(szType, val);
-    else {
-        set(szType, 0l);
-        call_out(destruct_me, 1);
-    }
-
-    return damage;
-}
-
-int32_t CItem::receive_wound(const char* type, int32_t damage)
-{
-    int32_t val;
-    char eff_key[40];
-
-    if (damage <= 0) return 0;
-    if (DIFFERSTR(type, "dp")) return 0;
-
-    snprintf(eff_key, 40, "eff_%s", type);
-
-    val = query(eff_key) - damage;
-
-    if (val > 0)
-        set(eff_key, val);
-    else {
-        set(eff_key, 0l);
-        call_out(destruct_me, 1);
-    }
-
-    if (query(type) > val) set(type, val);
-    return damage;
-}
-
-void CItem::destruct_me(CContainer* ob, int32_t param1, int32_t param2)
-{
-    const char* msg = ob->querystr("destruct_msg");
-    if (msg[0] && ob->environment()) tell_object(ob->environment(), msg);
-
-    DESTRUCT_OB(ob, "CItem::destruct_me");
-}
-
 // 当移动到容器中时呼叫
 void CItem::init()
 {

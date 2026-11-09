@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file logind.cpp
  * @brief 登录主流程 */
 
@@ -549,17 +549,8 @@ int l_get_ip(lua_State* L)
     return 1;
 }
 
-// find_online(id) -> obj | nil - 按 id 查找在线玩家
-int l_find_online(lua_State* L)
-{
-    const char* id = luaL_checkstring(L, 1);
-    CUser* user    = find_online(id);
-    lua_bind_push_object(L, user);
-    return 1;
-}
-
-// get_all_online_users() -> table - 返回所有在线玩家对象的数组（下标从1开始）
-int l_get_all_online_users(lua_State* L)
+// find_online_users() -> table - 返回所有在线玩家对象的数组（下标从1开始）
+int l_find_online_users(lua_State* L)
 {
     int cnt = 0;
     for (iterator_user p = g_user_list.begin(); p != g_user_list.end(); p++)

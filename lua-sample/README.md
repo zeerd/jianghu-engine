@@ -14,13 +14,16 @@
 | 技能 | 文件 | 说明 |
 |------|------|------|
 | 高级内功 | `skill/force_adv.lua` | 自疗术、狮子吼 |
-| 高级拳脚 | `skill/unarmed_adv.lua` | 连环击 |
+| 高级拳脚 | `skill/unarmed_adv.lua` | 连环击；与高级掌法构成双槽空手组合 |
+| 高级掌法 | `skill/hand_adv.lua` | 第二门空手系，`valid_combine` 与高级拳脚互认 |
 | 高级格挡 | `skill/parry_adv.lua` | 卸力 |
 | 高级轻功 | `skill/dodge_adv.lua` | 凌空虚渡 |
 | 高级剑法 | `skill/sword_adv.lua` | 剑气 |
 | 高级投掷 | `skill/throw_adv.lua` | 飞星连珠；`valid_learn` 要求手持暗器 |
+| 青云心法 | `skill/qingyun_xinfa.lua` | 知识类武学（type=knowledge），不入战斗链；判师改投时被散去 |
 
-另有一门**基础**技能随本世界自带：毒术（`skill/poison.lua`）。涂毒
+另有一门**基础**技能由默认脚本目录提供：毒术（`lua-default/skill/basic/poison.lua`，
+按 script_root → default_script_root 回退加载）。涂毒
 （`item/poison_base.lua` 的 `do_mo`）以 `query_skill("poison") > 0` 为准入，
 没有它涂毒只会把毒抹到自己手上；等级同时是毒效时效（登记 `remove_effect`
 的拍数）。本世界未设毒术师父，技能由巫师授予。
@@ -31,7 +34,8 @@
 
 ### 房间公共模块
 
-`room/sample_room_common.lua` 提供通用的 `say_long` 和 `do_look` 函数，三个山脚房间通过 `require` 复用：
+`room/sample_room_common.lua` 提供通用的 `say_long` 和 `do_look` 函数，六个房间
+（山脚、半山腰、山顶、演武场、钱庄、林间空地）通过 `require` 复用：
 
 ```lua
 local common = require("room.sample_room_common")
@@ -113,7 +117,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | 场景 | 文件 | 说明 |
 |------|------|------|
 | 青云城住宅区 | `room/sample_resident.lua` | `type = "resident"`（脚本自装 `install` 属区逻辑）；`resident="青云"` 是城名；山脚有门可进；驻守月老（`sample_marriage`）演示结婚/离婚 |
-| 宅院仆役 | `npc/monster_yongren.lua` | 引擎建房时按固定基名 `monster_yongren` 载入，替房主看家拦人 |
+| 宅院仆役 | `lua-default/npc/monster_yongren.lua` | 引擎建房时按固定基名 `monster_yongren` 载入（默认脚本侧），替房主看家拦人 |
 | 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
 
 
@@ -129,8 +133,8 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 
 | NPC | 文件 | 说明 |
 |-----|------|------|
-| 老李头（向导） | `npc/sample_guide.lua` | 聊天NPC，随机自言自语；在山顶随机刷出"奇怪的树"（`item/sample_tree.lua`）；身兼任务发起人（`data/quest.lua`） |
-| 杂货老板（商人） | `npc/sample_vendor.lua` | 出售武器、秘籍、药品、酒壶、棋子等；`/ask 交易` 菜单索取交易文书 |
+| 老李头（向导） | `npc/sample_guide.lua` | 聊天NPC，随机自言自语；演示四条回调链——`set_inquiry_func` 问路、`paihangbang` 排行榜查询（`handle_action("update")` 行消费）、`do_look` 观察钩子（`eff_status_msg`）、`relay_say` 说话作揖（`do_emote`）；在山顶随机刷出"奇怪的树"（`item/sample_tree.lua`）；身兼任务发起人（`data/quest.lua`） |
+| 杂货老板（商人） | `npc/sample_vendor.lua` | 出售武器、秘籍、药品、酒壶、棋子等；`/ask 交易` 菜单索取交易文书；定价走 `hooks.pre_buy` 看脸改价 |
 | 云游道人（巡游） | `npc/sample_wanderer.lua` | `random_move` 随机取出口走动 + 自我续排 `call_out`：从山脚路口出发全图巡逻；副本与主图之间没有门，走不进副本 |
 | 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
 
@@ -207,7 +211,8 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 - `hooks.kill_bonus(killer, victim, reward)` 在击杀 NPC 经验封顶后、入账前被调用；
   每次玩家击杀都会咨询（reward 可能为 0），因此固定奖励不因 nk_gain 的
   组队分红、晕倒归属、经验折算等上游因素失效
-- 青蛇（`sample_qingshe`）返回 `{ reward = 10000 }` 覆盖入账值，其余 NPC 返回 nil 按常规入账
+- 青蛇（`sample_qingshe`）与山道强人各设 `nk_bonus` 键（10000 / 100），
+  挂点读到即以该值入账；未设该键的 NPC 返回 nil 按常规入账
 - 击杀后青蛇随房间 reset 自动补充，可持续练级
 
 **死亡掉落机制**（脚本 `die`，见 `npc/sample_qingshe.lua`）：
@@ -231,6 +236,9 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
   （本世界只给带 `hidden_weapon` 标记的角色开小灶，其余一律早返回）
 - `hooks.calculate_damage(me, victim, damage)`：伤害落到身上之前的最后一道口子，
   拿得到这一击的实打数值；返回 nil 即不改写伤害
+- `hooks.pre_buy(vendor, buyer, goods)`：收款前改价（本世界是商人看脸——以
+  18 分长相为基准价，越好看越便宜、越丑越贵，每高 1 分打 1% 折、每低 1 分
+  加价 1%，钳制五折~加价五成），返回 `{price=N}` 覆盖常规价
 - `hooks.post_buy(vendor, buyer, goods)`：成交之后补话头（本世界只给盲盒发
   一句不退不换的须知），走 `message_vision_self` 只送买卖双方、不进房间广播
 - `data/chanbanword.lua`：频道禁词表（可选数据集配置），命中即拒发；
@@ -268,42 +276,92 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 
 ```
 山脚 ──→ 半山腰 ──→ 山顶 ──→ [副本]黑风寨庭院 ──→ 黑风寨大厅
- │   │                │               │              │
- │   └→ 茶棚          │               │              │
- │     (水源fill)      │               │              │
- 向导+商人            师父（学技能）    守门喽啰        小喽啰+大当家（战斗）
- 箱子(剑/币/药)        自动出绝招     (副本门→大厅)
-                       练功木人(对练)
- 随机怪树(talk摘经验果)
- └→ 住宅区（申请成为居民 → 置产 → 搬进自家宅院）
+ │   │   │   │               │              │
+ │   └→ 茶棚  │               │              │
+ │     (水源fill)  │               │              │
+ │   └→ 钱庄      │               │              │
+ │   └→ 演武场    │               │              │
+ │   └→ 林间空地  │               │              │
+ │   └→ 住宅区    │               │              │
+ 向导+商人     师父（学技能）   守门喽啰        小喽啰+大当家（战斗）
+ 箱子(剑/币/药)   练功木人(对练)  (副本门→大厅)
+ 随机怪树(talk摘经验果) 铁人桩(喂招)
+ 住宅区内：申请成为居民 → 置产 → 搬进自家宅院；驻守月老（结婚登记）
 ```
 
-### 文件列表
+### 文件索引（按目录）
 
-| 场景 | 文件 | 说明 |
-|------|------|------|
-| 房间公共模块 | `room/sample_room_common.lua` | require 共享 do_look |
-| 状态脚本 | `condition/snake_poison.lua` | 「蛇毒」状态：挂载播报 + 逐拍倒数 + 归零解除 |
-| 状态脚本 | `condition/drunk.lua` | 「醉酒」状态：逐拍倒数 → `unconcious()` 昏过去 → `revive()` 醒过来 |
-| 烈酒 | `item/sample_jiu.lua` | 出厂即满的酒精饮料，use 挂「醉酒」状态（杂货铺货位 14） |
-| 山脚 | `room/sample_mountain_foot.lua` | 向导+商人+巡游道人，箱子 |
-| 云游道人 | `npc/sample_wanderer.lua` | `random_move` 随机走动 + 自我续排 `call_out` 的巡逻NPC |
-| 山脚林间空地 | `room/sample_woods.lua` | 死胡同支线场地，山道强人驻扎（战斗状态链） |
-| 山脚茶棚 | `room/sample_tea_stall.lua` | 水源fill |
-| 山脚钱庄 | `room/sample_bank.lua` | 钱庄老板（存取款/贷款） |
-| 住宅区 | `room/sample_resident.lua` | type=resident，申请成为居民 → 置产 → 搬家；驻守月老 |
-| 宅院仆役 | `npc/monster_yongren.lua` | 房屋自带仆役，基名固定为 monster_yongren |
-| 月老（结婚登记） | `npc/sample_marriage.lua` | 住宅区驻守，演示结婚/离婚全流程（费用 100 金） |
-| 半山腰 | `room/sample_mountain_mid.lua` | 师父NPC + 练功木人 |
-| 练功木人 | `npc/sample_wooden_dummy.lua` | type=mirror 镜像NPC：`/ask 对练` 照挑战者复制自己 |
-| 山顶 | `room/sample_mountain_top.lua` | 副本入口，青蛇练级点 |
-| 青蛇 | `npc/sample_qingshe.lua` | 1级练级怪，击杀奖 10000 经验（hooks.kill_bonus），die 掉蛇胆 |
-| 包子 | `item/sample_baozi.lua` | 食物：复用 food_base 的通用吃食逻辑 |
-| 蛇胆 | `item/sample_shedan.lua` | 剧毒：服下双损伤 + 挂「蛇毒」状态（condition/snake_poison），观察/涂毒复用 poison_base |
-| sample 挂点 | `data/hooks.lua` | script_root 的 hooks 实现（kill_bonus + 称谓/任务规则安装） |
-| 任务 | `data/quest.lua` | 老李头的委托：pre_talk 接委托/复命 + pre_accept_object 交物 |
-| 频道禁词表 | `data/chanbanword.lua` | 可选数据集配置：命中即拒发（不提供则按空词表） |
-| 开盒记档 | `data/box_draw_log.lua` | 独立表 `sample_box_draw`（谁/何时/开出什么）：require 期 `db_register_ddl` 建表，拆盒 `db_execute` 写 + `db_query` 读回次数 |
-| 副本总控 | `room/sample_stronghold_fb.lua` | type=fb，只预加载入口房间 |
-| 副本房间 | `room/sample_stronghold_courtyard.lua` | type=fbroom，入口+副本门 |
-| 副本房间 | `room/sample_stronghold.lua` | type=fbroom，大厅+战斗NPC |
+**room/**（12）
+
+| 文件 | 说明 |
+|------|------|
+| `sample_room_common.lua` | require 共享 `say_long`/`do_look` |
+| `sample_mountain_foot.lua` | 山脚：向导+商人+巡游道人，三箱（木箱/药箱/锁着的箱子） |
+| `sample_mountain_mid.lua` | 半山腰：师父 + 练功木人 + 铁人桩；`valid_startroom`/`sleep_room` |
+| `sample_mountain_top.lua` | 山顶：副本入口，青蛇练级点 |
+| `sample_tea_stall.lua` | 茶棚：水源 fill（含茶钱 fee） |
+| `sample_bank.lua` | 钱庄：type=bankowner 老板（存取款/贷款） |
+| `sample_arena.lua` | 演武场：脚本驱动比武的落脚点 |
+| `sample_woods.lua` | 林间空地：死胡同支线，山道强人驻扎 |
+| `sample_resident.lua` | 住宅区：type=resident，申请→置产→搬家；驻守月老 |
+| `sample_stronghold_fb.lua` | 副本总控：type=fb，只预加载入口 |
+| `sample_stronghold_courtyard.lua` | 庭院：type=fbroom，副本门入口 |
+| `sample_stronghold.lua` | 大厅：type=fbroom，战斗NPC + valid_leave |
+
+**npc/**（15）
+
+| 文件 | 说明 |
+|------|------|
+| `sample_guide.lua` | 向导：inquiry 问答、排行榜、观察钩子、说话作揖、随机怪树 |
+| `sample_vendor.lua` | 商人：type=vendor，上架全部商品，交易文书菜单 |
+| `sample_wanderer.lua` | 云游道人：`random_move` + 自我续排 `call_out` 巡逻 |
+| `sample_master.lua` | 青云子：收徒（attempt_apprentice）、悔过/验看问话 |
+| `sample_wooden_dummy.lua` | 练功木人：镜像NPC（require+install mirror_base），`/ask 对练` |
+| `sample_iron_dummy.lua` | 铁人桩：固定属性喂招沙包，`attack` 钩子演示 `base_attack` 交回 |
+| `sample_arena_master.lua` | 演武教头：逐绑定装配战斗房 + `Do_BiShi` 两条开法 |
+| `sample_road_rogue.lua` | 山道强人：记仇/切磋/贿赂销账/死亡接管 |
+| `sample_qingshe.lua` | 青蛇：练级怪，`nk_bonus` 固定经验，die 掉蛇胆 |
+| `sample_heifeng_master.lua` | 黑风寨总教头：判师改投（散功+清家门+recruit） |
+| `sample_marriage.lua` | 月老：结婚登记（发登记表）/离婚确认 |
+| `sample_bandit_low.lua` | 小喽啰：基础战斗NPC，概率自动出招 |
+| `sample_bandit_boss.lua` | 大当家：自动绝招 + `can_save` 存盘（挑战计数） |
+| `sample_fb_manager.lua` | 副本管理员：离开副本菜单，kill/fight/cast 截获 |
+| `sample_banker.lua` | 钱庄老板：type=bankowner |
+
+**item/**（18）
+
+| 文件 | 说明 |
+|------|------|
+| `sample_book_common.lua` | 秘籍公共模块（数据驱动 create） |
+| `sample_book_force.lua` / `sample_book_sword.lua` | 内功/剑法秘籍（复用 book_common） |
+| `sample_sword_basic.lua` / `sample_sword_adv.lua` | 铁剑/青锋剑 |
+| `sample_heal.lua` | 金创药（receive_curing，自带 do_use） |
+| `sample_hp.lua` | 回春丹（receive_healing，自带 do_use） |
+| `sample_baozi.lua` | 包子（复用 food_base） |
+| `sample_xp.lua` | 经验果：历练+10 万、max_mp+100 |
+| `sample_shedan.lua` | 蛇胆：即时双损伤 + 挂蛇毒（复用 poison_base） |
+| `sample_teleport.lua` | 传送符：二级菜单选目的地；owner 记主防倒卖 |
+| `sample_teapot.lua` | 酒壶：liquid 空容器（fill 装填） |
+| `sample_jiu.lua` | 烈酒：出厂即满，饮下挂 condition/drunk |
+| `sample_blind_box.lua` | 盲盒：`xrandom` 抽奖 + 开盒记档 |
+| `sample_tree.lua` | 怪怪树：房间陈设物，talk 摘果 |
+| `sample_marriage_form.lua` | 婚姻登记表：两段签名仪式 |
+| `sample_chess.lua` | 棋子：可堆叠暗器（skill_type=throwing） |
+| `key.lua` | 铜钥匙：开锁/上锁（password 配对） |
+
+**skill/**（8）：见上文「技能体系」表——`force_adv`/`unarmed_adv`/`hand_adv`/
+`parry_adv`/`dodge_adv`/`sword_adv`/`throw_adv`/`qingyun_xinfa`。
+
+**condition/**（2）：见「状态体系」表——`snake_poison`/`drunk`。
+
+**data/**（7）
+
+| 文件 | 说明 |
+|------|------|
+| `hooks.lua` | script_root 挂点：setup_human 起步金、kill_bonus、fight、calculate_damage、pre_buy 看脸定价、post_buy |
+| `quest.lua` | 老李头的委托：pre_talk 接委托/复命 + pre_accept_object 交物 |
+| `exam.lua` | 天下大考：do_channel 频道接管（出题/判分/奖励） |
+| `channel_config.lua` | 扩展频道配置（f1-f4、answer） |
+| `chanbanword.lua` | 频道禁词表（可选，缺失按空词表） |
+| `box_draw_log.lua` | 开盒记档：db_register_ddl/db_execute/db_query 四连演示 |
+| `city_data.lua` | 城市区域配置（青云城） |

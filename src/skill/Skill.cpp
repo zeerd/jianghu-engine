@@ -142,12 +142,6 @@ int CSkill::cast(string magic, CChar* me, CContainer* target)
     return 0;
 }
 
-int CSkill::valid_effect(CChar* me, CContainer* weapon, char* action_name,
-                         int skill)
-{
-    return 1;
-}
-
 const char* CSkill::type() { return "martial"; }
 
 const char* CSkill::query_dodge_msg(CChar* me) { return 0; }

@@ -33,8 +33,10 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
     if (key == "battle_end") return !st.in_battle();
 
     // 忙碌起止都随 STATE 翻转推送，故两个方向都可等：
-    // `busy` 等起始（避免把「还没观测到 busy」误当不忙），`not_busy` 等结束
-    if (key == "busy") return st.player_attr().busy;
+    // `busy` 等起始（起始窗可窄于轮询，锁存兜底——见 GameState::busy_latched），
+    // `not_busy` 等结束（只看实时：结束 STATE 缺 bsy 即翻回不忙）。
+    // wait_cond 在两者的 wait 通过时消费锁存，防止串进下一次命令。
+    if (key == "busy") return st.player_attr().busy || st.busy_latched();
     if (key == "not_busy") return !st.player_attr().busy;
 
     if (key == "room") {
@@ -226,7 +228,12 @@ bool CScenarioRunner::wait_cond(const std::string &cond, int timeout_ms)
             if (std::chrono::steady_clock::now() >= deadline) return true;
         }
         else {
-            if (ok) return true;
+            if (ok) {
+                // busy/not_busy 的 wait 通过 = 忙的起止都已走完，消费起始锁存
+                if (token == "busy" || token == "not_busy")
+                    core_.state().clear_busy_latched();
+                return true;
+            }
             if (core_.server_closed()) {
                 return fail("server closed the connection");
             }
@@ -455,8 +462,8 @@ bool CScenarioRunner::run_capture_step(const std::string &args)
             vars_[var] = it->substr(start, pos - start);
             save_vars();
             if (opts_.echo) {
-                std::cout << "[script] captured " << var << "=" << vars_[var]
-                          << std::endl;
+                core_.ui().post_raw("[script] captured " + var + "="
+                                        + vars_[var] + "\n");
             }
             return true;
         }

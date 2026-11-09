@@ -62,23 +62,4 @@ public:
 
     CNpc() { set("grant", GRANT_NPC); };
     virtual ~CNpc();
-
-protected:
-    typedef char* (*INQUERYFUNC)(CNpc* this_object, CChar* this_player);
-
-    typedef struct _tagInquiry {
-        string topic;
-        string answer;
-        INQUERYFUNC func = nullptr;
-
-    } Inquiry_t;
-
-    typedef map<string, std::unique_ptr<Inquiry_t>, less<string> > LISTINQUIRY;
-    LISTINQUIRY m_list_inquiry;
-
-    virtual char* greeting(CChar* me);
-    void set_inquiry(const char* msg, INQUERYFUNC func,
-                     const char* topic = NULL);
-    void set_inquiry(const char* ask, const char* answer,
-                     const char* topic = NULL);
 };

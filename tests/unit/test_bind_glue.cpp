@@ -22,7 +22,7 @@ protected:
         for (auto* p : m_lists) delete p;
         BindTest::TearDown();
     }
-    // build an empty jianghu_item_list userdata (Get_ItemList return shape)
+    // build an empty jianghu_item_list userdata (get_item_list return shape)
     void push_empty_list()
     {
         auto* list = new DTItemList();
@@ -35,11 +35,9 @@ protected:
 };
 
 // base_* dispatchers: self is a plain CChar -> no CLua* branch matches.
-// l_base_create returns 0; the others push a 0 result and return 1.
+// each pushes a 0 result and returns 1.
 TEST_F(BindGlueTest, BaseDispatchersGuard)
 {
-    lua_bind_push_object(L, &ch);
-    EXPECT_EQ(0, CallRetCount(l_base_create, 1));
     lua_bind_push_object(L, &ch);
     lua_bind_push_object(L, &ch);  // me slot must hold a real object
     EXPECT_EQ(0, CallRetCount(l_base_init, 2));
@@ -95,16 +93,6 @@ TEST_F(BindGlueTest, BaseDoTalkGuard)
     lua_pushstring(L, "hello");
     // plain CChar is not CLuaVendor/CLuaNpc -> pushes 0 and returns 1
     EXPECT_EQ(1, CallRetCount(l_base_do_talk, 3));
-}
-
-TEST_F(BindGlueTest, HandleActionGuard)
-{
-    lua_bind_push_object(L, &ch);
-    lua_pushstring(L, "go");
-    lua_bind_push_object(L, &ch);  // me
-    int k = call(l_handle_action, 3);
-    EXPECT_EQ(1, k);  // pushes 0 (con != CContainer path)
-    lua_pop(L, k);
 }
 
 // item-list iterator over an empty list
@@ -183,19 +171,6 @@ TEST_F(BindGlueTest, BaseDispatchersRealTypes)
         lua_bind_push_object(L, &ch);
         lua_pushstring(L, "hi");
         EXPECT_EQ(1, CallRetCount(l_base_do_talk, 3)) << "Npc 支(361,362)";
-    }
-
-    // ---- l_base_create：历史兼容空钩子（镜像类型删除后无任何分支） ----
-    {
-        CLuaNpc n("t_quiet_npc");
-        lua_bind_push_object(L, &n);
-        EXPECT_EQ(0, CallRetCount(l_base_create, 1)) << "NPC 也是 no-op";
-    }
-    {
-        // 技能脚本仍在调用 self:base_create()：钩子对技能同样无分支（返回 0）
-        CLuaSkill s("force");
-        lua_bind_push_object(L, &s);
-        EXPECT_EQ(0, CallRetCount(l_base_create, 1)) << "Skill 不再支持";
     }
 
     // ---- l_base_handle_action4：Room/FBRoom/Npc 三支 ----

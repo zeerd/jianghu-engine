@@ -17,9 +17,6 @@ function npc.create(self)
     self:set("con", 40)
     self:set("dex", 40)
     self:set("int", 40)
-    -- 容貌钉 0：老夫不修边幅，验看时与弟子比较容貌（query_per 双方各读一次），
-    -- 弟子侧创建下限 10 恒胜，比较结果不随随机属性漂
-    self:set("per", 0)
 
     self:set("max_hp", 50000)
     self:set("hp", 50000)
@@ -66,8 +63,6 @@ function npc.create(self)
 
     self:carry_object("sample_sword_adv"):wield()
     self:carry_object("sample_chess")
-
-    self:set("no_kill", 1)
 end
 
 function npc.attempt_apprentice(self, me)
@@ -96,6 +91,12 @@ function npc.attempt_apprentice(self, me)
     self:say("好，从今天起你就是我青云门的弟子了。", me)
     self:command("recruit " .. me:object_id())
     self:DownLoad(me)
+    -- 入门礼：师父讲法口传心授，弟子历练大进（每号一次）
+    if me:query("reward/exp") < 1 then
+        me:add("combat_exp", 50000)
+        me:set("reward/exp", 1)
+        self:say("为师今日传你本门口诀，好好参悟。", me)
+    end
     self:SendMenu(me)
     return 1
 end
@@ -135,37 +136,30 @@ function npc.do_talk(self, me, ask)
 end
 
 -- 验看：弟子的门规与实学核验（say 第二参收件人，只发问者本人）。
---   门规四问各设合格线 20：臂力/根骨（query_str/query_con）、悟性
---   （query_int）、身法（query_dex），任一不足即回绝，四问全过才继续报数。
---   实学两数是引擎实读：历练 = query_combat_exp；可用经验 =
+--   门规四问各设合格线 20：臂力/根骨（attr("str")/attr("con")）、悟性
+--   （attr("int")）、身法（attr("dex")），任一不足即回绝，四问全过才继续报数。
+--   实学两数是引擎实读：历练 = attr("combat_exp")；可用经验 =
 --   query_valid_exp——未分配的经验（经验总额减去等级与技能已耗），
 --   学技能与升级都从这里扣，弟子升过几级便扣掉几级的累计门槛。
---   容貌 = query_per 与老夫同法各读一次，按大小判胜负。
 function npc.handle_inspect(self, me)
-    if me:query_str() < 20 or me:query_con() < 20 then
+    if me:attr("str") < 20 or me:attr("con") < 20 then
         self:say("你根骨不济，入不得我青云门。", me)
         return
     end
-    if me:query_int() < 20 then
+    if me:attr("int") < 20 then
         self:say("你悟性不足，先去多读几年书。", me)
         return
     end
-    if me:query_dex() < 20 then
+    if me:attr("dex") < 20 then
         self:say("你身法太僵，先去练练腿脚。", me)
         return
     end
 
     self:say("门规尽过——根骨、悟性、身法都够格。", me)
     self:say(
-        string.format("你眼下历练%d点，可用经验%d点。", me:query_combat_exp(), me:query_valid_exp()),
+        string.format("你眼下历练%d点，可用经验%d点。", me:attr("combat_exp"), me:query_valid_exp()),
         me
     )
-
-    if me:query_per() > self:query_per() then
-        self:say("论容貌你胜过老夫，好卖相。", me)
-    else
-        self:say("论容貌你不及老夫。", me)
-    end
 end
 
 function npc.handle_action(self, comm, me, arg)

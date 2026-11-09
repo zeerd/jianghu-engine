@@ -107,6 +107,61 @@ cmd /use
 wait text 不需要用回春丹 timeout=10000
 wait attr hp >= 405 timeout=10000
 
+# --- 解毒链：满血状态开吃，两样解药各解一次（专解与通解成对）----------------
+# 蛇胆一口扣 40% 上限 + 10% 当前，**必须从 405/405 满状态起吃**：首颗
+# 后剩 243、二颗后剩 81，都在生死线内侧（不满血连吃会被毒加吞药直接带走）。
+# 雄黄走 apply_condition(duration=0) 定向摘除蛇毒一项；解毒丸清整张
+# condition 表。每次解后先 clear 旧播报，再盯一拍半窗口（> 心跳拍 5~9s）
+# 无「毒性一阵阵发作」——状态真摘掉了才会彻底哑掉。
+cmd /t she dan
+wait not_busy timeout=10000
+clear
+cmd /use
+wait text 毒性渗入了你的体内 timeout=10000
+wait not_busy timeout=15000
+cmd /t xiong huang
+clear
+cmd /use
+wait text 压住了体内的蛇毒 timeout=10000
+clear
+wait notext 毒性一阵阵发作 timeout=15000
+
+cmd /t she dan
+wait not_busy timeout=10000
+clear
+cmd /use
+wait text 毒性渗入了你的体内 timeout=10000
+wait not_busy timeout=15000
+cmd /t jie du wan
+clear
+cmd /use
+wait text 周身毒气散尽 timeout=10000
+clear
+wait notext 毒性一阵阵发作 timeout=15000
+
+# 解毒链收口：两颗蛇胆的新伤（eff -80、hp 落 81）补回满状态再走人，
+# 传送符之后的各段都从 405/405 起步。循环到拒绝 = 补到位（同上两段口径）。
+repeat 4
+clear
+cmd /t jin chuang yao
+cmd /use
+wait text 你吃下一包金创药|你现在不需要用金创药 timeout=10000
+# 信令间隙：回执先发、STATE 随命令末发出，sleep 500 跳过分段在途（§8.1）
+sleep 500
+wait not_busy timeout=10000
+end
+wait attr eff_hp >= 405 timeout=10000
+
+repeat 5
+cmd /t hui chun dan
+clear
+cmd /use
+wait text 你吃下一粒回春丹|你现在不需要用回春丹 timeout=10000
+sleep 500
+wait not_busy timeout=10000
+end
+wait attr hp >= 405 timeout=10000
+
 # ---------------------------------------------------------------------------
 # 传送符：look 弹使用菜单 → 选目的地（半山腰 → 山脚，衔接后续生活段）
 # ---------------------------------------------------------------------------

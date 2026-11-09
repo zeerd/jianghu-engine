@@ -48,7 +48,7 @@ function npc.attack(self, opponent)
     self:base_attack(opponent)
 end
 
--- 打散自毁（与木人同款）：不走 die_base，不掉尸体、不结算 NK 经验
+-- 打散自毁（与木人同款）：不走 die("base")，不掉尸体、不结算 NK 经验
 function npc.die(self)
     message_vision("$N哐当一声散成了一地铁片。", self)
     destruct(self)

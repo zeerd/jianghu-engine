@@ -34,6 +34,7 @@ public:
     using CScenarioRunner::attr_value;
     using CScenarioRunner::eval_attr_cond;
     using CScenarioRunner::eval_cond;
+    using CScenarioRunner::wait_cond;
     using CScenarioRunner::run_capture_step;
     using CScenarioRunner::run_menu_step;
     using CScenarioRunner::run_step;
@@ -178,6 +179,28 @@ TEST_F(ScenarioStepsTest, EvalCondBusyFollowsState)
     core_->state().handle_message(make_msg(23, {{"T", "1001"}, {"bsy", "1"}}));
     EXPECT_TRUE(runner.eval_cond("busy", detail));
     EXPECT_FALSE(runner.eval_cond("not_busy", detail));
+}
+
+// 起始锁存：忙窗可窄于轮询（起始/结束 STATE 可能紧邻），bsy=1 在接收线程
+// 即时记账；wait busy 命中即消费，wait not_busy 收口也消费，不串进下一次命令。
+TEST_F(ScenarioStepsTest, BusyLatchSurvivesFlipUntilConsumed)
+{
+    login();
+    auto runner = make_runner();
+    std::string detail;
+
+    core_->state().handle_message(make_msg(23, {{"T", "1001"}, {"bsy", "1"}}));
+    core_->state().handle_message(make_msg(23, {{"T", "1001"}, {"sta", "60"}}));
+    EXPECT_TRUE(runner.eval_cond("busy", detail)) << "结束 STATE 翻回后锁存仍在";
+    EXPECT_TRUE(runner.eval_cond("not_busy", detail)) << "实时已不忙";
+
+    EXPECT_TRUE(runner.wait_cond("busy", 50)) << "锁存命中";
+    EXPECT_FALSE(runner.eval_cond("busy", detail)) << "命中即消费";
+
+    core_->state().handle_message(make_msg(23, {{"T", "1001"}, {"bsy", "1"}}));
+    core_->state().handle_message(make_msg(23, {{"T", "1001"}, {"sta", "60"}}));
+    EXPECT_TRUE(runner.wait_cond("not_busy", 50)) << "收口即消费";
+    EXPECT_FALSE(runner.eval_cond("busy", detail)) << "收口后不残留";
 }
 
 TEST_F(ScenarioStepsTest, EvalCondMenuAndDialog)

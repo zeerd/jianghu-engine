@@ -9,11 +9,9 @@ return {
         self:add_magic("xieli", "卸力", 40, 100, CAST_TO_ME, CAST_IN_COMBAT, "do_xieli", 0)
     end,
 
+    -- 招架成功文案（覆写基座默认；钩子只收到武器，拿不到使用者等级，
+    -- 故按固定文案出招架风味）
     query_parry_msg = function(self, weapon)
-        local level = 0
-        if self then
-            -- 尝试获取使用者的技能等级
-        end
         return "但是被$n巧妙地格开了。"
     end,
 

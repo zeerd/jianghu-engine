@@ -327,11 +327,6 @@ TEST_F(LuaErrorPathTest, NpcCallbackErrors_LogAndFallBackToBase)
         probe.ExpectOnce();
     }
     {
-        ErrorLogProbe probe("Lua npc greeting failed [t_error_npc]");
-        script_npc->greeting(me);
-        probe.ExpectOnce();
-    }
-    {
         ErrorLogProbe probe("Lua npc attempt_apprentice failed [t_error_npc]");
         npc->attempt_apprentice(me);
         probe.ExpectOnce();
@@ -853,6 +848,56 @@ TEST_F(LuaErrorPathTest, CheckForReload_GatesCountAndNotifyOnSuccess)
 
     // 内容未再变化：mtime 已同步，空转不计数
     EXPECT_EQ(engine->check_for_reload(), 0);
+
+    std::remove(path.c_str());
+}
+
+// 心跳观察者对「文件被删除」必须收敛：失败尝试落本次观测到的文件状态
+// （缺失 = mtime 0 / 哈希 0），此后文件不再变化就不再重试。否则旧版本的
+// mtime/哈希永远对不上缺失态，每个心跳都重试一次、每次报 ERROR+BACKTRACE
+// ——删掉一个无用脚本后日志按 5s 节拍无限刷新。失败保留旧版本、文件
+// 恢复后按新状态重载，两条语义不变。
+TEST_F(LuaErrorPathTest, CheckForReload_DeletedFileLogsOnceThenStaysSilent)
+{
+    const char* name       = "t_deleted_item";
+    const std::string path = "tests/unit/lua-tests/item/t_deleted_item.lua";
+    write_file(path,
+               "return { create = function(self) end, version = \"first\" }\n");
+
+    CLuaEngine* engine = CLuaEngine::instance();
+    const int old_ref  = engine->load_script(name, LUA_SCRIPT_ITEM);
+    ASSERT_NE(old_ref, LUA_NOREF);
+
+    // 空转一遍：把其他夹具 mtime 漂移的条目同步掉，后续计数只归本条目
+    engine->check_for_reload();
+
+    std::remove(path.c_str());
+
+    const char* needle = "Lua reload loadfile failed [t_deleted_item]";
+    const int before   = count_log_hits(needle);
+
+    // 首次心跳发现缺失：报一次错，不计入重载数（旧版本保留）
+    EXPECT_EQ(engine->check_for_reload(), 0);
+    EXPECT_EQ(count_log_hits(needle), before + 1) << "缺失必须报错一次";
+
+    // 状态未再变化：后续心跳不得重试、不得再报错（刷屏回归点）
+    EXPECT_EQ(engine->check_for_reload(), 0);
+    EXPECT_EQ(engine->check_for_reload(), 0);
+    EXPECT_EQ(count_log_hits(needle), before + 1)
+        << "文件未变化却重复报错：观察者未收敛，日志会无限刷新";
+
+    // 缺失期间按需加载仍回旧版本，且同样不再重复报错
+    EXPECT_EQ(engine->load_script(name, LUA_SCRIPT_ITEM), old_ref);
+    EXPECT_EQ(count_log_hits(needle), before + 1);
+
+    // 文件恢复（内容必变）：观察者重新行动，装入新版本
+    write_file(
+        path, "return { create = function(self) end, version = \"second\" }\n");
+    EXPECT_EQ(engine->check_for_reload(), 1);
+    std::string version;
+    ASSERT_TRUE(engine->get_script_str_field(name, LUA_SCRIPT_ITEM, "version",
+                                             version));
+    EXPECT_EQ(version, "second") << "文件恢复后必须装入新版本";
 
     std::remove(path.c_str());
 }

@@ -16,7 +16,7 @@
 //---------------------------------------------------------
 // Construction/Destruction
 //---------------------------------------------------------
-CNpc::~CNpc() { m_list_inquiry.clear(); }
+CNpc::~CNpc() {}
 
 int32_t CNpc::query_attr(int attr)
 {
@@ -141,29 +141,6 @@ void CNpc::add_money(int32_t amount)
     money->move(this);
 }
 
-// 设置查询问题
-void CNpc::set_inquiry(const char* ask, const char* answer, const char* topic)
-{
-    auto p = std::make_unique<Inquiry_t>();
-
-    if (topic) p->topic = topic;
-    p->answer           = answer;
-    p->func             = NULL;
-    m_list_inquiry[ask] = std::move(p);
-}
-
-void CNpc::set_inquiry(const char* ask, INQUERYFUNC func, const char* topic)
-{
-    auto p = std::make_unique<Inquiry_t>();
-
-    if (topic) p->topic = topic;
-    p->func             = func;
-    m_list_inquiry[ask] = std::move(p);
-}
-
-// 打招呼的函式
-char* CNpc::greeting(CChar* me) { return ""; }
-
 // learn用到
 int CNpc::recognize_apprentice(CChar* me) { return 0; }
 
@@ -201,55 +178,14 @@ int CNpc::do_talk(CChar* me, char* ask)
 }
 
 // 引擎标准询问流程（C++ 询问菜单）：不含通用对话钩子。
+// 引擎侧询问表已无填充入口（脚本 NPC 的询问一律走 CLuaNpcT 的
+// m_list_lua_inquiry）：本流程只服务 Vendor/钱庄/引擎流的默认回绝，
+// 与原「表恒空」时的行为一致。
 int CNpc::do_talk_inquiry(CChar* me, char* ask)
 {
-    string msg;
-    Inquiry_t* inquiry;
-
     if (!me || !ask) return 0;
 
-    // 查询ask
-    if (m_list_inquiry.find(ask) == m_list_inquiry.end()) {
-        if (!m_list_inquiry.size()) {
-            return notify_fail("对方并不愿意理你。");
-        }
-
-        LISTINQUIRY::iterator p;
-        for (p = m_list_inquiry.begin(); p != m_list_inquiry.end(); p++) {
-            inquiry = p->second.get();
-            if (inquiry->topic.length())
-                add_menu_item(inquiry->topic.c_str(), p->first.c_str(), me);
-            else {
-                msg = "向";
-                msg += name();
-                msg += "请教关于";
-                msg += p->first;
-                msg += "的问题。";
-                add_menu_item(msg.c_str(), p->first.c_str(), me);
-            }
-        }
-        send_menu(me);
-        return 1;
-    }
-
-    inquiry = m_list_inquiry[ask].get();
-
-    if (inquiry->func) {
-        const char* rtn;
-
-        rtn = (*inquiry->func)(this, me);
-
-        if (rtn && rtn[0]) {
-            say(rtn, me);
-            send_menu(me);
-        }
-    }
-    else {
-        say(inquiry->answer.c_str(), me);
-        send_menu(me);
-    }
-
-    return 1;
+    return notify_fail("对方并不愿意理你。");
 }
 
 void CNpc::random_move()

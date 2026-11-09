@@ -1,4 +1,4 @@
-﻿/** @file LuaBind.cpp @brief C++ 对象到 Lua 的绑定实现 */
+/** @file LuaBind.cpp @brief C++ 对象到 Lua 的绑定实现 */
 
 #include <windows.h>
 
@@ -7,8 +7,12 @@
 
 #include <lua.hpp>
 
+#include <algorithm>
+#include <sys/stat.h>
+
 #include "Char.h"
 #include "Global.h"
+#include "IniParser.h"
 
 #include "LuaBindTypes.h"
 #include "LuaBindDecls.h"
@@ -50,15 +54,11 @@ static const luaL_Reg object_methods[]
        {"set_heart_beat", l_set_heart_beat},
        {"create", l_create},
        {"query_temp", l_query_temp},
-       {"querymap_temp", l_querymap_temp},
-       {"querymap_temp_keys", l_querymap_temp_keys},
-       {"querystr_temp", l_querystr_temp},
+       {"dbase_temp", l_dbase_temp},
        {"name", l_name},
        {"id", l_id},
        {"object_id", l_object_id},
-       {"Long", l_long},
-       {"Short", l_short},
-       {"title", l_title},
+       {"desc", l_desc},
        // CContainer
        {"say", l_say},
        {"set_weight", l_set_weight},
@@ -66,8 +66,6 @@ static const luaL_Reg object_methods[]
        {"environment", l_environment},
        {"query_fb_parent", l_query_fb_parent},
        {"present", l_present},
-       {"Present", l_present_by_id},
-       {"Get_ItemList", l_get_item_list},
        {"UpdateMe", l_update_me},
        {"Remove_Betrayer", l_remove_betrayer},
        // CChar
@@ -81,6 +79,7 @@ static const luaL_Reg object_methods[]
        {"query_condition", l_query_condition},
        {"clear_condition", l_clear_condition},
        {"add_balance", l_add_balance},
+       {"attr", l_attr},
        // CChar 扩展
        {"receive_curing", l_receive_curing},
        {"receive_healing", l_receive_healing},
@@ -90,8 +89,6 @@ static const luaL_Reg object_methods[]
        {"receive_poison", l_receive_poison},
        {"remove_powerup", l_remove_powerup},
        {"start_powerup", l_start_powerup},
-       {"Save", l_save},
-       {"Load", l_load},
        {"LockData", l_lockdata},
        {"LoadFromServer", l_load_from_server},
        {"start_busy", l_start_busy},
@@ -99,15 +96,12 @@ static const luaL_Reg object_methods[]
        {"reset_level", l_reset_level},
        {"unconcious", l_unconcious},
        {"die", l_die},
-       {"die_base", l_die_base},
        {"kill_ob", l_kill_ob},
        {"set_killer", l_set_killer},
        {"fight_ob", l_fight_ob},
        {"is_killing", l_is_killing},
        {"query_weapon", l_query_weapon},
        {"query_left_weapon", l_query_left_weapon},
-       {"query_dex", l_query_dex},
-       {"query_combat_exp", l_query_combat_exp},
        {"query_skill_mapped", l_query_skill_mapped},
        {"query_skill_map_list", l_query_skill_map_list},
        {"inc_skill", l_inc_skill},
@@ -117,37 +111,21 @@ static const luaL_Reg object_methods[]
        {"clear_skill", l_clear_skill},
        {"clear_skill_map", l_clear_skill_map},
        {"clear_skill_prepare", l_clear_skill_prepare},
-       {"get_map", l_get_map},
-       {"set_map", l_set_map},
        {"command", l_command},
-       {"object_id", l_object_id},
        {"get_item_list", l_get_item_list},
-       {"present_name", l_present_name},
        {"improve_skill", l_improve_skill},
        {"query_team", l_query_team},
        {"Select_Member", l_select_member},
        {"map_skill", l_map_skill},
        {"prepare_skill", l_prepare_skill},
-       {"queryvec", l_queryvec},
-       {"set_beast_verbs", l_set_beast_verbs},
        {"add_temp", l_add_temp},
        {"delete_temp", l_delete_temp},
-       {"querymap_temp", l_querymap_temp},
-       {"querymap_temp_keys", l_querymap_temp_keys},
-       {"querymap", l_querymap},
-       {"querymap_keys", l_querymap_keys},
-       {"dbase_defined", l_dbase_defined},
+       {"dbase", l_dbase},
        {"SendState", l_send_state},
-       {"is_character", l_is_character},
-       {"is_char", l_is_character},
        {"can_equipped", l_can_equipped},
        {"enable_player", l_enable_player},
        {"disable_player", l_disable_player},
        {"FlushMyInfo", l_flush_my_info},
-       {"query_str", l_query_str},
-       {"query_con", l_query_con},
-       {"query_int", l_query_int},
-       {"query_per", l_query_per},
        {"is_fighting_target", l_is_fighting_target},
        {"is_invalid", l_is_invalid},
        {"remove_all_killer", l_remove_all_killer},
@@ -169,14 +147,8 @@ static const luaL_Reg object_methods[]
        {"set_inquiry_func", l_set_inquiry_func},
        {"DownLoad", l_download},
        {"create_family", l_create_family},
-       {"assign_apprentice", l_assign_apprentice},
-       {"query_exp", l_query_exp},
+       {"apprentice", l_apprentice},
        {"query_skills", l_query_skills},
-       {"recruit_num", l_recruit_num},
-       {"release_master", l_release_master},
-       {"is_apprentice_of", l_is_apprentice_of},
-       {"recruit_apprentice", l_recruit_apprentice},
-       {"recognize_apprentice", l_recognize_apprentice},
        {"prevent_learn", l_prevent_learn},
        {"wield", l_wield},
        {"wear", l_wear},
@@ -189,7 +161,6 @@ static const luaL_Reg object_methods[]
        {"Query_Weight", l_query_weight},
        {"set_amount", l_set_amount},
        {"Split", l_split},
-       {"PresentName", l_present_name},
        // CFightRoom
        {"Can_Join", l_can_join},
        {"Join_Team", l_join_team},
@@ -200,7 +171,6 @@ static const luaL_Reg object_methods[]
        {"learn_bonus", l_learn_bonus},
        {"set_leader", l_set_leader},
        {"setup", l_setup},
-       {"base_create", l_base_create},
        {"base_init", l_base_init},
        {"base_setup", l_base_setup},
        {"base_reset", l_base_reset},
@@ -209,7 +179,7 @@ static const luaL_Reg object_methods[]
        {"base_valid_leave", l_base_valid_leave},
        {"base_do_talk", l_base_do_talk},
        {"save_to_local", l_save},
-       {"load_from_local", l_load},
+       {"load_from_local", l_load_from_local},
        {"remove_all_doors", l_remove_all_doors},
        {"remove_all_box", l_remove_all_box},
        {"remove", l_remove},
@@ -242,20 +212,12 @@ static const luaL_Reg object_methods[]
        {NULL, NULL}};
 
 static const luaL_Reg global_funcs[]
-    = {{"load_npc", l_load_npc},
-       {"load_item", l_load_item},
-       {"find_item", l_find_item},
+    = {{"load", l_load},
        {"random_npc", l_random_npc},
        {"get_my_house", l_get_my_house},
-       {"load_room", l_load_room},
-       {"load_fb", l_load_fb},
-       {"load_skill", l_load_skill},
        {"room_exits", l_room_exits},
-       {"find_object", l_find_object},
-       {"find_npc", l_find_npc},
-       {"find_player", l_find_player},
-       {"find_online", l_find_online},
-       {"get_all_online_users", l_get_all_online_users},
+       {"find", l_find},
+       {"find_online_users", l_find_online_users},
        {"add_user", l_add_user},
        {"do_channel", l_do_channel},
        {"get_db_type", l_get_db_type},
@@ -266,8 +228,7 @@ static const luaL_Reg global_funcs[]
        {"enter_register_hall", l_enter_register_hall},
        {"random_vendor", l_random_vendor},
        {"current_time", l_current_time},
-       {"pay_player", l_pay_player},
-       {"player_pay", l_player_pay},
+       {"pay_money", l_pay_money},
        {"global_room_name", l_global_room_name},
        {"room_count", l_room_count},
        {"tell_object", l_tell_object},
@@ -275,58 +236,38 @@ static const luaL_Reg global_funcs[]
        {"message_vision_self", l_message_vision_self},
        {"notify_fail", l_notify_fail},
        {"random", l_random},
-       {"load_room", l_load_room},
-       {"load_npc", l_load_npc},
        {"RandomGetItem", l_random_get_item},
-       {"query_respect", l_query_respect},
-       {"query_rude", l_query_rude},
-       {"query_self_rude", l_query_self_rude},
-       {"query_self", l_query_self},
+       {"respect", l_respect},
        {"check_legal_name", l_check_legal_name},
        {"valid_string", l_valid_string},
        {"GetIP", l_get_ip},
-       {"skill2level", l_skill2level},
-       {"level2skill", l_level2skill},
-       {"Level2Exp", l_level2exp},
-       {"exp2level", l_exp2level},
-       {"is_user", l_userp},
+       {"is", l_is},
        {"MessageVision", l_message_vision_channel},
        {"message_channel", l_message_channel},
        {"combat_attack", l_combat_attack},
-       {"combat_attack_unarmed", l_combat_attack_unarmed},
-       {"combat_attack_weapon", l_combat_attack_weapon},
        {"damge_to_string", l_damge_to_string},
        {"eff_status_msg", l_eff_status_msg},
        {"chinese_number", l_chinese_number},
        {"get_team_list", l_get_team_list},
        {"get_first_throwing_weapon", l_get_first_throwing_weapon},
        {"throw_weapon", l_throw_weapon},
-       {"is_wizard", l_wizardp},
        {"is_relative", l_is_relative},
-       {"is_living", l_living},
        {"tell_room", l_tell_room},
        {"destruct", l_destruct},
        {"current_time_info", l_current_time_info},
        {"MakeCorpse", l_make_corpse},
-       {"log_trace", l_log_trace},
-       {"log_debug", l_log_debug},
-       {"log_info", l_log_info},
-       {"log_warn", l_log_warn},
-       {"log_error", l_log_error},
-       {"log_fatal", l_log_fatal},
+       {"log", l_log},
        {"xrandom", l_xrandom},
        {"combatd_query", l_combatd_query},
        {"killer_reward", l_killer_reward},
        {"get_server_id", l_get_server_id},
        {"get_fight_team_num", l_get_fight_team_num},
        {"get_fight_team_char", l_get_fight_team_char},
-       {"get_no_force_conflict", l_get_no_force_conflict},
        {"get_room_char", l_get_room_char},
        {"query_recruit", l_query_recruit},
        {"update_recruit", l_update_recruit},
        {"do_emote", l_do_emote},
        {"Do_BiShi", l_do_bishi},
-       {"handle_action", l_handle_action},
        {"revive", l_revive},
        {"setup_char", l_setup_char},
        {"iter_items", l_iter_items},
@@ -334,6 +275,56 @@ static const luaL_Reg global_funcs[]
        {"script_exists", l_script_exists},
        {"ini_get", l_ini_get},
        {NULL, NULL}};
+
+//---------------------------------------------------------
+// 启动期前导脚本（prelude）
+//---------------------------------------------------------
+// <script_root|default_script_root>/data/prelude.lua：script_root 优先，
+// 内容层可用同名脚本整体覆盖默认根。以 jianghu_object 元表为唯一入参执行
+// （该元表 __index 指向自身，脚本内 `local index = ...` 即方法表），脚本
+// 在全局环境定义的函数即全局 API。文件不存在试下一个根；文件在但读/载/
+// 执行失败记 ERROR 并停止——用户根的问题不被默认根掩盖。
+static bool prelude_run_script(lua_State* L, const char* root)
+{
+    if (!root || !root[0]) return false;
+
+    std::string path = std::string(root) + "/data/prelude.lua";
+    std::replace(path.begin(), path.end(), '\\', '/');
+
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) return false;
+
+    std::string gbk = load_file_as_gbk(path.c_str());
+    if (gbk.empty()) {
+        LOG_ERROR("[LuaBind] read %s failed", path.c_str());
+        return true;
+    }
+    if (luaL_loadbuffer(L, gbk.c_str(), gbk.size(), path.c_str()) != LUA_OK) {
+        LOG_ERROR("[LuaBind] load %s failed: %s", path.c_str(),
+                  lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return true;
+    }
+    luaL_getmetatable(L, "jianghu_object");
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+        LOG_ERROR("[LuaBind] run %s failed: %s", path.c_str(),
+                  lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+    return true;
+}
+
+// 装载前导脚本；两根都未配置（配置未加载的裸状态）静默跳过。
+static void lua_bind_run_prelude(lua_State* L)
+{
+    const char* roots[2] = {ini_get("lua", "script_root", ""),
+                            ini_get("lua", "default_script_root", "")};
+    bool configured      = roots[0][0] != '\0' || roots[1][0] != '\0';
+    if (prelude_run_script(L, roots[0])) return;
+    if (prelude_run_script(L, roots[1])) return;
+    if (configured)
+        LOG_ERROR("[LuaBind] data/prelude.lua missing in all script roots");
+}
 
 void lua_bind_init(lua_State* L)
 {
@@ -384,6 +375,9 @@ void lua_bind_init(lua_State* L)
 
     // 钩子机制的全局 hooks/commands 表（幂等，不清已有内容）
     lua_hook_init_tables(L);
+
+    // 内容层前导脚本：紧随绑定注册，晚于钩子表（prelude 可读 hooks/commands）
+    lua_bind_run_prelude(L);
 
     LOG_DEBUG("Lua Bind Finished.");
 }

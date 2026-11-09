@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharLook.cpp
  * @brief implementation of CChar (CharLook). */
 
@@ -53,7 +53,7 @@ int CChar::do_look(CChar* me)
         "深不可测", "深不可测", "深不可测", "深不可测", "前无古人，后无来者",
     };
 
-    int per = query_per();
+    int per = attr("per");
     if (!per) per = g_utils.random(20);
 
     char pro[5];

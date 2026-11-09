@@ -26,7 +26,7 @@ end
 
 -- 遍历角色身上的物件，fn 命中即返回其结果（列表为空时安全跳过）
 function M.each_item(me, fn)
-    local list = me:Get_ItemList()
+    local list = me:get_item_list()
     if not list then
         return nil
     end
@@ -57,7 +57,7 @@ end
 function M.intercept_foreign(self, comm, me, arg, tar, yongren)
     -- 截获使用时空贴的指令
     if comm == "trans" or comm == "use" then
-        local obj = me:Present(tonumber(tar) or 0)
+        local obj = me:present("object_id", tonumber(tar) or 0)
         if not obj then
             return nil
         end
@@ -74,7 +74,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
 
     -- 截获 kill / fight / cast / join / guard 指令
     if comm == "kill" or comm == "fight" or comm == "cast" or comm == "join" or comm == "guard" then
-        local obj = self:Present(tonumber(tar) or 0)
+        local obj = self:present("object_id", tonumber(tar) or 0)
         if not obj then
             return nil
         end
@@ -88,7 +88,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
 
     -- 截获 drop 指令
     if comm == "drop" then
-        local obj = me:Present(tonumber(tar) or 0)
+        local obj = me:present("object_id", tonumber(tar) or 0)
         if not obj then
             return nil
         end
@@ -103,7 +103,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
 
     -- 截获 give 指令（租借品转手，交给仆役除外）
     if comm == "give" then
-        local obj = me:Present(tonumber(tar) or 0)
+        local obj = me:present("object_id", tonumber(tar) or 0)
         if not obj then
             return nil
         end
@@ -113,7 +113,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
             return nil
         end
 
-        if M.same_object(self:Present(tonumber(target)), yongren) then
+        if M.same_object(self:present("object_id", tonumber(target)), yongren) then
             return nil
         end
 
@@ -127,7 +127,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
 
     -- 截获 get 指令：租借品、带租品的人与玩家都捡不得
     if comm == "get" then
-        local obj = self:Present(tonumber(tar) or 0)
+        local obj = self:present("object_id", tonumber(tar) or 0)
         if not obj then
             return nil
         end
@@ -155,7 +155,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
 
     -- 截获 sell 指令
     if comm == "sell" then
-        local obj = me:Present(tonumber(arg) or 0)
+        local obj = me:present("object_id", tonumber(arg) or 0)
         if not obj then
             return nil
         end

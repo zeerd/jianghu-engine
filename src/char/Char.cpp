@@ -237,16 +237,6 @@ int CChar::disable_player(const char* szType)
 // 发送指令
 int CChar::command(char* arg) { return CommandHandle.command(arg, this); }
 
-// 装备位置debug function
-char* CChar::wield_position(int pos)
-{
-    static char sz[][5]
-        = {"无", "头",   "左耳", "右耳", "耳",   "颈",   "左手", "右手",
-           "手", "左腕", "右腕", "腕",   "铠甲", "腰带", "靴子", "斗篷"};
-
-    return sz[pos];
-}
-
 // 重新设定等级
 void CChar::reset_level()
 {

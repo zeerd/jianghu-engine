@@ -214,6 +214,8 @@ protected:
         SyncProbeBuf probe;
         std::streambuf* saved = std::cout.rdbuf(&probe);
         r.rc                   = run_scenario(core, opts);
+        // 输出经 UI 写线程异步落 stdout：取样前先排空队列
+        core.ui().flush_output();
         std::cout.rdbuf(saved);
 
         r.out    = probe.text;
@@ -380,6 +382,8 @@ protected:
         SyncProbeBuf probe;
         std::streambuf* saved = std::cout.rdbuf(&probe);
         r.rc                   = run_scenario(core, opts);
+        // 输出经 UI 写线程异步落 stdout：取样前先排空队列
+        core.ui().flush_output();
         std::cout.rdbuf(saved);
 
         r.out    = probe.text;
@@ -446,6 +450,9 @@ TEST_F(ScenarioRunTest, EchoesEachStepAndFlushesBeforeNextStep)
     SyncProbeBuf probe;
     std::streambuf* saved = std::cout.rdbuf(&probe);
     int rc                = run_scenario(core, opts);
+    // 输出经 UI 写线程异步落 stdout：取样前先排空队列（写线程逐行 flush，
+    // 行间必有冲刷，故下面的「每条回显写完即冲刷」断言仍成立）
+    core.ui().flush_output();
     std::cout.rdbuf(saved);
 
     EXPECT_EQ(rc, 0);

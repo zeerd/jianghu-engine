@@ -139,6 +139,8 @@ verified-by: pending（待作者确认 Open Questions）
 - **热更**：心跳每 5 s `check_for_reload()`（mtime 快筛 + 哈希确认），
   通知存活实例刷新 `m_script_ref` 并调 Lua `reload(self)`；
   `reload_script` 先装新版本，**失败则保留旧 ref**（`LuaEngine.cpp:783-878,936-981`）。
+  失败尝试同时落观测到的文件状态——观察者只在文件状态再次变化时重试，
+  已删除或持续损坏的文件不按心跳节拍重复报错刷屏。
 - **频道配置数据驱动**：C++ 只硬编码 10 个机制频道（sys/new/news/wiz/chat/ad/noise/
   rumor/party/corps——`do_channel` 的按动词特判渲染与权限/分组机制依赖这些键）；
   f1-f4、answer 等**扩展频道属数据集内容**，由各数据集自带 `data/channel_config.lua`

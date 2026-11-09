@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file LoginAuth.cpp
  * @brief 认证/安全/工具函数 */
 
@@ -99,29 +99,3 @@ int set_invalid_account(const char* id, int freeze)
 }
 
 int query_invalid_account(const char* id) { return db_query_freeze(id); }
-
-//---------------------------------------------------------
-// [LuaBind] auto-managed bindings
-//---------------------------------------------------------
-#include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// is_user(ob) -> boolean - 是否玩家
-int l_userp(lua_State* L)
-{
-    CMainObject* obj = NULL;
-    if (lua_isuserdata(L, 1)) obj = get_object(L, 1);
-    lua_pushboolean(L, obj ? is_user(dynamic_cast<CContainer*>(obj)) : 0);
-    return 1;
-}
-
-// is_wizard(me) -> boolean
-int l_wizardp(lua_State* L)
-{
-    CChar* me = NULL;
-    if (lua_isuserdata(L, 1)) me = dynamic_cast<CChar*>(get_object(L, 1));
-    if (me)
-        lua_pushboolean(L, is_wizard(me));
-    else
-        lua_pushboolean(L, 0);
-    return 1;
-}

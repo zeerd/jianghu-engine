@@ -23,6 +23,15 @@
 遵循`.claude/rules/copilot-instructions.md`中的指令文件。
 遵循`.claude/rules/naming.instructions.md`中的指令文件。
 
+### 文件编码（BOM）
+
+- 新增与修改的文件一律 UTF-8 **无 BOM**；存量带 BOM 的文件**改到即改对**，不做全量清理。
+- `.ps1` 是唯一例外：内容含非 ASCII 时**必须带 UTF-8 BOM**。PS 5.1 只靠 BOM 识别
+  UTF-8，缺失时按 GBK 解码，中文会吃掉字符串引号，脚本直接解析失败（纯 ASCII 的
+  `.ps1` 无 BOM 同样可运行）。
+- 工程已全工程配置 `/source-charset:utf-8`，源码带不带 BOM 都不影响编译；BOM 属
+  一致性约定，不属构建要求。
+
 ## 测试
 
 遵循：`.claude/rules/unit-test.instructions.md`

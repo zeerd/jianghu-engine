@@ -3,7 +3,7 @@
 # 与 trade_a.sce 配对并行。B 对 A（摊主）执行：
 #   listgoods（C++ CmdUserVendor::list_goods，菜单含 A 的定价商品）
 #   → menu 选购（$0buy $1 <obj>，wire buy <A_id> <obj_id>）
-#   → 错误分支：买不存在商品 / 金币不足（酒壶定价 2 亿 > B 现金 1000 万）
+#   → 错误分支：买不存在商品 / 金币不足（酒壶定价 2 亿 > B 现金 60 万）
 #   → A 下架后 listgoods 落空商品分支（「你对…的商品似乎不感兴趣。」私发）。
 #
 # 注：B 在 give 段已收到过 A 赠的一包金创药，背包 item 条件无法区分新购，

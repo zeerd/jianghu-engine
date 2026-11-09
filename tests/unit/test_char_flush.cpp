@@ -183,7 +183,7 @@ TEST_F(CharFlushTest, Flush_NoClient_NoPacket)
 
 // ---------------- flush_my_info 协议内容 ----------------
 // 单包、身份段、属性字母映射（szA/szAttr 平行数组）、E/F/G/H 攻防段。
-// 期望值 oracle：query_str/con/int/dex（访问器，非被测函数）、
+// 期望值 oracle：attr(str/con/int/dex)（访问器，非被测函数）、
 // query_valid_exp、level2_exp、CCombatCalc::skill_power。
 TEST_F(CharFlushTest, FlushMyInfo_PacketContract)
 {
@@ -221,9 +221,9 @@ TEST_F(CharFlushTest, FlushMyInfo_PacketContract)
     // E/F/G/H = str/con/int/dex（含技能加成，oracle 取访问器值）
     char efgh[160];
     snprintf(efgh, static_cast<int>(sizeof(efgh)), "E=%d&F=%d&G=%d&H=%d&",
-             static_cast<int>(u->query_str()), static_cast<int>(u->query_con()),
-             static_cast<int>(u->query_int()),
-             static_cast<int>(u->query_dex()));
+             static_cast<int>(u->attr("str")), static_cast<int>(u->attr("con")),
+             static_cast<int>(u->attr("int")),
+             static_cast<int>(u->attr("dex")));
     EXPECT_NE(msg.find(efgh), std::string::npos) << msg;
 
     // I/J/K/L = 攻防段：无武器无 prepare → skill_type=unarmed

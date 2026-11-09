@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CombatCalc.cpp
  * @brief Combat power calculations */
 
@@ -43,7 +43,7 @@ double CCombatCalc::skill_power(CChar* ob, const char* skill, int usage)
               + ob->query_temp("apply/str") + ob->query_unarmed() / 10;
     }
     else
-        abi = ob->query_dex();
+        abi = ob->attr("dex");
     p = (power + combat_exp) / 30 * abi;
 
     if (is_wizard(ob) && EQUALSTR(ob->querystr("env/combat"), "verbose")) {

@@ -9,7 +9,8 @@
 # enforce 命令本身。
 #
 # 各段依据（attrs=10 14 30 30：con30 是本道的生存轴）：
-#   · 升级 ×9（1→10 级）：pk_prep 同款——room_look_inquiry 的 5 万 combat_exp 撑满
+#   · 升级 ×9（1→10 级）：pk_prep 同款——common/apprentice 的拜师入门礼
+#     5 万 combat_exp 撑满
 #     level2_exp；con30 下 max_hp = 300+10×30×3+60(age16) = 1260。
 #     **/upgrade 保留本道自做**：max_hp 1260 的重算是战斗窗口与药量核算的地基，
 #     `call set level` 直写 dbase 不触发 setup_char 重算（与 L5 不同，本道
@@ -35,7 +36,7 @@
 # 判定纪律：升级/吃药/Ok. 全为私发或本人版；供能后用状态断言（`wait attr mp >= 4`）
 # 而非文案（§8.4①）；供能的请求/回执都是私发 tell（L8↔L9 一对一）。
 
-# --- 冲级：1 → 10 级（历练已由 common/room_look_inquiry 领取，con30 → max 1260） -
+# --- 冲级：1 → 10 级（历练已由 common/apprentice 拜师入门礼入账，con30 → max 1260） -
 repeat 9
 clear
 cmd /upgrade

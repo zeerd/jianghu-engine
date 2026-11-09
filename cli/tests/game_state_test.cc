@@ -448,6 +448,21 @@ TEST_F(GameStateTest, UpdatePlayerBusyFlag)
     EXPECT_FALSE(state_.player_attr().busy);
 }
 
+// 起始锁存独立于实时 busy 字段：实时按「缺席即不忙」翻回，锁存保持到被
+// wait busy / wait not_busy 消费——起始窗可窄于轮询，靠它不丢。
+TEST_F(GameStateTest, BusyLatchHoldsUntilConsumed)
+{
+    state_.handle_message(make_msg(23, {{"T", "1001"}, {"bsy", "1"}}));
+    EXPECT_TRUE(state_.busy_latched());
+
+    state_.handle_message(make_msg(23, {{"T", "1001"}, {"sta", "60"}}));
+    EXPECT_FALSE(state_.player_attr().busy);  // 实时契约不变
+    EXPECT_TRUE(state_.busy_latched());       // 锁存不被结束 STATE 冲掉
+
+    state_.clear_busy_latched();
+    EXPECT_FALSE(state_.busy_latched());
+}
+
 // ==================== C=24 ADDDOOR ====================
 
 TEST_F(GameStateTest, AddExitToRoom)

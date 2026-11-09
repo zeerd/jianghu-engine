@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharAttr.cpp
  * @brief implementation of CChar (CharAttr). */
 
@@ -26,54 +26,51 @@
 
 #include "Sql.h"
 
-int32_t CChar::query_str()
+// 数值属性统查，name 取 str/int/con/per/dex/combat_exp：前五项叠加 dbase
+// 值、apply/ 装备修正与对应技能加成，combat_exp 为原始历练值。可取键只此
+// 一处。未知名说明调用方写错了键：传入 ok 时交回调用方处置，否则记错误
+// 日志（C++ 调用点只写常量键，走到这里即缺陷）。
+int32_t CChar::attr(const char* name, bool* ok)
 {
-    return query("str") + query_temp("apply/str") + query_unarmed() / 10;
-}
+    if (ok) *ok = true;
 
-int32_t CChar::query_con()
-{
-    return query("con") + query_temp("apply/con")
-           + query_skill("force", 1) / 10;
-}
+    if (strcmp(name, "str") == 0)
+        return query("str") + query_temp("apply/str") + query_unarmed() / 10;
+    if (strcmp(name, "con") == 0)
+        return query("con") + query_temp("apply/con")
+               + query_skill("force", 1) / 10;
+    if (strcmp(name, "int") == 0)
+        return query("int") + query_temp("apply/int")
+               + query_skill("literate", 1) / 10;
+    if (strcmp(name, "dex") == 0)
+        return query("dex") + query_temp("apply/dex")
+               + query_skill("dodge", 1) / 10;
+    if (strcmp(name, "per") == 0) return query("per") + query_temp("apply/per");
+    if (strcmp(name, "combat_exp") == 0) return query("combat_exp");
 
-int32_t CChar::query_int()
-{
-    return query("int") + query_temp("apply/int")
-           + query_skill("literate", 1) / 10;
-}
-
-int32_t CChar::query_dex()
-{
-    return query("dex") + query_temp("apply/dex")
-           + query_skill("dodge", 1) / 10;
+    if (ok) {
+        *ok = false;
+        return 0;
+    }
+    LOG_ERROR("unknown attr: %s", name);
+    return 0;
 }
 
 // 返回可用经验点
 int32_t CChar::query_valid_exp()
 {
     int32_t exp      = CChar::level2_exp(query("level"));
-    int32_t need_exp = query_exp() - exp - query("sk_exp");
+    int32_t need_exp = attr("combat_exp") - exp - query("sk_exp");
 
     return need_exp;
 }
 
-unsigned long CChar::query_magic_exp() { return query_exp(); }
+unsigned long CChar::query_magic_exp() { return attr("combat_exp"); }
 
 int CChar::query_magic_skill(const char* skill, int raw)
 {
     return query_skill(skill, raw);
 }
-
-int32_t CChar::query_combat_exp() { return query("combat_exp"); }
-
-int32_t CChar::query_exp()
-{
-    int32_t comexp = query("combat_exp");
-    return comexp;
-}
-
-int CChar::query_per() { return query("per") + query_temp("apply/per"); }
 
 int CChar::query_grant() { return query("grant"); }
 
@@ -89,7 +86,7 @@ int CChar::refuse_channel(const char* channel)
 // 学习系数。用于learn的计算
 int CChar::learn_bonus()
 {
-    int32_t pt = query("level") * query_int() / 50;
+    int32_t pt = query("level") * attr("int") / 50;
     if (pt <= 0) return 1;
     if (pt <= 30) return pt;
     if (pt <= 50) return 30 + (pt - 30) / 2;
@@ -143,69 +140,22 @@ int l_add_balance(lua_State* L)
     return 0;
 }
 
-// self:query_dex() -> number
-int l_query_dex(lua_State* L)
+// self:attr(name) -> number - 数值属性统查（键与口径见 CChar::attr）。
+// 属性名写错是脚本缺陷，抛 Lua 错误；非角色对象无属性，返回空。
+int l_attr(lua_State* L)
 {
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    lua_pushinteger(L, ch->query_dex());
-    return 1;
-}
+    const char* name = luaL_checkstring(L, 2);
 
-// self:query_combat_exp() -> number
-int l_query_combat_exp(lua_State* L)
-{
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
     CChar* ch = dynamic_cast<CChar*>(obj);
     if (!ch) return 0;
-    lua_pushinteger(L, ch->query_combat_exp());
-    return 1;
-}
 
-// self:query_str() -> number
-int l_query_str(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    lua_pushinteger(L, ch->query_str());
-    return 1;
-}
+    bool ok;
+    int32_t v = ch->attr(name, &ok);
+    if (!ok) return luaL_error(L, "unknown attr: %s", name);
 
-// self:query_con() -> number
-int l_query_con(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    lua_pushinteger(L, ch->query_con());
-    return 1;
-}
-
-// self:query_int() -> number
-int l_query_int(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    lua_pushinteger(L, ch->query_int());
-    return 1;
-}
-
-// self:query_per() -> number
-int l_query_per(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    lua_pushinteger(L, ch->query_per());
+    lua_pushinteger(L, v);
     return 1;
 }
 
@@ -233,52 +183,30 @@ int l_learn_bonus(lua_State* L)
     return 1;
 }
 
-// query_respect(ob) -> string
-int l_query_respect(lua_State* L)
+// respect(kind, ob) -> string - 称谓族合一：kind 取 respect/rude/self/
+// self_rude（对应 Rank.cpp 的四种称谓）；非角色入参返回空串
+int l_respect(lua_State* L)
 {
-    CChar* ch = NULL;
-    if (lua_isuserdata(L, 1)) ch = dynamic_cast<CChar*>(get_object(L, 1));
-    const char* s = (ch ? query_respect(ch) : "");
-    lua_pushstring(L, s ? s : "");
-    return 1;
-}
+    const char* kind = luaL_checkstring(L, 1);
+    if (strcmp(kind, "respect") != 0 && strcmp(kind, "rude") != 0
+        && strcmp(kind, "self") != 0 && strcmp(kind, "self_rude") != 0)
+        return luaL_error(L, "unknown respect kind: %s", kind);
 
-// query_rude(ob) -> string
-int l_query_rude(lua_State* L)
-{
     CChar* ch = NULL;
-    if (lua_isuserdata(L, 1)) ch = dynamic_cast<CChar*>(get_object(L, 1));
-    const char* s = (ch ? query_rude(ch) : "");
-    lua_pushstring(L, s ? s : "");
-    return 1;
-}
+    if (lua_isuserdata(L, 2)) ch = dynamic_cast<CChar*>(get_object(L, 2));
+    if (!ch) {
+        lua_pushstring(L, "");
+        return 1;
+    }
 
-// query_self(ob) -> string - 自称（如 在下/小女子）
-int l_query_self(lua_State* L)
-{
-    CChar* ch = NULL;
-    if (lua_isuserdata(L, 1)) ch = dynamic_cast<CChar*>(get_object(L, 1));
-    const char* s = (ch ? query_self(ch) : "");
+    const char* s = query_respect(ch);
+    if (strcmp(kind, "rude") == 0)
+        s = query_rude(ch);
+    else if (strcmp(kind, "self") == 0)
+        s = query_self(ch);
+    else if (strcmp(kind, "self_rude") == 0)
+        s = query_self_rude(ch);
     lua_pushstring(L, s ? s : "");
-    return 1;
-}
-
-// query_self_rude(ob) -> string - 自称（如 老衲/贫道）
-int l_query_self_rude(lua_State* L)
-{
-    CChar* ch = NULL;
-    if (lua_isuserdata(L, 1)) ch = dynamic_cast<CChar*>(get_object(L, 1));
-    const char* s = (ch ? query_self_rude(ch) : "");
-    lua_pushstring(L, s ? s : "");
-    return 1;
-}
-
-// self:query_exp() -> number
-int l_query_exp(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    lua_pushinteger(L, c->query_exp());
     return 1;
 }
 

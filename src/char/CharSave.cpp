@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharSave.cpp
  * @brief implementation of CChar (CharSave). */
 
@@ -38,10 +38,10 @@ int CChar::save_to_server()
     if (query("guest")) return 1;
 
     // 掌门经验的存盘
-    int32_t combat_exp = query_exp();
+    int32_t combat_exp = attr("combat_exp");
     if (combat_exp < 50000)  // 50000以下才能给师父掌门经验
     {
-        int32_t addexp = query_exp() - query("family/last_exp");
+        int32_t addexp = attr("combat_exp") - query("family/last_exp");
         if (query("family/user")) {
             // 每100点，10000以下2点，50000以下1点
             if (combat_exp < 10000) addexp *= 2;
@@ -59,16 +59,16 @@ int CChar::save_to_server()
             g_channel.update_recruit(master, id(1), name(1), addexp, 1);
 
             // 将入门经验清成当前经验。
-            set("family/last_exp", query_exp());
+            set("family/last_exp", attr("combat_exp"));
         }
     }
 
     CMapping savedata;
     get_save_data(&savedata);
 
-    const char* attr = savedata.get_buffer();
-    CContainer* coin = present_name("coin", IS_ITEM);
-    int32_t money    = query("balance");
+    const char* save_blob = savedata.get_buffer();
+    CContainer* coin      = present_name("coin", IS_ITEM);
+    int32_t money         = query("balance");
     if (coin) money += coin->query_amount();
 
     char logintime[80], savetime[80];
@@ -125,13 +125,13 @@ int CChar::save_to_server()
     msg += "', cc_savetime='";
     msg += sql_escape_literal(savetime);
     msg += "', cc_experice=";
-    msg += std::to_string(query_exp());
+    msg += std::to_string(attr("combat_exp"));
     msg += ", cc_repute=";
     msg += std::to_string(query("repute"));
     msg += ", cc_grant=";
     msg += std::to_string(query("grant"));
     msg += ", cc_savedata='";
-    msg += sql_escape_literal(attr);
+    msg += sql_escape_literal(save_blob);
     msg += "' where cc_id=";
     msg += id(1);
 

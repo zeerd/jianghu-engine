@@ -28,7 +28,7 @@ function liquid_base.do_look(self, me)
     if not me then
         return 0
     end
-    self:say(self:Short() .. " " .. self:Long(), me)
+    self:say(self:desc("short") .. " " .. self:desc("long"), me)
     self:say(liquid_base.extra_long(self), me)
     return 0
 end

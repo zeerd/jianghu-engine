@@ -25,7 +25,7 @@ end
 
 -- 结婚咨询
 function npc.do_marry_info(self, me)
-    if me:querymap("couple") then
+    if me:dbase("map", "couple") then
         self:say("你已经结婚了，一生一世一双人。", me)
         self:SendMenu(me)
         return 1
@@ -40,13 +40,13 @@ end
 
 -- 离婚咨询
 function npc.do_divorce_info(self, me)
-    if not me:querymap("couple") then
+    if not me:dbase("map", "couple") then
         self:say("你还没结婚，何来离婚？", me)
         self:SendMenu(me)
         return 1
     end
 
-    local partner = find_online(me:querystr("couple/id"))
+    local partner = find("online", me:querystr("couple/id"))
     if not partner then
         self:say("你的伴侣不在线，无法办理离婚。", me)
         self:SendMenu(me)
@@ -62,7 +62,7 @@ end
 
 -- 确认离婚
 function npc.do_confirm_divorce(self, me)
-    local partner = find_online(me:querystr("couple/id"))
+    local partner = find("online", me:querystr("couple/id"))
     if not partner then
         self:say("你的伴侣已下线，无法办理。", me)
         self:SendMenu(me)
@@ -83,14 +83,14 @@ end
 
 -- 收钱发婚姻登记表（登记仪式在表上完成，见 item/sample_marriage_form.lua）
 function npc.accept_object(self, who, ob)
-    if who:querymap("couple") then
+    if who:dbase("map", "couple") then
         self:say("你已经结婚了。", who)
         self:SendMenu(who)
         return 0
     end
 
     if ob:querystr("id") == "coin" and ob:query("value") >= 100 then
-        local form = load_item("sample_marriage_form")
+        local form = load("item", "sample_marriage_form")
         if not form then
             self:say("登记表用完了，改日再来吧。", who)
             self:SendMenu(who)

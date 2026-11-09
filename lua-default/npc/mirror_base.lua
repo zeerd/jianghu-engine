@@ -92,7 +92,7 @@ function mirror_base.make_mirror(self, me, diff)
     self:set("mp", self:query("max_mp") * 2)
 
     self:set("mp_factor", me:query("mp_factor") * diff // 10)
-    self:set("combat_exp", me:query_exp() * diff // 10)
+    self:set("combat_exp", me:attr("combat_exp") * diff // 10)
     self:set("level", me:query("level") * diff // 10)
 
     -- 附加属性（装备/技能带来的临时加成）
@@ -170,7 +170,7 @@ function mirror_base.install(npc)
     -- 故装的是闭包。脚本自定义 die 则整个接管（如练功木人散架）。
     if npc.die == nil then
         npc.die = function(self)
-            local me = find_object(self:query_temp("last_damage_from"), 1)
+            local me = find("object", self:query_temp("last_damage_from"), 1)
             if me then
                 npc.reward_killer(self, me)
             end

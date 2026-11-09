@@ -70,11 +70,6 @@ function npc.chat_msg_combat(self)
     return "夹具伙计抡起了扫帚。"
 end
 
-function npc.greeting(self, me)
-    self:set("last_greeting", 1)
-    return "客官里边儿请。"
-end
-
 function npc.attempt_apprentice(self, me)
     self:set("last_attempt_apprentice", 1)
 end

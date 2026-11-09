@@ -59,13 +59,6 @@ TEST_F(CharCoreTest, EquipListAndQuery)
     EXPECT_EQ(ch->query_equip(1), 12345);
 }
 
-// ---------------- Wield_Position ----------------
-TEST_F(CharCoreTest, WieldPosition)
-{
-    EXPECT_STREQ(CChar::wield_position(0), "无");
-    EXPECT_STREQ(CChar::wield_position(1), "头");
-}
-
 // ---------------- command ----------------
 TEST_F(CharCoreTest, Command_Unknown)
 {

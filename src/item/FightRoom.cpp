@@ -230,10 +230,10 @@ void CFightRoom::clear_team_slot(int team, int idx, CChar* obj)
     if (is_user(obj)) {
         char msg[512];
         tell_object(
-            obj,
-            snprintf(msg, 255, "$YEL此次战斗耗时%d秒，获得%d点经验。",
-                     g_current_time - obj->query_temp("fight/join_time"),
-                     obj->query_exp() - obj->query_temp("fight/join_exp")));
+            obj, snprintf(msg, 255, "$YEL此次战斗耗时%d秒，获得%d点经验。",
+                          g_current_time - obj->query_temp("fight/join_time"),
+                          obj->attr("combat_exp")
+                              - obj->query_temp("fight/join_exp")));
     }
     m_Team[team].obj[idx] = NULL;
     m_Team[team].fighter_num--;
@@ -427,8 +427,8 @@ int CFightRoom::join_team(CChar* ob, int Team)  // Join_Team(me, FIGHT_TEAM_A);
         ob->set_temp("fight/is_fighting", 1);
         ob->set_temp("fight/fight_team", Team);
         ob->set_temp("fight/join_time", g_current_time);
-        ob->set_temp("fight/join_exp", ob->query_exp());
-        ob->set_temp("fight/ap", ob->query_dex() / 2);
+        ob->set_temp("fight/join_exp", ob->attr("combat_exp"));
+        ob->set_temp("fight/ap", ob->attr("dex") / 2);
         ob->send_state(false);
         ob->send_state();
         ob->flush_my_info();
@@ -517,7 +517,7 @@ int32_t CFightRoom::query_turn_ap(CChar* me)
 {
     int32_t ret = 2;
     try {
-        if (!me->is_busy() && me->query_attr(IS_LIVING)) ret = me->query_dex();
+        if (!me->is_busy() && me->query_attr(IS_LIVING)) ret = me->attr("dex");
     } catch (...) {
         LOG_TRACE("CFightRoom::Query_Turn_AP:me-%s", me->name());
     }

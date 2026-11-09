@@ -1,4 +1,4 @@
-﻿/** @file Logger.cpp @brief 分级日志系统实现 输出格式： [INFO ] (2026-08-21
+/** @file Logger.cpp @brief 分级日志系统实现 输出格式： [INFO ] (2026-08-21
  * 14:30:15) 房间 dali 重置 [ERROR] (2026-08-21 14:30:16) 缓冲越界: 用户 12345
  * 日志文件：log/M-D.txt（按日分文件，设置 run id 后为 M-D-<runid>.txt） */
 
@@ -150,35 +150,46 @@ void log_message(LogLevel level, const char* fmt, ...)
 }
 
 //---------------------------------------------------------
-// [LuaBind] 级别感知的日志绑定：log_trace/log_debug/log_info/
-// log_warn/log_error/log_fatal(fmt, ...)，多参时按 string.format 语义
+// [LuaBind] 级别感知的日志绑定：log(level, fmt, ...)，
+// level 取级别名（trace/debug/info/warn/error/fatal），
+// fmt 及其后实参按 string.format 语义组合
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-static int l_log_at_level(lua_State* L, LogLevel level)
+// 级别名 → 级别序号（与 LogLevel 枚举同序）；未登记的名字返回 -1
+static int log_level_from_name(const char* name)
 {
-    const char* msg = luaL_checkstring(L, 1);
-    int n           = lua_gettop(L);
-    if (n > 1) {
+    static const char* kNames[]
+        = {"trace", "debug", "info", "warn", "error", "fatal"};
+    const int count = (int)(sizeof(kNames) / sizeof(kNames[0]));
+    for (int i = 0; i < count; i++) {
+        if (_stricmp(name, kNames[i]) == 0) return i;
+    }
+    return -1;
+}
+
+// log(level, fmt, ...) - 按级别写日志，无返回值；级别名/格式串缺席报错
+int l_log(lua_State* L)
+{
+    const char* level_name = luaL_checkstring(L, 1);
+    int level              = log_level_from_name(level_name);
+    if (level < 0) return luaL_error(L, "unknown log level: %s", level_name);
+
+    int n = lua_gettop(L);
+    if (n > 2) {
         // string.format(fmt, ...)
         lua_getglobal(L, "string");
         lua_getfield(L, -1, "format");
-        lua_pushvalue(L, 1);
-        for (int i = 2; i <= n; i++) lua_pushvalue(L, i);
-        lua_call(L, n, 1);
+        lua_pushvalue(L, 2);
+        for (int i = 3; i <= n; i++) lua_pushvalue(L, i);
+        lua_call(L, n - 1, 1);
         const char* fmt = lua_tostring(L, -1);
-        log_message(level, "%s", fmt ? fmt : "");
+        log_message((LogLevel)level, "%s", fmt ? fmt : "");
         lua_pop(L, 2);
     }
     else {
-        log_message(level, "%s", msg ? msg : "");
+        const char* fmt = luaL_checkstring(L, 2);
+        log_message((LogLevel)level, "%s", fmt);
     }
     return 0;
 }
-
-int l_log_trace(lua_State* L) { return l_log_at_level(L, LOG_LVL_TRACE); }
-int l_log_debug(lua_State* L) { return l_log_at_level(L, LOG_LVL_DEBUG); }
-int l_log_info(lua_State* L) { return l_log_at_level(L, LOG_LVL_INFO); }
-int l_log_warn(lua_State* L) { return l_log_at_level(L, LOG_LVL_WARN); }
-int l_log_error(lua_State* L) { return l_log_at_level(L, LOG_LVL_ERROR); }
-int l_log_fatal(lua_State* L) { return l_log_at_level(L, LOG_LVL_FATAL); }

@@ -37,7 +37,7 @@
 #include "ItemMgr.h"
 
 #include "Npc.h"
-#include "LuaNpc.h"  // CLuaNpc（greeting 在脚本面公开）
+#include "LuaNpc.h"  // CLuaNpc（脚本面公开接口）
 
 #include "NpcMgr.h"
 
@@ -50,8 +50,6 @@
 #include "SkillMgr.h"
 
 #include "Vendor.h"  // CVendor（random_vendor 用例）
-
-#include "LuaBindDecls.h"  // l_load_npc
 
 #include "LuaEngine.h"  // g_LuaEngine
 
@@ -503,7 +501,7 @@ TEST_F(MgrLoadersTest, RandomVendorUsesRegistry)
 
 // ====================================================================
 
-// NpcMgr 深路：vendor 注册 / random_npc 遍历 / l_load_npc 绑定
+// NpcMgr 深路：vendor 注册 / random_npc 遍历 / load("npc") 绑定
 
 // ====================================================================
 
@@ -576,13 +574,13 @@ TEST_F(MgrLoadersTest, LoadNpcBindPushesResult)
 
     int rc = luaL_dostring(L,
 
-                           "local n = load_npc('fixture_vendor_npc'); "
+                           "local n = load('npc', 'fixture_vendor_npc'); "
 
                            "return n ~= nil");
 
     ASSERT_EQ(LUA_OK, rc) << lua_tostring(L, -1);
 
-    EXPECT_TRUE(lua_toboolean(L, -1)) << "lua side load_npc returns object";
+    EXPECT_TRUE(lua_toboolean(L, -1)) << "lua side load(npc) returns object";
 
     lua_pop(L, 1);
 

@@ -56,13 +56,27 @@ TEST_F(BindLoaderTest, RoomCountAndName)
 TEST_F(BindLoaderTest, LoadRoom)
 
 {
+    lua_pushstring(L, "room");
+
     lua_pushstring(L, "nonexistent_room_zzz");
 
-    int k = call(l_load_room, 1);
+    int k = call(l_load, 2);
 
     EXPECT_EQ(1, k);
 
     lua_pop(L, k);
+}
+
+// 未登记 KIND → 报错（call() 捕获为 -1）
+
+TEST_F(BindLoaderTest, LoadUnknownKind)
+
+{
+    lua_pushstring(L, "bogus");
+
+    lua_pushstring(L, "whatever");
+
+    EXPECT_EQ(-1, call(l_load, 2));
 }
 
 // ---- SkillMgr.cpp ----
@@ -70,9 +84,11 @@ TEST_F(BindLoaderTest, LoadRoom)
 TEST_F(BindLoaderTest, LoadSkill)
 
 {
+    lua_pushstring(L, "skill");
+
     lua_pushstring(L, "nonexistent_skill_zzz");
 
-    int k = call(l_load_skill, 1);
+    int k = call(l_load, 2);
 
     EXPECT_EQ(1, k);
 

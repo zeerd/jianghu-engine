@@ -46,7 +46,9 @@ TEST_F(BindContainerMiscTest, IsCharacterFalse)
 {
     lua_bind_push_object(L, &c);
 
-    EXPECT_FALSE(CallBool(l_is_character, 1));
+    lua_pushstring(L, "character");
+
+    EXPECT_FALSE(CallBool(l_is, 2));
 }
 
 TEST_F(BindContainerMiscTest, CanEquipped)
@@ -86,13 +88,44 @@ TEST_F(BindContainerMiscTest, SaveLoadLockData)
 
     lua_bind_push_object(L, &c);
 
-    CallInt(l_load, 1);
+    CallInt(l_load_from_local, 1);
 
     lua_bind_push_object(L, &c);
 
     lua_pushinteger(L, 1);
 
     CallInt(l_lockdata, 2);
+}
+
+// 脚本侧以 self:save_to_local() / self:load_from_local() 形态调用，两者
+// 必须在 object_methods 注册；Save/Load 旧名不得再暴露（直接调 C 函数的
+// 用例绕过了注册表，抓不到缺失）。
+TEST_F(BindContainerMiscTest, SaveLoadMethodNames)
+{
+    lua_bind_push_object(L, &c);
+    lua_setglobal(L, "__ob");
+    ASSERT_EQ(LUA_OK,
+              luaL_dostring(L,
+                            "__has_save = (__ob.save_to_local ~= nil)\n"
+                            "__has_load = (__ob.load_from_local ~= nil)\n"
+                            "__old_save = (__ob.Save ~= nil)\n"
+                            "__old_load = (__ob.Load ~= nil)\n"));
+
+    lua_getglobal(L, "__has_save");
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, 1);
+
+    lua_getglobal(L, "__has_load");
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, 1);
+
+    lua_getglobal(L, "__old_save");
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, 1);
+
+    lua_getglobal(L, "__old_load");
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, 1);
 }
 
 TEST_F(BindContainerMiscTest, WieldWear)

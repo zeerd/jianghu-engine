@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file UserMgr.cpp
  * @brief 用户管理  */
 
@@ -104,14 +104,6 @@ void user_command_loop()
 // [LuaBind] auto-managed bindings
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// find_player(id) -> object - 按对象ID查找玩家
-int l_find_player(lua_State* L)
-{
-    int32_t id = (int32_t)luaL_checkinteger(L, 1);
-    lua_bind_push_object(L, find_player(id));
-    return 1;
-}
 
 // add_user() -> obj - 创建（或获取）一个用户对象
 int l_add_user(lua_State* L)

@@ -30,7 +30,7 @@ function npc.do_greeting(self, pid)
     if not env then
         return
     end
-    local who = env:Present(pid)
+    local who = env:present("object_id", pid)
     if not who then
         return
     end
@@ -71,7 +71,7 @@ end
 -- 开始/继续注册
 local function do_regchar(self, me)
     me:set_temp("regclerk/step", 1)
-    if #me:querystr_temp("regclerk/name") == 0 then
+    if #me:dbase_temp("str", "regclerk/name") == 0 then
         self:say("想创建角色，先用『设置角色姓名』告诉我你的名字吧。", me)
     else
         self:say("我们接着来，还差几步就可以完成注册了。", me)
@@ -191,10 +191,10 @@ local function do_regstat(self, me, arg)
 end
 
 local function do_regdone(self, me)
-    local name = me:querystr_temp("regclerk/name")
-    local pass = me:querystr_temp("regclerk/pass")
-    local email = me:querystr_temp("regclerk/email")
-    local gender = me:querystr_temp("regclerk/gender")
+    local name = me:dbase_temp("str", "regclerk/name")
+    local pass = me:dbase_temp("str", "regclerk/pass")
+    local email = me:dbase_temp("str", "regclerk/email")
+    local gender = me:dbase_temp("str", "regclerk/gender")
 
     if #name == 0 then
         self:say("你还没有设置角色姓名呢。", me)

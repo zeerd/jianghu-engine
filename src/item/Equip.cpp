@@ -1,4 +1,4 @@
-﻿/** @file Equip.cpp @brief implementation of the CEquip class. */
+/** @file Equip.cpp @brief implementation of the CEquip class. */
 #include <windows.h>
 
 #include "Equip.h"
@@ -18,19 +18,10 @@ CEquip::CEquip() {}
 
 CEquip::~CEquip() {}
 
-int CEquip::can_equip(CChar* me)
-{
-    if (query("female_only") && EQUALSTR(me->querystr("gender"), "男性"))
-        return 0;
-
-    if (me->query("level") < query("equip_lvl"))  // 等级限制
-        return 0;
-
-    if (!querymap("apply"))  // 只有装备后加属性的才能装备
-        return 0;
-
-    return 1;
-}
+// 装备门禁已 lua 化到脚本 Can_Equip 字段（缺字段/报错一律放行，见
+// LuaItem.inl 的三支）——派发链的缺省实现在此恒许；原 female_only/
+// equip_lvl/apply 三重门随 lua 化退场
+int CEquip::can_equip(CChar*) { return 1; }
 
 void CEquip::on_moved(CContainer* me) {}
 

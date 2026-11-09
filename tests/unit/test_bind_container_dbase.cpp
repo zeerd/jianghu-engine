@@ -76,9 +76,10 @@ TEST_F(BindContainerDbaseTest, QuerystrTemp)
 {
     ch.set_temp("t/s", "abc");
     PushSelf(&ch);
+    PushStr("str");
     PushStr("t/s");
     std::string out;
-    ASSERT_TRUE(CallStr(l_querystr_temp, 2, out));
+    ASSERT_TRUE(CallStr(l_dbase_temp, 3, out));
     EXPECT_EQ("abc", out);
 }
 
@@ -143,7 +144,8 @@ TEST_F(BindDbaseRenameTest, SetNamePushesRenameToRoomViewer)
     EXPECT_TRUE(viewer.has("I=bditem"));
 }
 
-// ---------------- querymap family ----------------
+// ---------------- dbase(action, key) / dbase_temp(action, key)
+// ----------------
 TEST_F(BindContainerDbaseTest, QuerymapAndKeys)
 {
     CMapping m;
@@ -152,16 +154,19 @@ TEST_F(BindContainerDbaseTest, QuerymapAndKeys)
     ch.set("sub", m);
 
     PushSelf(&ch);
+    PushStr("map");
     PushStr("sub");
-    EXPECT_TRUE(CallBool(l_querymap, 2));  // exists -> true
+    EXPECT_TRUE(CallBool(l_dbase, 3));  // exists -> true
 
     PushSelf(&ch);
+    PushStr("map");
     PushStr("nosuch");
-    EXPECT_EQ(1, CallRetCount(l_querymap, 2));  // returns nil (1 value)
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3));  // returns nil (1 value)
 
     PushSelf(&ch);
+    PushStr("map_keys");
     PushStr("sub");
-    EXPECT_EQ(1, CallRetCount(l_querymap_keys, 2));
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3));
 }
 
 TEST_F(BindContainerDbaseTest, QuerymapTempFamily)
@@ -171,38 +176,54 @@ TEST_F(BindContainerDbaseTest, QuerymapTempFamily)
     ch.set_temp("tmp", m);
 
     PushSelf(&ch);
+    PushStr("map");
     PushStr("tmp");
-    EXPECT_EQ(1, CallRetCount(l_querymap_temp, 2));
+    EXPECT_EQ(1, CallRetCount(l_dbase_temp, 3));
 
     PushSelf(&ch);
+    PushStr("map_keys");
     PushStr("tmp");
-    EXPECT_EQ(1, CallRetCount(l_querymap_temp_keys, 2));
+    EXPECT_EQ(1, CallRetCount(l_dbase_temp, 3));
 }
 
 TEST_F(BindContainerDbaseTest, DbaseDefined)
 {
     ch.set("present", (int32_t)1);
     PushSelf(&ch);
+    PushStr("defined");
     PushStr("present");
-    EXPECT_TRUE(CallBool(l_dbase_defined, 2));
+    EXPECT_TRUE(CallBool(l_dbase, 3));
 
     PushSelf(&ch);
+    PushStr("defined");
     PushStr("absent");
-    EXPECT_FALSE(CallBool(l_dbase_defined, 2));
+    EXPECT_FALSE(CallBool(l_dbase, 3));
 }
 
-// ---------------- get_map / set_map ----------------
+TEST_F(BindContainerDbaseTest, UnknownActionErrors)
+{
+    PushSelf(&ch);
+    PushStr("nope");
+    EXPECT_EQ(-1, call(l_dbase, 2));
+
+    PushSelf(&ch);
+    PushStr("nope");
+    EXPECT_EQ(-1, call(l_dbase_temp, 2));
+}
+
+// ---------------- dbase("get") / dbase("set") ----------------
 TEST_F(BindContainerDbaseTest, SetMapGetMap)
 {
-    // build a lua table {hp=10, mp="hi"} and call set_map("bag", tbl)
+    // build a lua table {hp=10, mp="hi"} and call dbase("set", "bag", tbl)
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "set");
     lua_pushstring(L, "bag");
     lua_newtable(L);
     lua_pushinteger(L, 10);
     lua_setfield(L, -2, "hp");
     lua_pushstring(L, "hi");
     lua_setfield(L, -2, "mp");
-    CallVoid(l_set_map, 3);
+    CallVoid(l_dbase, 4);
 
     CMapping* got = ch.querymap("bag");
     ASSERT_NE(nullptr, got);
@@ -216,8 +237,9 @@ TEST_F(BindContainerDbaseTest, GetMapReturnsTable)
     m.set("k", (int32_t)3);
     ch.set("mm", m);
     PushSelf(&ch);
+    PushStr("get");
     PushStr("mm");
-    EXPECT_EQ(1, CallRetCount(l_get_map, 2));
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3));
 }
 
 // ---------------- queryvec / set_beast_verbs ----------------
@@ -246,8 +268,9 @@ TEST_F(BindContainerDbaseTest, SetBeastVerbsStoresWhitelist)
 
     // queryvec -> lua table
     PushSelf(&ch);
+    PushStr("vec");
     PushStr("verbs");
-    EXPECT_EQ(1, CallRetCount(l_queryvec, 2));
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3));
 }
 
 TEST_F(BindContainerDbaseTest, SetBeastVerbsRejectsUnknownVerb)
@@ -268,8 +291,9 @@ TEST_F(BindContainerDbaseTest, SetBeastVerbsEmptyTable)
     CallVoid(l_set_beast_verbs, 2);
 
     PushSelf(&ch);
+    PushStr("vec");
     PushStr("verbs");
-    EXPECT_EQ(1, CallRetCount(l_queryvec, 2));
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3));
 }
 
 // ---------------- object_id / create / set_heart_beat (Container.cpp)

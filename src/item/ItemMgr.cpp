@@ -1,4 +1,4 @@
-﻿/** @file ItemMgr.cpp @brief 物品 / 副本 / 商人管理
+/** @file ItemMgr.cpp @brief 物品 / 副本 / 商人管理
  * 架构：IItemMgr 接口 + CItemMgr 生产实现 + 自由函数转发包装 测试时通过
  * g_ItemMgr 注入 CMockItemMgr */
 
@@ -120,25 +120,4 @@ IItemMgr* g_item_mgr = nullptr;
 std::unique_ptr<IItemMgr> create_item_mgr()
 {
     return std::make_unique<CItemMgr>();
-}
-
-//---------------------------------------------------------
-// [LuaBind] auto-managed bindings
-//---------------------------------------------------------
-#include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// load_item(name) -> object
-int l_load_item(lua_State* L)
-{
-    const char* name = luaL_checkstring(L, 1);
-    lua_bind_push_object(L, g_item_mgr->load_item(name));
-    return 1;
-}
-
-// find_item(objectid) -> object - 按全局 object_id 查找物品（自制武器方位查询）
-int l_find_item(lua_State* L)
-{
-    int32_t id = (int32_t)luaL_checkinteger(L, 1);
-    lua_bind_push_object(L, g_item_mgr->find_item(id));
-    return 1;
 }

@@ -5,8 +5,9 @@
 #   · level 门槛负测：VOTE_LEVEL_LIMIT=5，新号 level=1 →「你等级不到5级…」
 #     （age 门槛 VOTE_AGE_LIMIT=15 在 config start_age=16 下不可达——与
 #      channel_and_banword.sce 同口径，E2E 不测低龄分支）；
-#   · 领师父历练（山脚老李头 set_inquiry_func 回调，每号一次 5 万）+ /upgrade×4
-#     升到 5 级——vote 的 level 门槛是 E2E 唯一可达的门槛分支；
+#   · 师父入门礼（common/apprentice 拜师时 attempt_apprentice 发放，每号一次
+#     5 万，本道 line 22 已领）+ /upgrade×4 升到 5 级——vote 的 level 门槛是
+#     E2E 唯一可达的门槛分支；
 #   · 投自己（/t $acct）「close chat」：determine_total 按在线合格人数/3 且
 #     **每 IP 只计 1 票**、下限 3 票——E2E 全账号同机同 IP，恒得 total=3、
 #     counting=1 → 走 diff>0 的**未达标播报**分支「需要3票通过，还差2票」；
@@ -29,7 +30,7 @@ cmd /go 青云山山脚
 wait room 青云山山脚 timeout=15000
 wait object 老李头
 
-# --- 领师父历练（老李头「师父」问询回调，每号一次 5 万；到账由下游升级验证） ---
+# --- 问路回调走一遍（历练已由拜师入账，此处只验证 set_inquiry_func 回调本身） ---
 cmd /t lao li
 clear
 cmd /ask 师父

@@ -137,9 +137,6 @@ public:
     // 重写 chat_msg：调用 Lua 脚本的 chat_msg 函数（若存在）
     virtual char* chat_msg();
 
-    // 重写 greeting：调用 Lua 脚本的 greeting 函数（若存在）
-    virtual char* greeting(CChar* me);
-
     // 重写 attempt_apprentice：调用 Lua 脚本的 attempt_apprentice
     // 函数（若存在）
     virtual void attempt_apprentice(CChar* me);

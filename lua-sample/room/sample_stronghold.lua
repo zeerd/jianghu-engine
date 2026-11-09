@@ -46,11 +46,11 @@ return {
 
     valid_leave = function(self, me, dir)
         -- 检查是否还有敌人
-        local list = self:Get_ItemList()
+        local list = self:get_item_list()
         if list then
             for item in iter_items(list) do
                 if item:is_character() and is_user(item) == 0 then
-                    if item:query("attitude") == "aggressive" then
+                    if item:querystr("attitude") == "aggressive" then
                         tell_object(me, "$HIR还有敌人在场，你无法离开！")
                         return 0
                     end

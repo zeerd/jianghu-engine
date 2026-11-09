@@ -69,9 +69,11 @@ return {
             -- 挂载「蛇毒」状态：条件脚本见 condition/snake_poison.lua。
             -- duration 的单位是心跳拍数（每拍约 5~9 秒），每颗贡献 poison_supply 拍，
             -- 多颗叠加，吞越多毒性越久。
+            -- 参数：第 4 参是附加伤害（这里为 0），第 5 参是施加者归属——
+            -- 蛇胆是自己吞下的，毒便记在吞下的人名下（心跳结算按此归属找人）。
             local current = me:query_condition("snake_poison")
             local add = self:query("poison_supply") or 2 -- 每颗贡献的时长
-            me:apply_condition("snake_poison", current + add, 0)
+            me:apply_condition("snake_poison", current + add, 0, me)
 
             me:FlushMyInfo()
 

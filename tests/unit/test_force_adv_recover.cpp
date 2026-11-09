@@ -102,15 +102,9 @@ TEST_F(ForceAdvRecoverTest, Lua_Magics_Intact_AfterCreate)
     EXPECT_GE(skill->get_magic_count(), 3)
         << "脚本 create 应注册 heal/roar，并继承到基本内功的 recover";
 
-    std::string names;
-    for (int i = 0; i < skill->get_magic_count(); i++) {
-        names += skill->get_magic_name(i);
-        names += ",";
-    }
-    EXPECT_NE(names.find("heal"), std::string::npos) << "应包含 heal";
-    EXPECT_NE(names.find("roar"), std::string::npos) << "应包含 roar";
-    EXPECT_NE(names.find("recover"), std::string::npos)
-        << "应包含继承来的 recover";
+    EXPECT_TRUE(skill->has_magic("heal")) << "应包含 heal";
+    EXPECT_TRUE(skill->has_magic("roar")) << "应包含 roar";
+    EXPECT_TRUE(skill->has_magic("recover")) << "应包含继承来的 recover";
 
     delete skill;
 }

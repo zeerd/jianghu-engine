@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file GameObject.cpp
  * @brief 跨类型通用对象管理  */
 
@@ -184,18 +184,6 @@ int l_random_get_item(lua_State* L)
     return 1;
 }
 
-// is_living(ob) -> boolean
-int l_living(lua_State* L)
-{
-    CContainer* ob = NULL;
-    if (lua_isuserdata(L, 1)) ob = dynamic_cast<CContainer*>(get_object(L, 1));
-    if (ob)
-        lua_pushboolean(L, is_living(ob));
-    else
-        lua_pushboolean(L, 0);
-    return 1;
-}
-
 // destruct(ob) - 销毁对象
 int l_destruct(lua_State* L)
 {
@@ -203,14 +191,4 @@ int l_destruct(lua_State* L)
     if (lua_isuserdata(L, 1)) ob = dynamic_cast<CContainer*>(get_object(L, 1));
     if (ob) destruct(ob);
     return 0;
-}
-
-// find_object(id[, flag]) -> object - 按对象ID查找（flag=1
-// 时仅查NPC/玩家，不查物品）
-int l_find_object(lua_State* L)
-{
-    int32_t id = (int32_t)luaL_checkinteger(L, 1);
-    int flag   = (int)luaL_optinteger(L, 2, 0);
-    lua_bind_push_object(L, find_object(id, flag));
-    return 1;
 }

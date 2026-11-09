@@ -79,7 +79,7 @@ return {
 
     -- do_qi(self, me, target)：剑气三连——剑招与掌招交替的组合绝招
     --   武器半边走 combat_attack（按手中武器的 skill_type 取招），
-    --   空手半边走 combat_attack_unarmed（攻击位即 hand 槽：招式与力道都取
+    --   空手半边走 combat_attack("unarmed", …)（攻击位即 hand 槽：招式与力道都取
     --   自激发到 hand 的技能，没激发就只剩基础手法的巴掌）。两半各有独立前置，
     --   缺一即整招不发。
     do_qi = function(self, me, target)
@@ -104,7 +104,7 @@ return {
         end
 
         -- 空手半边：掌法要有火候底子，且必须既激发（enable 到 hand 槽——
-        --   combat_attack_unarmed 以 hand 为攻击位取招与力道）又准备
+        --   combat_attack("unarmed", …) 以 hand 为攻击位取招与力道）又准备
         --   （prepare，组合绝招要求空手招已上槽），缺一即整招不发
         if me:query_skill("hand_adv", 1) < 10 then
             return notify_fail("你的掌法火候不够，无法施展剑气三连。")
@@ -117,26 +117,36 @@ return {
         end
 
         local palm_level = me:query_skill("hand_adv", 1)
+        local extra = me:query_skill("qingyun_xinfa", 1) // 3
 
         me:add("mp", -100)
-        -- 绝招运劲：三击期间出手抬升（按掌法火候计），收招回扣
-        me:add_temp("apply/attack", palm_level // 4)
+        -- 绝招运劲：三击期间出手抬升（按青云心法等级），收招回扣
+        me:add_temp("apply/attack", extra)
 
         -- 第一击：武器招
         message_vision("$N运足内力，将真气灌注剑身，第一剑疾刺而出！", me, target)
-        combat_attack(me, target, TYPE_QUICK)
+        combat_attack("normal", me, target, TYPE_QUICK)
 
         -- 第二击：空手招（str 临时加成只包这一击，随即回扣）
         message_vision("$N弃剑换掌，右掌蓄劲拍向$n的胸口！", me, target)
         me:add_temp("apply/str", palm_level // 4)
-        combat_attack_unarmed(me, target, "hand", TYPE_QUICK)
+        combat_attack("unarmed", me, target, "hand", TYPE_QUICK)
         me:add_temp("apply/str", -(palm_level // 4))
 
         -- 第三击：回到武器招
         message_vision("$N弃掌换剑，长剑回环又是一道剑气！", me, target)
-        combat_attack(me, target, TYPE_QUICK)
+        combat_attack("normal", me, target, TYPE_QUICK)
 
-        me:add_temp("apply/attack", -(palm_level // 4))
+        me:add_temp("apply/attack", -extra)
+
+        -- 施展绝招即攒「高级剑法」熟练度（量级与施法收益同公式）。第三个
+        -- 参数 weak_mode 置 1：玩家侧只累计熟练度、不即时升级。这是一种可以
+        -- 突破 NPC 师傅技能上限的方案——如果游戏设定允许玩家等级超出 NPC 设定
+        -- 上限，则可以在实战中采用类似方案累计熟练度。
+        -- weak_mode = 0 : 熟练度满了自动升级
+        -- week_mode = 1 : 熟练度满了不升级，但是找NPC升级消耗更小
+        me:improve_skill("sword_adv", 1 + me:query("level") // 5, 1)
+
         -- 收招硬直：绝招的收势代价，心跳拍计时（1 拍 ≈ 1 秒）
         me:start_busy(1 + random(2))
         return 1

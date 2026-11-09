@@ -102,8 +102,6 @@ public:
 
     void add_balance(int32_t val);
 
-    int32_t query_combat_exp();
-    int32_t query_exp();
     void remove_all_killer();
     void set_killer(CChar* ob);
     int32_t query_valid_exp();
@@ -186,10 +184,10 @@ public:
 
     CContainer* query_weapon();
     CContainer* query_left_weapon();
-    int32_t query_str();
-    int32_t query_con();
-    int32_t query_int();
-    int32_t query_dex();
+    // 数值属性统查，name 取 str/int/con/per/dex/combat_exp（可取键只此一
+    // 处）。前五项含 apply/ 装备修正与对应技能加成，combat_exp 为原始历练
+    // 值。未知名是调用方写错键：传 ok 时交回调用方处置，否则记错误日志。
+    int32_t attr(const char* name, bool* ok = nullptr);
 
     void unconcious();
     virtual void die();
@@ -215,7 +213,6 @@ public:
 
     virtual void setup();
     void heart_beat();
-    static char* wield_position(int pos);
     int32_t query_equip(int pos);
     DTEquipList* get_equip_list();
     virtual int32_t query_attr(int attr);
@@ -250,7 +247,6 @@ public:
     void remove_killer(CChar* ob);
     virtual void relay_say(CChar* me, char* msg);
     virtual void relay_emote(CChar* me, string verb);
-    int query_per();
     static void remove_faint(CContainer* me, int32_t param1, int32_t param2);
     int get_save_data(CMapping* save);
     int restore_data(CMapping* save);

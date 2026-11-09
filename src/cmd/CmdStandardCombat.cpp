@@ -43,7 +43,7 @@ int CCmdStandard::kill(CChar* me, int32_t target, char* arg)  // 记仇的
             if (!combat_rule_yes("guard_response", me, who)) {
                 CNpc* guard = load_npc("pub_guard");
                 guard->move(env);
-                guard->set("combat_exp", int(me->query_exp() * 1.5));
+                guard->set("combat_exp", int(me->attr("combat_exp") * 1.5));
                 guard->set("guard", atoi(who->id(1)));
             }
         }

@@ -24,7 +24,7 @@ return {
 
     -- do_use(self, me, target)：target 未用到——签名双方由登记表自己记录
     do_use = function(self, me, target)
-        if me:querymap("couple") then
+        if me:dbase("map", "couple") then
             return notify_fail("你已是有家室的人了，还登记什么？")
         end
 
@@ -51,12 +51,12 @@ return {
 
         -- 第二段：签名者必须此刻就在同一房间
         local env = me:environment()
-        local other = env and env:present(sign_id) or nil
+        local other = env and env:present("id", sign_id) or nil
         if not other then
             return notify_fail("签名之人不在这儿，登记表暂不作数。")
         end
 
-        if other:querymap("couple") then
+        if other:dbase("map", "couple") then
             return notify_fail("对方已有家室，登记被驳回。")
         end
 
@@ -68,6 +68,13 @@ return {
 
         self:remove_call_out("fade_sign")
         message_vision("$N与$n在婚姻登记表上签下彼此的名字，结为夫妻。", me, other)
+        -- 关系既成，喜讯照惯例走 news 频道通告全服
+        do_channel(
+            nil,
+            nil,
+            "news",
+            ("%s与%s结为夫妻，可喜可贺！"):format(me:querystr("name"), other:querystr("name"))
+        )
         destruct(self)
         return 1
     end,

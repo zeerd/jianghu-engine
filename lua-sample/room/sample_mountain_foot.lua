@@ -27,6 +27,8 @@ return {
         local box = self:Add_Box()
         box:add_object("sample_sword_basic", 1)
         box:add_object("coin", 60000)
+        -- 棋子声明了 can_combine_in_box=false：暗器进箱不并堆，按盒取用
+        box:add_object("sample_chess", 1)
         box:set_name("木箱", "mu xiang")
 
         local box2 = self:Add_Box()

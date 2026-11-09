@@ -1,6 +1,6 @@
--- sample_room_common.lua  山脚系房间公共逻辑
+-- sample_room_common.lua  房间公共逻辑
 -- 示例共享模块：展示 require 的用法
--- 三个山脚房间（山脚、半山腰、山顶）共用此模块的 do_look 函数。
+-- 六个房间（山脚、半山腰、山顶、演武场、钱庄、林间空地）共用此模块的 do_look。
 -- 用法：local common = require("room.sample_room_common")
 
 local M = {}

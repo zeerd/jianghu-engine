@@ -51,7 +51,7 @@ void Application::main_loop()
 
     auto& input = core_.input();
     std::string line;
-    std::cout << "> ";
+    core_.ui().post_raw("> ");
     while (core_.running() && std::getline(std::cin, line)) {
         bool keep = input.process_line(line);
         if (!keep || input.should_quit()) {
@@ -59,7 +59,7 @@ void Application::main_loop()
             core_.ui().shutdown();
         }
         core_.process_received();
-        std::cout << "> ";
+        core_.ui().post_raw("> ");
     }
     restore_terminal();
 }

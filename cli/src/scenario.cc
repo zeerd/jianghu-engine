@@ -295,12 +295,13 @@ void CScenarioRunner::echo_step(const Step &step) const
     if (!opts_.echo) return;
     // [+-]秒 是本步相对剧本开始的时刻：日志里相邻两条回显的差值就是该步耗时，
     // 分场景计时与「哪一步吃掉了墙钟」都靠它差分。
-    std::cout << "[+" << fmt_sec(elapsed_sec()) << "] [script:" << step.line_no
-              << "] " << step.verb;
-    if (!step.args.empty()) std::cout << " " << step.args;
-    // 无头运行的 stdout 是被 E2E 脚本重定向的管道（全缓冲），
-    // 不 flush 就看不到逐步进度，整段剧本会长时间毫无反馈。
-    std::cout << std::endl;
+    // 回显经 UI 输出队列写出：stdout 慢时只阻塞写线程，不阻塞剧本步推进。
+    std::ostringstream oss;
+    oss << "[+" << fmt_sec(elapsed_sec()) << "] [script:" << step.line_no
+        << "] " << step.verb;
+    if (!step.args.empty()) oss << " " << step.args;
+    oss << "\n";
+    core_.ui().post_raw(oss.str());
 }
 
 // 距剧本开始的秒数（回显前缀与场景边界共用一个时钟）
@@ -340,8 +341,8 @@ void CScenarioRunner::open_scenario(const std::string &scenario)
     open_scenario_  = scenario;
     seg_start_sec_  = now;
     if (opts_.echo) {
-        std::cout << "[+" << fmt_sec(now) << "] [timing] " << scenario
-                  << std::endl;
+        core_.ui().post_raw("[+" + fmt_sec(now) + "] [timing] " + scenario
+                            + "\n");
     }
 }
 
@@ -361,12 +362,12 @@ void CScenarioRunner::print_timing() const
     double total = 0.0;
     for (const auto &row : rows) total += row.second;
 
-    std::cout << "[timing] summary total=" << fmt_sec(total) << "s steps="
-              << steps_.size() << std::endl;
+    core_.ui().post_raw("[timing] summary total=" + fmt_sec(total)
+                        + "s steps=" + std::to_string(steps_.size()) + "\n");
     for (const auto &row : rows) {
-        std::cout << "[timing] " << fmt_sec(row.second) << "s "
-                  << steps_by_scenario[row.first] << " " << row.first
-                  << std::endl;
+        core_.ui().post_raw("[timing] " + fmt_sec(row.second) + "s "
+                            + std::to_string(steps_by_scenario[row.first]) + " "
+                            + row.first + "\n");
     }
 }
 
@@ -397,8 +398,9 @@ int CScenarioRunner::run()
     }
 
     if (opts_.echo) {
-        std::cout << "[scenario] running " << opts_.script_path << " ("
-                  << steps_.size() << " steps)" << std::endl;
+        core_.ui().post_raw(std::string("[scenario] running ")
+                                + opts_.script_path + " ("
+                                + std::to_string(steps_.size()) + " steps)\n");
     }
 
     for (const auto &step : steps_) {
@@ -427,8 +429,8 @@ int CScenarioRunner::run()
 
     close_scenario(elapsed_sec());
     print_timing();
-    std::cout << "[scenario] PASS: " << steps_.size() << " steps"
-              << std::endl;
+    core_.ui().post_raw("[scenario] PASS: " + std::to_string(steps_.size())
+                        + " steps\n");
     write_report("pass");
     return 0;
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ContainerMisc.cpp
  * @brief CContainer: call_out, menu, save/load/lock,
  * wield/wear.  */
@@ -292,8 +292,9 @@ int l_save(lua_State* L)
     return 1;
 }
 
-// self:Load() -> number - 从磁盘重新加载数据（与 Save 对应，房间/容器）
-int l_load(lua_State* L)
+// self:Load()/self:load_from_local() -> number - 从磁盘重新加载数据
+// （与 Save 对应，房间/容器）
+int l_load_from_local(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;

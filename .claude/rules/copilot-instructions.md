@@ -17,7 +17,7 @@ applyTo: '**'
 
 同理，**改动的理由也必须是设计**：生产代码（`src/`、`lua-default/`、`lua-sample/` 等）的注释里禁止出现测试计划、E2E 剧本、覆盖率、验收清单、文档编号（如「P4 要求…」「为覆盖 XX 函数…」「E2E 需要…」）作为改动或写法的依据——那同样是基于测试写代码、同样是打补丁。注释只回答「这样设计为什么对」：机制归属、契约、边界、世界设定；测试侧动机只写在测试与计划文档里。发现自己已写下这类注释时，先质疑改动本身是否成立，而不是换个说法掩饰。
 
-sample的原则就是以最少的代码演示最多的功能。不要给读者添麻烦。你多写一行代码都会给读者添加一行的学习负担！
+**铁律：** 1. sample的原则就是以最少的代码演示最多的功能。不要给读者添麻烦。你多写一行代码都会给读者添加一行的学习负担！ 2. sample 中的每一个功能、每一个调用都要符合事实逻辑。不能为了演示某个函数而生硬的拼接一些不符合一般逻辑的调用。
 
 ---
 
@@ -101,8 +101,10 @@ jianghu.exe --check-lua [--config <ini>] [--dir <path>] [--baseline <file>] [--w
 
 ### 编译
 
+校验用的可执行文件是 **`bin\e2e\jianghu.exe`**（`bin\jianghu.exe` 是功能测试留下的过期版本，不作校验依据）。改过 `src` 后重建它，或直接跑 `.\run-integration-tests.ps1`（每轮都会重建）：
+
 ```cmd
-msbuild jianghu.vcxproj /p:Configuration=Debug /p:Platform=Win32 /nologo /verbosity:minimal
+msbuild jianghu.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:OutDir=C:\jianghu-engine\bin\e2e\ /nologo /verbosity:minimal
 ```
 
 ### ⚠️ 正确的调用方法
@@ -110,7 +112,7 @@ msbuild jianghu.vcxproj /p:Configuration=Debug /p:Platform=Win32 /nologo /verbos
 **jianghu.exe 是 GUI 程序（WinMain 入口），不能直接在 PowerShell 中调用，否则没有输出且无法捕获。必须用以下方式调用：**
 
 ```cmd
-cmd /c "call ""C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars32.bat"" >nul 2>&1 && cd C:\jianghu-engine && bin\jianghu.exe --check-lua --config tests\integration\config.ini --dir lua-sample > bin\check_lua_output.txt 2>&1" ; Get-Content C:\jianghu-engine\bin\check_lua_output.txt
+cmd /c "call ""C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars32.bat"" >nul 2>&1 && cd C:\jianghu-engine && bin\e2e\jianghu.exe --check-lua --config tests\integration\config.ini --dir lua-sample > bin\check_lua_output.txt 2>&1" ; Get-Content C:\jianghu-engine\bin\check_lua_output.txt
 ```
 
 注：路径中的 `18\Community` 随本机安装的 Visual Studio 版本而变（如 `2022\Community`）。不确定时用 vswhere 查询实际安装路径：
@@ -120,7 +122,7 @@ cmd /c "call ""C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliar
 ```
 
 **⚠️ 没有输出 = 失败！** 如果上述命令没有输出，说明：
-1. 缺少 `libmySQL.dll`——需要先将 `libmySQL.dll` 复制到 `bin\` 目录
+1. 缺少 `libmySQL.dll`——需要先将 `libmySQL.dll` 复制到 exe 同目录（`bin\e2e\`）
 2. vcvars32.bat 路径不对——用上文的 vswhere 命令查实际安装路径
 3. 程序崩溃——检查是否缺少其他依赖
 
@@ -128,7 +130,7 @@ cmd /c "call ""C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliar
 
 - **教材（`lua-sample` / `lua-default`）的校验固定在仓库根执行、用 `tests\integration\config.ini`**——即上文「正确的调用方法」的姿势。
 - 换 cwd 或换 config 之前，先确认该 config 的 `script_root` / `default_script_root` 是**绝对路径**；相对路径只在它所相对的那个目录里成立。
-- 校验 `jianghu-dataset` 走数据集自己的 `validate.ps1`（其姿势为 `cd bin` + `--config ..\data\config.ini`，那份 config 的脚本根是绝对路径）。
+- 校验 `jianghu-dataset` 走数据集自己的 `validate.ps1`（其姿势为 `cd bin` + `.\e2e\jianghu.exe --config ..\data\config.ini`，那份 config 的脚本根是绝对路径）。
 
 | 症状 | 动作 |
 |---|---|

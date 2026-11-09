@@ -758,7 +758,7 @@ TEST_F(LoginFlowTest, GetAllOnlineUsers_ReturnsTableOfUsers)
     g_user_list[user.object_id()] = &user;
 
     int top = lua_gettop(L);
-    EXPECT_EQ(1, l_get_all_online_users(L));
+    EXPECT_EQ(1, l_find_online_users(L));
     EXPECT_TRUE(lua_istable(L, -1));
     lua_rawgeti(L, -1, 1);  // 下标 1：第一个在线用户
     EXPECT_TRUE(lua_isuserdata(L, -1));

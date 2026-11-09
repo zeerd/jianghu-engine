@@ -99,8 +99,6 @@ void setup_human(CChar* me)
     hook.call();
 }
 
-void setup_monster(CChar* me) {}
-
 void setup_beast(CChar* me)
 {
     CMapping* m = me->query_entire_dbase();
@@ -150,8 +148,6 @@ void setup_char(CChar* me)
 
     if (race == "人类")
         setup_human(me);
-    else if (race == "妖魔")
-        setup_monster(me);
     else if (race == "野兽")
         setup_beast(me);
     else

@@ -234,7 +234,7 @@ std::unique_ptr<CRoom> create_room(string room_name)
                 r->set("save_table", save_table.c_str());
             }
             if (!r->load()) {
-                LOG_ERROR("没有该房间%s，替换成标准房间。", room_name.c_str());
+                LOG_WARN("没有该房间%s，替换成标准房间。", room_name.c_str());
                 string msg = "fail";
                 msg += room_name;
                 r->set_name(msg.c_str());
@@ -260,7 +260,7 @@ std::unique_ptr<CRoom> create_room(string room_name)
             r->set("base_name", room_name.c_str());
 
             if (!r->load()) {
-                LOG_ERROR("没有该房间%s，替换成标准房间。", room_name.c_str());
+                LOG_WARN("没有该房间%s，替换成标准房间。", room_name.c_str());
 
                 string msg = "fail";
                 msg += room_name;

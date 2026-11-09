@@ -61,8 +61,6 @@ public:
     virtual const char* query_parry_msg(CContainer* weapon);
     virtual const char* query_dodge_msg(CChar* me);
     virtual const char* type();
-    virtual int valid_effect(CChar* me, CContainer* weapon, char* action_name,
-                             int skill);
     virtual void skill_improved(CChar* me);
     virtual void create();
     virtual void reset(CChar* me);

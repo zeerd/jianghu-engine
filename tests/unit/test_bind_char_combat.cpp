@@ -222,6 +222,16 @@ TEST_F(BindCharCombatTest, Unconcious)
     EXPECT_STREQ(ch.querystr_temp("disabled"), "昏迷不醒");
 }
 
+TEST_F(BindCharCombatTest, DieUnknownKindErrors)
+
+{
+    lua_bind_push_object(L, &ch);
+
+    lua_pushstring(L, "nope");
+
+    EXPECT_EQ(-1, call(l_die, 2));
+}
+
 TEST_F(BindCharCombatTest, ReviveNeedsRoom)
 
 {
@@ -540,7 +550,7 @@ TEST_F(BindCharCombatTest, StartPowerupBind_AppliesBuffs)
     EXPECT_EQ(7, ch.query_temp("apply/dodge"));
 }
 
-// ---- l_die / l_die_base：经免死快路（fb_nodie）执行完整 die ----
+// ---- l_die：经免死快路（fb_nodie）执行完整 die，base kind 直调基类 ----
 
 TEST_F(BindCharCombatTest, DieBindsRunFbNoDieFastPath)
 
@@ -605,9 +615,11 @@ TEST_F(BindCharCombatTest, DieBindsRunFbNoDieFastPath)
 
     lua_bind_push_object(L, u);
 
-    CallVoid(l_die_base, 1);
+    lua_pushstring(L, "base");
 
-    EXPECT_EQ(1, u->query("hp")) << "l_die_base 执行 CChar::die(318-325)";
+    CallVoid(l_die, 2);
+
+    EXPECT_EQ(1, u->query("hp")) << "die(base) 执行 CChar::die(318-325)";
 
     u->move(nullptr);
 
@@ -692,13 +704,4 @@ TEST_F(BindCharCombatTest, RemovePowerupClearsBuffs)
     EXPECT_EQ(5, ch.query_temp("apply/attack")) << "attack 增益回收(232-233)";
     EXPECT_EQ(0, ch.query_temp("apply/dodge")) << "dodge 增益回收(234)";
     EXPECT_FALSE(ch.querymap_temp("powerup")) << "powerup 态整体清除(239)";
-}
-
-// ---- Skill.cpp: valid_effect 基类恒真守卫(173-175) ----
-TEST_F(BindCharCombatTest, ValidEffectAlwaysTrue)
-{
-    CSkill sk;
-    char act[] = "strike";
-    EXPECT_EQ(1, sk.valid_effect(&ch, nullptr, act, 0))
-        << "基类 valid_effect 恒 1(173-175)";
 }

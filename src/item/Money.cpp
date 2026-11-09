@@ -102,22 +102,22 @@ void CMCoin::create(int flag)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// pay_player(me, money) - 给玩家发放（扣除）江湖货币
-int l_pay_player(lua_State* L)
+// pay_money(kind, me, value) -> number - 资金发放/扣取，KIND 取 give（发放
+// 给玩家）/ take（从玩家扣取），成功返回 1，失败返回 0，未登记 KIND 报错。
+// 全局名避开脚本侧常见变量 pay/money/charge（同名局部会遮蔽全局函数）。
+int l_pay_money(lua_State* L)
 {
-    CChar* me = dynamic_cast<CChar*>(get_object(L, 1));
+    const char* kind = luaL_checkstring(L, 1);
+    CChar* me        = dynamic_cast<CChar*>(get_object(L, 2));
     if (!me) return 0;
-    int32_t money = (int32_t)luaL_checkinteger(L, 2);
-    CMoney::pay_player(me, money);
-    return 0;
-}
-
-// player_pay(me, value) -> number - 玩家支付金额，成功返回 1，失败返回 0
-int l_player_pay(lua_State* L)
-{
-    CChar* me = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!me) return 0;
-    int32_t value = (int32_t)luaL_checkinteger(L, 2);
-    lua_pushinteger(L, CMoney::player_pay(me, value));
+    int32_t value = (int32_t)luaL_checkinteger(L, 3);
+    int ok;
+    if (strcmp(kind, "give") == 0)
+        ok = CMoney::pay_player(me, value);
+    else if (strcmp(kind, "take") == 0)
+        ok = CMoney::player_pay(me, value);
+    else
+        return luaL_error(L, "unknown pay kind: %s", kind);
+    lua_pushinteger(L, ok);
     return 1;
 }

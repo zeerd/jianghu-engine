@@ -20,10 +20,9 @@ require("data.exam").install(hooks)
 require("data.box_draw_log")
 
 -- 新角色起步本金（金）
--- 取值偏大：住宅区地价随住户数走阶梯（见 resident_base HOUSE_PRICES，最低档
--- 亦达 50 万），而首个置业者登记后 policy 地价会被 set_house 的 Load 覆盖、
--- 后续置业者回落到阶梯价——起步本金需足以支付，避免 E2E 第二次置业「现金不足」。
-local START_MONEY = 10000000
+-- 世界设定：一笔够用的盘缠——日常买药、置产首付（住宅区走 resident_base
+-- 缺省阶梯地价，单人间折半约 25 万）后仍有余量。
+local START_MONEY = 600000
 
 -- hooks.setup_human(me)
 --   调用点：C++ setup_human 末尾（属性/气血/分支/体重之后）。注册与每次登录
@@ -37,7 +36,7 @@ function hooks.setup_human(me)
     if me:query("start_money") ~= 0 then
         return
     end
-    pay_player(me, START_MONEY)
+    pay_money("give", me, START_MONEY)
     me:set("start_money", 1)
 end
 
@@ -48,12 +47,9 @@ end
 --   返回 {reward=N} = 以 N 入账；nil / 缺席 = 按 reward 入账；
 --   咨询后仍 <=0 的奖励不入账、不发提示。
 function hooks.kill_bonus(killer, victim, reward)
-    -- 练级怪（青蛇）：击杀固定奖励 10000 经验（房间见 room/sample_mountain_top.lua）
-    if victim:query("xp_bonus") == 1 then
-        return { reward = 10000 }
-    end
     -- 固定击杀经验（nk_bonus）：入账值原本要过 nk_gain 的历练折算——对手历练
-    -- 远高于这类杂鱼时折出来就是 0，杀了等于白杀；写死在本挂点上才折不掉
+    -- 远高于这类杂鱼时折出来就是 0，杀了等于白杀；写死在本挂点上才折不掉。
+    -- 练级怪青蛇 nk_bonus=10000，山道强人 nk_bonus=100，其余 NPC 缺席走常规入账
     local bonus = victim:query("nk_bonus")
     if bonus ~= 0 then
         return { reward = bonus }
@@ -63,21 +59,52 @@ end
 
 -- hooks.fight(me, victim)
 --   调用点：CCombatd::fight 每次常规出手结算完之后，攻守双方各走一次。
---   这里做「追加攻击」：带 hidden_weapon 标记的角色（山道强人）在自己那一
---   回合补一记棋子——取身上第一件暗器发动一次独立结算。
---   flag 走 TYPE_HIT（必中档）：这一档把对手的闪避值与招架值都压到 1，
---   暗器是贴身抖出去的，中不中只看出手的人，不给对手凭身法让开的余地。
+--   这里做两类「追加攻击」：
+--   1. 暗器补击（山道强人）：带 hidden_weapon 标记的角色在自己那一回合
+--      补一记棋子——取身上第一件暗器发动一次独立结算。flag 走 TYPE_HIT
+--      （必中档）：这一档把对手的闪避值与招架值都压到 1，暗器是贴身抖出
+--      去的，中不中只看出手的人，不给对手凭身法让开的余地。
+--   2. 左手连击：左手是标记了 can_combo 的轻便短兵（匕首）时快手再补一记
+--      ——action_flag 置位期间战报带「紧跟着」，与 dataset 的连击同款。
 function hooks.fight(me, victim)
-    if me:query("hidden_weapon") ~= 1 then
-        return
+    if me:query("hidden_weapon") == 1 then
+        local weapon = get_first_throwing_weapon(me)
+        if weapon then
+            combat_attack("weapon", me, victim, weapon, TYPE_HIT)
+        end
     end
 
-    local weapon = get_first_throwing_weapon(me)
-    if not weapon then
-        return
+    local left = me:query_left_weapon()
+    if left and left:query("can_combo") ~= 0 then
+        me:set_temp("action_flag", 1)
+        tell_object(me, "你左手短兵疾递，连环刺出！")
+        combat_attack("weapon", me, victim, left, TYPE_QUICK)
+        me:set_temp("action_flag", 0)
     end
+end
 
-    combat_attack_weapon(me, victim, weapon, TYPE_HIT)
+-- hooks.pre_buy(vendor, buyer, goods)
+--   调用点：CVendor::do_buy 成交前，goods.price 是引擎算好的基准价。
+--   商人看脸（势利眼的买卖人）：以 18 分长相为基准价——越好看越便宜、
+--   越丑越贵，每高 1 分打 1% 折、每低 1 分加价 1%。钳制在五折~加价五成
+--   之间，防极端容貌把成交价打出界（负价等于倒贴钱）。
+--   返回 {price=N} 改写成交价；返回 nil 按基准价成交。
+function hooks.pre_buy(vendor, buyer, goods)
+    -- 18 − 相貌：好看为负（减价），丑为正（加价）
+    local factor = 118 - buyer:attr("per")
+    if factor > 150 then
+        factor = 150
+    elseif factor < 50 then
+        factor = 50
+    end
+    -- 整除会把低价商品（如 1 金的蛇胆）折到 0——pay_money("take", …, 0) 判支付失败，
+    -- 交易永远不成交（实测：per≥18 时 1×99//100=0 → 穷光蛋），
+    -- 故成交价下限保底 1 金
+    local price = goods.price * factor // 100
+    if price < 1 then
+        price = 1
+    end
+    return { price = price }
 end
 
 -- hooks.post_buy(vendor, buyer, goods)
@@ -96,12 +123,21 @@ end
 -- hooks.calculate_damage(me, victim, damage)
 --   调用点：CAttack 伤害算完、落到身上之前，damage 就是这一击的实打数值。
 --   这里把打在山道强人身上的每一击格式化后私发给出手方——他自己的攻击几乎
---   不会落空，文案稳定；返回 nil 即不改写伤害。
+--   不会落空，文案稳定；最后一律原样回传 damage：回传数值即走「改写」通道
+--   （引擎以回传值落刀，原样回传表示不增不减），返回 nil 则交还引擎原值。
 function hooks.calculate_damage(me, victim, damage)
     if victim:query("hidden_weapon") ~= 1 then
         return nil
     end
 
     tell_object(me, "这一击" .. damge_to_string(damage))
-    return nil
+    return damage
+end
+
+-- hooks.can_prepare_combine(me, skill_a, skill_b, valid)
+--   调用点：/prepare 空手组合的判定（两处）。valid 是既有 valid_combine 的
+--   结果，本世界照实回传、不改判——要在此否决组合，返回 false 即可。
+--   如果有本来不符合组合条件的要加特例，也要把条件写在这里，然后满足条件的返回 true。
+function hooks.can_prepare_combine(me, skill_a, skill_b, valid)
+    return valid
 end

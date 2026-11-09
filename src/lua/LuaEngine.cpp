@@ -757,6 +757,17 @@ void CLuaEngine::record_script_load_failure(const std::string& compositeKey,
     m_scripts[compositeKey] = script;
 }
 
+// 失败尝试也落本次观测到的文件状态（mtime + 内容哈希）：热重载观察者以
+// 这两个字段判「文件变了才重试」。失败若沿用旧版本的观测值，已删除或
+// 持续损坏的文件会与旧值永久不等——每个心跳重试一次，报错按心跳节拍
+// 刷屏。观测态前进后观察者静默等待；文件恢复或修复必然改变观测态，届时
+// 自动重新触发重载。旧 ref 仍按「失败保留旧版本」原地保留。
+static void record_observed_file_state(LuaScript& script, unsigned long hash)
+{
+    script.mtime       = get_file_m_time(script.file.c_str());
+    script.contentHash = hash;
+}
+
 int CLuaEngine::reload_script(const char* compositeKey, bool* reloaded)
 {
     if (reloaded) *reloaded = false;
@@ -788,6 +799,7 @@ int CLuaEngine::reload_script(const char* compositeKey, bool* reloaded)
             m_script_map.count(compositeKey) ? "YES" : "NO");
         dump_caller_info(bareName);
         LOG_ERROR("[Lua] %s: %s", bareName, script.errorMsg.c_str());
+        record_observed_file_state(script, hash);
         return script.ref;  // 文件缺失，保留旧版本
     }
 
@@ -811,6 +823,7 @@ int CLuaEngine::reload_script(const char* compositeKey, bool* reloaded)
         dump_caller_info(bareName);
         LOG_ERROR("[Lua] %s: %s", bareName, script.errorMsg.c_str());
         lua_pop(m_state, 1);
+        record_observed_file_state(script, hash);
         return script.ref;  // 语法错误，保留旧版本
     }
 
@@ -824,6 +837,7 @@ int CLuaEngine::reload_script(const char* compositeKey, bool* reloaded)
                   bareName, err ? err : "unknown");
         LOG_ERROR("[Lua] %s: %s", bareName, script.errorMsg.c_str());
         lua_pop(m_state, 1);
+        record_observed_file_state(script, hash);
         return script.ref;  // 运行错误，保留旧版本
     }
 
@@ -836,6 +850,7 @@ int CLuaEngine::reload_script(const char* compositeKey, bool* reloaded)
                   bareName);
         LOG_ERROR("[Lua] %s: %s", bareName, script.errorMsg.c_str());
         lua_pop(m_state, 1);
+        record_observed_file_state(script, hash);
         return script.ref;  // 返回类型错误，保留旧版本
     }
 
@@ -973,8 +988,9 @@ int CLuaEngine::check_for_reload()
             const char* slash        = strchr(compositeKey, '/');
             const char* bareName     = slash ? slash + 1 : compositeKey;
 
-            // 失败沿错误状态转换只广播一次：坏文件会每 5s 重试到修好为止，
-            // 每次重试都广播会把 sys 频道刷成噪音
+            // 失败沿错误状态转换只广播一次：失败尝试会落观测态（见
+            // record_observed_file_state），文件不再变化就不重试；连续写坏
+            // 时错误态未清，边沿仍只广播首条，sys 频道不刷噪音
             const bool was_error = script.hasError;
             bool ok              = false;
             reload_script(compositeKey, &ok);

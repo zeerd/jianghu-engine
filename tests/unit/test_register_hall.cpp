@@ -240,8 +240,11 @@ TEST_F(RegisterHallTest, FbInstance_RoomHonorsRegisterWhitelist)
     EXPECT_TRUE(me->has("没有信号")) << "白名单外命令被大厅拦截";
     EXPECT_EQ(0, room->handle_action(password, me, empty, tar))
         << "password 放行";
+    // register 快捷分支已删除：按白名单外命令拦截（注册走 talk 菜单路）
     EXPECT_EQ(1, room->handle_action(reg, me, empty, tar));
-    EXPECT_EQ(1, me->query_temp("regclerk/step")) << "register 进入注册流程";
+    EXPECT_EQ(0, me->query_temp("regclerk/step"))
+        << "register 不再进入注册流程";
+    EXPECT_TRUE(me->has("没有信号")) << "按白名单外命令拦截";
 }
 
 // =====================================================================

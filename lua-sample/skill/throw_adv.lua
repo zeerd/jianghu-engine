@@ -91,11 +91,11 @@ return {
         message_vision("$N凝神聚气，指尖暗劲涌动，连珠般打出数枚$w！", me)
 
         -- 第一枚
-        combat_attack(me, target, TYPE_QUICK)
+        combat_attack("normal", me, target, TYPE_QUICK)
         -- 第二枚
-        combat_attack(me, target, TYPE_QUICK)
+        combat_attack("normal", me, target, TYPE_QUICK)
         -- 第三枚
-        combat_attack(me, target, TYPE_QUICK)
+        combat_attack("normal", me, target, TYPE_QUICK)
 
         me:add("mp", -80)
         me:start_busy(random(2))

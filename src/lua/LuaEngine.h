@@ -34,9 +34,13 @@ struct LuaScript {
     std::string file;           // 脚本文件路径
     LuaScriptType type;         // 脚本类型
     int ref;                    // 脚本 table 的 registry 引用
-    unsigned long contentHash;  // 文件内容哈希（用于热重载检测）
-    long long mtime;            // 文件最后修改时间（FILETIME，100ns 粒度，
-                                // 快速过滤用——秒级比较会漏掉同秒内的二次编辑）
+    unsigned long contentHash;  // 最近一次观测到的文件内容哈希，热重载的
+                                // 判变基准（与文件当前哈希不等才重试）：
+                                // 加载成功记装入内容的哈希，失败记本次
+                                // 读到的状态，读不到记 0
+    long long mtime;            // 最近一次观测到的文件最后写时间（FILETIME，
+                                // 100ns 粒度，快速过滤用——秒级比较会漏掉
+                                // 同秒内的二次编辑；读不到记 0）
     bool loaded;                // 是否已成功加载
     bool hasError;              // 是否有语法/加载错误
     bool fromDefault;           // 是否来自默认脚本目录（不参与热重载）
@@ -123,6 +127,7 @@ public:
     int reload_all_scripts();
 
     // 检查所有已加载脚本是否有变化，自动重载（供心跳调用）
+    // 失败尝试会落观测态：已缺失/损坏的文件在再次变化前不重试、不刷屏
     // 返回重载的脚本数量
     int check_for_reload();
 

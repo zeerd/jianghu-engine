@@ -1,8 +1,8 @@
-// test_log_levels.cpp — Unit tests for log_trace/debug/info/warn/error/fatal
-// bindings
+// test_log_levels.cpp — Unit tests for the six prelude log_* wrappers
 //
-// Tests the six level-specific Lua logging functions to verify they support
-// variadic arguments (string.format style) and handle edge cases.
+// Tests the level-specific global log functions (prelude wrappers over the
+// engine log(level, fmt, ...) bridge) to verify they support variadic
+// arguments (string.format style) and handle edge cases.
 //
 #include "pch.h"
 #include <string>

@@ -50,7 +50,7 @@
 --   平时它只是一截挨打的木头：attitude 不是 aggressive，CChar::init 的自动仇恨
 --   分支不会被触发，谁来打它都只是在打木头。
 --   被打散即自毁，房间 reset 会按 add_npc 的 base_name 重新载入一份，抄来的状态
---   随之清零；不走 die_base 意味着不掉尸体、也不结算 NK 经验。
+--   随之清零；不走 die("base") 意味着不掉尸体、也不结算 NK 经验。
 
 local npc = {}
 
@@ -125,7 +125,7 @@ function npc.do_talk(self, me, ask)
     return 1
 end
 
--- 死亡：被打散就散成一地木头并自毁（不走 die_base：不掉尸体、不结算 NK 经验）
+-- 死亡：被打散就散成一地木头并自毁（不走 die("base")：不掉尸体、不结算 NK 经验）
 function npc.die(self)
     message_vision("$N的关节一松，噼里啪啦散成了一堆木头。", self)
     destruct(self)

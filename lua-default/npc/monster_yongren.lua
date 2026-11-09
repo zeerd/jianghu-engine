@@ -56,7 +56,7 @@ function n.do_greeting1(self, pid)
 
     local pay = env:query("need_pays")
     if pay ~= 0 and self:query_temp("warning_pays") ~= pay then
-        local master = env:Present(pid)
+        local master = env:present("object_id", pid)
         if not master then
             return
         end
@@ -81,11 +81,11 @@ end
 
 function n.init(self, me)
     if not self:is_fighting() and is_user(me) then
-        local list = me:Get_ItemList()
+        local list = me:get_item_list()
         if list then
             for obj in iter_items(list) do
                 if is_user(obj) then
-                    obj:move(load_room(START_ROOM))
+                    obj:move(load("room", START_ROOM))
                     if is_master(self, me) ~= 0 then
                         message_vision(
                             "$HIR主人，"
@@ -120,7 +120,7 @@ function n.init(self, me)
                             .. "想意图不轨，还是赶快把他们扫地出门比较安全！",
                         self
                     )
-                    me:move(load_room(global_room_name(random(room_count()))))
+                    me:move(load("room", global_room_name(random(room_count()))))
                 end
             end
         end
@@ -135,7 +135,7 @@ function n.init(self, me)
                     .. "被人从房里一脚踢了出来，狼狈万状的逃开了。",
                 me
             )
-            me:move(load_room(global_room_name(random(room_count()))))
+            me:move(load("room", global_room_name(random(room_count()))))
             me:add("hp", -100)
         else
             if is_master(self, me) ~= 0 then
@@ -178,7 +178,7 @@ end
 
 local function do_getobj(self, me, arg)
     local rent = tonumber(arg) or 0
-    local list = self:Get_ItemList()
+    local list = self:get_item_list()
 
     if list then
         for obj in iter_items(list) do
@@ -197,7 +197,7 @@ local function do_getobj(self, me, arg)
 end
 
 local function do_giveme(self, me, arg)
-    local obj = self:Present(tonumber(arg) or 0)
+    local obj = self:present("object_id", tonumber(arg) or 0)
     if not obj then
         return notify_fail("没有这样物品。")
     end
@@ -216,7 +216,7 @@ local function do_giveme(self, me, arg)
         return notify_fail("这样东西不卖！")
     end
 
-    if player_pay(me, price) == 0 then
+    if pay_money("take", me, price) == 0 then
         return notify_fail("你没有这么多钱。")
     end
 
@@ -240,10 +240,10 @@ local function do_giveme(self, me, arg)
     if where:LockData(1) == 0 then
         return 0
     end
-    where:Load()
+    where:load_from_local()
 
     where:add("yongren/balance", price * 4 // 5)
-    where:Save()
+    where:save_to_local()
     where:LockData(0)
 
     return 1
@@ -263,13 +263,13 @@ local function check_validsell(self, obj)
         return 0
     end
 
-    if obj:querymap("no_give") then
+    if obj:dbase("map", "no_give") then
         return 0
     end
-    if obj:querymap("no_drop") then
+    if obj:dbase("map", "no_drop") then
         return 0
     end
-    if obj:querymap("owner") then
+    if obj:dbase("map", "owner") then
         return 0
     end
 
@@ -281,7 +281,7 @@ local function do_rent(self, me, arg)
 
     me:set_temp("yongren/rent", tonumber(arg) or 0)
 
-    local list = me:Get_ItemList()
+    local list = me:get_item_list()
     if list then
         for obj in iter_items(list) do
             if not obj:is_character() and check_validsell(self, obj) ~= 0 then
@@ -295,7 +295,7 @@ local function do_rent(self, me, arg)
 end
 
 local function do_value(self, me, arg)
-    local obj = me:Present(tonumber(arg) or 0)
+    local obj = me:present("object_id", tonumber(arg) or 0)
     if not obj then
         return notify_fail("你身上没有这样物品！")
     end
@@ -317,7 +317,7 @@ end
 
 local function do_price(self, me, arg)
     local price = tonumber(arg) or 0
-    local obj = me:Present(me:query_temp("yongren/obj"))
+    local obj = me:present("object_id", me:query_temp("yongren/obj"))
     if not obj then
         return notify_fail("请选定物品！")
     end
@@ -338,19 +338,19 @@ local function do_withdraw(self, me)
     if where:LockData(1) == 0 then
         return 0
     end
-    where:Load()
+    where:load_from_local()
 
     local balance = where:query("yongren/balance")
     where:del("yongren/balance")
 
-    where:Save()
+    where:save_to_local()
     where:LockData(0)
 
     if balance == 0 then
         return notify_fail("您并没有售出物品。")
     end
 
-    pay_player(me, balance)
+    pay_money("give", me, balance)
     self:say("您获得了" .. balance .. "的利润。", me)
     self:SendMenu(me)
 
@@ -377,10 +377,10 @@ local function do_name(self, me, arg)
     if where:LockData(1) == 0 then
         return 0
     end
-    where:Load()
+    where:load_from_local()
 
     where:set("yongren/name", name)
-    where:Save()
+    where:save_to_local()
     where:LockData(0)
 
     tell_object(me, "OK.")
@@ -407,10 +407,10 @@ local function do_desc(self, me, arg)
     if where:LockData(1) == 0 then
         return 0
     end
-    where:Load()
+    where:load_from_local()
 
     where:set("yongren/long", desc)
-    where:Save()
+    where:save_to_local()
     where:LockData(0)
 
     return 1
@@ -436,10 +436,10 @@ local function do_welcome1(self, me, arg)
     if where:LockData(1) == 0 then
         return 0
     end
-    where:Load()
+    where:load_from_local()
 
     where:set("yongren/welcome", welcome)
-    where:Save()
+    where:save_to_local()
     where:LockData(0)
 
     return 1
@@ -465,10 +465,10 @@ local function do_welcome2(self, me, arg)
     if where:LockData(1) == 0 then
         return 0
     end
-    where:Load()
+    where:load_from_local()
 
     where:set("yongren/welcome_master", welcome)
-    where:Save()
+    where:save_to_local()
     where:LockData(0)
 
     return 1

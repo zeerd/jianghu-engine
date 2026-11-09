@@ -1,10 +1,11 @@
-﻿/**
+/**
  * @file ContainerItem.cpp
  * @brief CContainer: item list, present/lookup,
  * descriptions, say.  */
 
 #include <windows.h>
 #include <algorithm>
+#include <cstring>
 #include "Container.h"
 #include "Room.h"
 #include "User.h"
@@ -132,7 +133,7 @@ const char* CContainer::title(int raw)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"
 
-// self:Get_ItemList() -> item_list | nil（列表为空时返回 nil）
+// self:get_item_list() -> item_list | nil（列表为空时返回 nil）
 int l_get_item_list(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -154,7 +155,11 @@ int l_get_item_list(lua_State* L)
     return 1;
 }
 
-// self:present(id) -> object
+// self:present(kind, id, ...) -> object|nil - 按 KIND 查容器内已装载对象：
+//   id(原型 id 字符串)
+//   object_id(对象 id 数值[, flag])，flag=1 连不可见一起找
+//   name(base_name[, type[, flag]])，按类型过滤
+// 未登记 KIND 报错
 int l_present(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -163,79 +168,51 @@ int l_present(lua_State* L)
     CContainer* c = dynamic_cast<CContainer*>(obj);
     if (!c) return 0;
 
-    const char* id = luaL_checkstring(L, 2);
-    lua_bind_push_object(L, c->present(id));
+    const char* kind = luaL_checkstring(L, 2);
+    if (strcmp(kind, "id") == 0) {
+        const char* id = luaL_checkstring(L, 3);
+        lua_bind_push_object(L, c->present(id));
+    }
+    else if (strcmp(kind, "object_id") == 0) {
+        int32_t obj_id = (int32_t)luaL_checkinteger(L, 3);
+        int flag       = (int)luaL_optinteger(L, 4, 0);
+        lua_bind_push_object(L, c->present(obj_id, flag));
+    }
+    else if (strcmp(kind, "name") == 0) {
+        const char* base_name = luaL_checkstring(L, 3);
+        int type              = (int)luaL_optinteger(L, 4, 0);
+        int flag              = (int)luaL_optinteger(L, 5, 0);
+        CContainer* r         = c->present_name(base_name, type, flag);
+        if (r)
+            lua_bind_push_object(L, r);
+        else
+            lua_pushnil(L);
+    }
+    else {
+        return luaL_error(L, "unknown present kind: %s", kind);
+    }
     return 1;
 }
 
-// self:Present(object_id) -> object
-int l_present_by_id(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
-    CContainer* c = dynamic_cast<CContainer*>(obj);
-    if (!c) return 0;
-
-    int32_t obj_id = (int32_t)luaL_checkinteger(L, 2);
-    int flag       = (int)luaL_optinteger(L, 3, 0);
-    lua_bind_push_object(L, c->present(obj_id, flag));
-    return 1;
-}
-
-// self:present_name(base_name, nType[, flag]) -> object|nil
-int l_present_name(lua_State* L)
+// self:desc(kind[, raw]) -> string - 描述查询，KIND 取 long/short/title，
+// 未登记 KIND 报错
+int l_desc(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
     CContainer* c = dynamic_cast<CContainer*>(obj);
     if (!c) return 0;
-    const char* base_name = luaL_checkstring(L, 2);
-    int type              = (int)luaL_optinteger(L, 3, 0);
-    int flag              = (int)luaL_optinteger(L, 4, 0);
-    CContainer* r         = c->present_name(base_name, type, flag);
-    if (r)
-        lua_bind_push_object(L, r);
+    const char* kind = luaL_checkstring(L, 2);
+    int raw          = (int)luaL_optinteger(L, 3, 0);
+    const char* s    = nullptr;
+    if (strcmp(kind, "long") == 0)
+        s = c->long_desc(raw);
+    else if (strcmp(kind, "short") == 0)
+        s = c->short_desc(raw);
+    else if (strcmp(kind, "title") == 0)
+        s = c->title(raw);
     else
-        lua_pushnil(L);
-    return 1;
-}
-
-// self:Long([raw]) -> string - 长描述
-int l_long(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CContainer* c = dynamic_cast<CContainer*>(obj);
-    if (!c) return 0;
-    int raw       = (int)luaL_optinteger(L, 2, 0);
-    const char* s = c->long_desc(raw);
-    lua_pushstring(L, s ? s : "");
-    return 1;
-}
-
-// self:Short([raw]) -> string - 短描述
-int l_short(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CContainer* c = dynamic_cast<CContainer*>(obj);
-    if (!c) return 0;
-    int raw       = (int)luaL_optinteger(L, 2, 0);
-    const char* s = c->short_desc(raw);
-    lua_pushstring(L, s ? s : "");
-    return 1;
-}
-
-// self:title([raw]) -> string - 称号
-int l_title(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CContainer* c = dynamic_cast<CContainer*>(obj);
-    if (!c) return 0;
-    int raw       = (int)luaL_optinteger(L, 2, 0);
-    const char* s = c->title(raw);
+        return luaL_error(L, "unknown desc kind: %s", kind);
     lua_pushstring(L, s ? s : "");
     return 1;
 }

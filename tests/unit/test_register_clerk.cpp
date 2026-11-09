@@ -401,12 +401,14 @@ TEST_F(RegisterClerkTest, RkRoom_AllowsRegistrationAndBlocksOthers)
         << "白名单内命令放行，交给目标截获环节";
     EXPECT_FALSE(me->has("没有信号"));
 
-    // register 快捷命令：无需目标直接开始注册
+    // register 快捷分支已随全局 handle_action 绑定彻底删除：
+    // 该词不再被房间特殊处理，按白名单外命令拦截（注册走 talk 菜单路）
     me->delete_temp("regclerk/step");
     char reg[] = "register";
     EXPECT_EQ(1, rk->handle_action(reg, me, empty, tar));
-    EXPECT_EQ(1, me->query_temp("regclerk/step"))
-        << "register 快捷命令进入注册流程";
+    EXPECT_EQ(0, me->query_temp("regclerk/step"))
+        << "register 不再触发注册流程";
+    EXPECT_TRUE(me->has("没有信号")) << "按白名单外命令拦截";
 
     // 白名单外命令：拦截并提示
     me->clear();

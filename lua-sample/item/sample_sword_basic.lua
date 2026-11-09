@@ -19,5 +19,6 @@ return {
         self:set("unwield_msg", "$N将手中的$n插回剑鞘。")
 
         self:set("apply/damage", 10)
+        self:set("apply/str", 1)
     end,
 }

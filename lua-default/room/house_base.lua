@@ -31,12 +31,12 @@ end
 
 -- 补一名仆役：可由 yongren 子映射定制外貌、欢迎词与功力
 local function make_yongren(self)
-    local npc = load_npc("monster_yongren")
+    local npc = load("npc", "monster_yongren")
     if not npc then
         return
     end
 
-    if self:querymap("yongren") then
+    if self:dbase("map", "yongren") then
         local fields = {
             { "name", true },
             { "welcome", false },
@@ -54,7 +54,7 @@ local function make_yongren(self)
         npc:set("combat_exp", self:query("yongren/combat_exp"))
     end
 
-    if npc:query_exp() == 0 then
+    if npc:attr("combat_exp") == 0 then
         npc:set("combat_exp", 20000)
     end
 
@@ -72,7 +72,7 @@ end
 -- 检查是否携带租借品：主人与第二主人豁免，其余一律搜身
 -- 回写住户登记：同步房名与住客名录，并刷新房屋的场景描述
 function house.update_register(self)
-    local zone = load_room(self:querystr("belong"))
+    local zone = load("room", self:querystr("belong"))
     if zone:query(IS_RESIDENT) == 0 then
         do_channel(
             nil,
@@ -84,7 +84,7 @@ function house.update_register(self)
     end
 
     resident_base.update_register(zone, self)
-    self:Save()
+    self:save_to_local()
 end
 
 -- 检查拖欠的管理费：够扣就从银行划走，否则记成待结帐单
@@ -94,7 +94,7 @@ function house.check_pays(self)
         return
     end
 
-    local zone = load_room(belong)
+    local zone = load("room", belong)
     if zone:query(IS_RESIDENT) == 0 then
         do_channel(
             nil,
@@ -122,7 +122,7 @@ function house.check_pays(self)
     end
 
     local owner_key = self:querystr("owner")
-    local owner = find_online(owner_key)
+    local owner = find("online", owner_key)
     local temporary = false
     if not owner then
         temporary = true
@@ -136,7 +136,7 @@ function house.check_pays(self)
         self:del("need_pays")
         self:set("pay_time", current_time())
         house.update_register(self)
-        owner:Save()
+        owner:save_to_local()
         if temporary then
             destruct(owner)
         end
@@ -187,13 +187,13 @@ end
 -- 周期维护：存档消失则拆房；仆役走失即补；顺带查欠租
 function house.reset(self)
     if combatd_query("no_check_house") == 0 then
-        if self:Load() == 0 then
+        if self:load_from_local() == 0 then
             self:call_out("remove_me", 1)
             return
         end
     end
 
-    if not find_npc(self:query_temp("yongren")) then
+    if not find("npc", self:query_temp("yongren")) then
         make_yongren(self)
     end
 
@@ -202,7 +202,7 @@ end
 
 -- 门牌：房间长描述、房主留言与房管菜单
 function house.do_look(self, me)
-    self:say(self:Long(), me)
+    self:say(self:desc("long"), me)
     self:say(self:querystr("desc"), me)
 
     local owner = self:querystr("owner")
@@ -225,7 +225,7 @@ end
 -- 租借的物品不允许带出房间
 function house.valid_leave(self, me, dir)
     if dir == "出口" then
-        local who = self:present_name("monster_yongren", IS_NPC)
+        local who = self:present("name", "monster_yongren", IS_NPC)
         local obj = house.check_rent(self, me)
         if who and obj then
             return notify_fail(string.format("%s伸手拦住你，说：把%s留下！！", who:name(), obj:name()))
@@ -249,7 +249,7 @@ function house.housename(self, me, arg)
         return 0
     end
 
-    if self:Load() == 0 then
+    if self:load_from_local() == 0 then
         self:call_out("remove_me", 1)
         return 1
     end
@@ -281,14 +281,14 @@ function house.housedesc(self, me, arg)
         return 0
     end
 
-    if self:Load() == 0 then
+    if self:load_from_local() == 0 then
         self:call_out("remove_me", 1)
         return 1
     end
 
     self:set("desc", desc)
 
-    self:Save()
+    self:save_to_local()
     self:LockData(0)
 
     return 1
@@ -308,7 +308,7 @@ function house.addmaster(self, me, arg)
         return 1
     end
 
-    if not find_online(arg) then
+    if not find("online", arg) then
         self:say("对不起，请这个人在线时再来注册房主。", me)
         self:SendMenu(me)
         return 1
@@ -323,7 +323,7 @@ end
 
 -- 赶出去：随身的租用品留下，人送回属区
 function house.do_kick(self, me, arg)
-    local who = find_online(arg)
+    local who = find("online", arg)
     if not who then
         return notify_fail("你想踢谁？")
     end
@@ -347,12 +347,12 @@ function house.do_kick(self, me, arg)
             message_vision("$n从$N身上掉落下来。", who, obj)
         end
 
-        who:move(load_room(self:querystr("belong")))
+        who:move(load("room", self:querystr("belong")))
     else
         tell_object(me, string.format("你拒绝让%s登门造访！", who:name(1)))
     end
 
-    if who:querystr_temp("invite") == self:querystr("owner") then
+    if who:dbase_temp("str", "invite") == self:querystr("owner") then
         who:delete_temp("invite")
     end
 
@@ -384,7 +384,7 @@ function house.do_paymoney(self, me, arg)
             return 0
         end
 
-        if self:Load() == 0 then
+        if self:load_from_local() == 0 then
             self:call_out("remove_me", 1)
             return 0
         end
@@ -392,7 +392,7 @@ function house.do_paymoney(self, me, arg)
         house.check_pays(self)
         pay = self:query("need_pays")
 
-        if player_pay(me, pay) == 0 then
+        if pay_money("take", me, pay) == 0 then
             self:say("对不起，现金不足！", me)
         else
             self:del("need_pays")
@@ -426,7 +426,7 @@ end
 
 -- 房屋命令分发；拦截不住的命令交回房间基类
 function house.handle_action(self, comm, me, arg, tar)
-    local yongren = self:present_name("monster_yongren", IS_NPC)
+    local yongren = self:present("name", "monster_yongren", IS_NPC)
 
     -- 任何时候都不可以使用 roar
     if yongren and comm == "cast" and arg == "force roar" then

@@ -1,10 +1,10 @@
 -- sample_arena_master.lua  山脚演武教头
 -- 示例NPC：展示「脚本驱动引擎战斗房」的完整链路——普通战斗由 /kill、/fight
 -- 的 C++ 路径开房，本教头则用 Lua 绑定自己开一场：
---   load_item("fight_room") 建房 → is_fight_room 验型 → Can_Join 验名额
+--   load("item", "fight_room") 建房 → is_fight_room 验型 → Can_Join 验名额
 --   → set_single 单人比试 → Join_Team 双方入队 → Begin_Fight 开打
---   → 战报（get_fight_team_num / get_fight_team_char / get_team_list /
---     Select_Member 点名）→ 数拍后 Leave_Team 退队 → End_Fight 收场。
+--   → 战报（Select_Member 点名本队对手）→ 数拍后 Leave_Team 退队 →
+--     End_Fight 收场（get_fight_team_char 报本队头名）。
 -- 比试结束双方自动回到演武场（end_fight 把房内角色移回环境）。
 --
 -- 同一场比试还有第二条开法：「指教」走引擎的 Do_BiShi——建房、入队、开打
@@ -39,19 +39,25 @@ function npc.create(self)
     self:set("int", 10)
 end
 
--- 问答入口：命中「比武」开一场脚本驱动的比试、命中「指教」走引擎绑定一把梭，
--- 其余问话交回通用流程
+-- 问答入口：命中「比武」开一场脚本驱动的比试、命中「指教」走引擎绑定一把梭；
+-- 空问话（裸 /ask）列菜单告诉对方能约什么；其余问话交回通用流程
 function npc.do_talk(self, me, ask)
     if ask == "指教" then
         return npc.do_bishi(self, me)
     end
 
-    if ask ~= "" and ask ~= "比武" and ask ~= "切磋" then
+    if ask ~= "比武" and ask ~= "切磋" then
+        if ask == "" then
+            self:AddMenuItem("比武切磋", "$0比武 $1", me)
+            self:AddMenuItem("请教指教", "$0指教 $1", me)
+            self:SendMenu(me)
+            return 1
+        end
         return self:base_do_talk(me, ask)
     end
 
     local env = self:environment()
-    local fr = load_item("fight_room")
+    local fr = load("item", "fight_room")
     if not fr then
         return notify_fail("教头摆摆手：比武房一时开不出来，改日再来。")
     end
@@ -71,22 +77,14 @@ function npc.do_talk(self, me, ask)
     fr:Join_Team(me, FIGHT_TEAM_A)
     fr:Join_Team(self, FIGHT_TEAM_B)
 
-    -- 战况播报：私发给挑战者。A/B 两队名册与点名都走引擎战斗房查询绑定，
-    -- 战报里带双方名字（say 第二参收件人，仅挑战者可见）
+    -- 战况播报：私发给挑战者（say 第二参收件人，仅挑战者可见）。
+    -- 对手点名走引擎战斗房查询绑定 Select_Member（get_fight_team_char
+    -- 留给收场时的本队头名点名，见下方 yield）
     local foe = fr:Select_Member(FIGHT_TEAM_A)
-    local mates = get_team_list(self, FIGHT_TEAM_B, nil, 4) or {}
-    local mate_names = {}
-    for i = 1, #mates do
-        mate_names[#mate_names + 1] = mates[i]:name()
-    end
     self:say(
         string.format(
-            "演武比试开打！A队%d人（%s），B队%d人（%s）；%s下场开打。",
-            get_fight_team_num(me),
-            foe and foe:name() or "无",
-            get_fight_team_num(self),
-            table.concat(mate_names, "、"),
-            foe and foe:name() or "对手"
+            "演武比试开打！%s 已下场，与老夫各率一队过招。",
+            foe and foe:name() or "来者"
         ),
         me
     )

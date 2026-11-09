@@ -18,7 +18,9 @@ function npc.create(self)
     self:set("max_hp", 300)
     self:set("hp", 300)
 
-    self:set("xp_bonus", 1)
+    -- 固定击杀经验 10000：走 data/hooks.lua 的 kill_bonus 挂点入账，
+    -- 不受 nk_gain 历练折算影响（杂鱼对手折出来是 0）
+    self:set("nk_bonus", 10000)
 
     -- 野兽的攻击动作白名单（战斗时随机选用其一）；动物没有技能体系，
     -- 不能用 set_skill 赋予，动作必须取自内置动作表 {hoof,bite,claw,poke,knock}
@@ -26,20 +28,20 @@ function npc.create(self)
 end
 
 -- 死亡：蛇胆丢在脚下，谁杀的谁自己捡。
--- 脚本定义 die 即整个接管死亡——不回链 die_base 就既不掉尸体、也不结算
+-- 脚本定义 die 即整个接管死亡——不回链 die("base") 就既不掉尸体、也不结算
 -- 击杀经验（见 lua-default/npc/mirror_base.lua 的 die 装配注释），
--- 故顺序固定：先掉落，后 die_base 走标准死亡流程。
+-- 故顺序固定：先掉落，后 die("base") 走标准死亡流程。
 function npc.die(self)
     local env = self:environment()
     if env then
-        local shedan = load_item("sample_shedan")
+        local shedan = load("item", "sample_shedan")
         if shedan then
             shedan:move(env)
             message_vision("$N身上掉出了一颗蛇胆。", self)
         end
     end
 
-    self:die_base()
+    self:die("base")
 end
 
 return npc

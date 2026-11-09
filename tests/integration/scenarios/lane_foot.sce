@@ -33,6 +33,9 @@ include mountain_foot/blind_box.sce
 include mountain_foot/quest.sce
 include mountain_foot/vendor_talk.sce
 include mountain_foot/wield_sword.sce
+# 左手双持（匕首/短剑落左槽）：必须在 road_rogue 之前——死战要戴着匕首
+# 触发 hooks.fight 的左手连击（断言在该段内）
+include mountain_foot/left_hand.sce
 # 林间空地的战斗状态链（记仇/暗器/销账/死亡）：起终点都在山脚。必须排在
 # drink_and_faint **之前**——供能给的内力要留到本段开战用（醉昏会把 mp 清零
 # 且苏醒不回补，卸力起势的 mp≥40 门槛会撞空），也排在 tea_fill_drink 之前

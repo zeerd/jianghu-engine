@@ -98,33 +98,50 @@ TEST_F(BindGlobalTest, ValidString)
 TEST_F(BindGlobalTest, LogLevelBindings)
 
 {
-    // void 日志桥接：无返回值、pcall 不抛（参数经 luaL_checkstring 校验）
+    // log(level, fmt, ...) 桥接：无返回值；fmt 缺席经 luaL_checkstring
+    // 报错、未登记级别名经 luaL_error 报错（call() 捕获为 -1）
 
-    lua_pushstring(L, "trace msg");
-
-    EXPECT_EQ(0, CallRetCount(l_log_trace, 1));
+    lua_pushstring(L, "info");
 
     lua_pushstring(L, "debug msg");
 
-    EXPECT_EQ(0, CallRetCount(l_log_debug, 1));
+    EXPECT_EQ(0, CallRetCount(l_log, 2));
 
-    lua_pushstring(L, "info msg");
+    // 全部六个级别名均可分派（trace/fatal 与中间四级同桥）
 
-    EXPECT_EQ(0, CallRetCount(l_log_info, 1));
+    lua_pushstring(L, "trace");
 
-    lua_pushstring(L, "warn msg");
+    lua_pushstring(L, "trace msg");
 
-    EXPECT_EQ(0, CallRetCount(l_log_warn, 1));
+    EXPECT_EQ(0, CallRetCount(l_log, 2));
+
+    lua_pushstring(L, "fatal");
+
+    lua_pushstring(L, "fatal msg");
+
+    EXPECT_EQ(0, CallRetCount(l_log, 2));
+
+    lua_pushstring(L, "error");
 
     lua_pushstring(L, "err %d");
 
     lua_pushinteger(L, 5);
 
-    EXPECT_EQ(0, CallRetCount(l_log_error, 2));  // 可变参数格式化路径
+    EXPECT_EQ(0, CallRetCount(l_log, 3));  // 可变参数格式化路径
 
-    lua_pushstring(L, "fatal msg");
+    // 缺 fmt → 报错
 
-    EXPECT_EQ(0, CallRetCount(l_log_fatal, 1));
+    lua_pushstring(L, "info");
+
+    EXPECT_EQ(-1, call(l_log, 1));
+
+    // 未登记的级别名 → 报错
+
+    lua_pushstring(L, "bogus");
+
+    lua_pushstring(L, "msg");
+
+    EXPECT_EQ(-1, call(l_log, 2));
 }
 
 // ---------------- net/LoginRegister.cpp ----------------
@@ -196,11 +213,37 @@ TEST_F(BindGlobalTest, UserpWizardp)
 
     lua_bind_push_object(L, &ch);
 
-    EXPECT_FALSE(CallBool(l_userp, 1));
+    lua_pushstring(L, "user");
+
+    EXPECT_FALSE(CallBool(l_is, 2));
 
     lua_bind_push_object(L, &ch);
 
-    EXPECT_FALSE(CallBool(l_wizardp, 1));
+    lua_pushstring(L, "wizard");
+
+    EXPECT_FALSE(CallBool(l_is, 2));
+
+    // 授予巫师授权后谓词翻真
+
+    ch.set("grant", (long)CChar::GRANT_WIZARD);
+
+    lua_bind_push_object(L, &ch);
+
+    lua_pushstring(L, "wizard");
+
+    EXPECT_TRUE(CallBool(l_is, 2));
+
+    // 未登记 KIND / 缺 KIND 报错（call() 捕获为 -1）
+
+    lua_bind_push_object(L, &ch);
+
+    lua_pushstring(L, "bogus");
+
+    EXPECT_EQ(-1, call(l_is, 2));
+
+    lua_bind_push_object(L, &ch);
+
+    EXPECT_EQ(-1, call(l_is, 1));
 }
 
 // ---------------- net/Login.cpp ----------------
@@ -214,9 +257,11 @@ TEST_F(BindGlobalTest, IpAndOnline)
 
     CallStr(l_get_ip, 1, s);
 
+    lua_pushstring(L, "online");
+
     lua_pushstring(L, "nobody");
 
-    int k = call(l_find_online, 1);
+    int k = call(l_find, 2);
 
     EXPECT_EQ(1, k);
 
@@ -224,7 +269,7 @@ TEST_F(BindGlobalTest, IpAndOnline)
 
     lua_pop(L, k);
 
-    k = call(l_get_all_online_users, 0);
+    k = call(l_find_online_users, 0);
 
     EXPECT_EQ(1, k);
 
@@ -396,11 +441,33 @@ TEST_F(BindGlobalTest, TimeHelpers)
 TEST_F(BindGlobalTest, LivingFind)
 
 {
-    // is_living = query_attr(IS_LIVING)：普通容器不具备（GameObject.cpp）
+    // is_living = query_attr(IS_LIVING)：普通容器不具备、角色具备
 
     lua_bind_push_object(L, &c);
 
-    EXPECT_FALSE(CallBool(l_living, 1));
+    lua_pushstring(L, "living");
+
+    EXPECT_FALSE(CallBool(l_is, 2));
+
+    lua_bind_push_object(L, &ch);
+
+    lua_pushstring(L, "living");
+
+    EXPECT_TRUE(CallBool(l_is, 2));
+
+    // character 谓词：角色为真、普通容器为假
+
+    lua_bind_push_object(L, &ch);
+
+    lua_pushstring(L, "character");
+
+    EXPECT_TRUE(CallBool(l_is, 2));
+
+    lua_bind_push_object(L, &c);
+
+    lua_pushstring(L, "character");
+
+    EXPECT_FALSE(CallBool(l_is, 2));
 }
 
 TEST_F(BindGlobalTest, RandomGetItemEmpty)
@@ -442,9 +509,11 @@ TEST_F(BindGlobalTest, ItemMgrLoadFind)
 
     g_item_mgr = &mgr;
 
+    lua_pushstring(L, "item");
+
     lua_pushstring(L, "hammer");
 
-    int k = call(l_load_item, 1);
+    int k = call(l_load, 2);
 
     EXPECT_EQ(1, k);
 
@@ -452,9 +521,11 @@ TEST_F(BindGlobalTest, ItemMgrLoadFind)
 
     lua_pop(L, k);
 
+    lua_pushstring(L, "item");
+
     lua_pushinteger(L, 1);
 
-    k = call(l_find_item, 1);
+    k = call(l_find, 2);
 
     EXPECT_EQ(1, k);
 
@@ -462,7 +533,9 @@ TEST_F(BindGlobalTest, ItemMgrLoadFind)
 
     lua_pushstring(L, "fb");
 
-    k = call(l_load_fb, 1);
+    lua_pushstring(L, "fb");
+
+    k = call(l_load, 2);
 
     EXPECT_EQ(1, k);
 
@@ -482,9 +555,11 @@ TEST_F(BindGlobalTest, ItemMgrLoadFind)
 TEST_F(BindGlobalTest, NpcUserListFind)
 
 {
+    lua_pushstring(L, "npc");
+
     lua_pushinteger(L, 1);
 
-    int k = call(l_find_npc, 1);
+    int k = call(l_find, 2);
 
     EXPECT_EQ(1, k);
 
@@ -496,9 +571,11 @@ TEST_F(BindGlobalTest, NpcUserListFind)
 
     lua_pop(L, k);
 
+    lua_pushstring(L, "player");
+
     lua_pushinteger(L, 1);
 
-    k = call(l_find_player, 1);
+    k = call(l_find, 2);
 
     EXPECT_EQ(1, k);
 
@@ -548,15 +625,27 @@ TEST_F(BindGlobalTest, AddUserRegistersAndReturnsObject)
 TEST_F(BindGlobalTest, CombatAttackGuards)
 
 {
-    // only self pushed -> me&&target guard skips Do_Attack（void 无返回且不抛）
+    // 缺 target → me&&target 守卫跳过 Do_Attack（void 无返回且不抛）
+
+    lua_pushstring(L, "normal");
 
     lua_bind_push_object(L, &ch);
 
-    EXPECT_EQ(0, CallRetCount(l_combat_attack, 1));
+    EXPECT_EQ(0, CallRetCount(l_combat_attack, 2));
 
-    // unarmed 需要 skill 参数（缺参会抛、被 call() 捕获）；target 给非
+    // unarmed 缺 skill（第 4 参）→ luaL_checkstring 抛错被 call() 捕获
 
-    // userdata 走 me&&target 守卫
+    lua_pushstring(L, "unarmed");
+
+    lua_bind_push_object(L, &ch);
+
+    lua_bind_push_object(L, &ch);
+
+    EXPECT_EQ(-1, CallRetCount(l_combat_attack, 3));
+
+    // unarmed 齐参但 target 非 userdata → me&&target 守卫跳过
+
+    lua_pushstring(L, "unarmed");
 
     lua_bind_push_object(L, &ch);
 
@@ -564,11 +653,23 @@ TEST_F(BindGlobalTest, CombatAttackGuards)
 
     lua_pushstring(L, "strike");
 
-    EXPECT_EQ(0, CallRetCount(l_combat_attack_unarmed, 3));
+    EXPECT_EQ(0, CallRetCount(l_combat_attack, 4));
+
+    // weapon 缺武器（第 4 参非 userdata）→ 守卫跳过
+
+    lua_pushstring(L, "weapon");
 
     lua_bind_push_object(L, &ch);
 
-    EXPECT_EQ(0, CallRetCount(l_combat_attack_weapon, 1));
+    lua_bind_push_object(L, &ch);
+
+    EXPECT_EQ(0, CallRetCount(l_combat_attack, 3));
+
+    // 未登记 KIND 报错
+
+    lua_pushstring(L, "oops");
+
+    EXPECT_EQ(-1, CallRetCount(l_combat_attack, 1));
 
     // killer_reward: victim 缺失 → check_char 返回 NULL → 守卫跳过
 
@@ -643,58 +744,46 @@ TEST_F(BindGlobalTest, SqlRankAndCharge)
     g_db = nullptr;
 }
 
-// ---------------- skill ----------------
-
-TEST_F(BindGlobalTest, ForceConflictFlags)
-
-{
-    // 桥接函数必须反映 config.ini [server] 的开关，而不是返回常量
-
-    ini_load("tests/unit/test_config.ini");
-
-    CServerConfig::init();
-
-    EXPECT_EQ(CallInt(l_get_no_force_conflict, 0),
-
-              CServerConfig::no_force_conflict() ? 1 : 0);
-
-    g_ini_data["server"]["no_force_conflict"] = "1";
-
-    CServerConfig::init();
-
-    EXPECT_EQ(CallInt(l_get_no_force_conflict, 0), 1);
-
-    ini_load("tests/unit/test_config.ini");
-
-    CServerConfig::init();
-}
-
 // ---------------- item/Money.cpp ----------------
 
-TEST_F(BindGlobalTest, PayPlayer)
+TEST_F(BindGlobalTest, PayKind)
 
 {
     CMockItemMgr mgr;
 
-    ItemFactory f(&mgr);  // pay_player 经 load_item("coin") 发放，需工厂
+    ItemFactory f(&mgr);  // pay 经 load_item("coin") 发放，需工厂
+
+    lua_pushstring(L, "give");
 
     lua_bind_push_object(L, &ch);
 
     lua_pushinteger(L, 1);  // 单枚：amount>1 会触发 move() 的“涉嫌复制”守卫
 
-    CallVoid(l_pay_player, 2);
+    EXPECT_EQ(1, CallInt(l_pay_money, 3));
 
     // 发放的货币确实进入玩家背包（工厂 id="item"）
 
     EXPECT_NE(ch.present("item"), nullptr);
 
-    // 背包没有 coin → 支付失败返回 0（player_pay 契约）
+    // 背包没有 coin → 扣取失败返回 0（take 分支契约）
+
+    lua_pushstring(L, "take");
 
     lua_bind_push_object(L, &ch);
 
     lua_pushinteger(L, 50);
 
-    EXPECT_EQ(0, CallInt(l_player_pay, 2));
+    EXPECT_EQ(0, CallInt(l_pay_money, 3));
+
+    // 未登记 KIND 报错
+
+    lua_pushstring(L, "nope");
+
+    lua_bind_push_object(L, &ch);
+
+    lua_pushinteger(L, 1);
+
+    EXPECT_EQ(-1, call(l_pay_money, 3));
 }
 
 // ---------------- engine/Channel.cpp ----------------
@@ -1203,13 +1292,15 @@ TEST_F(BindGlobalTest, RandomGetItemNullArgsAndLivingFalse)
 
     if (k1 > 0) lua_pop(L, k1);
 
-    lua_pushinteger(L, 5);  // 同样走 l_living 的空参支
+    lua_pushinteger(L, 5);  // 非 userdata → 非对象
 
-    int k2 = call(l_living, 1);
+    lua_pushstring(L, "living");
+
+    int k2 = call(l_is, 2);
 
     ASSERT_EQ(1, k2);
 
-    EXPECT_FALSE(lua_toboolean(L, -1)) << "空参 pushboolean 0(224)";
+    EXPECT_FALSE(lua_toboolean(L, -1)) << "非对象 → false";
 
     if (k2 > 0) lua_pop(L, k2);
 }
@@ -1253,11 +1344,13 @@ TEST_F(BindGlobalTest, FindObjectBindReadsIdAndFlag)
 
     g_npc_list[npc->object_id()] = npc;
 
+    lua_pushstring(L, "object");
+
     lua_pushinteger(L, npc->object_id());
 
     lua_pushinteger(L, 1);  // flag=1: 只找 NPC/角色
 
-    int k = call(l_find_object, 2);
+    int k = call(l_find, 3);
 
     ASSERT_EQ(1, k) << "回推一个结果(243-244)";
 
@@ -1273,7 +1366,19 @@ TEST_F(BindGlobalTest, FindObjectBindReadsIdAndFlag)
 
     g_npc_list.erase(npc->object_id());
 
-    // 不 delete：l_find_object 已把它绑定进 lua 引用表
+    // 不 delete：l_find 已把它绑定进 lua 引用表
+}
+
+// 未登记 KIND → 报错（call() 捕获为 -1）
+
+TEST_F(BindGlobalTest, FindUnknownKind)
+
+{
+    lua_pushstring(L, "bogus");
+
+    lua_pushinteger(L, 1);
+
+    EXPECT_EQ(-1, call(l_find, 2));
 }
 
 // ---------------- object/ContainerMove.cpp: l_environment ----------------
@@ -1355,9 +1460,10 @@ TEST_F(BindGlobalTest, CombatAttackWeaponAndUnarmedWrappers)
 
     weap->set_name("木棒", "cd_club");
 
-    // combat_attack_weapon 绑定：武器参数路径(123,126) → do_attack_weapon
+    // combat_attack("weapon") 绑定：武器参数路径(123,126) →
+    // do_attack_weapon 包装器(30-32)
 
-    // 包装器(30-32)
+    lua_pushstring(L, "weapon");
 
     lua_bind_push_object(L, &ch);
 
@@ -1365,7 +1471,7 @@ TEST_F(BindGlobalTest, CombatAttackWeaponAndUnarmedWrappers)
 
     lua_bind_push_object(L, weap);
 
-    EXPECT_EQ(0, CallRetCount(l_combat_attack_weapon, 3))
+    EXPECT_EQ(0, CallRetCount(l_combat_attack, 4))
 
         << "武器攻击绑定派发(123,126) 且经包装器(30-32)";
 

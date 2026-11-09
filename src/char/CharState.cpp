@@ -295,7 +295,7 @@ void CChar::get_state_msg(std::string& msg)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:unconcious()
+// self:unconcious() - 昏迷（与死亡互不相属，解除走 revive）
 int l_unconcious(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -306,25 +306,22 @@ int l_unconcious(lua_State* L)
     return 0;
 }
 
-// self:die()
+// self:die([kind]) - 角色死亡，KIND 缺省 virtual（虚调用：NPC 脚本定义
+// 了 die 钩子则先进钩子）、base（非虚调用基类 CChar::die()，钩子内防
+// 递归）；未登记 KIND 报错
 int l_die(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
     CChar* ch = dynamic_cast<CChar*>(obj);
     if (!ch) return 0;
-    ch->die();
-    return 0;
-}
-
-// self:die_base() - 非虚调用基类 CChar::die()（避免 Lua die 递归）
-int l_die_base(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    ch->CChar::die();
+    const char* kind = luaL_optstring(L, 2, "virtual");
+    if (strcmp(kind, "virtual") == 0)
+        ch->die();
+    else if (strcmp(kind, "base") == 0)
+        ch->CChar::die();
+    else
+        return luaL_error(L, "unknown die kind: %s", kind);
     return 0;
 }
 

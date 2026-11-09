@@ -4,8 +4,8 @@
 //  - create/setup 把脚本字段写进对象；未定义脚本函数时回退基类实现
 //  - do_talk 优先交给脚本，脚本未定义时走 set_inquiry 注册的询问逻辑
 //    （命中即回答，未命中列菜单）
-//  - 战斗/社交/生死回调（die、finish_kill、is_defeated、hit_ob、greeting、
-//    师徒、relay_*）逐个派发到脚本，脚本返回什么就是什么
+//  - 战斗/社交/生死回调（die、finish_kill、is_defeated、hit_ob、师徒、
+//    relay_*）逐个派发到脚本，脚本返回什么就是什么
 //
 // Build+Run: .\run-coverage.ps1
 #include "pch.h"
@@ -273,16 +273,14 @@ TEST_F(LuaNpcScriptTest, DoLookAndHitOb_RunScript)
     Free(npc);
 }
 
-TEST_F(LuaNpcScriptTest, ChatMsgAndGreeting_ReturnScriptText)
+TEST_F(LuaNpcScriptTest, ChatMsg_ReturnScriptText)
 {
     CNpc* npc = Spawn("t_fixture_npc");
     ASSERT_NE(npc, nullptr);
 
     EXPECT_STREQ(npc->chat_msg(), "夹具伙计嘀咕了一句。");
     EXPECT_STREQ(npc->chat_msg_combat(), "夹具伙计抡起了扫帚。");
-    EXPECT_STREQ(AsScriptNpc(npc)->greeting(me), "客官里边儿请。");
     EXPECT_EQ(npc->query("last_chat"), 1);
-    EXPECT_EQ(npc->query("last_greeting"), 1);
 
     Free(npc);
 }
@@ -337,18 +335,15 @@ TEST_F(LuaNpcScriptTest, RelaySayAndEmote_RunScript)
 
 }  // namespace
 
-// ---------------- 脚本缺字段 → Path B 回退基类(590-591,629-630)
-// ----------------
+// ---------------- 脚本缺字段 → Path B 回退基类(629-630) ----------------
 TEST_F(LuaNpcScriptTest, QuietNpcScriptMissingMethodsFallBack)
 {
-    // t_quiet_npc 已载脚本但无 greeting/chat_msg_combat 字段
+    // t_quiet_npc 已载脚本但无 chat_msg_combat 字段
     CNpc* npc = Spawn("t_quiet_npc");
     ASSERT_NE(npc, nullptr);
     CLuaNpc* script_npc = AsScriptNpc(npc);
     ASSERT_NE(script_npc, nullptr);
 
-    EXPECT_STREQ("", script_npc->greeting(me))
-        << "缺 greeting → 基类空串(590-591)";
     EXPECT_EQ(nullptr, npc->chat_msg_combat())
         << "缺 chat_msg_combat → 基类 NULL(629-630)";
 

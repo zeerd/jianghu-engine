@@ -1,7 +1,6 @@
 // test_equip.cpp — CEquip 装备/卸装与属性修正的单元测试
 //
 // 守护契约：
-//   - can_equip 的三重限制（female_only / equip_lvl / 必须有 apply）；
 //   - do_wield 的位置分配（双手互备、副位回退、位置占用/无位置/非主人拒绝）
 //     与 apply 修正的施加；
 //   - do_un_wield 撤销装备位与 apply 修正；
@@ -87,34 +86,6 @@ protected:
     }
 };
 
-// ---------------- can_equip ----------------
-
-TEST_F(EquipTest, CanEquip_FemaleOnlyBlocked)
-{
-    SetApply();
-    eq->set("female_only", (int32_t)1);
-    me->set("gender", "男性");
-    EXPECT_EQ(eq->can_equip(me), 0);
-
-    me->set("gender", "女性");
-    EXPECT_EQ(eq->can_equip(me), 1);
-}
-
-TEST_F(EquipTest, CanEquip_LevelTooLow)
-{
-    SetApply();
-    eq->set("equip_lvl", (int32_t)100);
-    EXPECT_EQ(eq->can_equip(me), 0);
-}
-
-TEST_F(EquipTest, CanEquip_RequiresApply)
-{
-    // 无 apply 的装饰品不可装备
-    EXPECT_EQ(eq->can_equip(me), 0);
-    SetApply();
-    EXPECT_EQ(eq->can_equip(me), 1);
-}
-
 // ---------------- query_attr ----------------
 
 TEST_F(EquipTest, QueryAttr_IsEquip)
@@ -135,11 +106,6 @@ TEST_F(EquipTest, QueryAttr_CanEquippedNeedsCharEnvironment)
     // 在角色身上且限制满足 → 1
     eq->move(me);
     EXPECT_EQ(eq->query_attr(CMainObject::CAN_EQUIPPED), 1);
-
-    // 无 apply → 0（del 移除键后 querymap 返回 null）
-    eq->del("apply");
-    EXPECT_EQ(eq->querymap("apply"), (CMapping*)nullptr);
-    EXPECT_EQ(eq->query_attr(CMainObject::CAN_EQUIPPED), 0);
 }
 
 // ---------------- do_wield ----------------
@@ -277,9 +243,9 @@ TEST_F(EquipTest, DoAction_NoEnvironmentLoggedAndRejected)
 
 TEST_F(EquipTest, DoAction_WieldGateNeedsCanEquipped)
 {
-    // 无 apply → CAN_EQUIPPED 不过 → 回退 CItem::do_action → 0
+    // 在普通容器（非角色）→ CAN_EQUIPPED=0 → 回退 CItem::do_action → 0
     eq->set("wield_position", (int32_t)WIELD_HAND);
-    eq->move(me);
+    eq->move(room);
     EXPECT_EQ(eq->do_action(CChar::DO_WIELD, me), 0);
 }
 

@@ -4,9 +4,9 @@
 # 前置：persist_pre 已在重启前触发过一次挑战计数并 capture n；试验台任务已
 #   重启服务器、把 expect_n=n+1 注入本段 vars。
 #
-# 业务：重启后黑风寨主 create() 末尾的 self:Load() 应从 t_npc 恢复挑战计数，
+# 业务：重启后黑风寨主 create() 末尾的 self:load_from_local() 应从 t_npc 恢复挑战计数，
 #   本段再触发一次 init → 计数应变为 n+1——喊话出现「第${expect_n}个」即证明
-#   计数跨重启继续累加（若 Load 失效，计数会从 0 起算、喊「第1个」，本段超时
+#   计数跨重启继续累加（若 load_from_local 失效，计数会从 0 起算、喊「第1个」，本段超时
 #   暴露）。
 #
 # 副本实例语义与回环依据同 persist_pre 头注（每次闯入山寨都是全新实例、

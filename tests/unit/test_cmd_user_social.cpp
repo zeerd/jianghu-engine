@@ -19,13 +19,6 @@ extern MAP2USER g_user_list;
 extern int g_current_time;
 extern char g_notify_fail_msg[512];
 
-// 暴露 protected set_inquiry：让测试 NPC 携带对话应答，使 do_talk 的
-// 命中/未命中分支可观察（返回 1 vs notify_fail 返回 0）。
-class TestTalkNpc : public CNpc {
-public:
-    using CNpc::set_inquiry;
-};
-
 class CmdUserSocialTest : public ::testing::Test {
 protected:
     // Friend helpers
@@ -236,20 +229,6 @@ TEST_F(CmdUserSocialTest, Talk_NpcDispatchesToDoTalk)
     g_notify_fail_msg[0] = '\0';
     EXPECT_EQ(CallTalk(me, npc->object_id(), arg), 0);
     EXPECT_STREQ(g_notify_fail_msg, "对方并不愿意理你。");
-}
-
-TEST_F(CmdUserSocialTest, Talk_NpcWithInquiryListsTopics)
-{
-    TestTalkNpc* wise = new TestTalkNpc();
-    wise->set_name("智者", "wise1");
-    wise->set_inquiry("武学", "年轻人也要习武。", "请教武学");
-    wise->move(room);
-
-    char arg[256] = "";
-    EXPECT_EQ(CallTalk(me, wise->object_id(), arg), 1);
-
-    wise->move(nullptr);
-    delete wise;
 }
 
 TEST_F(CmdUserSocialTest, Talk_FightingRejectsNonShuangErTarget)

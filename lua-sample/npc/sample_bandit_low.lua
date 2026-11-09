@@ -48,12 +48,11 @@ function npc.create(self)
     self:set("chat_chance_combat", 20)
 end
 
+-- 战斗中概率自动出招：单次掷骰查表——掷中才施展基本内功的复元术
+-- （本怪只配了基础技能，出招表里只有它真会的这一招）
 function npc.chat_msg_combat(self)
-    -- 战斗中有概率自动出招
     if random(3) == 0 then
-        self:perform_action("force recover", 0) -- 自疗
-    elseif random(3) == 0 then
-        self:perform_action("sword qi", 1) -- 剑气（如果会的话）
+        self:perform_action("force recover", 0)
     end
 end
 

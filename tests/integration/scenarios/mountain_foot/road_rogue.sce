@@ -12,6 +12,7 @@
 #     accept_object 收受贿赂 → remove_all_killer 双方销账；
 #     die 接管死亡：killer_reward（私发击杀奖励）→ MakeCorpse（房间里的尸体）→ 自毁
 #   data/hooks.fight 的棋子补击（combat_attack_weapon + damge_to_string 私发）
+#   data/hooks.fight 的左手连击（can_combo 匕首，私发文案，装备来自 left_hand.sce）
 #
 # 顺序约束（为什么话全说在开战之前）：
 #   · 战斗中 talk 被引擎挡死（CmdUserSocial.cpp 的 is_fighting 分支），所以
@@ -86,6 +87,8 @@ wait battle timeout=15000
 wait notext 想杀死你 timeout=3000
 # 补击的招式文案：combat_attack_weapon 的断言（暗器一手即止，第一手就在这几拍）
 wait text 扬起棋子 timeout=15000
+# 左手连击的私发文案（left_hand.sce 收尾戴着匕首进本段，hooks.fight 左手支）
+wait text 左手短兵疾递 timeout=15000
 
 # --- 卸力起势（教材 parry_adv.lua，前置见 parry_xieli_prep.sce）----------------
 # 棋子补击已断言过（一次性资源已耗），此后起势多打几拍不碰本段任何资源；

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharFamily.cpp
  * @brief implementation of CChar (CharFamily). */
 
@@ -55,7 +55,7 @@ int CChar::recruit_apprentice(CChar* me)
     family.set("enter_time", g_current_time);
 
     if (is_user(this)) {
-        family.set("last_exp", me->query_exp());
+        family.set("last_exp", me->attr("combat_exp"));
         family.set("user", 1);
     }
 
@@ -242,44 +242,52 @@ int l_set_leader(lua_State* L)
     return 0;
 }
 
-// self:recruit_num() -> number
-int l_recruit_num(lua_State* L)
+// self:apprentice(action, ...) - 徒弟管理，ACTION 取
+//   recruit(player)      - 收 player 为徒，成功返回 1
+//   recognize(player)    - 认 player 为徒（虚调用，脚本侧
+// recognize_apprentice 钩子可覆盖），返回 0/1
+//   assign(title, privs) - 指定弟子头衔与权限
+//   release()            - 脱离师父
+//   is(player) -> number - 我是否为 player 的徒弟
+//   num() -> number      - 我已收徒数
+// 未登记 ACTION 报错
+int l_apprentice(lua_State* L)
 {
     CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
     if (!c) return 0;
-    lua_pushinteger(L, c->recruit_num());
-    return 1;
-}
-
-// self:release_master()
-int l_release_master(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    c->release_master();
-    return 0;
-}
-
-// self:is_apprentice_of(me) -> number
-int l_is_apprentice_of(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    CChar* me = NULL;
-    if (lua_isuserdata(L, 2)) me = dynamic_cast<CChar*>(get_object(L, 2));
-    lua_pushinteger(L, me ? c->is_apprentice_of(me) : 0);
-    return 1;
-}
-
-// self:recruit_apprentice(me) -> number
-int l_recruit_apprentice(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    CChar* me = NULL;
-    if (lua_isuserdata(L, 2)) me = dynamic_cast<CChar*>(get_object(L, 2));
-    lua_pushinteger(L, me ? c->recruit_apprentice(me) : 0);
-    return 1;
+    const char* action = luaL_checkstring(L, 2);
+    if (strcmp(action, "num") == 0) {
+        lua_pushinteger(L, c->recruit_num());
+        return 1;
+    }
+    if (strcmp(action, "release") == 0) {
+        c->release_master();
+        return 0;
+    }
+    if (strcmp(action, "assign") == 0) {
+        const char* title = luaL_checkstring(L, 3);
+        int privs         = (int)luaL_checkinteger(L, 4);
+        char titBuf[128];
+        strncpy(titBuf, title, sizeof(titBuf) - 1);
+        titBuf[sizeof(titBuf) - 1] = 0;
+        c->assign_apprentice(titBuf, privs);
+        return 0;
+    }
+    CChar* player = NULL;
+    if (lua_isuserdata(L, 3)) player = dynamic_cast<CChar*>(get_object(L, 3));
+    if (strcmp(action, "is") == 0) {
+        lua_pushinteger(L, player ? c->is_apprentice_of(player) : 0);
+        return 1;
+    }
+    if (strcmp(action, "recruit") == 0) {
+        lua_pushinteger(L, player ? c->recruit_apprentice(player) : 0);
+        return 1;
+    }
+    if (strcmp(action, "recognize") == 0) {
+        lua_pushinteger(L, player ? c->recognize_apprentice(player) : 0);
+        return 1;
+    }
+    return luaL_error(L, "unknown apprentice action: %s", action);
 }
 
 // self:create_family(family, generation, title)
@@ -297,31 +305,6 @@ int l_create_family(lua_State* L)
     titBuf[sizeof(titBuf) - 1] = 0;
     c->create_family(famBuf, generation, titBuf);
     return 0;
-}
-
-// self:assign_apprentice(title, privs)
-int l_assign_apprentice(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    const char* title = luaL_checkstring(L, 2);
-    int privs         = (int)luaL_checkinteger(L, 3);
-    char titBuf[128];
-    strncpy(titBuf, title, sizeof(titBuf) - 1);
-    titBuf[sizeof(titBuf) - 1] = 0;
-    c->assign_apprentice(titBuf, privs);
-    return 0;
-}
-
-// self:recognize_apprentice(me) -> number
-int l_recognize_apprentice(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    CChar* me = NULL;
-    if (lua_isuserdata(L, 2)) me = dynamic_cast<CChar*>(get_object(L, 2));
-    lua_pushinteger(L, me ? c->recognize_apprentice(me) : 0);
-    return 1;
 }
 
 // self:prevent_learn(me, skill) -> number

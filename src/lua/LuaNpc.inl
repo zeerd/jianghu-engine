@@ -577,45 +577,6 @@ const char* CLuaNpcT<T>::hit_ob(CChar* me, CChar* victim, int32_t damage_bonus)
     return NULL;
 }
 
-// 调用 Lua 脚本的 greeting 函数
-template <typename T>
-char* CLuaNpcT<T>::greeting(CChar* me)
-{
-    if (m_script_ref == LUA_NOREF) return T::greeting(me);
-
-    lua_State* L = g_LuaEngine->get_state();
-    CLuaActiveRefGuard _guard(m_script_ref);
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, m_script_ref);
-    lua_getfield(L, -1, "greeting");
-    if (!lua_isfunction(L, -1)) {
-        lua_pop(L, 2);
-        return T::greeting(me);
-    }
-
-    lua_bind_push_object(L, this);
-    lua_bind_push_object(L, me);
-
-    if (lua_pcall(L, 2, 1, 0) != LUA_OK) {
-        LOG_ERROR("Lua npc greeting failed [%s]: %s", m_script_name.c_str(),
-                  lua_tostring(L, -1));
-        lua_pop(L, 2);
-        return T::greeting(me);
-    }
-
-    if (lua_isstring(L, -1)) {
-        // lua_pop 会让 lua_tostring 返回的指针失效，先拷贝再弹栈
-        static char buf[256];
-        strncpy(buf, lua_tostring(L, -1), sizeof(buf) - 1);
-        buf[sizeof(buf) - 1] = 0;
-        lua_pop(L, 2);
-        if (!buf[0]) return NULL;
-        return buf;
-    }
-    lua_pop(L, 2);
-    return NULL;
-}
-
 // 调用 Lua 脚本的 chat_msg_combat 函数
 template <typename T>
 char* CLuaNpcT<T>::chat_msg_combat()

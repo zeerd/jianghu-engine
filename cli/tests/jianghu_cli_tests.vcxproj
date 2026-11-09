@@ -112,6 +112,7 @@
     <ClCompile Include="protocol_test.cc" />
     <ClCompile Include="scenario_steps_test.cc" />
     <ClCompile Include="scenario_test.cc" />
+    <ClCompile Include="terminal_ui_test.cc" />
     <ClCompile Include="types_test.cc" />
   </ItemGroup>
   <ItemGroup>

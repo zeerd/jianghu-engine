@@ -63,10 +63,6 @@ public:
     // 自动合并检查(默认空实现;可堆叠物品由子类启用)
     virtual void check_auto_combine();
     virtual void init();
-    static void destruct_me(CContainer* ob, int32_t param1, int32_t param2);
-
-    int32_t receive_wound(const char* type, int32_t damage);
-    int32_t receive_damage(const char* szType, int32_t damage);
     int32_t add_amount(int32_t val);
     virtual void set_amount(int32_t amount);
     virtual int32_t query_amount();

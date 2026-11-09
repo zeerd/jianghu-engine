@@ -11,7 +11,6 @@ function npc.create(self)
     self:set("age", 50)
     self:set("long", "一位须发花白的老掌柜，戴着老花镜，正慢条斯理地拨弄着算盘。")
     self:set("attitude", "friendly")
-    self:set("no_kill", 1)
 
     self:set("combat_exp", 5000)
 end

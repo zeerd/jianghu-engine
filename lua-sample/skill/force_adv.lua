@@ -39,7 +39,7 @@ return {
         -- 已在激励中：提前收功。remove_powerup 在 me（角色）上调用而非 self——
         -- 该绑定收 CContainer，技能对象不是容器。silence=1 免发到期提示，
         -- 收功回执另行 message_vision（与到期提示文案区分开）。
-        if me:querymap_temp("powerup") then
+        if me:dbase_temp("map", "powerup") then
             me:remove_powerup(1)
             message_vision("$N将真气收回丹田，解除了激励。", me)
             return 1
@@ -51,7 +51,6 @@ return {
 
         local skill = me:query_skill("force")
         me:add("mp", -50)
-        me:receive_damage("hp", 0)
         message_vision("$N微一凝神，运起高级内功，足底尘土泛起，全身真气冲关欲出。", me)
 
         self:start_powerup(
@@ -90,7 +89,7 @@ return {
         -- 对周围敌人造成伤害
         local room = me:environment()
         if room then
-            local list = room:Get_ItemList()
+            local list = room:get_item_list()
             if list then
                 for obj in iter_items(list) do
                     if obj:is_character() and obj:object_id() ~= me:object_id() then

@@ -26,7 +26,7 @@ local function teleport_to(self, me, dest)
         return notify_fail("传送符闪烁了一下，但没有反应。")
     end
 
-    local room = load_room(room_id)
+    local room = load("room", room_id)
     if not room then
         return notify_fail("传送符找不到目标地点。")
     end
@@ -58,7 +58,8 @@ return {
         self:set("uses", 5) -- 可使用 5 次
     end,
 
-    -- init(self)：放在身上时，显示剩余次数
+    -- init(self)：记主——放在身上时把持有者写进 owner，引擎据此拒卖
+    -- （Vendor 读到 owner 即回「这样东西不能卖」），防传送符被转卖套现
     init = function(self)
         self:base_init()
         local env = self:environment()

@@ -15,7 +15,6 @@ function npc.create(self)
     self:set("age", 40)
     self:set("long", "一个精明的商人，在山脚开着一间杂货铺。")
     self:set("attitude", "friendly")
-    self:set("no_kill", 1)
 
     self:set("combat_exp", 5000)
 
@@ -35,6 +34,15 @@ function npc.create(self)
     self:carry_good("sample_blind_box", 1000)
     -- 烈酒：出厂即满的酒精饮料，饮下挂 condition/drunk（见 item/sample_jiu.lua）
     self:carry_good("sample_jiu", 5)
+    -- 解药：蛇胆之毒的两样解法——解毒丸清全身（见 item/sample_antidote.lua）、
+    -- 雄黄专解蛇毒（见 item/sample_xionghuang.lua）。上架固定压在队尾，
+    -- 前面各商品的 /buy 序号不随后续加货挪动
+    self:carry_good("sample_antidote", 10)
+    self:carry_good("sample_xionghuang", 10)
+    -- 左手双持：匕首轻便可连发（can_combo）、短剑势沉攻击高
+    -- （见 item/sample_dagger.lua、item/sample_short_sword.lua）
+    self:carry_good("sample_dagger", 5)
+    self:carry_good("sample_short_sword", 3)
 
     -- 自身装备
     self:carry_object("sample_sword_basic"):wear()
@@ -54,11 +62,11 @@ end
 
 -- 发放交易文书：人手一份，身上已有则拒绝
 function npc.do_get_trade_doc(self, me)
-    if me:present("trade") then
+    if me:present("id", "trade") then
         return notify_fail("你已经有一份交易文书了，一份足矣。")
     end
 
-    local doc = load_item("trade")
+    local doc = load("item", "trade")
     if not doc then
         return notify_fail("交易文书用完了，改日再来吧。")
     end

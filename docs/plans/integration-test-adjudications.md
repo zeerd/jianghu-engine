@@ -208,3 +208,46 @@ mp_factor 的合法来源——均属游戏机制决策，**不为覆盖而改**
 记录见 §2 同类销账），`l_combat_attack_weapon` 仍教材零调用（do_qi 首尾走的是通用
 `combat_attack`，按手中武器的 skill_type 自动解析），留认领——**重开条件**：教材出现
 对 `l_combat_attack_weapon` 的直接调用（内容需求通道）。
+
+---
+
+## §9 接口/机制占位与基类缺省回退（§6 同名行）
+
+§6 新行的逐函数登记：每条一行「签名 — 位置 — 归因」，重开条件统一为
+**分发器新增对该签名/缺省支的调用路径**，不再逐条重复。已有专节的只登记归属：
+巫师域 43 条 → §1；9 胶水中 `l_die`/`l_create`/`l_room_reset`/`l_prevent_learn`/
+`l_recognize_apprentice` → §3；`l_load_from_server` → §4；`l_query_team` → §6 同名节；
+`l_is_fighting_target` → §7；`handle_action`（LuaItem/LuaNpc 四参）、`finish_kill`、
+`create_int_impl`/`valid_leave_impl`/`desc_impl`、`CLuaSkill::valid_force_pro` → §5；
+`nullify_vote`/`mv`、`CReward::victim_penalty`、`logger_*` → §6 表既有各行点名。
+
+本节只收无专节的条目。
+
+**接口纯虚/空占位**（分发器不走这些签名）：
+
+- `CChar::owner_is_killed` — CharInterface.cpp:27 — IHittable 角色侧占位，调用点只遍历死者背包
+- `CChar::wield` — CharInterface.cpp:42 — IEquippable 转发占位，装备语义在物品侧（教材 `:wield()` 全打在 CItem）
+- `CChar::wear` — CharInterface.cpp:45 — 同 wield 的接口占位，角色侧恒 0
+- `CChar::do_action` — CharInterface.cpp:54 — 命令链动作目标恒为背包物品，角色侧无入口
+- `CChar::handle_action` — CharInterface.cpp:58 — 四参分发只对房间发，角色侧无调用方
+- `CRoom::handle_action` — RoomInterface.cpp:23 — 三参是房间侧契约实现，房间命令固定走四参
+- `CSkill::create` — Skill.cpp:125 — SkillMgr 恒建 CLuaSkill 且其 create 不回落，基类体结构不可达
+- `CFB::create` — FB.cpp:49 — 无 start_map 的 fb 进不去，空回退支不可达
+- `CFB::init` — FB.cpp:138 — 只有角色直接进 CFB 容器才调用，引擎无此路径
+- `CFB::reset` — FB.cpp:153 — 复位循环只遍历 g_room_list，CFB 是 item 不在其中
+- `CFB::change_room` — FB.cpp:318 — 只有物件移入副本总控才触发，load_fb 不走该路径
+- `CFBRoom::CFBRoom` — FBRoom.cpp:48 — 脚本缺失分支；roomcheck 0 缺失，触发必伴随未登记 ERROR
+- `CRoom::create` — Room.cpp:143 — dataset 2191 房间脚本 2177 定义 create，余 14 为不实例化共享库
+- `is_sqlite` — IDatabase.h:73 — dataset 只用 `get_db_type()` 读 ini，结构断言成立（MySQL 方言另测）
+
+**基类缺省回退/缺字段兜底**（E2E 世界脚本齐备，只在脚本缺席时可达）：
+
+- `CNpc::chat_msg` — Npc.cpp:62 — 教材按「概率键 + 台词函数」成对写，不以「有骰无词」回退为触发目标
+- `CNpc::chat_msg_combat` — Npc.cpp:64 — 同上；基类回退支 dataset 60 例在用，非死码
+- `CNpc::do_talk` — Npc.cpp:169 — 教材对话全走 base_do_talk 不回落，无脚本 NPC 不进 E2E
+- `update_condition` — Condition.h:18 — dataset 57/57 条件脚本定义该字段，缺字段兜底不可达
+
+**桌面会话面**：
+
+- `tray_icon_restore` — main.cpp:138 — 托盘仅桌面会话触发，E2E 无头运行不进
+- `tray_icon_menu` — main.cpp:146 — 同上

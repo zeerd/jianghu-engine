@@ -33,6 +33,12 @@ jianghu.ncb
 **/tests/Release/
 **/tests/x64/
 /tests/unit/log/
+# 单测运行期创建的脚本夹具（引擎只从 script_root 加载、进不了临时目录；
+# 测试崩溃时的残留不入库；同目录下 t_error_*.lua 等是入库的静态夹具）
+/tests/unit/lua-tests/item/t_reload_state_item.lua
+/tests/unit/lua-tests/item/t_samesec_item.lua
+/tests/unit/lua-tests/item/t_deleted_item.lua
+/tests/unit/lua-tests/npc/t_autoreload_npc.lua
 /tests/integration/log/
 /tests/integration/e2e.db*
 /tests/integration/e2e_persist.db*

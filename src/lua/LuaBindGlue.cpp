@@ -1,4 +1,4 @@
-﻿/** @file LuaBindGlue.cpp @brief cross-class Lua glue (call_out, base_*,
+/** @file LuaBindGlue.cpp @brief cross-class Lua glue (call_out, base_*,
  * item-list iterator). These bind functions dispatch over many Lua template
  * classes, so they are not tied to one game module cpp. */
 
@@ -6,6 +6,111 @@
 #include "IniParser.h"
 #include "ServerConfig.h"
 #include "../net/RegisterHall.h"
+#include "LoginAuth.h"   // is_user / is_wizard（谓词的引擎侧实现）
+#include "GameObject.h"  // is_living
+#include "ItemMgr.h"     // g_item_mgr：item/fb 装载与物品查找
+#include "NpcMgr.h"      // load_npc / find_npc
+#include "RoomMgr.h"     // load_room
+#include "SkillMgr.h"    // load_skill
+#include "UserMgr.h"     // find_player
+
+// is(ob, KIND) -> boolean - 对象谓词合一：KIND 取 user/wizard/living/
+// character；缺 KIND 或未登记的 KIND 报错，非对象一律返回 false。
+// 恒返回布尔：Query 类接口吐的是整数 0/1，Lua 里 0 为真，不可互换。
+int l_is(lua_State* L)
+{
+    const char* kind = luaL_checkstring(L, 2);
+    if (strcmp(kind, "user") != 0 && strcmp(kind, "wizard") != 0
+        && strcmp(kind, "living") != 0 && strcmp(kind, "character") != 0)
+        return luaL_error(L, "unknown is kind: %s", kind);
+
+    CMainObject* obj = NULL;
+    if (lua_isuserdata(L, 1)) obj = get_object(L, 1);
+
+    bool result = false;
+    if (obj) {
+        if (strcmp(kind, "user") == 0) {
+            result = is_user(dynamic_cast<CContainer*>(obj)) != 0;
+        }
+        else if (strcmp(kind, "wizard") == 0) {
+            CChar* ch = dynamic_cast<CChar*>(obj);
+            result    = ch && is_wizard(ch);
+        }
+        else if (strcmp(kind, "living") == 0) {
+            CContainer* c = dynamic_cast<CContainer*>(obj);
+            result        = c && is_living(c) != 0;
+        }
+        else {
+            CContainer* c = dynamic_cast<CContainer*>(obj);
+            result        = c && c->is_character();
+        }
+    }
+    lua_pushboolean(L, result);
+    return 1;
+}
+
+// load(kind, name[, flag]) -> object|nil - 按类别装载资源，KIND 取
+// room/item/npc/skill/fb；各类别各有一张独立的装载注册表（房间表、
+// 物品原型表、NPC 原型表、技能表、副本表），这里只是分派口。
+// fb 的第三参是副本标志，其余类别不读第三参；未登记 KIND 报错。
+int l_load(lua_State* L)
+{
+    const char* kind = luaL_checkstring(L, 1);
+    if (strcmp(kind, "room") != 0 && strcmp(kind, "item") != 0
+        && strcmp(kind, "npc") != 0 && strcmp(kind, "skill") != 0
+        && strcmp(kind, "fb") != 0)
+        return luaL_error(L, "unknown load kind: %s", kind);
+
+    const char* name = luaL_checkstring(L, 2);
+    if (strcmp(kind, "room") == 0) {
+        lua_bind_push_object(L, load_room(name));
+    }
+    else if (strcmp(kind, "item") == 0) {
+        lua_bind_push_object(L, g_item_mgr->load_item(name));
+    }
+    else if (strcmp(kind, "npc") == 0) {
+        lua_bind_push_object(L, load_npc(name));
+    }
+    else if (strcmp(kind, "skill") == 0) {
+        lua_bind_push_object(L, load_skill(name));
+    }
+    else {
+        int flag = (int)luaL_optinteger(L, 3, 0);
+        lua_bind_push_object(L, g_item_mgr->load_fb(name, flag));
+    }
+    return 1;
+}
+
+// find(kind, id[, flag]) -> object|nil - 按 id 查找已装载对象，KIND 取
+// object/npc/player/item（收数值 object_id，object 的 flag=1 只查
+// NPC/玩家）与 online（收账号 id 字符串）。查找只走各注册表，不触发装载。
+int l_find(lua_State* L)
+{
+    const char* kind = luaL_checkstring(L, 1);
+    if (strcmp(kind, "online") == 0) {
+        lua_bind_push_object(L, find_online(luaL_checkstring(L, 2)));
+        return 1;
+    }
+    if (strcmp(kind, "object") != 0 && strcmp(kind, "npc") != 0
+        && strcmp(kind, "player") != 0 && strcmp(kind, "item") != 0)
+        return luaL_error(L, "unknown find kind: %s", kind);
+
+    int32_t id = (int32_t)luaL_checkinteger(L, 2);
+    if (strcmp(kind, "object") == 0) {
+        int flag = (int)luaL_optinteger(L, 3, 0);
+        lua_bind_push_object(L, find_object(id, flag));
+    }
+    else if (strcmp(kind, "npc") == 0) {
+        lua_bind_push_object(L, find_npc(id));
+    }
+    else if (strcmp(kind, "player") == 0) {
+        lua_bind_push_object(L, find_player(id));
+    }
+    else {
+        lua_bind_push_object(L, g_item_mgr->find_item(id));
+    }
+    return 1;
+}
 
 // 迭代器内部状态结构
 
@@ -385,53 +490,6 @@ int l_base_do_talk(lua_State* L)
     return 1;
 }
 
-// handle_action(obj, comm, me, arg) - 全局函数：虚调用对象的 3 参 handle_action
-
-// 供物品/其他脚本把命令转发给 NPC（如战报把 lookup/opench 转给登记员），
-
-// Lua 定义的 NPC 会正常进入其脚本 handle_action 钩子。
-
-// 与 base_handle_action 的区别：后者是非虚调用 C++ 基类实现。
-
-int l_handle_action(lua_State* L)
-
-{
-    CMainObject* obj = get_object(L, 1);
-
-    const char* comm = luaL_checkstring(L, 2);
-
-    CChar* me = obj ? dynamic_cast<CChar*>(get_object(L, 3)) : NULL;
-
-    const char* arg = luaL_optstring(L, 4, "");
-
-    CContainer* con = obj ? dynamic_cast<CContainer*>(obj) : NULL;
-
-    if (!con || !me) {
-        lua_pushinteger(L, 0);
-
-        return 1;
-    }
-
-    IActionHandler* handler = dynamic_cast<IActionHandler*>(con);
-    lua_pushinteger(
-        L, handler ? handler->handle_action((char*)comm, me, (char*)arg) : 0);
-
-    return 1;
-}
-
-// self:base_create() - 历史兼容钩子（空实现）。
-// 镜像NPC 类型删除后引擎侧已无分支可调；技能脚本（yunlong/xueshan/
-// xingxiu 等的 create）仍在调用 self:base_create()，摘掉绑定会让它们
-// 报 "attempt to call a nil value"，故保留 no-op。
-
-int l_base_create(lua_State* L)
-
-{
-    get_object(L, 1);  // 参数类型校验，保持与其余 base_* 绑定同口径
-
-    return 0;
-}
-
 // self:base_handle_action4(comm, me, arg, tar) - 调用基类 4 参 handle_action
 
 // NPC（CLuaNpcT）与房间（CLuaRoomT）脚本接管 handle_action 后均可调用
@@ -695,13 +753,5 @@ int l_ini_get(lua_State* L)
         return 1;
     }
     lua_pushstring(L, utf8_to_gbk(value).c_str());
-    return 1;
-}
-
-// get_no_force_conflict() -> number - config.ini [server] no_force_conflict
-// 开关（开启返回 1，否则返回 0）
-int l_get_no_force_conflict(lua_State* L)
-{
-    lua_pushinteger(L, CServerConfig::no_force_conflict() ? 1 : 0);
     return 1;
 }

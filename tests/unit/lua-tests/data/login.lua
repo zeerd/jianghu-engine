@@ -26,7 +26,7 @@ function login.on_login(me, newenter)
     if total > limit then
         me:set_temp("属性", 1)
         tell_object(me, "\n$HIY您的四项先天属性超过了合理范围。")
-        me:move(load_room("jy"))
+        me:move(load("room", "jy"))
         return 1
     end
     return 0

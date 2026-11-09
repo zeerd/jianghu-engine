@@ -12,7 +12,6 @@ M.name = "青云山山顶"
 M.create = function(self)
     self:set_name("青云山山顶")
     self:add_door("青云山半山腰", "青云山半山腰", "青云山山顶")
-    self:set("monster_chance", 30)
 
     -- 练级青蛇：1级，不会还手；击杀由 data/hooks.lua 的 kill_bonus 挂点
     -- 奖励 10000 经验并掉落蛇胆，死后随房间 reset 自动补充
@@ -44,7 +43,7 @@ M.handle_action = function(self, comm, me, arg, tar)
 end
 
 M.do_enter_fb = function(self, me, arg)
-    local fb = load_fb("sample_stronghold_fb")
+    local fb = load("fb", "sample_stronghold_fb")
     fb:Begin_FB("青云山山顶", 3600, 1)
     return fb:MoveIn(me)
 end

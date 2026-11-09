@@ -95,12 +95,6 @@ public:
     // 获取已注册法术数量（含继承自基础技能的）
     int get_magic_count() { return (int)m_magic_list.size(); }
 
-    // 获取已注册法术名（用于验证）
-    const char* get_magic_name(int idx);
-
-    // 获取法术的显示名（用于验证编码）
-    const char* get_magic_display_name(int idx);
-
 private:
     // 脚本未实现 hit_ob 时回落到基础技能的同名实现
     char* base_hit_ob(CChar* me, CChar* victim, int32_t& damage);

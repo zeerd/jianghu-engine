@@ -40,10 +40,12 @@ TEST_F(BindCharFamilyTest, AssignApprentice)
 {
     master.create_family("emei", 1, "弟子");
     lua_bind_push_object(L, &master);
+    lua_pushstring(L, "assign");
     lua_pushstring(L, "弟子");
     lua_pushinteger(L, 0);
-    EXPECT_EQ(0, CallRetCount(l_assign_apprentice, 3));
-    // 契约：assign_apprentice 覆盖 title/privs（create_family 预置 privs=-1）
+    EXPECT_EQ(0, CallRetCount(l_apprentice, 4));
+    // 契约：apprentice("assign") 覆盖 title/privs（create_family 预置
+    // privs=-1）
     CMapping* family = master.querymap("family");
     ASSERT_NE(family, nullptr);
     EXPECT_STREQ("弟子", family->querystr("title"));
@@ -53,22 +55,25 @@ TEST_F(BindCharFamilyTest, AssignApprentice)
 TEST_F(BindCharFamilyTest, RecruitNum)
 {
     lua_bind_push_object(L, &master);
-    EXPECT_GE(CallInt(l_recruit_num, 1), 0);
+    lua_pushstring(L, "num");
+    EXPECT_GE(CallInt(l_apprentice, 2), 0);
 }
 
 TEST_F(BindCharFamilyTest, IsApprenticeOf)
 {
     lua_bind_push_object(L, &appr);
+    lua_pushstring(L, "is");
     lua_bind_push_object(L, &master);
-    EXPECT_EQ(0, CallInt(l_is_apprentice_of, 2));
+    EXPECT_EQ(0, CallInt(l_apprentice, 3));
 }
 
 TEST_F(BindCharFamilyTest, RecruitApprentice)
 {
     master.create_family("emei", 1, "弟子");
     lua_bind_push_object(L, &master);
+    lua_pushstring(L, "recruit");
     lua_bind_push_object(L, &appr);
-    EXPECT_EQ(1, CallInt(l_recruit_apprentice, 2));
+    EXPECT_EQ(1, CallInt(l_apprentice, 3));
     // 契约：收徒建立师徒链（is_apprentice_of 全链成立）
     EXPECT_EQ(1, appr.is_apprentice_of(&master));
     EXPECT_STREQ("m1", appr.querystr("family/master_id"));
@@ -79,11 +84,19 @@ TEST_F(BindCharFamilyTest, RecognizeApprentice)
 {
     // 契约：绑定必须 push 整数结果（当前实现恒 0）
     lua_bind_push_object(L, &master);
+    lua_pushstring(L, "recognize");
     lua_bind_push_object(L, &appr);
-    int k = call(l_recognize_apprentice, 2);
+    int k = call(l_apprentice, 3);
     ASSERT_EQ(1, k);
     EXPECT_EQ(0, lua_tointeger(L, -1));
     lua_pop(L, k);
+}
+
+TEST_F(BindCharFamilyTest, ApprenticeUnknownActionErrors)
+{
+    lua_bind_push_object(L, &master);
+    lua_pushstring(L, "nope");
+    EXPECT_EQ(-1, call(l_apprentice, 2));
 }
 
 TEST_F(BindCharFamilyTest, PreventLearn)
@@ -102,7 +115,8 @@ TEST_F(BindCharFamilyTest, ReleaseMaster)
 {
     // 无 family/user 的玩家师父记录 → guard 早退（void 无返回）
     lua_bind_push_object(L, &appr);
-    EXPECT_EQ(0, CallRetCount(l_release_master, 1));
+    lua_pushstring(L, "release");
+    EXPECT_EQ(0, CallRetCount(l_apprentice, 2));
 }
 
 // recruit board lives in g_Channel; query_recruit needs a live g_db.

@@ -15,15 +15,15 @@ local function check_validsell(obj)
         return false
     end
 
-    if obj:dbase_defined("no_give") then
+    if obj:dbase("defined", "no_give") then
         return false
     end
-    if obj:dbase_defined("no_drop") then
+    if obj:dbase("defined", "no_drop") then
         return false
     end
 
     -- 判断是否主人
-    if obj:dbase_defined("owner") then
+    if obj:dbase("defined", "owner") then
         return false
     end
 
@@ -32,7 +32,7 @@ end
 
 -- 按 object_id 在容器中查找对象
 local function find_by_id(me, nid)
-    local list = me:Get_ItemList()
+    local list = me:get_item_list()
     if list then
         for obj in iter_items(list) do
             if obj:object_id() == nid then
@@ -44,12 +44,12 @@ local function find_by_id(me, nid)
 end
 
 local function list_trade(self, me)
-    local list = me:Get_ItemList()
+    local list = me:get_item_list()
     local i = 0
 
     for obj in iter_items(list) do
         if check_validsell(obj) then
-            if obj:querystr_temp("trade/owner") ~= me:id(1) then
+            if obj:dbase_temp("str", "trade/owner") ~= me:id(1) then
                 obj:delete_temp("trade")
             end
 
@@ -128,7 +128,7 @@ return {
             return notify_fail("对方显然没空理你。")
         end
 
-        local list = me:Get_ItemList()
+        local list = me:get_item_list()
         local i = 0
 
         me:say(string.format("%s想卖给你货物。", me:name()), who)
@@ -136,7 +136,7 @@ return {
         for obj in iter_items(list) do
             local val = obj:query_temp("trade/value")
 
-            if val > 0 and obj:querystr_temp("trade/owner") == me:id(1) then
+            if val > 0 and obj:dbase_temp("str", "trade/owner") == me:id(1) then
                 me:AddMenuItem(
                     string.format("%s ：%d", obj:name(), val),
                     string.format("$0buy %d %d", me:object_id(), obj:object_id()),

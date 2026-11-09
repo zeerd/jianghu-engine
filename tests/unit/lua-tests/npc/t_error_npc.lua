@@ -67,10 +67,6 @@ function npc.chat_msg_combat(self)
     error("chat_msg_combat boom")
 end
 
-function npc.greeting(self, me)
-    error("greeting boom")
-end
-
 function npc.attempt_apprentice(self, me)
     error("attempt_apprentice boom")
 end

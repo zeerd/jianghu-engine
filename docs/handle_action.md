@@ -126,7 +126,6 @@ flowchart TD
 ### 其他调用点
 
 - **随身物品链**：`CChar::handle_action(4 参)`（`src/char/CharInterface.cpp:45`）把命令转发给背包内每个物品的四参 `handle_action`。
-- **Lua 全局转发函数** `handle_action(obj, comm, me, arg)`（`src/lua/LuaBindGlue.cpp:380`，注册于 `src/lua/LuaBind.cpp:344`）：供脚本把命令**虚调用**转发给另一个对象继续处理。与 `base_handle_action` 的区别：后者是**非虚**调用 C++ 基类实现。
 - **排行榜刷新**：`src/db/SqlRank.cpp:58` 用三参 `handle_action("update", NULL, ...)` 把榜单数据推给界面处理者。
 
 ---
@@ -275,6 +274,5 @@ end
 | NPC 桥接 | `src/lua/LuaNpc.inl:272`（3 参）/ `:306`（4 参，字段 `handle_action4`） |
 | Item 桥接 | `src/lua/LuaItem.inl:305`（3 参）/ `:338`（4 参，字段 `handle_action4`） |
 | `base` 回退绑定 | `src/lua/LuaBindGlue.cpp:298` / `:450`；注册 `src/lua/LuaBind.cpp:221-222` |
-| 全局转发函数 | `src/lua/LuaBindGlue.cpp:380`；注册 `src/lua/LuaBind.cpp:344` |
 | 基类默认行为 | `src/room/Room.cpp:338`（back）、`src/char/CharInterface.cpp:45`（背包转发）、`lua-default/room/resident_base.lua`（房产命令）、`lua-default/room/house_base.lua`（房屋命令截获） |
 | 编码转换 | `src/util/Encoding.cpp`（加载期 `utf8_to_gbk`；`gbk_to_utf8` 仅日志用） |

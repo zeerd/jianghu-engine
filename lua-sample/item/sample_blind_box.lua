@@ -5,7 +5,7 @@
 --   1. 奖池按 value 升序排（最值钱的排最后），xrandom 偏向小值：
 --      落点在区间最低 20% 的概率约 40%，最高 20% 的只有约 5%——
 --      数组位置即概率，价值越高越靠后、越难开出，脚本不再另算权重
---   2. 抽中后 load_item 取货、move 给使用者，随后销毁盲盒自身
+--   2. 抽中后 load("item", ...) 取货、move 给使用者，随后销毁盲盒自身
 --   3. 开盒即记档：谁/何时/开出什么写进独立表，回执私发本人
 --      （记档链见 data/box_draw_log.lua）
 
@@ -47,7 +47,7 @@ return {
     -- do_use(self, me, target)：target 未用到——拆盒只取决于奖池
     do_use = function(self, me, target)
         local name = prize_pool[xrandom(#prize_pool) + 1]
-        local prize = load_item(name)
+        local prize = load("item", name)
         if not prize then
             return notify_fail("盲盒受了潮，死活打不开。")
         end

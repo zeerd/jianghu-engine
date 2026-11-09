@@ -27,9 +27,10 @@ repeat 2
 cmd /t jin chuang yao
 clear
 cmd /use
-wait text 你吃下一包金创药 timeout=10000
-# 必吃分支必产生 busy：wait busy 收下起始 STATE（轮询容忍在途），再等结束
+# 必吃分支必产生 busy。STATE 随命令末即达，而回执可能被同房吃药的房间广播
+# 挤后数秒（busy 只有 1 拍）——先收 busy 起始 STATE，再等回执，最后等结束
 wait busy timeout=5000
+wait text 你吃下一包金创药 timeout=10000
 wait not_busy timeout=10000
 end
 

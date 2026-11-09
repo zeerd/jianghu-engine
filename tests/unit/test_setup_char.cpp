@@ -70,7 +70,7 @@ TEST_F(SetupCharTest, ForceAddHpOn_BoostsMaxHpByForceSkill)
 }
 
 // ---------------------------------------------------------------------------
-// race 分派：野兽 / 妖魔 / 未知种族
+// race 分派：野兽 / 未知种族（含妖魔——分派支已删，落 undefined-race 分支）
 // ---------------------------------------------------------------------------
 TEST_F(SetupCharTest, Beast_RaceDispatch_FillsUnitAttrsAndAgeLadder)
 {

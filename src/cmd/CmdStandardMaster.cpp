@@ -259,7 +259,7 @@ int CCmdStandard::teach(CChar* me, int32_t target, char* arg)
 
         skills = me->query_skills();
 
-        mapping_value_t pt = who->query("level") * who->query_int() / 50;
+        mapping_value_t pt = who->query("level") * who->attr("int") / 50;
         if (pt <= 0) pt = 1;
 
         CVector v;
@@ -311,9 +311,9 @@ int CCmdStandard::teach(CChar* me, int32_t target, char* arg)
         who->set_skill(arg, 0);
     }
 
-    if (me->query("sk_exp") * 3 > me->query_exp())
+    if (me->query("sk_exp") * 3 > me->attr("combat_exp"))
         return notify_fail("你已经没有多余的技能经验教你的爱侣了。");
-    if (who->query("sk_exp") * 3 > who->query_exp())
+    if (who->query("sk_exp") * 3 > who->attr("combat_exp"))
         return notify_fail(
             "你的爱侣学习潜力已经发挥到头了。还是帮助对方再历练历练吧。");
 
@@ -479,7 +479,7 @@ int CCmdStandard::learn(CChar* me, int32_t target, char* arg)
         return notify_fail("你今天太累了，结果什么也没有学到。");
 
     // 玩家的技能经验在总经验中的比重不能超过1/3
-    if (me->query("sk_exp") * 3 > me->query_exp()) {
+    if (me->query("sk_exp") * 3 > me->attr("combat_exp")) {
         who->say("习武重在实践。我看你还是努力提高一下自身素质吧。", me);
         who->send_menu(me);
         return 1;
@@ -816,11 +816,11 @@ int CCmdStandard::study(CChar* me, int32_t target, char* arg)
 
     sk = load_skill(skill_name);
 
-    if (me->query_combat_exp() < skill->query("exp_required")) {
+    if (me->attr("combat_exp") < skill->query("exp_required")) {
         return notify_fail("你的等级不够，再怎么读也没用。");
     }
 
-    if (skill->query("difficulty") - me->query_int() > 0
+    if (skill->query("difficulty") - me->attr("int") > 0
         || my_skill < skill->query("min_skill"))
         return notify_fail("以你目前的能力，还没有办法学这个技能。");
 
@@ -832,7 +832,7 @@ int CCmdStandard::study(CChar* me, int32_t target, char* arg)
 
     mapping_value_t cost = skill->query("jing_cost");
 
-    cost = cost + cost * (skill->query("difficulty") - me->query_int()) / 20;
+    cost = cost + cost * (skill->query("difficulty") - me->attr("int")) / 20;
 
     if (cost < 5) cost = 5;  // minimum cost
 

@@ -24,15 +24,28 @@
 namespace {
 
 // 把 UI 输出重定向到内存流：断言可见文本，同时抑制测试输出噪声。
+// 输出经 UI 写线程异步落 stdout，取文本前必须先排空该线程。
 class OutputCapture {
 public:
-    OutputCapture() : saved_(std::cout.rdbuf(out_.rdbuf())) {}
-    ~OutputCapture() { std::cout.rdbuf(saved_); }
-    std::string str() const { return out_.str(); }
+    explicit OutputCapture(TerminalUI &ui)
+        : ui_(ui), saved_(std::cout.rdbuf(out_.rdbuf()))
+    {
+    }
+    ~OutputCapture()
+    {
+        ui_.flush_output();
+        std::cout.rdbuf(saved_);
+    }
+    std::string str()
+    {
+        ui_.flush_output();
+        return out_.str();
+    }
 
 private:
+    TerminalUI &ui_;
     std::stringstream out_;
-    std::streambuf* saved_;
+    std::streambuf *saved_;
 };
 
 }  // namespace
@@ -141,7 +154,7 @@ protected:
 
 TEST_F(InputProcessorTest, EmptyInputIsIgnored)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line(""));
     EXPECT_EQ(conn_.command_count(), 0);
 }
@@ -149,7 +162,7 @@ TEST_F(InputProcessorTest, EmptyInputIsIgnored)
 TEST_F(InputProcessorTest, CliQuitSetsFlagAndStopsUi)
 {
     {
-        OutputCapture cap;
+        OutputCapture cap(ui_);
         EXPECT_TRUE(input_.process_line(".quit"));
     }
     EXPECT_TRUE(input_.should_quit());
@@ -162,7 +175,7 @@ TEST_F(InputProcessorTest, CliQuitSetsFlagAndStopsUi)
 TEST_F(InputProcessorTest, CliExitStopsUi)
 {
     {
-        OutputCapture cap;
+        OutputCapture cap(ui_);
         EXPECT_TRUE(input_.process_line(".exit"));
     }
     EXPECT_TRUE(input_.should_quit());
@@ -171,7 +184,7 @@ TEST_F(InputProcessorTest, CliExitStopsUi)
 
 TEST_F(InputProcessorTest, CliHelpListsCommandSections)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".help");
     std::string out = cap.str();
     EXPECT_NE(out.find("=== Commands ==="), std::string::npos);
@@ -181,7 +194,7 @@ TEST_F(InputProcessorTest, CliHelpListsCommandSections)
 TEST_F(InputProcessorTest, CliStatusShowsStatusLine)
 {
     enter_room();
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".status");
     std::string out = cap.str();
     EXPECT_NE(out.find("测试房"), std::string::npos);
@@ -190,21 +203,21 @@ TEST_F(InputProcessorTest, CliStatusShowsStatusLine)
 
 TEST_F(InputProcessorTest, CliInfoShowsPanels)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".info");
     EXPECT_NE(cap.str().find("人物信息"), std::string::npos);
 }
 
 TEST_F(InputProcessorTest, CliInventoryShowsInventoryPanel)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".inventory");
     EXPECT_NE(cap.str().find("携带物品"), std::string::npos);
 }
 
 TEST_F(InputProcessorTest, CliSkillsEmptyShowsHint)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".skills");
     EXPECT_NE(cap.str().find("技能列表"), std::string::npos);
     EXPECT_NE(cap.str().find("(无技能)"), std::string::npos);
@@ -223,7 +236,7 @@ TEST_F(InputProcessorTest, CliSkillsListsLevelPotentialAndPrepare)
                                         {"E", "sword"}}));
     conn_.clear_commands();
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".skills");
     std::string out = cap.str();
     EXPECT_NE(out.find("华山剑法"), std::string::npos);
@@ -235,7 +248,7 @@ TEST_F(InputProcessorTest, CliSkillsListsLevelPotentialAndPrepare)
 
 TEST_F(InputProcessorTest, CliObjectsEmptyShowsPlaceholder)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".objects");
     EXPECT_NE(cap.str().find("(******)"), std::string::npos);
 }
@@ -248,7 +261,7 @@ TEST_F(InputProcessorTest, CliObjectsListsNpcsCharsAndItems)
     add_room_object(3001, "包子", /*is_user=*/false, /*is_item=*/true,
                     /*qty=*/3);
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".objects");
     std::string out = cap.str();
     EXPECT_NE(out.find("NPCs:"), std::string::npos);
@@ -261,7 +274,7 @@ TEST_F(InputProcessorTest, CliObjectsListsNpcsCharsAndItems)
 
 TEST_F(InputProcessorTest, CliCharsEmptyShowsPlaceholder)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".chars");
     EXPECT_NE(cap.str().find("(******)"), std::string::npos);
 }
@@ -272,7 +285,7 @@ TEST_F(InputProcessorTest, CliCharsListsNpcsAndPlayers)
     add_room_object(2001, "店小二", /*is_user=*/true);
     add_room_object(2002, "过客甲", /*is_user=*/true);
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".chars");
     std::string out = cap.str();
     EXPECT_NE(out.find("=== Characters ==="), std::string::npos);
@@ -283,7 +296,7 @@ TEST_F(InputProcessorTest, CliCharsListsNpcsAndPlayers)
 TEST_F(InputProcessorTest, CliDoorsEmptyShowsNone)
 {
     enter_room();
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".doors");
     std::string out = cap.str();
     EXPECT_NE(out.find("测试房"), std::string::npos);
@@ -299,7 +312,7 @@ TEST_F(InputProcessorTest, CliDoorsListsExits)
                                         {"N", "武当山"},
                                         {"R2", "6001"}}));
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".doors");
     EXPECT_NE(cap.str().find("正北 -> 武当山"), std::string::npos);
 }
@@ -307,7 +320,7 @@ TEST_F(InputProcessorTest, CliDoorsListsExits)
 TEST_F(InputProcessorTest, CliLookShowsEmptyScene)
 {
     enter_room();
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".look");
     std::string out = cap.str();
     EXPECT_NE(out.find("=== 测试房 ==="), std::string::npos);
@@ -324,7 +337,7 @@ TEST_F(InputProcessorTest, CliLookShowsCharsItemsAndExits)
                                         {"A", "正北"},
                                         {"N", "武当山"}}));
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".look");
     std::string out = cap.str();
     EXPECT_NE(out.find("店小二"), std::string::npos);
@@ -334,7 +347,7 @@ TEST_F(InputProcessorTest, CliLookShowsCharsItemsAndExits)
 
 TEST_F(InputProcessorTest, CliItemsEmptyShowsPlaceholder)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".items");
     EXPECT_NE(cap.str().find("(******)"), std::string::npos);
 }
@@ -345,14 +358,14 @@ TEST_F(InputProcessorTest, CliItemsListsGroundItems)
     add_room_object(3001, "包子", /*is_user=*/false, /*is_item=*/true,
                     /*qty=*/3);
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".items");
     EXPECT_NE(cap.str().find("包子 x3"), std::string::npos);
 }
 
 TEST_F(InputProcessorTest, CliUnknownCommandShowsHint)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     input_.process_line(".bogus");
     std::string out = cap.str();
     EXPECT_NE(out.find("Unknown CLI command: .bogus"), std::string::npos);
@@ -363,7 +376,7 @@ TEST_F(InputProcessorTest, CliUnknownCommandShowsHint)
 
 TEST_F(InputProcessorTest, LoginWithCredentialsSetsAccount)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/login acc1 pwd1"));
     EXPECT_EQ(state_.account_id(), "acc1");
     EXPECT_NE(cap.str().find("Logging in..."), std::string::npos);
@@ -371,7 +384,7 @@ TEST_F(InputProcessorTest, LoginWithCredentialsSetsAccount)
 
 TEST_F(InputProcessorTest, LoginMissingPasswordIsIgnored)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/login acc1"));
     EXPECT_EQ(state_.account_id(), "");
     EXPECT_EQ(cap.str().find("Logging in..."), std::string::npos);
@@ -379,14 +392,14 @@ TEST_F(InputProcessorTest, LoginMissingPasswordIsIgnored)
 
 TEST_F(InputProcessorTest, RegisterWithoutAccountShowsUsage)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/register"));
     EXPECT_NE(cap.str().find("Usage: /register"), std::string::npos);
 }
 
 TEST_F(InputProcessorTest, RegisterWithAccountAttemptsSend)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/register acc1 pwd1 M 21 21 21 21"));
     // MockConnection 未连接，send_register 返回 false，不显示 Registering
     EXPECT_EQ(cap.str().find("Usage: /register"), std::string::npos);
@@ -396,7 +409,7 @@ TEST_F(InputProcessorTest, RegisterWithAccountAttemptsSend)
 
 TEST_F(InputProcessorTest, TargetDelegationShowsCurrent)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/t"));
     EXPECT_NE(cap.str().find("Current target: 0"), std::string::npos);
 }
@@ -406,7 +419,7 @@ TEST_F(InputProcessorTest, TargetDelegationSetsById)
     // /t 只收 ID：房间对象按英文 id 定向（显示名不做参数）
     add_room_object(2001, "店小二", /*is_user=*/true, /*is_item=*/false, 1,
                     "xiaoer");
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/t xiaoer"));
     EXPECT_EQ(state_.target_id(), 2001);
 
@@ -418,14 +431,14 @@ TEST_F(InputProcessorTest, TargetDelegationSetsById)
 
 TEST_F(InputProcessorTest, LocalTuneShowsChannels)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line(".tune"));
     EXPECT_NE(cap.str().find("Current channel: chat"), std::string::npos);
 }
 
 TEST_F(InputProcessorTest, LocalTuneSwitchesChannel)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line(".tune new"));
     EXPECT_EQ(state_.current_channel(), "new");
     // 本地切换不下发任何 wire（服务端 tune 是「关闭接收频道」的另一语义）
@@ -437,14 +450,14 @@ TEST_F(InputProcessorTest, LocalTuneSwitchesChannel)
 // 真正关闭该频道的接收（由服务端回执确认）。
 TEST_F(InputProcessorTest, SlashTuneReachesServerTune)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/tune chat"));
     EXPECT_EQ(conn_.last_command(), "1001 tune 0 chat\t");
 }
 
 TEST_F(InputProcessorTest, GiveDelegationShowsUsage)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/give"));
     EXPECT_NE(cap.str().find("Usage: /give"), std::string::npos);
 }
@@ -457,7 +470,7 @@ TEST_F(InputProcessorTest, GiveDelegationSendsWire)
         make_msg(17, {{"O", "500"}, {"N", "sword"}, {"a", "1"}}));
     state_.set_target_id(2002);
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/give sword"));
     EXPECT_EQ(conn_.last_command(), "1001 give 500 to 2002\t");
 }
@@ -470,7 +483,7 @@ TEST_F(InputProcessorTest, SellDelegationSendsWire)
         make_msg(17, {{"O", "500"}, {"N", "sword"}, {"a", "1"}}));
     state_.set_target_id(2002);
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/sell sword"));
     EXPECT_EQ(conn_.last_command(), "1001 sell 2002 500\t");
 }
@@ -479,14 +492,14 @@ TEST_F(InputProcessorTest, SellDelegationSendsWire)
 
 TEST_F(InputProcessorTest, OtherServerCommandForwarded)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("/look"));
     EXPECT_EQ(conn_.last_command(), "1001 look 0\t");
 }
 
 TEST_F(InputProcessorTest, PlainTextChatsOnCurrentChannel)
 {
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("hello world"));
     EXPECT_EQ(conn_.last_command(), "1001 chat 0 hello world\t");
 }
@@ -494,7 +507,7 @@ TEST_F(InputProcessorTest, PlainTextChatsOnCurrentChannel)
 TEST_F(InputProcessorTest, PlainTextUsesSwitchedChannel)
 {
     state_.set_current_channel("tell");
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("hello"));
     EXPECT_EQ(conn_.last_command(), "1001 tell 0 hello\t");
 }
@@ -504,7 +517,7 @@ TEST_F(InputProcessorTest, PlainTextUsesSwitchedChannel)
 TEST_F(InputProcessorTest, MenuChoiceSendsResolvedCommand)
 {
     open_menu("$1 buy 1");
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("1"));
     EXPECT_TRUE(conn_.last_command().find("buy 1") != std::string::npos);
     EXPECT_FALSE(state_.in_menu());
@@ -513,7 +526,7 @@ TEST_F(InputProcessorTest, MenuChoiceSendsResolvedCommand)
 TEST_F(InputProcessorTest, MenuChoiceZeroCancels)
 {
     open_menu("$1 buy 1");
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("0"));
     EXPECT_FALSE(state_.in_menu());
     EXPECT_EQ(conn_.command_count(), 0);
@@ -523,7 +536,7 @@ TEST_F(InputProcessorTest, MenuChoiceZeroCancels)
 TEST_F(InputProcessorTest, MenuInvalidChoiceReports)
 {
     open_menu("$1 buy 1");
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("9"));
     EXPECT_NE(cap.str().find("Invalid choice"), std::string::npos);
     EXPECT_TRUE(state_.in_menu()) << "非法选择后菜单保持打开";
@@ -532,7 +545,7 @@ TEST_F(InputProcessorTest, MenuInvalidChoiceReports)
 TEST_F(InputProcessorTest, MenuNonNumericFallsThroughToChat)
 {
     open_menu("$1 buy 1");
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("你好"));
     EXPECT_FALSE(state_.in_menu());
     EXPECT_TRUE(conn_.last_command().find("chat 0 你好") != std::string::npos);
@@ -541,7 +554,7 @@ TEST_F(InputProcessorTest, MenuNonNumericFallsThroughToChat)
 TEST_F(InputProcessorTest, DialogNumericChoiceFallsThroughToChat)
 {
     open_dialog();
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("5"));
     EXPECT_FALSE(state_.in_dialog());
     EXPECT_TRUE(conn_.last_command().find("chat 0 5") != std::string::npos);
@@ -550,7 +563,7 @@ TEST_F(InputProcessorTest, DialogNumericChoiceFallsThroughToChat)
 TEST_F(InputProcessorTest, DialogNonNumericCancelsAndChats)
 {
     open_dialog();
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("你好"));
     EXPECT_FALSE(state_.in_dialog());
     EXPECT_TRUE(conn_.last_command().find("chat 0 你好") != std::string::npos);
@@ -560,12 +573,12 @@ TEST_F(InputProcessorTest, PendingMenuInputCompletesAndSends)
 {
     open_menu("$1 trade $2");
     {
-        OutputCapture cap;
+        OutputCapture cap(ui_);
         input_.process_line("1");
     }
     EXPECT_TRUE(state_.is_waiting_for_menu_input());
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("sword"));
     EXPECT_FALSE(state_.is_waiting_for_menu_input());
     EXPECT_TRUE(conn_.last_command().find("trade sword") != std::string::npos);
@@ -575,12 +588,12 @@ TEST_F(InputProcessorTest, PendingMenuInputStillWaitingShowsPrompt)
 {
     open_menu("$1 craft $2 $3");
     {
-        OutputCapture cap;
+        OutputCapture cap(ui_);
         input_.process_line("1");
     }
     ASSERT_TRUE(state_.is_waiting_for_menu_input());
 
-    OutputCapture cap;
+    OutputCapture cap(ui_);
     EXPECT_TRUE(input_.process_line("part_a"));
     // 还有占位符未填：继续等待，不发送任何命令
     EXPECT_TRUE(state_.is_waiting_for_menu_input());

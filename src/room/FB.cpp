@@ -368,12 +368,3 @@ int l_load_fb_room(lua_State* L)
     lua_bind_push_object(L, fb->load_fb_room(roomBuf));
     return 1;
 }
-
-// load_fb(name[, flag]) -> object - 加载江湖门派副本
-int l_load_fb(lua_State* L)
-{
-    const char* name = luaL_checkstring(L, 1);
-    int flag         = (int)luaL_optinteger(L, 2, 0);
-    lua_bind_push_object(L, g_item_mgr->load_fb(name, flag));
-    return 1;
-}

@@ -31,10 +31,6 @@ end
 
 function npc.ask_master(self, player)
     self:say("半山腰住着一位隐世高手，据说可以教你武功。")
-    if player:query("reward/exp") < 1 then
-        player:add("combat_exp", 50000)
-        player:set("reward/exp", 1)
-    end
 end
 
 -- 排行榜（演示 paihangbang 全局绑定）：查询历练达标的角色，每条结果经
@@ -69,7 +65,7 @@ end
 -- 而非脚本文件名"sample_mountain_top"。用后者会拿到另一个房间实例，
 -- 怪树会刷在看不见的地方。
 function npc.do_refresh(self, param1, param2)
-    local map = load_room("青云山山顶")
+    local map = load("room", "青云山山顶")
     if map:query("random/tree") == 0 then
         if random(5) == 1 then
             map:add_item("sample_tree")

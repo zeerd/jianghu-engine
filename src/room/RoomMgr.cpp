@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file RoomMgr.cpp
  * @brief 房间管理  */
 
@@ -51,14 +51,6 @@ void remove_room(string room_name) { g_room_list.erase(room_name); }
 // [LuaBind] auto-managed bindings
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// load_room(name) -> object - 加载房间
-int l_load_room(lua_State* L)
-{
-    const char* name = luaL_checkstring(L, 1);
-    lua_bind_push_object(L, load_room(name));
-    return 1;
-}
 
 // global_room_name(i) -> string - 全局房间名（0 基索引，动态列表）
 int l_global_room_name(lua_State* L)

@@ -383,7 +383,7 @@ int CCmdWizard::restore_exp(CChar* me, int32_t target, char* arg)
     if (!(who = find_player(target))) return notify_fail("没有这个人。");
 
     mapping_value_t exp = who->query("sk_exp");
-    int32_t combat_exp  = who->query_exp();
+    int32_t combat_exp  = who->attr("combat_exp");
 
     if (exp * 3 < combat_exp)
         return notify_fail("此人经验%ld，技能经验%ld，不能恢复。", combat_exp,

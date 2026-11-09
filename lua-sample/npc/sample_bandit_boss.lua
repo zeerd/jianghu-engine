@@ -9,7 +9,7 @@ function npc.create(self)
     self:set("title", "大当家")
 
     -- NPC 的 CAN_SAVE 读 dbase 键 can_save（CNpc::query_attr）：置 1 后
-    -- self:Save() / self:Load() 才会走 t_npc 表（obj_id = base_name）
+    -- self:save_to_local() / self:load_from_local() 才会走 t_npc 表（obj_id = base_name）
     self:set("can_save", 1)
 
     self:set("gender", "男性")
@@ -51,7 +51,11 @@ function npc.create(self)
 
     self:prepare_skill("unarmed", "unarmed")
 
-    self:carry_object("sample_sword_adv"):wield()
+    -- 佩刀归山寨自有（owner/no_get/no_duo，夺不走），取出即装备
+    self:wield_ownered_item("sample_sword_adv")
+
+    -- 怀里的赃钱：coin 挂在 NPC 身上没有主人，死后随尸体落地
+    self:add_money(300)
 
     self:set("apply/armor", 60)
     self:set("apply/damage", 40)
@@ -62,11 +66,11 @@ function npc.create(self)
     -- 定时回血
     self:call_out("do_full", 15)
 
-    -- 恢复存档（挑战计数跨重启就靠这里）：必须放在 carry_object 之后——
+    -- 恢复存档（挑战计数跨重启就靠这里）：必须放在取剑之后——
     -- restore_data 会整表覆盖 dbase 并清掉 infinity，而 max_encumb 要到
     -- setup() 才设置，提前 Load 会让剑因容量校验装不上；首次无档时 Load
     -- 返回 0、不动 dbase，保留上面 create 的初值。
-    self:Load()
+    self:load_from_local()
 end
 
 -- 有玩家进房：记一次挑战、立即存盘、喊话并主动开战。
@@ -85,7 +89,7 @@ function npc.init(self, me)
 
     self:add("challenge_count", 1)
     -- 即时落库：不依赖关服时机，喊话前计数已持久化
-    self:Save()
+    self:save_to_local()
     self:say(("你已经是第%d个来送死的了！"):format(self:query("challenge_count")))
     -- 必须在 say 之后：开战会把玩家移进战斗房，之后的房间播报他就收不到了
     self:kill_ob(me)

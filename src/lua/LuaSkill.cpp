@@ -289,28 +289,6 @@ int CLuaSkill::lua_add_magic(const char* magicName, const char* displayName,
     return 1;
 }
 
-// 获取已注册法术名
-const char* CLuaSkill::get_magic_name(int idx)
-{
-    int i = 0;
-    CastList_t::iterator it;
-    for (it = m_magic_list.begin(); it != m_magic_list.end(); it++, i++) {
-        if (i == idx) return it->first.c_str();
-    }
-    return "";
-}
-
-// 获取法术的显示名（用于验证编码）
-const char* CLuaSkill::get_magic_display_name(int idx)
-{
-    int i = 0;
-    CastList_t::iterator it;
-    for (it = m_magic_list.begin(); it != m_magic_list.end(); it++, i++) {
-        if (i == idx) return it->second->name.c_str();
-    }
-    return "";
-}
-
 // 重写 Cast：支持 Lua 法术
 int CLuaSkill::cast(string magic, CChar* me, CContainer* target)
 {

@@ -1,4 +1,4 @@
-﻿/** @file CharLevel.cpp @brief implementation of CChar (CharLevel). */
+/** @file CharLevel.cpp @brief implementation of CChar (CharLevel). */
 
 #include <windows.h>
 
@@ -246,36 +246,4 @@ int l_remove_betrayer(lua_State* L)
     if (!ch) return 0;
     CChar::remove_betrayer(ch);
     return 0;
-}
-
-// skill2level(sk) -> number  技能等级->人物等级
-int l_skill2level(lua_State* L)
-{
-    int sk = (int)luaL_checkinteger(L, 1);
-    lua_pushinteger(L, CChar::skill2level(sk));
-    return 1;
-}
-
-// level2skill(lv) -> number  人物等级->技能上限
-int l_level2skill(lua_State* L)
-{
-    int lv = (int)luaL_checkinteger(L, 1);
-    lua_pushinteger(L, CChar::level2skill(lv));
-    return 1;
-}
-
-// Level2Exp(lv) -> number  人物等级->升级所需经验
-int l_level2exp(lua_State* L)
-{
-    int lv = (int)luaL_checkinteger(L, 1);
-    lua_pushinteger(L, CChar::level2_exp(lv));
-    return 1;
-}
-
-// exp2level(exp) -> number  经验->人物等级（CChar::exp2level）
-int l_exp2level(lua_State* L)
-{
-    int32_t exp = (int32_t)luaL_checkinteger(L, 1);
-    lua_pushinteger(L, CChar::exp2level(exp));
-    return 1;
 }

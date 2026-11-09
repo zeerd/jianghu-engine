@@ -79,50 +79,39 @@ void CCombatd::fight(CChar* me, CChar* victim)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// combat_attack(me, target[, flag]) - 调用 g_Combatd.Do_Attack
-// flag 默认 TYPE_QUICK（0），脚本禁止传数字枚举，用全局常量 TYPE_QUICK/TYPE_HIT
-// 等
+// combat_attack(kind, me, target, ...) - 按 KIND 派发一次攻击：
+//   normal(me, target[, flag])
+//   unarmed(me, target, skill[, flag])
+//   weapon(me, target, weapon[, flag])
+// flag 默认 TYPE_QUICK（0），脚本禁止传数字枚举，用全局常量
+// TYPE_QUICK/TYPE_HIT 等；未登记 KIND 报错
 int l_combat_attack(lua_State* L)
 {
-    CChar* me     = NULL;
-    CChar* target = NULL;
-    if (lua_isuserdata(L, 1)) me = dynamic_cast<CChar*>(get_object(L, 1));
-    if (lua_isuserdata(L, 2)) target = dynamic_cast<CChar*>(get_object(L, 2));
-    int flag = (int)luaL_optinteger(L, 3, CCombatd::TYPE_QUICK);
-    if (me && target) g_combatd.do_attack(me, target, flag);
-    return 0;
-}
-
-// combat_attack_unarmed(me, target, skill[, flag]) - 调用
-// g_Combatd.Do_Attack_Unarmed 以指定徒手技能类型（如
-// "strike"/"finger"）发动一次空手攻击 flag 默认
-// TYPE_QUICK（0），脚本禁止传数字枚举，用全局常量 TYPE_QUICK/TYPE_HIT 等
-int l_combat_attack_unarmed(lua_State* L)
-{
-    CChar* me     = NULL;
-    CChar* target = NULL;
-    if (lua_isuserdata(L, 1)) me = dynamic_cast<CChar*>(get_object(L, 1));
-    if (lua_isuserdata(L, 2)) target = dynamic_cast<CChar*>(get_object(L, 2));
-    const char* skill = luaL_checkstring(L, 3);
-    int flag          = (int)luaL_optinteger(L, 4, CCombatd::TYPE_QUICK);
-    if (me && target) g_combatd.do_attack_unarmed(me, target, skill, flag);
-    return 0;
-}
-
-// combat_attack_weapon(me, target, weapon[, flag]) - 调用
-// g_Combatd.Do_Attack_Weapon 以指定武器对象发动一次攻击（flag 默认 TYPE_QUICK）
-int l_combat_attack_weapon(lua_State* L)
-{
-    CChar* me          = NULL;
-    CChar* target      = NULL;
-    CContainer* weapon = NULL;
-    if (lua_isuserdata(L, 1)) me = dynamic_cast<CChar*>(get_object(L, 1));
-    if (lua_isuserdata(L, 2)) target = dynamic_cast<CChar*>(get_object(L, 2));
-    if (lua_isuserdata(L, 3))
-        weapon = dynamic_cast<CContainer*>(get_object(L, 3));
-    int flag = (int)luaL_optinteger(L, 4, CCombatd::TYPE_QUICK);
-    if (me && target && weapon)
-        g_combatd.do_attack_weapon(me, target, weapon, flag);
+    const char* kind = luaL_checkstring(L, 1);
+    CChar* me        = NULL;
+    CChar* target    = NULL;
+    if (lua_isuserdata(L, 2)) me = dynamic_cast<CChar*>(get_object(L, 2));
+    if (lua_isuserdata(L, 3)) target = dynamic_cast<CChar*>(get_object(L, 3));
+    if (strcmp(kind, "normal") == 0) {
+        int flag = (int)luaL_optinteger(L, 4, CCombatd::TYPE_QUICK);
+        if (me && target) g_combatd.do_attack(me, target, flag);
+    }
+    else if (strcmp(kind, "unarmed") == 0) {
+        const char* skill = luaL_checkstring(L, 4);
+        int flag          = (int)luaL_optinteger(L, 5, CCombatd::TYPE_QUICK);
+        if (me && target) g_combatd.do_attack_unarmed(me, target, skill, flag);
+    }
+    else if (strcmp(kind, "weapon") == 0) {
+        CContainer* weapon = NULL;
+        if (lua_isuserdata(L, 4))
+            weapon = dynamic_cast<CContainer*>(get_object(L, 4));
+        int flag = (int)luaL_optinteger(L, 5, CCombatd::TYPE_QUICK);
+        if (me && target && weapon)
+            g_combatd.do_attack_weapon(me, target, weapon, flag);
+    }
+    else {
+        return luaL_error(L, "unknown combat_attack kind: %s", kind);
+    }
     return 0;
 }
 

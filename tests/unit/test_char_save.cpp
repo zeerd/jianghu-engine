@@ -8,12 +8,17 @@
 #include "User.h"
 #include "Mapping.h"
 #include "test_char_common.h"
+#include "test_lua_env.h"
 
 class CharSaveTest : public ::testing::Test {
 protected:
     CharMockDb* db;
     void SetUp() override
     {
+        // 先起 Lua 环境再 set_skill：无环境加载的技能会以未挂脚本的形态留在
+        // g_skill_list，后续按名取到的便是 query_dodge_msg/query_action
+        // 恒空的僵尸
+        ensure_lua_env();
         db   = new CharMockDb();
         g_db = db;
     }

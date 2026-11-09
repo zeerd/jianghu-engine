@@ -388,6 +388,9 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
                 // bsy 每次私发 STATE 都是全量标志集：缺失即「翻回不忙」，
                 // 所以这里无条件重算，而不是只在有字段时置真
                 player_attr_.busy = msg.has("bsy") && msg.get_int("bsy") != 0;
+                // 起始锁存（接收线程即时）：忙窗可窄于轮询——起始与结束 STATE
+                // 可能只隔数毫秒，见 bsy=1 即记账，供 wait busy 消费
+                if (player_attr_.busy) busy_latched_ = true;
                 if (msg.has("hp")) player_attr_.hp = msg.get_int("hp");
                 if (msg.has("mp")) player_attr_.mp = msg.get_int("mp");
                 if (msg.has("eh")) player_attr_.eff_hp = msg.get_int("eh");

@@ -17,6 +17,10 @@ protected:
     CMockItemMgr itemMgr;
     void SetUp() override
     {
+        // 先起 Lua 环境再 set_skill：无环境加载的技能会以未挂脚本的形态留在
+        // g_skill_list，后续按名取到的便是 query_dodge_msg/query_action
+        // 恒空的僵尸
+        ensure_lua_env();
         ch = new CChar();
         ch->set("name", "attr");
         ch->set("id", "attr1");
@@ -31,48 +35,67 @@ protected:
     }
 };
 
-// ---------------- query_str / con / int / dex ----------------
+// ---------------- attr(str/con/int/dex) ----------------
 TEST_F(CharAttrTest, QueryStr_Basic)
 {
     ch->set("str", (long)20);
-    EXPECT_EQ(ch->query_str(), 20);
+    EXPECT_EQ(ch->attr("str"), 20);
 }
 
 TEST_F(CharAttrTest, QueryStr_WithApply)
 {
     ch->set("str", (long)20);
     ch->set_temp("apply/str", (long)5);
-    EXPECT_EQ(ch->query_str(), 25);
+    EXPECT_EQ(ch->attr("str"), 25);
 }
 
 TEST_F(CharAttrTest, QueryCon_WithForce)
 {
     ch->set("con", (long)15);
     ch->set_skill("force", 100);
-    EXPECT_EQ(ch->query_con(), 15 + 100 / 10);
+    EXPECT_EQ(ch->attr("con"), 15 + 100 / 10);
 }
 
 TEST_F(CharAttrTest, QueryInt_WithLiterate)
 {
     ch->set("int", (long)12);
     ch->set_skill("literate", 50);
-    EXPECT_EQ(ch->query_int(), 12 + 50 / 10);
+    EXPECT_EQ(ch->attr("int"), 12 + 50 / 10);
 }
 
 TEST_F(CharAttrTest, QueryDex_WithDodge)
 {
     ch->set("dex", (long)18);
     ch->set_skill("dodge", 30);
-    EXPECT_EQ(ch->query_dex(), 18 + 30 / 10);
+    EXPECT_EQ(ch->attr("dex"), 18 + 30 / 10);
 }
 
 // ---------------- exp queries ----------------
 TEST_F(CharAttrTest, QueryExpAndCombat)
 {
     ch->set("combat_exp", (long)50000);
-    EXPECT_EQ(ch->query_exp(), 50000);
-    EXPECT_EQ(ch->query_combat_exp(), 50000);
+    EXPECT_EQ(ch->attr("combat_exp"), 50000);
     EXPECT_EQ(ch->query_magic_exp(), 50000u);
+}
+
+// 未知名是调用方写错键：传 ok 时交回调用方处置（不落错误日志）
+TEST_F(CharAttrTest, AttrUnknownKey_HandsBackToCaller)
+{
+    ch->set("combat_exp", (long)50000);
+
+    bool ok = true;
+    EXPECT_EQ(ch->attr("bogus", &ok), 0);
+    EXPECT_FALSE(ok);
+
+    ok = true;
+    EXPECT_EQ(ch->attr("combat_exp", &ok), 50000);
+    EXPECT_TRUE(ok);
+}
+
+// 不传 ok 的调用方（C++ 侧常量键）：写错键即缺陷，落错误日志并返回 0
+TEST_F(CharAttrTest, AttrUnknownKey_LogsAndReturnsZero)
+{
+    EXPECT_EQ(ch->attr("bogus"), 0);
 }
 
 TEST_F(CharAttrTest, QueryMagicSkill_Delegates)
@@ -95,7 +118,7 @@ TEST_F(CharAttrTest, QueryPer_WithApply)
 {
     ch->set("per", (long)10);
     ch->set_temp("apply/per", (long)3);
-    EXPECT_EQ(ch->query_per(), 13);
+    EXPECT_EQ(ch->attr("per"), 13);
 }
 
 TEST_F(CharAttrTest, QueryGrant)

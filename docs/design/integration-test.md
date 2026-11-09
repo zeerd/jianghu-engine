@@ -215,7 +215,7 @@ vars 计算，DSL 无算术）→ 段 2 断言喊话是「第 `${expect_n}` 个�
 
 | 参数 | 说明 |
 |------|------|
-| `-SkipBuild` | 跳过 MSBuild，直接使用现有 `bin\jianghu.exe` 与 CLI |
+| `-SkipBuild` | 跳过 MSBuild，直接使用现有 `bin\e2e\jianghu.exe` 与 CLI |
 | `-NoCoverage` | 跳过 OpenCppCoverage，快速调试剧本（不出覆盖率报告） |
 | `-ResetDb` | 运行前重建测试库：删 `e2e.db` 库文件，服务端启动自动重建（SQLite，无需外部工具） |
 | `-Dbg` | 给各道 CLI 加 `--dbg`：把服务端报文（RTNINFO/STATE 等）打进 lane 日志，用于查「客户端属性值和服务端对不上」 |
@@ -411,7 +411,7 @@ downloaduser 往返突发撞限流）；下线 `notify_offline` 广播 SENDUSER 
 
 ```powershell
 # OpenCppCoverage 关键参数（run-integration-tests.ps1 内部）
---modules bin\jianghu.exe          # 被测模块
+--modules bin\e2e\jianghu.exe       # 被测模块（集测专属 exe，非过期的 bin\jianghu.exe）
 --sources src\*                    # 仅统计 src/
 --optimized_build                  # 必加：生产是 Release /O2
 --working_dir <仓库根>             # 让服务器读到相对路径配置
@@ -489,8 +489,9 @@ SnoopSystem/AutoFight）与 E2E 差异是**有意的**：被测对象不同—�
 | **依赖特定世界状态/资源归属的触发面**（`victim_penalty`、`AutoFight` 主动敌意类、组队/夫妻状态拖入 PK 战斗房） | 样本世界可战斗 NPC 全部钉给唯一道、进取型 NPC 只在 L3 独占副本、教材不设 `vendetta_mark`/berserk 触发源——E2E 没有合法触发面；**不为测试挪动资源归属与世界设定**，单测兜底；E2E 的 PK 段保持组队解散后的干净状态，不踩双队籍 |
 | **内力经济/公式封顶挡住的战斗分支**（`l_receive_wound` 反震、`do_roar` 狮子吼、`do_sneak` 同队检查） | 反震在 `mp_you ≤ 3mp` 封顶下 damage ≥ 1 恒成立（数学不可达，非概率问题）；`do_roar` 的 mp≥200 超出 `mp ≤ 2×max_mp` 的经济封顶；同队检查被前置 PvE 收窄与 `query_team` 0 歧义挡住——均为引擎机制的结构性结论，**不为覆盖而改游戏机制**，机制设计修订才重开；C++ 调用点随正常分支已覆盖 |
 | **低价值协议透传与不存在的入口**（`mv`/`loc` 地图定位、`info`/`item` 命令） | `loc` 核心副作用每次登录已覆盖（ADDOBJECT 链）；`mv` 无分支无状态机且无头 CLI 不发坐标，补发只测「透传不崩」；`info`/`item` 经查无声明无实现无注册——无代码可测，记录不测 |
+| **接口/机制占位与基类缺省回退**（IActionHandler/IEquippable/IHittable 纯虚占位、CFB/CRoom 空占位、模板分派编译期占位支、无脚本或缺字段时的 C++ 基类默认实现） | 占位体由接口契约/模板机制必须存在，运行期无分发入口，或仅在「脚本缺席」时可达而 E2E 世界脚本齐备——保留不测；重开条件：分发器新增对该签名/缺省支的调用路径；逐函数登记见 `docs/plans/integration-test-adjudications.md` §9 |
 | **死代码与零调用方** | 全库无调用方/无生产者的函数（含触发即 ERROR 的兜底路径）没有入口，E2E 无从可达——**禁止为覆盖触发**；逐条登记在认领清单（阶段工具），不进本表 |
-| **基础设施与外部依赖**（CreateDump / Logger / HeartBeat alarm / db 断连 / LuaSyntaxChecker / MySQL 方言） | 生命周期与方言路径单测兜底；E2E 用 SQLite（CI/CD 零外部服务依赖），`--check-lua` 是独立命令行模式 |
+| **基础设施与外部依赖**（CreateDump / Logger / HeartBeat alarm / db 断连 / LuaSyntaxChecker / MySQL 方言 / 托盘 `tray_icon_*`） | 生命周期与方言路径单测兜底；E2E 用 SQLite（CI/CD 零外部服务依赖），`--check-lua` 是独立命令行模式；托盘仅桌面会话触发，E2E 无头运行不进 |
 
 ---
 

@@ -3,11 +3,10 @@
 -- 双身份：既作为全局大厅房被直接加载，也作为 rk_fb 副本实例的一局被
 -- create_fb_room 实例化（base_name 恒为 rk，故两处行为完全一致）。
 
--- 注册专员的命令白名单：talk 是与专员交谈，register/regxxx 是注册流程
+-- 注册专员的命令白名单：talk 是与专员交谈，regxxx 是注册流程
 -- （菜单项回灌的命令也会先经过房间拦截，必须放行）。
 local allow = {
     talk = true,
-    register = true,
     regchar = true,
     regname = true,
     regpass = true,
@@ -30,36 +29,12 @@ return {
     end,
 
     handle_action = function(self, comm, me, arg, target)
-        -- register 快捷命令：省去查编号，直接开始注册流程。
-        -- 只转发 ASCII 的 regchar；带文字的命令（regname 等）一律回 0，
-        -- 交给命令分发器的目标截获环节路由到注册专员。
-        if comm == "register" then
-            local who = nil
-            local objs = self:Get_ItemList()
-            if objs then
-                for ob in iter_items(objs) do
-                    if ob:querystr("base_name") == "register_clerk" then
-                        who = ob
-                        break
-                    end
-                end
-            end
-            if who == nil then
-                tell_object(me, "这里没有注册专员。")
-                return 1
-            end
-            return handle_action(who, "regchar", me, "")
-        end
-
         if allow[comm] then
             return 0
         end
 
         if comm ~= "quit" and comm ~= "mudage" and comm ~= "password" and comm ~= "validate" then
-            tell_object(
-                me,
-                "你尝试了一下，但是发现这里似乎没有信号。" .. "（输入register创建角色）"
-            )
+            tell_object(me, "你尝试了一下，但是发现这里似乎没有信号。")
             return 1
         end
         return 0

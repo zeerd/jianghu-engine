@@ -133,7 +133,7 @@ int CCmdStandard::Sleep(CChar* me, int32_t target, char* arg)
             me->set("last_sleep", g_current_time);
             me->set_temp("block_msg/all", 1);
             message_vision("$N往被中一钻，不一会便鼾声大作，进入了梦乡。", me);
-            rnd = g_utils.random((60 - me->query_con()) / 3);
+            rnd = g_utils.random((60 - me->attr("con")) / 3);
         }
         else {
             tell_object(me,
@@ -141,7 +141,7 @@ int CCmdStandard::Sleep(CChar* me, int32_t target, char* arg)
             me->set("last_sleep", g_current_time);
             me->set_temp("block_msg/all", 1);
             message_vision("$N就地一躺，不一会便鼾声大作，进入了梦乡。", me);
-            rnd = 10 + g_utils.random((100 - me->query_con()) / 3);
+            rnd = 10 + g_utils.random((100 - me->attr("con")) / 3);
         }
 
         if (rnd < 1) rnd = 0;
@@ -248,9 +248,9 @@ int CCmdStandard::Sleep(CChar* me, int32_t target, char* arg)
     me->disable_player("睡梦中");
     obj->disable_player("睡梦中");
 
-    me->call_out(wakeup2, g_utils.random(45 - me->query_con()) + 10,
+    me->call_out(wakeup2, g_utils.random(45 - me->attr("con")) + 10,
                  obj->object_id());
-    obj->call_out(wakeup2, g_utils.random(45 - obj->query_con()) + 10,
+    obj->call_out(wakeup2, g_utils.random(45 - obj->attr("con")) + 10,
                   me->object_id());
 
     return 1;

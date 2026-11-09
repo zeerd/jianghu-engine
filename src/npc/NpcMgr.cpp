@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file NpcMgr.cpp
  * @brief NPC 管理  */
 
@@ -102,26 +102,10 @@ CNpc* random_npc()
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// load_npc(name) -> object
-int l_load_npc(lua_State* L)
-{
-    const char* name = luaL_checkstring(L, 1);
-    lua_bind_push_object(L, load_npc(name));
-    return 1;
-}
-
 // random_npc() -> object - 随机选取一个 NPC
 int l_random_npc(lua_State* L)
 {
     extern CNpc* random_npc();
     lua_bind_push_object(L, random_npc());
-    return 1;
-}
-
-// find_npc(id) -> object - 按对象ID查找 NPC
-int l_find_npc(lua_State* L)
-{
-    int32_t id = (int32_t)luaL_checkinteger(L, 1);
-    lua_bind_push_object(L, find_npc(id));
     return 1;
 }

@@ -12,7 +12,7 @@
 #   · 蛇胆的吞服只发生在本道（本道买来服下；L3 捡到的那颗原样留着），
 #     其房间版播报不会被别的账号触发；
 #   · 涂毒的三前置（毒术供能、自持的铁剑、内力）都接在这条链上，拆道即断；
-#   · 本道不学习技能；历练走正常入账（大考答对 + 老李头问路），供投票的
+#   · 本道不学习技能；历练走正常入账（大考答对 + 拜师入门礼），供投票的
 #     等级门槛（升 5 级）与师父验看的报数消费；
 #   · 睡觉与半山腰的学艺会同房并行，但双方都只认「你…」本人版断言。
 
@@ -28,9 +28,9 @@ include social/look_and_emote.sce
 include social/bank.sce
 include social/channel_and_banword.sce
 include social/vote.sce
-# 师父验看（query_str/con/int/per/dex + query_combat_exp/query_valid_exp）：
+# 师父验看（attr(str/con/int/per/dex) + attr(combat_exp)/query_valid_exp）：
 #   必须接 vote 之后——历练与等级都是本道正常玩法攒出来的（大考 1000 +
-#   问路 50000 + 升 4 级），报数断言的是这组精确值；看完回山脚，道尾判师
+#   拜师入门礼 50000 + 升 4 级），报数断言的是这组精确值；看完回山脚，道尾判师
 #   以山脚起步（详见片段头注）。
 include social/master_inspect.sce
 include social/tune.sce

@@ -3,7 +3,9 @@
 
 #include "Skill.h"
 
-class BindCharSkillTest : public BindTest {
+// 继承 BindEngineTest：set_skill → load_skill 需要 Lua 环境，否则技能以未挂
+// 脚本的形态留在 g_skill_list，毒化后续按名取技能的套件
+class BindCharSkillTest : public BindEngineTest {
 protected:
     CChar ch;
 };

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ContainerWeight.cpp
  * @brief CContainer: weight/encumbrance, amount,
  * equip checks, UpdateMe.  */
@@ -136,17 +136,6 @@ int l_query_weight(lua_State* L)
     CContainer* c = dynamic_cast<CContainer*>(obj);
     if (!c) return 0;
     lua_pushinteger(L, c->query_weight());
-    return 1;
-}
-
-// self:is_character() -> boolean
-int l_is_character(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CContainer* c = dynamic_cast<CContainer*>(obj);
-    if (!c) return 0;
-    lua_pushboolean(L, c->is_character());
     return 1;
 }
 

@@ -39,9 +39,10 @@ function npc.create(self)
     self:set("attitude", "killer")
     self:set("shen_type", -1)
 
-    -- 血量按「从开战打到死」算：玩家约四秒一击、每击二十多点，给厚了是白等，
-    -- 给薄了撑不到断言收齐；比试房的 50% 判负线要四击才够得到，而场1 只打
-    -- 三秒、实测一击，够不着。战力压低是因为这里演的是状态链，输赢不在设计内
+    -- 血量按状态链演示的耐打回合数算：玩家约四秒一击、每击二十多点，
+    -- 这一档能在「挑衅记账 → 讨教开战 → 贿赂销账 → 打到死」的整条链里
+    -- 撑满该有的回合数，既不会一碰就散让后半链没演到，也不会厚到打不死。
+    -- 战力压低是因为这里演的是状态链，输赢不在设计内
     self:set("level", 1)
     self:set("combat_exp", 100)
     self:set("max_hp", 200)
@@ -52,14 +53,25 @@ function npc.create(self)
     self:set("int", 10)
 
     -- 暗器：hooks.fight 的追击只对带 hidden_weapon 标记的角色生效，
-    -- 棋子（skill_type=throwing）背在身上即可，不必装备到手上
+    -- 棋子（skill_type=throwing）背在身上即可，不必装备到手上；揣 5 枚——
+    -- 补击一手一枚（throw_weapon 扣量），切磋与死战两段都烧得起
     self:set("hidden_weapon", 1)
-    self:carry_object("sample_chess")
+    self:carry_object("sample_chess", 5)
     self:set_skill("throwing", 30)
+
+    -- 内功底子：只够运功调息（绝招见 chat_msg_combat）。不配 mp_factor，
+    -- 内功反震按 0 记账，不动「战力压低」的设定
+    self:set("max_mp", 100)
+    self:set("mp", 100)
+    self:set_skill("force", 20)
+    self:map_skill("force", "force")
 
     -- 固定击杀经验：拦路的身上带着官府悬赏，谁杀都能领到——不走 nk_gain 的
     -- 历练折算（见 data/hooks.lua 的 kill_bonus）
     self:set("nk_bonus", 100)
+
+    -- 比试房开战后的发招概率：与脚本侧 chat_msg_combat（发绝招）成对使用
+    self:set("chat_chance_combat", 20)
 end
 
 -- 问话：按话头分岔。记账的记账、还手的还手，两支都在战斗外，写下去真生效。
@@ -89,6 +101,12 @@ function npc.do_talk(self, me, ask)
     return self:base_do_talk(me, ask)
 end
 
+-- 战斗中的绝招（create 里 chat_chance_combat 掷中时调用）：运功调息一口
+-- （复元术=基本内功的法术，与山贼甲同款的发招出口）
+function npc.chat_msg_combat(self)
+    self:perform_action("force recover", 0)
+end
+
 -- 收受贿赂：钱到气消，双方名单一起销（写）。只认钱，别的礼不受理
 function npc.accept_object(self, who, ob)
     if ob:querystr("id") ~= "coin" then
@@ -104,7 +122,7 @@ end
 -- 死亡接管：奖励与尸体都由本脚本装配，顺序与引擎标准死亡一致——
 -- 先结算击杀奖励，再造尸体，最后自毁
 function npc.die(self)
-    local killer = find_object(self:query_temp("last_damage_from"), 1)
+    local killer = find("object", self:query_temp("last_damage_from"), 1)
 
     message_vision("$N闷哼一声，仰面栽倒在地。", self)
 

@@ -12,9 +12,6 @@ function npc.create(self)
     self:set("long", "这是副本管理员，可以通过谈话，选择相应功能。")
     self:set("attitude", "friendly")
 
-    self:set("no_kill", 1)
-    self:set("no_talk", 1)
-
     self:set("combat_exp", 100000)
 
     self:set("max_hp", 50000)
@@ -30,6 +27,10 @@ function npc.do_talk(self, me, ask)
     return 1
 end
 
+-- 菜单命令分发。kill/fight/cast 三个分支是「管理员杀不死」的真实实现：
+-- 命令分发中物件截获先于内建命令（CCmdHandle::command），玩家对该 NPC 发
+-- /kill /fight /cast 会先落进这里被吞掉，回一句风味话——不设它们，命令
+-- 就会走引擎常规战斗路径落到管理员头上。
 function npc.handle_action(self, comm, me, arg)
     if comm == "leave" then
         return npc.do_leave(self, me)
@@ -52,9 +53,9 @@ function npc.do_leave(self, me)
     local env = nil
     local sm = r:query_fb_parent():querystr("source_map")
     if sm and sm ~= "" then
-        env = load_room(sm)
+        env = load("room", sm)
     else
-        env = load_room(START_ROOM)
+        env = load("room", START_ROOM)
     end
 
     message_vision(

@@ -50,12 +50,12 @@ wait text 枝头已经没有果子了 timeout=10000
 cmd /t jing yan dan
 clear
 cmd /use
+# 经验果的 do_use 会 start_busy(2)（sample_xp.lua），后续 sneak 的 cast 准入
+# 拒 busy（CmdStandardCombat cast 入口）——必吃分支必产生 busy：回执可能被
+# 同房广播挤到 busy 之后，先收起始 STATE（轮询容忍在途），再等回执与结束
+wait busy timeout=5000
 wait text 你吃下一粒经验果 timeout=10000
 wait attr max_mp >= 100 timeout=10000
-# 经验果的 do_use 会 start_busy(2)（sample_xp.lua），后续 sneak 的 cast 准入
-# 拒 busy（CmdStandardCombat cast 入口）——必吃分支必产生 busy：wait busy
-# 收下起始 STATE（轮询容忍在途），再等结束
-wait busy timeout=5000
 wait not_busy timeout=10000
 cmd .info
 cmd /t 0

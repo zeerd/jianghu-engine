@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharFlush.cpp
  * @brief implementation of CChar (CharFlush). */
 
@@ -59,8 +59,8 @@ void CChar::flush_my_info()
         strcat(msg, str);
     }
 
-    snprintf(str, 255, "E=%d&F=%d&G=%d&H=%d&", query_str(), query_con(),
-             query_int(), query_dex());
+    snprintf(str, 255, "E=%d&F=%d&G=%d&H=%d&", attr("str"), attr("con"),
+             attr("int"), attr("dex"));
     strcat(msg, str);
 
     // 计算攻防
