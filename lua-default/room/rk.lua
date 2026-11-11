@@ -25,7 +25,7 @@ return {
         self:set("wiz_room", 1)
 
         -- 角色注册专员：负责在这里创建新角色
-        self:add_npc("register_clerk")
+        self:add_object("npc", "register_clerk")
     end,
 
     handle_action = function(self, comm, me, arg, target)

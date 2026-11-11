@@ -18,6 +18,6 @@ return {
         self:set("wear_msg", "$N穿上一双$n。")
         self:set("remove_msg", "$N脱下脚上的$n。")
 
-        self:set("apply/dex", 1)
+        self:set("apply/dex", 4)
     end,
 }

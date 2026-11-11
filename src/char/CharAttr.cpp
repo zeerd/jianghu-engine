@@ -94,7 +94,7 @@ int CChar::learn_bonus()
     return 55 + (pt - 80) / 5;
 }
 
-int CChar::is_invalid()
+bool CChar::is_invalid()
 {
     int64_t max_mp = char_rule_limit("max_mp_limit", this, 60000);
     if (query("mp") > max_mp) {
@@ -159,16 +159,13 @@ int l_attr(lua_State* L)
     return 1;
 }
 
-// self:is_invalid() -> number - 是否为异常人物（CChar）
+// self:is_invalid() -> boolean - 是否为异常人物（CChar）；非角色对象回 false
 int l_is_invalid(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    CChar* ch        = obj ? dynamic_cast<CChar*>(obj) : NULL;
 
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-
-    lua_pushinteger(L, ch->is_invalid());
+    lua_pushboolean(L, ch ? ch->is_invalid() : false);
     return 1;
 }
 
@@ -207,15 +204,5 @@ int l_respect(lua_State* L)
     else if (strcmp(kind, "self_rude") == 0)
         s = query_self_rude(ch);
     lua_pushstring(L, s ? s : "");
-    return 1;
-}
-
-// self:query_valid_exp() -> number - 可用经验（经验总额减去等级与技能已耗的
-// 未分配部分；学技能与升级都从这里扣，玩家与 NPC 同域）
-int l_query_valid_exp(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    lua_pushinteger(L, c->query_valid_exp());
     return 1;
 }

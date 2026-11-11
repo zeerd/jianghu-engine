@@ -88,7 +88,7 @@ return {
             return notify_fail("你的内力不足，无法施展飞星连珠。")
         end
 
-        message_vision("$N凝神聚气，指尖暗劲涌动，连珠般打出数枚$w！", me)
+        message("vision", "$N凝神聚气，指尖暗劲涌动，连珠般打出数枚$w！", me)
 
         -- 第一枚
         combat_attack("normal", me, target, TYPE_QUICK)

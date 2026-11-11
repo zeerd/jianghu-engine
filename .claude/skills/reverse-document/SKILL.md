@@ -198,7 +198,7 @@ Based on type, use appropriate template:
 | Type | Template | Output Path |
 |------|----------|-------------|
 | `design` | `templates/design-doc-from-implementation.md` | `design/gdd/[system-name].md` |
-| `architecture` | `templates/architecture-doc-from-code.md` | `docs/architecture/[decision-name].md` |
+| `architecture` | `templates/architecture-doc-from-code.md` | `docs/design/[decision-name].md` |
 | `concept` | `templates/concept-doc-from-prototype.md` | `prototypes/[name]/CONCEPT.md` or `design/concepts/[name].md` |
 
 **The `design` output scales with the workflow tier** (resolved in Phase 1):

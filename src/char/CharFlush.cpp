@@ -224,7 +224,7 @@ void CChar::send_table(const char* table_name, CMapping* table, int total,
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:FlushMyInfo() -> void
+// self:flush_my_info() -> void
 int l_flush_my_info(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -235,7 +235,7 @@ int l_flush_my_info(lua_State* L)
     return 0;
 }
 
-// self:FlushMySkill() - 刷新玩家技能显示（CChar）
+// self:flush_my_skill() - 刷新玩家技能显示（CChar）
 int l_flush_my_skill(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

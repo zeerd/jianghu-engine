@@ -1,7 +1,7 @@
 // test_char_level.cpp - Unit tests for CharLevel.cpp.
 //
 // Covers level<->skill<->exp conversion tables, death penalty/recover and
-// Remove_Betrayer.  level_exp 数据来自 lua-default/data/level_exp.lua。
+// remove_betrayer.  level_exp 数据来自 lua-default/data/level_exp.lua。
 //
 // Build+Run: .\run-coverage.ps1
 //
@@ -50,7 +50,7 @@ TEST_F(CharLevelTest, Skill2Level_All)
     EXPECT_EQ(CChar::skill2level(105), 31);
 }
 
-// ---------------- Level2Exp ----------------
+// ---------------- level2exp ----------------
 TEST_F(CharLevelTest, Level2Exp_Table)
 {
     EXPECT_EQ(CChar::level2_exp(1), 0);
@@ -158,7 +158,7 @@ TEST_F(CharLevelTest, DeathRecover_All)
     EXPECT_EQ(ch->skill_death_recover(), 1);
 }
 
-// ---------------- Remove_Betrayer ----------------
+// ---------------- remove_betrayer ----------------
 TEST_F(CharLevelTest, RemoveBetrayer_LowersSkills)
 {
     CChar* me = new CChar();

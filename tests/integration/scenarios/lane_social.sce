@@ -17,6 +17,7 @@
 #   · 睡觉与半山腰的学艺会同房并行，但双方都只认「你…」本人版断言。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include provision/social_supplies.sce
 include social/account.sce
 include common/apprentice.sce

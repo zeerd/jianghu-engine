@@ -28,7 +28,7 @@ return {
             return notify_fail("你身上并没有蛇毒，雄黄留给该用的人吧。")
         end
 
-        message_vision("$N捏碎一撮雄黄和水服下，压住了体内的蛇毒。", me)
+        message("vision", "$N捏碎一撮雄黄和水服下，压住了体内的蛇毒。", me)
         -- 只摘蛇毒一项：duration=0 是解除语义，第 4 参带施加者把归属键一并清
         me:apply_condition("snake_poison", 0, 0, me)
 

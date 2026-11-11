@@ -24,6 +24,7 @@
 #   max_mp 抬升 / mp≥2 保底）。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include common/room_look_inquiry.sce
 include provision/train_supplies.sce
 include common/apprentice.sce

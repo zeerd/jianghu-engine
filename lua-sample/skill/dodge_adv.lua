@@ -45,9 +45,9 @@ return {
             return notify_fail("你的内力不足，无法施展凌空虚渡。")
         end
         me:add("mp", -40)
-        message_vision("$N身形一纵，如仙人般凌空而起，轻功大进！", me)
+        message("vision", "$N身形一纵，如仙人般凌空而起，轻功大进！", me)
         local dodge_bonus = 100
-        me:add_temp("apply/dodge", dodge_bonus)
+        me:add("apply/dodge", dodge_bonus, "T")
         -- 统一写法（docs/call_out.md）：回调写在发起 call_out 的脚本里，
         -- 在效果作用的对象上注册——对象是玩家还是脚本 NPC 写法相同
         -- 通过 param1 传递加成值，实现增量管理（不假设拥有整个 apply/dodge）
@@ -59,6 +59,6 @@ return {
     -- 凌空虚渡效果结束（延迟函数：执行时 self = 受效果的对象）
     -- param1: 当初加成的数值，直接回扣相同数量
     do_float_end = function(self, param1, param2)
-        self:add_temp("apply/dodge", -param1)
+        self:add("apply/dodge", -param1, "T")
     end,
 }

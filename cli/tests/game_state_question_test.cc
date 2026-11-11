@@ -20,7 +20,7 @@ protected:
     {
         GameMessage m;
         m.cmd = cmd;
-        for (auto &[k, v] : p) m.params[k] = v;
+        for (auto& [k, v] : p) m.params[k] = v;
         return m;
     }
 };
@@ -198,7 +198,8 @@ TEST_F(GameStateQuestionTest, FindTargetEnglishIdPrefersInventoryOnAmbiguity)
         11, {{"E", "5001"}, {"T", "603"}, {"u", "0"}, {"i", "0"}, {"U", "0"}}));
     state_.handle_message(make_msg(
         17, {{"O", "603"}, {"N", "贸易文书"}, {"I", "trade"}, {"U", "0"}}));
-    state_.handle_message(make_msg(14, {{"B", "0"}, {"I0", "785"}, {"E0", "0"}}));
+    state_.handle_message(
+        make_msg(14, {{"B", "0"}, {"I0", "785"}, {"E0", "0"}}));
     state_.handle_message(make_msg(
         17, {{"O", "785"}, {"N", "贸易文书"}, {"I", "trade"}, {"U", "0"}}));
 
@@ -226,11 +227,9 @@ TEST_F(GameStateQuestionTest, UserListMergeKeepsProfileFields)
     // /who 的 USERLIST（仅会话号、分页）必须以**合并**方式更新在线表：
     // 已知条目的姓名/账号字段不得被清掉（/t 数字账号解析依赖 internal_id），
     // 同时补进名单里的新 uid
-    state_.handle_message(make_msg(34, {{"U", "7001"},
-                                        {"N", "李四"},
-                                        {"I", "1396"},
-                                        {"r", "5"},
-                                        {"t", ""}}));
+    state_.handle_message(make_msg(
+        34,
+        {{"U", "7001"}, {"N", "李四"}, {"I", "1396"}, {"r", "5"}, {"t", ""}}));
     state_.handle_message(
         make_msg(33, {{"n", "2"}, {"i0", "7001"}, {"i1", "8001"}}));
 

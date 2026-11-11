@@ -77,8 +77,8 @@ local function level2exp_raw(lv)
     return v or approx_exp(lv)
 end
 
--- Level2Exp(lv) -> 人物等级 -> 升级所需累计经验
-function Level2Exp(lv)
+-- level2exp(lv) -> 人物等级 -> 升级所需累计经验
+function level2exp(lv)
     return level2exp_raw(lv)
 end
 
@@ -141,4 +141,120 @@ end
 -- is_character 是对象方法（ob:is_character()），挂在方法表上
 function index.is_character(ob)
     return is(ob, "character")
+end
+
+-- 时间信息族：日历时间用 os.date 组合（引擎只给心跳 tick current_time）；
+-- wday 归一到 0=周日，与 C 侧 tm_wday 同口径（os.date 为 1=周日）
+function current_time_info()
+    local t = os.date("*t")
+    t.wday = t.wday - 1
+    return t
+end
+
+-- 随机取容器内一物：按类型属性过滤、跳过 exclude（比 object_id），
+-- 与原引擎实现同一 RNG（random）、同 50 件上限；空容器/非对象回 nil
+function random_get_item(ob, ntype, exclude)
+    if type(ob) ~= "userdata" then
+        return nil
+    end
+    local list = ob:get_item_list()
+    if not list then
+        return nil
+    end
+    ntype = ntype or IS_ITEM
+    local excl_id = (type(exclude) == "userdata") and exclude:object_id() or nil
+    local pool = {}
+    for item in iter_items(list) do
+        if item:query(ntype) ~= 0 and item:object_id() ~= excl_id then
+            pool[#pool + 1] = item
+            if #pool >= 50 then
+                break
+            end
+        end
+    end
+    if #pool == 0 then
+        return nil
+    end
+    return pool[random(#pool) + 1]
+end
+
+-- 查找 me 所在房间内的角色：present("object_id") 只在房间容器内找，
+-- IS_CHAR 过滤非角色物件；me 非角色 / target 为 0 / 无环境一律 nil
+function get_room_char(me, target)
+    if not me or not me:is_character() or not target or target == 0 then
+        return nil
+    end
+    local room = me:environment()
+    if not room then
+        return nil
+    end
+    local ob = room:present("object_id", target)
+    if ob and ob:query(IS_CHAR) ~= 0 then
+        return ob
+    end
+    return nil
+end
+
+-- 亲属/师徒/伴侣判定（技能查看权限）：师徒按同门 + master_id，
+-- 伴侣按 couple/id 互认，再看环境互为对方；对象身份比 object_id
+-- （每次压入的 userdata 不是同一个值，不能用 == 比对象）
+function is_relative(me, who)
+    if not me or not who or not me:is_character() or not who:is_character() then
+        return false
+    end
+    local bangpai = me:querystr("family/family_name")
+    if
+        bangpai ~= ""
+        and me:querystr("family/master_id") == who:querystr("id")
+        and bangpai == who:querystr("family/family_name")
+    then
+        return true
+    end
+    if me:querystr("couple/id") == who:querystr("id") and who:querystr("couple/id") == me:querystr("id") then
+        return true
+    end
+    local menv = me:environment()
+    local whenv = who:environment()
+    if menv and menv:object_id() == who:object_id() then
+        return true
+    end
+    if whenv and whenv:object_id() == me:object_id() then
+        return true
+    end
+    return false
+end
+
+-- 玩家住宅：房间名约定 house_<门派/户籍>_<角色 id>，无住宅或加载失败回 nil
+function get_my_house(who)
+    if not who or who:querystr("resident") == "" then
+        return nil
+    end
+    local room = load("room", "house_" .. who:querystr("resident") .. "_" .. who:id(1))
+    if not room or room:query("fail_ob") ~= 0 then
+        return nil
+    end
+    return room
+end
+
+-- 最低武功等级：query_skills 映射取最小，无技能回 0
+function index.mini_skill(ob)
+    local skills = ob:query_skills()
+    local lowest = nil
+    for _, lv in pairs(skills or {}) do
+        if not lowest or lv < lowest then
+            lowest = lv
+        end
+    end
+    return lowest or 0
+end
+
+-- 清空条件：持久与临时 condition 整键删除（键值即条件族的唯一存放面）
+function index.clear_condition(ob)
+    ob:del("condition")
+    ob:del("condition", "T")
+end
+
+-- 可用经验：combat_exp - 升级所需（level2exp 与引擎 level2_exp 同式同源）- 已用 sk_exp
+function index.query_valid_exp(ob)
+    return ob:attr("combat_exp") - level2exp(ob:query("level")) - ob:query("sk_exp")
 end

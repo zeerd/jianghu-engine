@@ -10,11 +10,11 @@ return {
 
     create = function(self)
         self:set_name("青云山半山腰")
-        self:add_npc("sample_master")
-        self:add_npc("sample_wooden_dummy")
-        self:add_npc("sample_iron_dummy")
-        self:add_door("青云山山脚", "青云山山脚", "青云山半山腰")
-        self:add_door("青云山山顶", "青云山山顶", "青云山半山腰")
+        self:add_object("npc", "sample_master")
+        self:add_object("npc", "sample_wooden_dummy")
+        self:add_object("npc", "sample_iron_dummy")
+        self:add_object("door", "青云山山脚", "青云山山脚", "青云山半山腰")
+        self:add_object("door", "青云山山顶", "青云山山顶", "青云山半山腰")
 
         self:set(
             "long",

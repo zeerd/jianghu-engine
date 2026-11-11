@@ -12,7 +12,7 @@
 # 为什么这一整段必须归同一条道（拆分后逐条重核，§3.3 末条）：
 #   · ~~偷袭要当前 mp≥100，而当前内力只能靠……经验果只有一粒~~——**已解除**：
 #     mp 由 L9 供 400（四投预算），经验果的 +100 上限不再是偷袭的前置；
-#     但怪树经验果本身（random 刷树 / add_item / talk 摘果 / do_use）是世界覆盖，钉在本道；
+#     但怪树经验果本身（random 刷树 / add_object("item", …) / talk 摘果 / do_use）是世界覆盖，钉在本道；
 #   · 尸体腐烂播报没有「你」字、只能靠房间隔离，故本道独占山顶——**仍成立**；
 #   · 战利品（青蛇掉的蛇胆）与战后口粮（包子）随本道的山顶流程走——掉落与
 #     残血窗口都只有本道碰得到；
@@ -25,6 +25,7 @@
 # 本道独享山顶与怪树，其余各道不进入山顶，也就不会与腐烂播报串扰。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include common/room_look_inquiry.sce
 include provision/combat_supplies.sce
 include combat/treebox.sce

@@ -39,7 +39,7 @@ return {
 
         fruit:move(me)
         self:set("picked", 1)
-        message_vision("$N伸手从怪树上摘下了$n。", me, fruit)
+        message("vision", "$N伸手从怪树上摘下了$n。", me, fruit)
         return 1
     end,
 }

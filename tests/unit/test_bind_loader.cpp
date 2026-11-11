@@ -14,7 +14,7 @@
 // LuaEngine.cpp 自由函数：文件读取转 GBK（空文件支在 93-95）
 
 extern std::string load_file_as_gbk(
-    const char* path);  // CItem 非角色参数（l_get_my_house 的 !ch 支）
+    const char* path);  // CItem 无住宅键（get_my_house 的空 resident 支）
 
 class BindLoaderTest : public BindEngineTest {
 protected:
@@ -111,14 +111,14 @@ TEST_F(BindLoaderTest, script_exists)
     lua_pop(L, k);
 }
 
-// ---- RoomMgr.cpp: get_my_house (no resident -> nil, no load_room call) ----
+// ---- prelude get_my_house (no resident -> nil, no load_room call) ----
 
 TEST_F(BindLoaderTest, GetMyHouseNone)
 
 {
     lua_bind_push_object(L, &ch);
 
-    int k = call(l_get_my_house, 1);
+    int k = call_global(L, "get_my_house", 1);
 
     EXPECT_EQ(1, k);
 
@@ -127,7 +127,7 @@ TEST_F(BindLoaderTest, GetMyHouseNone)
     lua_pop(L, k);
 }
 
-// ---- RoomMgr.cpp: get_my_house 非角色参数 → nil(20-24) ----
+// ---- prelude get_my_house 无住宅键的对象 → nil ----
 
 TEST_F(BindLoaderTest, GetMyHouseNonCharArg)
 
@@ -138,11 +138,11 @@ TEST_F(BindLoaderTest, GetMyHouseNonCharArg)
 
     lua_bind_push_object(L, &thing);
 
-    int k = call(l_get_my_house, 1);
+    int k = call_global(L, "get_my_house", 1);
 
     EXPECT_EQ(1, k) << "返回一个值";
 
-    EXPECT_TRUE(lua_isnil(L, -1)) << "非角色对象 → nil(21)";
+    EXPECT_TRUE(lua_isnil(L, -1)) << "无 resident → nil";
 
     lua_pop(L, k);
 }

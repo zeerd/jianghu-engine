@@ -47,7 +47,7 @@ verified-by: pending（待作者确认 Open Questions）
 **Background**（inferred from code）:
 
 - 平台是 Win32 / Winsock，IOCP 是该平台原生的高并发 I/O 模型；构建固定为 `Release|Win32`
-  （生产与覆盖率均为 32 位，见 `run-coverage.ps1`、`unit-test.instructions.md`）。
+  （生产与覆盖率均为 32 位，见 `run-coverage.ps1`、`docs/design/unit-test.md` §3）。
 - 内容（房间 / NPC / 物品 / 技能 / 任务）的变更频率远高于引擎本身的变更频率，
   内容必须外置，否则每次调数值都要重发布。
 - 世界规模小而状态复杂：单进程、单房间数以百计、在线玩家以千计的量级，
@@ -191,7 +191,8 @@ verified-by: pending（待作者确认 Open Questions）
   gate 的删除一律由游戏线程消费 EXIT 驱动，不依赖 worker 侧 recv 完成时序。
 - **协议**：`\t` 分帧（缓冲 ≥1024 无终止符则强制吐包，`src/net/GateInfo.cpp:131-156`）；
   载荷是 `&C=<code>&M=<text>&` 形式的键值对（`src/util/StringUtil.cpp:35-60`）；
-  全链路 GBK；**混淆（非加密）**：固定 9 字节密钥 XOR（`StringUtil.cpp:77-97`），无压缩无加密。
+  全链路 GBK；**混淆（非加密）**：XOR 密钥默认 15 字节、可经 `[security] comm_key`
+  配置（`StringUtil.cpp:19-25`），无压缩无加密。
 - **持久化**：`IDatabase* g_db` 单一全局连接（`src/db/IDatabase.h:103`，定义 `Sql.cpp:18`），
   启动时 `init_sql_server` 打开、关服关闭、**无重连**。
   对象走"整行 JSON blob"（`CMapping::get_buffer()` 写 `t_item/t_npc/t_room/t_box` 的 `obj_data`，
@@ -419,9 +420,10 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 - **单元测试**：`tests/unit/tests.vcxproj`，静态库 `jianghu_core.lib` + 链接期 mock
   （`mock_db.cpp`、`mock_itemmgr.cpp`、`mock_net.cpp`、`mock_database.h`）；
   真实 Lua 链接，脚本测试只针对 `lua-default` 与 `lua-sample`。
-- **E2E**：`run-integration-tests.ps1` 起真实服务器 + 无头 CLI + **多账号并行的七条道**
+- **E2E**：`run-integration-tests.ps1` 起真实服务器 + 无头 CLI + **多账号并行的十条道**
   （`register.sce` 先并行注册，再并行跑各 `lane_*.sce`——每道一个独立账号，
-  `include` 串起各自的剧本片段；L5/L6 配对互动、L7 观战依附 L5）。
+  `include` 串起各自的剧本片段；L5/L6 配对互动、L7 观战依附 L5、L8 山贼试炼依附 L3、
+  L9 巫师服务道、L10 练功道）。
   道模型、隔离原则与覆盖率口径的设计见 `docs/design/integration-test.md`。
 - **唯一认可的验证入口**：仓库根 `.\run-coverage.ps1`（`Release|Win32`，
   绝对禁止 Debug —— Debug 与 Release 不是同一个被测对象）。
@@ -434,8 +436,8 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 
 **How We Know This Works**:
 
-- ✅ E2E 多账号并行剧本（七条道，覆盖注册 / 主线 / 技能 / 战斗 /
-  社交 / 多客户端互动 / PK 与观战）在真实服务器上跑通（设计见
+- ✅ E2E 多账号并行剧本（十条道，覆盖注册 / 主线 / 技能 / 战斗 /
+  社交 / 多客户端互动 / PK 与观战 / 山贼试炼 / 巫师服务 / 练功）在真实服务器上跑通（设计见
   `docs/design/integration-test.md`）。
 - ✅ 单测覆盖率门槛与 `coverage_history/summary.csv` 的 delta 门禁长期在执行。
 - ✅ 命令链、脚本链、持久化链都有直接单测（`test_db_layer`、`test_sqlite_integration`、
@@ -446,7 +448,6 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 
 - ⚠️ **死代码 / 死配置**：`SetEvent(g_event)` 指向从未 `CreateEvent` 的句柄；`db_save_box/db_load_box/db_delete_box`
   与 `select_game_database` 只有测试 stub；`t_saveobj`、`user` 表有 DDL 无调用方。
-- ⚠️ **`gen_apply.py` 缺失**：`LuaBindDecls.h` 注释称绑定由该脚本生成，仓库中找不到它。
 - ⚠️ **`CCmdHandle` 双全局**：`CommandHandle`（`src/char/Char.cpp:32`，实际被用）
   与 `g_command_handler`（`Global.cpp:20`，疑似未使用）。
 
@@ -467,11 +468,12 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 **Unresolved During Reverse-Documentation**:
 
 1. **安全姿态的意图**：`INTENT UNKNOWN — inferred from implementation, not confirmed`。
-   代码事实是：固定 9 字节密钥 XOR "加密"、玩家密码明文存于 `cc_passwd`、
+   代码事实是：XOR 混淆密钥默认 15 字节且可配置（`[security] comm_key`）、
+   账号口令已改加盐哈希存储（见 `docs/design/encryption.md` §2，旧行读时迁移）、
    次级校验用 MySQL `OLD_PASSWORD()`（SQLite 上直接明文比对）、
    SQL 由 `snprintf` 拼接且仅部分路径走 `sql_escape_literal`（`src/db/SqlEscape.cpp:8-20`）、
    数据库口令明文写在 `data/config.ini`（默认 `root/root`）、默认巫师密码 `12345678`
-   （`Sql.cpp:104`）。
+   （`Sql.cpp:101`）。
    **这是有意接受的范围（单机/内网/爱好者项目），还是已知但未排期的债务？**
    - Needs clarification from: 作者
    - Impact if unresolved: 无法判断 Consequences 中安全条目应记为"接受的代价"还是"待办"。
@@ -480,11 +482,7 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
    已确认的是属性袋为有意设计、阻塞 DB 在当前规模被接受；
    但"是否评估过"未获回答。影响：本文的 Alternatives 段落只能标 `inferred`。
 
-3. **`gen_apply.py` 的去向**：绑定代码依赖它再生成（`LuaBindDecls.h` 注释）。
-   脚本不在仓库内 —— 绑定是手工维护的，还是生成流程已迁到别处？
-   - Impact if unresolved: 新增 Lua 绑定的流程无从遵循，可能出现两套命名风格继续分叉。
-
-4. **`g_command_handler` 是否死代码**：仅 `Char.cpp` 的 `CommandHandle` 有调用点；
+3. **`g_command_handler` 是否死代码**：仅 `Char.cpp` 的 `CommandHandle` 有调用点；
    未做链接级全量审计。影响：可能误导后续重构。
 
 ---

@@ -1,9 +1,9 @@
 # treebox.sce — 上山顶：等随机怪树刷出 → 和怪树聊天摘下经验果 → 服下（内力上限 +100）
 #
-# 覆盖：sample_guide.lua 的 do_refresh 随机 add_item 刷怪树（1/5 每 5 秒掷一次，
+# 覆盖：sample_guide.lua 的 do_refresh 随机 add_object("item", …) 刷怪树（1/5 每 5 秒掷一次，
 #   刷出后停止重排）、sample_tree.lua 的物件命令截获（对怪树 talk 即摘果，
 #   含「果子已摘光」的私发回执）、sample_xp.lua 的经验果 do_use
-#   （combat_exp +100000、max_mp +100、FlushMyInfo）。
+#   （combat_exp +100000、max_mp +100、flush_my_info）。
 #
 # ⚠ 并行隔离：怪树全服只刷一棵、经验果只有一粒（random/tree 置位后不再重排，
 #   怪树带 no_clean_up 不随房间 reset 消失），故摘果段只由 L3 一道执行——N4 拆分后
@@ -14,12 +14,12 @@
 #   · 山顶场景描述私发；`wait object` / `wait item` 都是每客户端独立状态；
 #   · 观察怪树断私发的描述文本，摘果断本人版房间播报 + 断言背包里真多了一粒
 #     经验果，再断言本人版服用回执「你吃下一粒经验果」；
-#   · 服下后 FlushMyInfo 会推送 max_mp，用状态断言直接验证上限确实 +100
+#   · 服下后 flush_my_info 会推送 max_mp，用状态断言直接验证上限确实 +100
 #     （拆分后本道不再打坐，上限从 0 抬到 100）。
 
 cmd /go 青云山半山腰
 wait room 青云山半山腰
-# 山脚无直达山顶的门（sample_mountain_foot 只 add_door 半山腰/茶棚/钱庄/住宅区），
+# 山脚无直达山顶的门（sample_mountain_foot 只 add_object("door", …) 半山腰/茶棚/钱庄/住宅区），
 # 必须经半山腰中转——旧链的 common/apprentice 恰好先到半山腰，N4 拆分后
 # 本道不再拜师，故显式两跳
 cmd /go 青云山山顶

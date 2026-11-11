@@ -59,17 +59,29 @@ TEST_F(BindContainerDbaseTest, Del)
     EXPECT_EQ(0, ch.query("k"));
 }
 
-// ---------------- temp ----------------
+// ---------------- temp（set/query/add/del 的 "T" 作用域） ----------------
 TEST_F(BindContainerDbaseTest, SetQueryTemp)
 {
     PushSelf(&ch);
     PushStr("t/x");
     PushInt(9);
-    CallVoid(l_set_temp, 3);
+    PushStr("T");
+    CallVoid(l_set, 4);
 
     PushSelf(&ch);
     PushStr("t/x");
-    EXPECT_EQ(9, CallInt(l_query_temp, 2));
+    PushStr("T");
+    EXPECT_EQ(9, CallInt(l_query, 3));
+    // 同键持久袋不受影响：两袋隔离
+    EXPECT_EQ(0, ch.query("t/x"));
+
+    // 字符串值与数字同支
+    PushSelf(&ch);
+    PushStr("t/s");
+    PushStr("abc");
+    PushStr("T");
+    CallVoid(l_set, 4);
+    EXPECT_STREQ("abc", ch.querystr_temp("t/s"));
 }
 
 TEST_F(BindContainerDbaseTest, QuerystrTemp)
@@ -89,13 +101,41 @@ TEST_F(BindContainerDbaseTest, AddTempAndDelete)
     PushSelf(&ch);
     PushStr("cnt");
     PushInt(4);
-    CallVoid(l_add_temp, 3);
+    PushStr("T");
+    CallVoid(l_add, 4);
     EXPECT_EQ(7, ch.query_temp("cnt"));
 
     PushSelf(&ch);
     PushStr("cnt");
-    CallVoid(l_delete_temp, 2);
+    PushStr("T");
+    CallVoid(l_del, 3);
     EXPECT_EQ(0, ch.query_temp("cnt"));
+}
+
+// "T" 之外的作用域拒绝：写错落点（持久/临时）比拒绝更危险
+TEST_F(BindContainerDbaseTest, UnknownScopeErrors)
+{
+    PushSelf(&ch);
+    PushStr("k");
+    PushInt(1);
+    PushStr("X");
+    EXPECT_EQ(-1, call(l_set, 4));
+
+    PushSelf(&ch);
+    PushStr("k");
+    PushStr("X");
+    EXPECT_EQ(-1, call(l_query, 3));
+
+    PushSelf(&ch);
+    PushStr("k");
+    PushInt(1);
+    PushStr("X");
+    EXPECT_EQ(-1, call(l_add, 4));
+
+    PushSelf(&ch);
+    PushStr("k");
+    PushStr("X");
+    EXPECT_EQ(-1, call(l_del, 3));
 }
 
 // ---------------- name / id ----------------

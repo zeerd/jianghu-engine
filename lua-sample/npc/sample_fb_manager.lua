@@ -22,8 +22,8 @@ end
 
 function npc.do_talk(self, me, ask)
     self:say("有什么可以帮助你的吗？", me)
-    self:AddMenuItem("离开副本", "$0leave $1", me)
-    self:SendMenu(me)
+    self:add_menu_item("离开副本", "$0leave $1", me)
+    self:send_menu(me)
     return 1
 end
 
@@ -46,7 +46,7 @@ end
 function npc.do_leave(self, me)
     local r = self:environment()
     if not r or not r:query_fb_parent() then
-        message_vision("我这是在哪呢，我都不知道身处何方，又如何为你指路。", me)
+        message("vision", "我这是在哪呢，我都不知道身处何方，又如何为你指路。", me)
         return 0
     end
 
@@ -58,7 +58,8 @@ function npc.do_leave(self, me)
         env = load("room", START_ROOM)
     end
 
-    message_vision(
+    message(
+        "vision",
         "$N用手一划，出现了一扇烟雾弥漫的门，$n未假思索，从这扇门走了出去。",
         self,
         me

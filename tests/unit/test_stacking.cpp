@@ -42,7 +42,7 @@ TEST(StackingLogic, TotalValue_ZeroAndNegative)
 }
 
 // ---------------------------------------------------------------------------
-// ValidSplitAmount: Split() semantics
+// ValidSplitAmount: split() semantics
 // ---------------------------------------------------------------------------
 TEST(StackingLogic, ValidSplitAmount_Basic)
 {
@@ -58,7 +58,7 @@ TEST(StackingLogic, ValidSplitAmount_Basic)
 
 TEST(StackingLogic, ValidSplitAmount_PreservesInvariants)
 {
-    // Simulate the Split() math the server performs:
+    // Simulate the split() math the server performs:
     //   remaining = current - split
     //   both parts must satisfy TotalWeight/TotalValue invariants.
     long current = 80, split = 30;

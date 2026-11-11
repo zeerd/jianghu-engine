@@ -7,7 +7,7 @@
 #     记谁/何时/开出什么）：建表登记 l_db_register_ddl + 方言 l_get_db_type
 #     在开机期由 data/hooks.lua 的 require 触发（早于 prepare_tables），
 #     拆盒记档走 l_db_execute 写 + l_db_query 读回；
-#   · hooks.post_buy（data/hooks.lua）的成交须知走 l_message_vision_self：
+#   · hooks.post_buy（data/hooks.lua）的成交须知走 message("vision_self", …)：
 #     只送买卖双方、不进房间广播，按 goods.basename 收窄到盲盒。
 #
 # 判定：
@@ -37,7 +37,7 @@ clear
 cmd /buy 13
 wait text 你从杂货老板那里买下了数量1的盲盒 timeout=10000
 
-# hooks.post_buy 的成交须知（message_vision_self，只送买卖双方、不进房间
+# hooks.post_buy 的成交须知（message("vision_self", …)，只送买卖双方、不进房间
 # 广播）：钩子先于「买下了」回执发出，而 wait 扫的是整段缓冲，放回执之后
 # 照样命中
 wait text 盲盒拆开之前不退不换 timeout=10000

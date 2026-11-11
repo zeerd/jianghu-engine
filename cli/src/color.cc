@@ -28,7 +28,7 @@ static const std::map<std::string, std::string> color_map = {
     {"$COM", "\033[0m"},
 };
 
-std::string convert(const std::string &text)
+std::string convert(const std::string& text)
 {
     std::string result;
     result.reserve(text.size() + 32);
@@ -57,7 +57,7 @@ std::string convert(const std::string &text)
     return result;
 }
 
-std::string strip(const std::string &text)
+std::string strip(const std::string& text)
 {
     std::string result;
     result.reserve(text.size());

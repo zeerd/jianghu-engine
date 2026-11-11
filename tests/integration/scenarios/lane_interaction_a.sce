@@ -37,6 +37,7 @@
 #   L6 之间建立，不动物品、不占任何唯一资源。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include provision/interaction_provision_a.sce
 # 收徒资格前置必须在会合之前：recruit_a 起的师徒四段要 /recruit 资格守卫，
 #   本段先拜师青云子（门派/代数）再请巫师供能 recruit_exp，段尾回山脚

@@ -131,7 +131,7 @@ TEST_F(CharSaveTest, RestoreData_RoundTrip)
     delete dst;
 }
 
-// ---------------- LoadFromServer ----------------
+// ---------------- load_from_server ----------------
 TEST_F(CharSaveTest, LoadFromServer_Success)
 {
     // generate a real save buffer
@@ -175,7 +175,7 @@ TEST_F(CharSaveTest, Load_UserDelegates)
     CUser* u = new CUser();
     u->set("id", "s13");
     db->SetQueryFail(true);
-    EXPECT_EQ(u->load(), 0);  // LoadFromServer fails
+    EXPECT_EQ(u->load(), 0);  // load_from_server fails
     delete u;
 }
 

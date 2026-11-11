@@ -50,10 +50,10 @@ local function list_trade(self, me)
     for obj in iter_items(list) do
         if check_validsell(obj) then
             if obj:dbase_temp("str", "trade/owner") ~= me:id(1) then
-                obj:delete_temp("trade")
+                obj:del("trade", "T")
             end
 
-            local val = obj:query_temp("trade/value")
+            local val = obj:query("trade/value", "T")
 
             local msg
             if val ~= 0 then
@@ -61,7 +61,7 @@ local function list_trade(self, me)
             else
                 msg = string.format("%s ：<自用>", obj:name())
             end
-            self:AddMenuItem(msg, string.format("$2value $1 %d $2", obj:object_id()), me)
+            self:add_menu_item(msg, string.format("$2value $1 %d $2", obj:object_id()), me)
             i = i + 1
         end
     end
@@ -70,7 +70,7 @@ local function list_trade(self, me)
         self:say("没有可以交易的物品。", me)
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
 end
 
 return {
@@ -134,10 +134,10 @@ return {
         me:say(string.format("%s想卖给你货物。", me:name()), who)
 
         for obj in iter_items(list) do
-            local val = obj:query_temp("trade/value")
+            local val = obj:query("trade/value", "T")
 
             if val > 0 and obj:dbase_temp("str", "trade/owner") == me:id(1) then
-                me:AddMenuItem(
+                me:add_menu_item(
                     string.format("%s ：%d", obj:name(), val),
                     string.format("$0buy %d %d", me:object_id(), obj:object_id()),
                     who
@@ -146,11 +146,11 @@ return {
             end
         end
 
-        me:SendMenu(who)
+        me:send_menu(who)
 
-        message_vision("$N正在向$n推销货品。", me, who)
+        message("vision", "$N正在向$n推销货品。", me, who)
         if i == 0 then
-            message_vision("$n不高兴的对$N说：可你这也没什么好货啊。", me, who)
+            message("vision", "$n不高兴的对$N说：可你这也没什么好货啊。", me, who)
         end
 
         return 1
@@ -168,14 +168,14 @@ return {
 
             local val = price
             if val <= 0 then
-                obj:delete_temp("trade")
+                obj:del("trade", "T")
                 tell_object(me, "取消出售。")
                 list_trade(self, me)
                 return 1
             end
 
-            obj:set_temp("trade/owner", me:id(1))
-            obj:set_temp("trade/value", val)
+            obj:set("trade/owner", me:id(1), "T")
+            obj:set("trade/value", val, "T")
 
             tell_object(me, "完成定价！")
 

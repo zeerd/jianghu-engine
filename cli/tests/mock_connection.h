@@ -9,13 +9,13 @@ class MockConnection : public Connection {
 public:
     std::vector<std::string> sent_commands;
 
-    bool send_command_utf8(const std::string &cmd) override
+    bool send_command_utf8(const std::string& cmd) override
     {
         sent_commands.push_back(cmd);
         return true;
     }
 
-    bool send(const std::string &data) override
+    bool send(const std::string& data) override
     {
         // send_command_utf8 calls send internally after encoding.
         // Mock records the raw bytes too.
@@ -25,7 +25,8 @@ public:
 
     std::string local_ip() const override { return "127.0.0.1"; }
 
-    // Hide base drain_received to return injected messages (base method is now virtual).
+    // Hide base drain_received to return injected messages (base method is now
+    // virtual).
     std::vector<std::string> drain_received() override
     {
         std::lock_guard<std::mutex> lock(recv_mutex_);
@@ -35,7 +36,7 @@ public:
     }
 
     // Test helper: inject a raw message (will be returned by drain_received).
-    void inject_received(const std::string &raw_message)
+    void inject_received(const std::string& raw_message)
     {
         std::lock_guard<std::mutex> lock(recv_mutex_);
         recv_queue_.push_back(raw_message);
@@ -59,7 +60,7 @@ public:
     }
 
     int command_count() const { return static_cast<int>(sent_commands.size()); }
-    const std::vector<std::string> &get_sent_commands() const
+    const std::vector<std::string>& get_sent_commands() const
     {
         return sent_commands;
     }

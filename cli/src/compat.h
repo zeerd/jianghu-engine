@@ -31,7 +31,7 @@
 #define SHUT_RDWR SD_BOTH
 #endif
 
-using socket_t = SOCKET;
+using socket_t                           = SOCKET;
 inline constexpr socket_t kInvalidSocket = INVALID_SOCKET;
 /// getsockname/getpeername 的地址长度参数类型
 using socket_len_t = int;
@@ -83,7 +83,7 @@ inline void init_console()
 
 #include <arpa/inet.h>
 
-using socket_t = int;
+using socket_t                           = int;
 inline constexpr socket_t kInvalidSocket = -1;
 /// getsockname/getpeername 的地址长度参数类型
 using socket_len_t = socklen_t;
@@ -120,15 +120,15 @@ inline void init_console() {}
 inline std::string home_dir()
 {
 #ifdef _WIN32
-    const char *home = std::getenv("USERPROFILE");
+    const char* home = std::getenv("USERPROFILE");
 #else
-    const char *home = std::getenv("HOME");
+    const char* home = std::getenv("HOME");
 #endif
     return home ? std::string(home) : std::string();
 }
 
 /// 递归创建目录（等价于 mkdir -p），返回是否成功。
-inline bool make_dirs(const std::string &path)
+inline bool make_dirs(const std::string& path)
 {
     if (path.empty()) return false;
     std::error_code ec;

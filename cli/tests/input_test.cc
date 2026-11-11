@@ -27,7 +27,7 @@ namespace {
 // 输出经 UI 写线程异步落 stdout，取文本前必须先排空该线程。
 class OutputCapture {
 public:
-    explicit OutputCapture(TerminalUI &ui)
+    explicit OutputCapture(TerminalUI& ui)
         : ui_(ui), saved_(std::cout.rdbuf(out_.rdbuf()))
     {
     }
@@ -43,9 +43,9 @@ public:
     }
 
 private:
-    TerminalUI &ui_;
+    TerminalUI& ui_;
     std::stringstream out_;
-    std::streambuf *saved_;
+    std::streambuf* saved_;
 };
 
 }  // namespace
@@ -105,12 +105,11 @@ protected:
     // 进入 5001 房间
     void enter_room()
     {
-        state_.handle_message(make_msg(
-            10, {{"R", "5001"},
-                 {"I", "map_test"},
-                 {"N", "测试房"},
-                 {"F", "0"},
-                 {"D", ""}}));
+        state_.handle_message(make_msg(10, {{"R", "5001"},
+                                            {"I", "map_test"},
+                                            {"N", "测试房"},
+                                            {"F", "0"},
+                                            {"D", ""}}));
     }
 
     // 房间内增加一个已命名对象（iid = 英文 id，协议 I= 字段，/t 的合法参数）
@@ -118,12 +117,11 @@ protected:
                          bool is_user = false, bool is_item = false,
                          int qty = 1, const std::string& iid = "")
     {
-        state_.handle_message(make_msg(
-            11, {{"E", "5001"},
-                 {"T", std::to_string(id)},
-                 {"u", is_user ? "1" : "0"},
-                 {"i", is_item ? "1" : "0"},
-                 {"U", "0"}}));
+        state_.handle_message(make_msg(11, {{"E", "5001"},
+                                            {"T", std::to_string(id)},
+                                            {"u", is_user ? "1" : "0"},
+                                            {"i", is_item ? "1" : "0"},
+                                            {"U", "0"}}));
         GameMessage m17;
         m17.cmd         = 17;
         m17.params["O"] = std::to_string(id);
@@ -145,8 +143,8 @@ protected:
     // 打开无选项的对话
     void open_dialog()
     {
-        state_.handle_message(make_msg(
-            27, {{"N", "100"}, {"n", "铁匠"}, {"m", "需要什么？"}}));
+        state_.handle_message(
+            make_msg(27, {{"N", "100"}, {"n", "铁匠"}, {"m", "需要什么？"}}));
     }
 };
 
@@ -231,9 +229,8 @@ TEST_F(InputProcessorTest, CliSkillsListsLevelPotentialAndPrepare)
                                         {"P", "2"},
                                         {"M", "sword"},
                                         {"K", "1"}}));
-    state_.handle_message(make_msg(16, {{"S", "huashan_jianfa"},
-                                        {"N", "华山剑法"},
-                                        {"E", "sword"}}));
+    state_.handle_message(make_msg(
+        16, {{"S", "huashan_jianfa"}, {"N", "华山剑法"}, {"E", "sword"}}));
     conn_.clear_commands();
 
     OutputCapture cap(ui_);
@@ -332,10 +329,8 @@ TEST_F(InputProcessorTest, CliLookShowsCharsItemsAndExits)
     enter_room();
     add_room_object(2001, "店小二", /*is_user=*/true);
     add_room_object(3001, "包子", /*is_item=*/true);
-    state_.handle_message(make_msg(24, {{"R", "5001"},
-                                        {"D", "north"},
-                                        {"A", "正北"},
-                                        {"N", "武当山"}}));
+    state_.handle_message(make_msg(
+        24, {{"R", "5001"}, {"D", "north"}, {"A", "正北"}, {"N", "武当山"}}));
 
     OutputCapture cap(ui_);
     input_.process_line(".look");

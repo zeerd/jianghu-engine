@@ -10,7 +10,7 @@
 #       分支自动开战），所以同一句可以反复问；
 #     do_talk「讨教」→ fight_ob 还手但不记账——这一句才真正开战；
 #     accept_object 收受贿赂 → remove_all_killer 双方销账；
-#     die 接管死亡：killer_reward（私发击杀奖励）→ MakeCorpse（房间里的尸体）→ 自毁
+#     die 接管死亡：killer_reward（私发击杀奖励）→ make_corpse（房间里的尸体）→ 自毁
 #   data/hooks.fight 的棋子补击（combat_attack_weapon + damge_to_string 私发）
 #   data/hooks.fight 的左手连击（can_combo 匕首，私发文案，装备来自 left_hand.sce）
 #

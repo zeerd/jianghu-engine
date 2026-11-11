@@ -7,6 +7,10 @@ Get-ChildItem -Path src -Recurse -Include *.inl | ForEach-Object { clang-format 
 Get-ChildItem -Path src -Recurse -Include *.h | ForEach-Object { clang-format -i $_.FullName }
 Get-ChildItem -Path tests -Recurse -Include *.cpp | ForEach-Object { clang-format -i $_.FullName }
 Get-ChildItem -Path tests -Recurse -Include *.h | ForEach-Object { clang-format -i $_.FullName }
+Get-ChildItem -Path cli\src -Recurse -Include *.cc | ForEach-Object { clang-format -i $_.FullName }
+Get-ChildItem -Path cli\src -Recurse -Include *.h | ForEach-Object { clang-format -i $_.FullName }
+Get-ChildItem -Path cli\tests -Recurse -Include *.cc | ForEach-Object { clang-format -i $_.FullName }
+Get-ChildItem -Path cli\tests -Recurse -Include *.h | ForEach-Object { clang-format -i $_.FullName }
 
 Get-ChildItem -Path lua-default -Recurse -Include *.lua | ForEach-Object { stylua $_.FullName }
 Get-ChildItem -Path lua-sample -Recurse -Include *.lua | ForEach-Object { stylua $_.FullName }

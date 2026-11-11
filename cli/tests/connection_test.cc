@@ -47,8 +47,7 @@ public:
         addr.sin_family      = AF_INET;
         addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         addr.sin_port        = 0;  // 临时端口
-        if (::bind(listener_, reinterpret_cast<sockaddr*>(&addr),
-                   sizeof(addr))
+        if (::bind(listener_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))
             != 0)
             return false;
         if (::listen(listener_, 1) != 0) return false;

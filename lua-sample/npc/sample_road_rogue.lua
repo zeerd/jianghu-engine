@@ -16,7 +16,7 @@
 --   do_talk「讨教」  点到为止：fight_ob 还手但不记账——这一句才真正开战，
 --                    排在所有问话之后，开战后 talk 被引擎挡掉也不影响
 --   accept_object    收受贿赂：钱到气消，双方 remove_all_killer 销账
---   die              死亡接管：killer_reward 结算击杀奖励 → MakeCorpse 造尸体 → 自毁
+--   die              死亡接管：killer_reward 结算击杀奖励 → make_corpse 造尸体 → 自毁
 --
 -- 战斗中 talk 被引擎挡掉（CmdUserSocial.cpp 的 is_fighting 分支），所以几句话都
 -- 排在开战之前；贿赂同理排在开战之前——非战斗态下 give 不走 30 AP 那道门。
@@ -64,7 +64,7 @@ function npc.create(self)
     self:set("max_mp", 100)
     self:set("mp", 100)
     self:set_skill("force", 20)
-    self:map_skill("force", "force")
+    self:skill_map("set", "force", "force")
 
     -- 固定击杀经验：拦路的身上带着官府悬赏，谁杀都能领到——不走 nk_gain 的
     -- 历练折算（见 data/hooks.lua 的 kill_bonus）
@@ -122,14 +122,14 @@ end
 -- 死亡接管：奖励与尸体都由本脚本装配，顺序与引擎标准死亡一致——
 -- 先结算击杀奖励，再造尸体，最后自毁
 function npc.die(self)
-    local killer = find("object", self:query_temp("last_damage_from"), 1)
+    local killer = find("object", self:query("last_damage_from", "T"), 1)
 
-    message_vision("$N闷哼一声，仰面栽倒在地。", self)
+    message("vision", "$N闷哼一声，仰面栽倒在地。", self)
 
     if killer then
         killer_reward(killer, self)
     end
-    MakeCorpse(self, killer)
+    make_corpse(self, killer)
 
     destruct(self)
 end

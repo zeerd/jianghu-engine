@@ -37,7 +37,7 @@ function npc.die(self)
         local shedan = load("item", "sample_shedan")
         if shedan then
             shedan:move(env)
-            message_vision("$N身上掉出了一颗蛇胆。", self)
+            message("vision", "$N身上掉出了一颗蛇胆。", self)
         end
     end
 

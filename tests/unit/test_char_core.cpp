@@ -30,13 +30,13 @@ protected:
     void TearDown() override { delete ch; }
 };
 
-// ---------------- Query ----------------
+// ---------------- query ----------------
 TEST_F(CharCoreTest, Query_Attrs)
 {
     EXPECT_EQ(ch->query_attr(CChar::IS_CHAR), 1);
     EXPECT_EQ(ch->query_attr(CChar::IS_LIVING), 1);
     EXPECT_EQ(ch->query_attr(CChar::IS_BUSY), 0);
-    // Query(IS_BUSY) reflects the function-busy pointer, not the counter.
+    // query(IS_BUSY) reflects the function-busy pointer, not the counter.
     ch->start_busy(2, NULL, NULL);
     EXPECT_EQ(ch->query_attr(CChar::IS_BUSY), 0);
     EXPECT_EQ(ch->is_busy(), 1);  // is_busy covers the counter too
@@ -96,7 +96,10 @@ TEST_F(CharCoreTest, ConditionQuery)
     EXPECT_EQ(ch->query_condition("poison"), 0);
     ch->apply_condition("poison", 5, 0);
     EXPECT_GT(ch->query_condition("poison"), 0);
-    ch->clear_condition();
+    // 清除已下沉前导 index.clear_condition（持久 + 临时整键删除）
+    lua_State* L = ensure_lua_env();
+    lua_bind_push_object(L, ch);
+    EXPECT_EQ(0, call_method(L, "clear_condition", 1));
     EXPECT_EQ(ch->query_condition("poison"), 0);
 }
 

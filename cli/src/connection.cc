@@ -11,15 +11,14 @@ Connection::Connection() = default;
 
 Connection::~Connection() { disconnect(); }
 
-bool Connection::connect(const std::string &host, int port)
+bool Connection::connect(const std::string& host, int port)
 {
     if (!net_init()) {
         std::cerr << "[ERROR] network init failed\n";
         return false;
     }
 
-    struct addrinfo hints {
-    }, *res;
+    struct addrinfo hints{}, *res;
     hints.ai_family   = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
@@ -48,8 +47,7 @@ bool Connection::connect(const std::string &host, int port)
     else {
         sockaddr_in name{};
         socket_len_t namelen = sizeof(name);
-        if (getsockname(sock_fd_, reinterpret_cast<sockaddr *>(&name),
-                        &namelen)
+        if (getsockname(sock_fd_, reinterpret_cast<sockaddr*>(&name), &namelen)
             == 0) {
             char buffer[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &name.sin_addr, buffer, sizeof(buffer));
@@ -76,7 +74,7 @@ bool Connection::is_connected() const
 
 std::string Connection::local_ip() const { return local_ip_; }
 
-bool Connection::send(const std::string &data)
+bool Connection::send(const std::string& data)
 {
     if (!is_connected()) return false;
 
@@ -87,7 +85,7 @@ bool Connection::send(const std::string &data)
 }
 
 /* Internal helper: UTF-8 → GBK → XOR → TCP, returns success. */
-bool Connection::encode_and_send(const std::string &utf8_text)
+bool Connection::encode_and_send(const std::string& utf8_text)
 {
     if (!is_connected()) return false;
     std::string gbk     = protocol::utf8_to_gbk(utf8_text);
@@ -95,8 +93,8 @@ bool Connection::encode_and_send(const std::string &utf8_text)
     return send(encoded);
 }
 
-bool Connection::send_login(const std::string &account,
-                            const std::string &password)
+bool Connection::send_login(const std::string& account,
+                            const std::string& password)
 {
     if (!is_connected()) return false;
     std::string wire = protocol::format_login(local_ip_, "JJ.0.0.1", account,
@@ -104,9 +102,9 @@ bool Connection::send_login(const std::string &account,
     return encode_and_send(wire);
 }
 
-bool Connection::send_register(const std::string &account,
-                               const std::string &password,
-                               const std::string &gender, int strength,
+bool Connection::send_register(const std::string& account,
+                               const std::string& password,
+                               const std::string& gender, int strength,
                                int constitution, int intelligence,
                                int dexterity)
 {
@@ -117,7 +115,7 @@ bool Connection::send_register(const std::string &account,
     return encode_and_send(wire);
 }
 
-bool Connection::send_command_utf8(const std::string &utf8_bytes)
+bool Connection::send_command_utf8(const std::string& utf8_bytes)
 {
     return encode_and_send(utf8_bytes);
 }
@@ -154,11 +152,9 @@ void Connection::receive_loop()
         FD_ZERO(&fds);
         FD_SET(sock_fd_, &fds);
 
-        struct timeval tv {
-            0, 100000
-        };  // 100ms timeout
-        int ret = select(static_cast<int>(sock_fd_) + 1, &fds, nullptr,
-                         nullptr, &tv);
+        struct timeval tv{0, 100000};  // 100ms timeout
+        int ret = select(static_cast<int>(sock_fd_) + 1, &fds, nullptr, nullptr,
+                         &tv);
         if (ret < 0) {
             if (running_ && !net_interrupted())
                 std::cerr << "[ERROR] select: " << net_error_message() << "\n";

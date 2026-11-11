@@ -16,11 +16,11 @@ namespace {
 struct CoreFixture {
     std::filesystem::path logs_dir;
     std::unique_ptr<MockConnection> mock;
-    MockConnection *conn = nullptr;
+    MockConnection* conn = nullptr;
     std::unique_ptr<ClientCore> core;
 
-    explicit CoreFixture(int heartbeat_interval = 0,
-                         const std::string &comm_key = std::string())
+    explicit CoreFixture(int heartbeat_interval      = 0,
+                         const std::string& comm_key = std::string())
     {
         logs_dir = test_tmp_dir() / "jianghu_cli_client_core_test";
         std::filesystem::create_directories(logs_dir);

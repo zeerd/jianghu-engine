@@ -31,13 +31,19 @@ public:
 
 TEST_F(BindFightRoomTest, IsFightRoom)
 {
+    // 验型改走 query(IS_FIGHTROOM)：CFightRoom 回 1（脚本侧原
+    // is_fight_room 的替代形态）
     lua_bind_push_object(L, &fr);
-    EXPECT_TRUE(CallBool(l_is_fight_room, 1));
+    lua_pushinteger(L, CMainObject::IS_FIGHTROOM);
+    int k = call(l_query, 2);
+    ASSERT_EQ(1, k);
+    EXPECT_EQ(1, lua_tointeger(L, -1));
+    lua_pop(L, k);
 }
 
 TEST_F(BindFightRoomTest, CanJoin)
 {
-    // 契约：Can_Join 必返回一个布尔（值依赖门槛配置，不断言具体值）
+    // 契约：can_join 必返回一个布尔（值依赖门槛配置，不断言具体值）
     lua_bind_push_object(L, &fr);
     lua_pushinteger(L, 0);
     int k = call(l_can_join, 2);
@@ -182,7 +188,7 @@ TEST_F(BindFightRoomTest, JoinTeamBindEnqueuesChar)
     if (k > 0) lua_pop(L, k);
 
     EXPECT_EQ(1, fr.m_Team[0].fighter_num)
-        << "Join_Team 接收 userdata 与 team(567-569)";
+        << "join_team 接收 userdata 与 team(567-569)";
     fr.move(nullptr);  // 先出房再拆栈房
 }
 
@@ -194,7 +200,7 @@ TEST_F(BindFightRoomTest, BeginFightBindSetsThresholdFlag)
     int k = call(l_begin_fight, 3);
     if (k > 0) lua_pop(L, k);
 
-    EXPECT_TRUE(fr.is_threshold_match()) << "Begin_Fight 的 flag 生效(580)";
+    EXPECT_TRUE(fr.is_threshold_match()) << "begin_fight 的 flag 生效(580)";
     set_heart_beat_obj(&fr, 0);  // begin_fight 注册了心跳 → 收尾摘除
 }
 
@@ -249,7 +255,7 @@ TEST_F(BindFightRoomTest, LeaveTeamBindDequeuesChar)
     int k = call(l_leave_team, 2);
     if (k > 0) lua_pop(L, k);
 
-    EXPECT_EQ(0, fr.m_Team[0].fighter_num) << "Leave_Team 摘位(616-617)";
+    EXPECT_EQ(0, fr.m_Team[0].fighter_num) << "leave_team 摘位(616-617)";
     fr.move(nullptr);
 }
 

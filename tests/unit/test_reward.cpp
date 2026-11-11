@@ -131,7 +131,7 @@ protected:
         return victim;
     }
 };
-// kill_settle 要对总舵房间 LockData/Load/Save，需要 g_db 指向 Mock
+// kill_settle 要对总舵房间 lock_data/Load/Save，需要 g_db 指向 Mock
 class RewardDbTest : public RewardTest {
 protected:
     void SetUp() override
@@ -473,8 +473,8 @@ TEST_F(RewardPartyTest, PkReward_DispatchesPkRewardHook)
                             "  if phase == 'pk_reward' then"
                             "    pkp_calls = pkp_calls + 1"
                             "    pkp_guilt = a:query('kill/guilt')"
-                            "    pkp_vmark = t:query_temp('pkp/victim_mark')"
-                            "    a:set_temp('pkp/dispatched', 1)"
+                            "    pkp_vmark = t:query('pkp/victim_mark', \"T\")"
+                            "    a:set('pkp/dispatched', 1, \"T\")"
                             "  end"
                             "  if __orig_cr then "
                             "return __orig_cr(phase,a,t,d) end"
@@ -537,27 +537,28 @@ TEST_F(RewardPartyTest, KillerReward_PkSettle_TitlesAndRoomTell)
     room->set("PK", 1);  // pk_chang → tell_room 分支
     killer->set("level", (long)10);
     killer->set("family/family_name", "武当");
-    pvic->set("kill/last_killer", "rk1");  // 354 覆写 gain（随后 355 归零）
-    pvic->set("kill/last_lose", (long)200);
     killer->set_temp("pending/PK", 100);
-    pvic->set_temp("pending/PK", 50);  // vi<ki → pk=0 → 387 短路
+    pvic->set_temp("pending/PK", 50);  // vi<ki → pk=0 → 不触发 pk_reward 追打
 
     g_reward.killer_reward(killer, pvic);
     EXPECT_EQ(15000 - 252, pvic->query("combat_exp"))
-        << "lose=126 经 kill_settle 双倍后入账(461)";
+        << "lose=126 经 kill_settle 双倍后入账";
     EXPECT_EQ(252, pvic->query("kill/pklose"));
     EXPECT_EQ(1, pvic->query("pds"));
-    EXPECT_EQ(0, pvic->query_temp("pending/PK")) << "双侧 PK 标被清(381-383)";
+    EXPECT_EQ(0, pvic->query_temp("pending/PK")) << "双侧 PK 标被清";
     EXPECT_EQ(0, killer->query_temp("pending/PK"));
-    EXPECT_EQ(0, killer->query("kill/free"))
-        << "387：pkreward=1 时不追打 pk_reward";
+    EXPECT_EQ(0, killer->query("kill/free")) << "pkreward=1 时不追打 pk_reward";
     EXPECT_EQ(g_current_time, pvic->query("kill/kill_time"));
+    EXPECT_STREQ("rk1", pvic->querystr("kill/last_killer"))
+        << "kill/last_killer 记录凶手（活状态，保留）";
+    ASSERT_NE(pvic->querymap("kill"), nullptr);
+    EXPECT_EQ(1, pvic->querymap("kill")->undefinedp("last_lose"))
+        << "kill/last_lose 已随复仇经验死分支移除";
     EXPECT_EQ(0, killer->query("combat_exp"))
-        << "355 无条件把 gain 归零（实测语义）";
-    EXPECT_TRUE(killer->has("杀死仇敌"))
-        << "pk_chang → tell_room 播报(400,409)";
+        << "PK 击杀者经验恒 0（设计：PK 动机非刷级）";
+    EXPECT_TRUE(killer->has("杀死仇敌")) << "pk_chang → tell_room 播报";
 
-    // 阶段B：kill_settle 不命中 → pkreward=0；仅凶手带 PK 标 → 387 追打
+    // 阶段B：kill_settle 不命中 → pkreward=0；仅凶手带 PK 标 → 追打 pk_reward
     EXPECT_EQ(luaL_dostring(L,
                             "hooks.combat_rule = function(phase,a,t,d)"
                             "  if phase == 'kill_settle' then "
@@ -569,7 +570,7 @@ TEST_F(RewardPartyTest, KillerReward_PkSettle_TitlesAndRoomTell)
     killer->set_temp("pending/PK", 100);
     g_reward.killer_reward(killer, pvic);
     EXPECT_GT(killer->query("kill/free"), 0)
-        << "387：pkreward=0 且 pk=1 → 走 pk_reward";
+        << "pkreward=0 且 pk=1 → 走 pk_reward";
     EXPECT_EQ(
         luaL_dostring(L, "hooks.combat_rule = __orig_cr; __orig_cr = nil"),
         LUA_OK);

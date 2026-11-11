@@ -22,7 +22,7 @@ namespace {
 // 捕获 stdout：替换缓冲区，取文本前先等 UI 写线程排空。
 class CoutCapture {
 public:
-    explicit CoutCapture(TerminalUI &ui)
+    explicit CoutCapture(TerminalUI& ui)
         : ui_(ui), saved_(std::cout.rdbuf(out_.rdbuf()))
     {
     }
@@ -38,17 +38,17 @@ public:
     }
 
 private:
-    TerminalUI &ui_;
+    TerminalUI& ui_;
     std::stringstream out_;
-    std::streambuf *saved_;
+    std::streambuf* saved_;
 };
 
 // 会话日志目录里所有 .log 的拼接内容
-std::string read_logs(const std::filesystem::path &dir)
+std::string read_logs(const std::filesystem::path& dir)
 {
     std::string all;
     std::error_code ec;
-    for (const auto &entry : std::filesystem::directory_iterator(dir, ec)) {
+    for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
         if (entry.path().extension() != ".log") continue;
         std::ifstream in(entry.path(), std::ios::binary);
         all.append(std::istreambuf_iterator<char>(in),
@@ -120,9 +120,9 @@ TEST_F(TerminalUiTest, QueueKeepsEmitOrder)
     ASSERT_TRUE(ui.flush_output());
 
     const std::string out = cap.str();
-    const auto p_first = out.find("first");
-    const auto p_second = out.find("second");
-    const auto p_third = out.find("third");
+    const auto p_first    = out.find("first");
+    const auto p_second   = out.find("second");
+    const auto p_third    = out.find("third");
     ASSERT_NE(p_first, std::string::npos);
     ASSERT_NE(p_second, std::string::npos);
     ASSERT_NE(p_third, std::string::npos);
@@ -130,6 +130,5 @@ TEST_F(TerminalUiTest, QueueKeepsEmitOrder)
     EXPECT_LT(p_second, p_third);
 
     const std::string log = read_logs(logs_dir_);
-    EXPECT_LT(log.find("] first"), log.find("] third"))
-        << "会话日志同样保序";
+    EXPECT_LT(log.find("] first"), log.find("] third")) << "会话日志同样保序";
 }

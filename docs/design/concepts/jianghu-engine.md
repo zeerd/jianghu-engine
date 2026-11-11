@@ -31,7 +31,7 @@ verified-by: 待作者确认（部分意图已由作者在 2026-10-24 当面裁�
 - C++（~33k 行，`src\` 下 17 个模块）实现单进程服务器：IOCP 网络、1 秒心跳、
   对象体系（char/npc/item/room/condition 全部继承 `CContainer`）、战斗管线骨架、
   MySQL/SQLite 双后端持久化。
-- Lua（引擎绑定面 ~280 个 `l_*` 函数，`src\lua\LuaBindDecls.h`）承载全部内容实例
+- Lua（引擎绑定面 196 个 `l_*` 函数，`src\lua\LuaBindDecls.h`）承载全部内容实例
   与其行为：每个房间、NPC、物品、技能、状态条件都是一个 Lua 脚本文件。
 - 自带两套脚本根：`lua-default`（引擎兜底框架内容）与 `lua-sample`
   （自包含示例世界「青云山」，即开即玩，同时是内容编写的教材）。
@@ -175,12 +175,12 @@ RMT 走私，交易留痕可征税。
 
 ✅ **Release 同构测试门禁**：`run-coverage.ps1` 全程 Release|Win32
 （生产同构），Debug 版测试内置 `TestConfigGate` 无条件报红
-（`unit-test.instructions.md`）。**经验**：把「Debug 结果不作数」
+（见 `docs/design/unit-test.md` §3）。**经验**：把「Debug 结果不作数」
 做成硬门禁而非口头纪律，消除了「Debug 全绿但生产未验证」的假信心。
 
 ✅ **CLI 无头剧本 E2E**：`tests\integration\scenarios\*.sce` 用
 `wait`/`assert`/`capture` 剧本驱动真实服务器 + 真实客户端，
-多账号并行七条道，E2E 覆盖率与单测覆盖率互补、各司其职（口径与分工见
+多账号并行十条道，E2E 覆盖率与单测覆盖率互补、各司其职（口径与分工见
 `docs\design\integration-test.md` §5）。**经验**：文字 MUD 的 E2E 天然
 适合文本断言，剧本即回归文档。
 
@@ -229,9 +229,9 @@ RMT 走私，交易留痕可征税。
 ⚠️ **注释漂移**（§4）：三处已知 + 潜在更多。**路径**：修注释或删注释，
 不做「注释翻译」——公式以代码为准写进文档（本文档即部分承担）。**工作量**：小。
 
-⚠️ **`gain = 0` 的表达力**（`CReward.cpp:337-340`）：PK 零经验是**已确认的设计**，
-但实现是「算完 gain 再无条件清零」——下一位读者必然当 bug 报。
-**路径**：改写为显式早退 + 设计注释，让意图在代码里可读。**工作量**：极小。
+✅ **`gain = 0` 表达力已修正**（`CReward.cpp` 的 `handle_pk_reward`）：PK 零经验是
+**已确认的设计**，现以 `gain = 0` 常量 + 设计注释显式表达，复仇经验死分支
+（含指针比较暗 bug）与调用方死计算已随修正移除。
 
 ⚠️ **单进程天花板**：`MAX_ONLINE_USERS 5000`、`login_limit 2500` 是编译期
 常量与运行时配置，无跨进程/分线能力。**路径**：概念层面即接受（见 §8），
@@ -339,7 +339,7 @@ RMT 走私，交易留痕可征税。
 **实现概况**：
 - 语言/运行时：C++（Win32，MSVC，/MT）+ Lua 5.5（`3rd/lua55`）；MySQL/SQLite 双后端。
 - 架构：单进程；IOCP 网络线程 + 单游戏主循环（1 秒心跳，`ServerSockWorker.cpp:224-246`）；
-  延迟析构队列；对象心跳注册表。详见 `docs\architecture\engine-core-architecture.md`。
+  延迟析构队列；对象心跳注册表。详见 `docs\design\engine-core-architecture.md`。
 - 对象体系：`CMainObject`（dbase `_M`/`_T`）→ `CContainer`（重量/子对象/调度）
   → `CChar`/`CItem`/`CRoom`…；Lua 侧以 `CLuaXxxT<T>` 模板包装，脚本 `type` 字段选基类。
 - 战斗管线：12 阶段（`Attack.cpp:25-66`），队伍轮换制虚拟战斗房间（`FightRoom.cpp`），
@@ -390,7 +390,7 @@ RMT 走私，交易留痕可征税。
 **与本仓库既有文档的集成**：
 - [game-brief.md](../game-brief.md)（运营者视角）：本文档的姊妹篇，
   视角互补——那份讲「开服者得到什么」，本文讲「引擎产品本身是什么」。
-- `docs\architecture\engine-core-architecture.md`：技术架构正典，
+- `docs\design\engine-core-architecture.md`：技术架构正典，
   本文 §10 与其一致。
 - `docs\protocol.md`、`docs\handle_action.md`：协议与指令拦截的规范面。
 
@@ -439,7 +439,7 @@ RMT 走私，交易留痕可征税。
 
 **测试资产**：
 - `tests\unit\`：Google Test 引擎单测 + mock 层（链接时替换架构）。
-- `tests\integration\`：CLI 无头剧本 E2E（多账号并行七条道；
+- `tests\integration\`：CLI 无头剧本 E2E（多账号并行十条道；
   设计见 `docs\design\integration-test.md`）。
 - 门禁：`run-coverage.ps1`（Release 同构 + 覆盖率增量）、
   `run-integration-tests.ps1`（真实服务器 + OpenCppCoverage）。

@@ -184,10 +184,10 @@ private:
     MenuState menu_state_;
 
     // --- Channel management ---
-    std::vector<std::string> channels_ = {
-        "chat", "new", "ad",     "noise",
-        "rumor", "party", "corps", "answer"};  // 服务端可发言频道
-    std::string current_channel_ = "chat";     // active channel
+    std::vector<std::string> channels_
+        = {"chat",  "new",   "ad",    "noise",
+           "rumor", "party", "corps", "answer"};  // 服务端可发言频道
+    std::string current_channel_ = "chat";        // active channel
 
     mutable std::mutex mutex_;
 };

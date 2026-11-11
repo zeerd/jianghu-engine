@@ -115,7 +115,7 @@ TEST_F(CharStateTest, GetStateMsg_BusyFlag)
     EXPECT_NE(msg.find("bsy=1&"), std::string::npos) << "忙 → 字段在场";
 }
 
-// ---------------- SendState ----------------
+// ---------------- send_state ----------------
 // broadcast=true：房间内其他玩家收到状态标志精简包（含 tea=，不含 hp=/att=）。
 TEST_F(CharStateTest, SendState_Broadcast_ReachesOtherUsers)
 {
@@ -263,7 +263,7 @@ TEST_F(CharStateTest, Die_User)
     u->set("start_city", "rk");
     u->set_skill("unarmed", 50);
     CContainer* room = new CContainer();
-    room->set("PK", (long)1);  // skip MakeCorpse
+    room->set("PK", (long)1);  // skip make_corpse
     u->move(room);
     u->die();  // full user death path
     EXPECT_EQ(u->query("hp"), 1);

@@ -43,13 +43,13 @@ function npc.create(self)
     self:set_skill("parry_adv", 70 + random(20))
     self:set_skill("unarmed", 80 + random(20))
 
-    self:map_skill("sword", "sword_adv")
-    self:map_skill("force", "force_adv")
-    self:map_skill("dodge", "dodge_adv")
-    self:map_skill("parry", "parry_adv")
-    self:map_skill("unarmed", "unarmed")
+    self:skill_map("set", "sword", "sword_adv")
+    self:skill_map("set", "force", "force_adv")
+    self:skill_map("set", "dodge", "dodge_adv")
+    self:skill_map("set", "parry", "parry_adv")
+    self:skill_map("set", "unarmed", "unarmed")
 
-    self:prepare_skill("unarmed", "unarmed")
+    self:skill_prepare("set", "unarmed", "unarmed")
 
     -- 佩刀归山寨自有（owner/no_get/no_duo，夺不走），取出即装备
     self:wield_ownered_item("sample_sword_adv")
@@ -83,7 +83,7 @@ function npc.init(self, me)
     if self:is_fighting() then
         return
     end
-    if me:query_temp("net_dead") ~= 0 then
+    if me:query("net_dead", "T") ~= 0 then
         return
     end
 
@@ -97,7 +97,7 @@ end
 
 -- 定时回血
 function npc.do_full(self, param1, param2)
-    if not self:query_temp("fight/is_fighting") then
+    if not self:query("fight/is_fighting", "T") then
         -- 脱战后回血
         if self:query("hp") < self:query("max_hp") then
             self:set("hp", math.min(self:query("hp") + 500, self:query("max_hp")))

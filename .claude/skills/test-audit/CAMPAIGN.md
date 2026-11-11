@@ -48,7 +48,7 @@
 
 ## 5. Cutover（切换）
 
-逐车道编辑。共享 harness（`tests/unit/mock/`、`tests/unit/test_config.ini`、公共头）的修改串行通过单一 owner，避免并行冲突。每条车道顺手删除它解锁的测试专用生产 seam：注入参数、getter、reset 导出、中间层 —— 判据见 `.claude/rules/unit-test.instructions.md` 的"可测试性设计：自由函数无法 Mock，必须类化"：生产调用方也需要的接口是设计，只有测试需要的才是 seam，直接删。移动的套件在 `tests/unit/tests.vcxproj` 的 `<ClCompile>` 中注册/注销；覆盖率基线按 shrink-only 更新（delta ≥ 0）。把本战役实际发现的持久测试归属规则写进 `.claude/rules/unit-test.instructions.md`。
+逐车道编辑。共享 harness（`tests/unit/mock/`、`tests/unit/test_config.ini`、公共头）的修改串行通过单一 owner，避免并行冲突。每条车道顺手删除它解锁的测试专用生产 seam：注入参数、getter、reset 导出、中间层 —— 判据见 `.claude/skills/unit-test/SKILL.md` 的"可测试性设计：自由函数无法 Mock，必须类化"：生产调用方也需要的接口是设计，只有测试需要的才是 seam，直接删。移动的套件在 `tests/unit/tests.vcxproj` 的 `<ClCompile>` 中注册/注销；覆盖率基线按 shrink-only 更新（delta ≥ 0）。把本战役实际发现的持久测试归属规则写进 `.claude/skills/unit-test/SKILL.md`。
 
 完成标准：每条车道计划已应用，该车道 keeper 全绿（聚焦运行；车道全部完成后跑一次全量 `run-coverage.ps1`）。
 

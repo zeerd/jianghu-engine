@@ -86,7 +86,8 @@ return {
                 target:receive_damage("hp", sp + dp, me)
                 me:start_busy(2)
                 me:add("mp", -100)
-                message_vision(
+                message(
+                    "vision",
                     string.format("$p只觉一阵刺痛，受到了%d点暗器伤害！\n", sp + dp),
                     me,
                     target
@@ -98,7 +99,7 @@ return {
                 target:kill_ob(me)
                 me:kill_ob(target)
                 me:add("mp", -30)
-                message_vision("$p只觉一阵刺痛，中暗器了！\n", me, target)
+                message("vision", "$p只觉一阵刺痛，中暗器了！\n", me, target)
             end
         else
             tell_object(

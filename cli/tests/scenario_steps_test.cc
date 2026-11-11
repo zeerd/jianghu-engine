@@ -29,16 +29,16 @@ namespace {
 // 测试用子类：暴露 protected 的执行入口与内部状态。
 class TestableScenarioRunner : public CScenarioRunner {
 public:
-    using CScenarioRunner::CScenarioRunner;
     using CScenarioRunner::attr_snapshot;
     using CScenarioRunner::attr_value;
+    using CScenarioRunner::CScenarioRunner;
     using CScenarioRunner::eval_attr_cond;
     using CScenarioRunner::eval_cond;
-    using CScenarioRunner::wait_cond;
     using CScenarioRunner::run_capture_step;
     using CScenarioRunner::run_menu_step;
     using CScenarioRunner::run_step;
     using CScenarioRunner::subst;
+    using CScenarioRunner::wait_cond;
 
     const std::string& fail_reason() const { return fail_reason_; }
     std::map<std::string, std::string>& mutable_vars() { return vars_; }
@@ -71,7 +71,7 @@ protected:
         conn_     = mock.get();
         core_     = std::make_unique<ClientCore>(cfg_, std::move(mock));
 
-        opts_.echo              = false;
+        opts_.echo               = false;
         opts_.default_timeout_ms = 1000;
     }
 
@@ -117,11 +117,11 @@ protected:
     }
 
     // 打开一个单项菜单
-    void open_menu(const std::string& cmd_text = "$1 buy 1",
+    void open_menu(const std::string& cmd_text  = "$1 buy 1",
                    const std::string& item_text = "购买武器")
     {
-        core_->state().handle_message(make_msg(
-            27, {{"N", "200"}, {"s", item_text}, {"c", cmd_text}}));
+        core_->state().handle_message(
+            make_msg(27, {{"N", "200"}, {"s", item_text}, {"c", cmd_text}}));
         core_->state().handle_message(make_msg(27, {{"N", "200"}, {"e", "1"}}));
     }
 };
@@ -191,7 +191,8 @@ TEST_F(ScenarioStepsTest, BusyLatchSurvivesFlipUntilConsumed)
 
     core_->state().handle_message(make_msg(23, {{"T", "1001"}, {"bsy", "1"}}));
     core_->state().handle_message(make_msg(23, {{"T", "1001"}, {"sta", "60"}}));
-    EXPECT_TRUE(runner.eval_cond("busy", detail)) << "结束 STATE 翻回后锁存仍在";
+    EXPECT_TRUE(runner.eval_cond("busy", detail))
+        << "结束 STATE 翻回后锁存仍在";
     EXPECT_TRUE(runner.eval_cond("not_busy", detail)) << "实时已不忙";
 
     EXPECT_TRUE(runner.wait_cond("busy", 50)) << "锁存命中";
@@ -212,8 +213,8 @@ TEST_F(ScenarioStepsTest, EvalCondMenuAndDialog)
     EXPECT_TRUE(runner.eval_cond("menu", detail));
     core_->state().cancel_menu();
 
-    core_->state().handle_message(make_msg(
-        27, {{"N", "100"}, {"n", "铁匠"}, {"m", "要什么？"}}));
+    core_->state().handle_message(
+        make_msg(27, {{"N", "100"}, {"n", "铁匠"}, {"m", "要什么？"}}));
     EXPECT_TRUE(runner.eval_cond("dialog", detail));
 }
 
@@ -277,10 +278,11 @@ TEST_F(ScenarioStepsTest, RunStepWaitNotextPassesWhenAbsent)
 
 TEST_F(ScenarioStepsTest, EvalCondObjectMatchesRoomObject)
 {
+    core_->state().handle_message(
+        make_msg(10, {{"R", "5001"}, {"I", ""}, {"N", "客栈"}, {"F", "0"}}));
     core_->state().handle_message(make_msg(
-        10, {{"R", "5001"}, {"I", ""}, {"N", "客栈"}, {"F", "0"}}));
-    core_->state().handle_message(make_msg(
-        11, {{"E", "5001"}, {"T", "2001"}, {"u", "1"}, {"i", "0"}, {"U", "0"}}));
+        11,
+        {{"E", "5001"}, {"T", "2001"}, {"u", "1"}, {"i", "0"}, {"U", "0"}}));
     core_->state().handle_message(
         make_msg(17, {{"O", "2001"}, {"N", "店小二"}}));
 
@@ -326,7 +328,8 @@ TEST_F(ScenarioStepsTest, EvalCondWieldChecksSlot)
     // RTNITEM 把对象 500 的槽位置为 7（右手）
     core_->state().handle_message(make_msg(14, {{"I0", "500"}, {"E0", "7"}}));
 
-    EXPECT_TRUE(runner.eval_cond("wield 铁剑 右手", detail)) << "物品名子串匹配";
+    EXPECT_TRUE(runner.eval_cond("wield 铁剑 右手", detail))
+        << "物品名子串匹配";
     EXPECT_TRUE(runner.eval_cond("wield sword_01 右手", detail)) << "按内部 id";
     EXPECT_TRUE(runner.eval_cond("wield 铁剑 7", detail)) << "接受数字槽位";
     EXPECT_FALSE(runner.eval_cond("wield 铁剑 左手", detail)) << "槽位不符";
@@ -364,8 +367,8 @@ TEST_F(ScenarioStepsTest, EvalAttrCondSyntaxAndNameErrors)
 
 TEST_F(ScenarioStepsTest, EvalAttrCondComparesAllOperators)
 {
-    auto& a   = core_->state().mutable_player_attr();
-    a.exp     = 100;
+    auto& a = core_->state().mutable_player_attr();
+    a.exp   = 100;
 
     auto runner = make_runner();
     std::string detail;
@@ -378,8 +381,14 @@ TEST_F(ScenarioStepsTest, EvalAttrCondComparesAllOperators)
     EXPECT_FALSE(runner.eval_attr_cond("exp > 100", detail));
 
     // 全部支持的属性名都可解析（此处仅验证解析不报错）
-    a.combat_exp = 1; a.hp = 2; a.max_hp = 3;
-    a.mp = 4; a.max_mp = 5; a.level = 6; a.shen = 7; a.eff_hp = 8;
+    a.combat_exp = 1;
+    a.hp         = 2;
+    a.max_hp     = 3;
+    a.mp         = 4;
+    a.max_mp     = 5;
+    a.level      = 6;
+    a.shen       = 7;
+    a.eff_hp     = 8;
     EXPECT_TRUE(runner.eval_attr_cond("combat_exp >= 0", detail));
     EXPECT_TRUE(runner.eval_attr_cond("hp >= 0", detail));
     EXPECT_TRUE(runner.eval_attr_cond("max_hp >= 0", detail));
@@ -390,11 +399,35 @@ TEST_F(ScenarioStepsTest, EvalAttrCondComparesAllOperators)
     EXPECT_TRUE(runner.eval_attr_cond("shen >= 0", detail));
 }
 
+// 四维与 damage 来自 RTNINFO 的 E/F/G/H/J（四维是含 apply/* 装备修正的
+// 合成值）：注册四维落点与装备临时属性的断言都读这里，值与字段必须对得上。
+TEST_F(ScenarioStepsTest, EvalAttrCondFourDimAndDamage)
+{
+    auto& a  = core_->state().mutable_player_attr();
+    a.str    = 24;
+    a.con    = 23;
+    a.intel  = 22;
+    a.dex    = 21;
+    a.damage = 10;
+
+    auto runner = make_runner();
+    std::string detail;
+    EXPECT_TRUE(runner.eval_attr_cond("str == 24", detail));
+    EXPECT_TRUE(runner.eval_attr_cond("con == 23", detail));
+    EXPECT_TRUE(runner.eval_attr_cond("int == 22", detail));
+    EXPECT_TRUE(runner.eval_attr_cond("dex == 21", detail));
+    EXPECT_TRUE(runner.eval_attr_cond("damage == 10", detail));
+    EXPECT_FALSE(runner.eval_attr_cond("str == 23", detail));
+
+    EXPECT_EQ(runner.attr_snapshot("attr str == 24"), "str=24");
+    EXPECT_EQ(runner.attr_snapshot("attr damage >= 1"), "damage=10");
+}
+
 // eff_hp（有效气血上限）与 max_hp 是两回事：升级只抬 max_hp，eff_hp 会滞后，
 // 「金创药把 eff_hp 补回 max_hp」这条测试点就靠它判定。
 TEST_F(ScenarioStepsTest, EvalAttrCondEffHpTracksEffectiveCap)
 {
-    auto &a = core_->state().mutable_player_attr();
+    auto& a  = core_->state().mutable_player_attr();
     a.hp     = 363;
     a.max_hp = 489;
     a.eff_hp = 363;
@@ -418,18 +451,18 @@ TEST_F(ScenarioStepsTest, EvalAttrCondEffHpTracksEffectiveCap)
 TEST_F(ScenarioStepsTest, EvalCondAttrDispatchesToAttrEval)
 {
     core_->state().mutable_player_attr().exp = 50;
-    auto runner = make_runner();
+    auto runner                              = make_runner();
     std::string detail;
     EXPECT_TRUE(runner.eval_cond("attr exp >= 50", detail));
     EXPECT_FALSE(runner.eval_cond("attr exp > 50", detail));
 }
 
 // 属性断言超时必须带回**当前值**：只回显条件的话，失败时分不清是
-//「状态还没到位」还是「状态变了却没同步到客户端」——后者才是真 bug。
+// 「状态还没到位」还是「状态变了却没同步到客户端」——后者才是真 bug。
 TEST_F(ScenarioStepsTest, WaitAttrTimeoutReportsCurrentValue)
 {
     core_->state().mutable_player_attr().hp = 489;
-    auto runner = make_runner();
+    auto runner                             = make_runner();
 
     EXPECT_FALSE(runner.run_step({"wait", "attr hp < 489 timeout=80"}));
     EXPECT_NE(runner.fail_reason().find("timeout waiting for 'attr hp < 489'"),
@@ -448,13 +481,11 @@ TEST_F(ScenarioStepsTest, WaitAttrTimeoutReportsCurrentValue)
 TEST_F(ScenarioStepsTest, AttrSnapshotOnlyForWellFormedAttrCond)
 {
     core_->state().mutable_player_attr().eff_hp = 363;
-    auto runner = make_runner();
+    auto runner                                 = make_runner();
 
     EXPECT_EQ(runner.attr_snapshot("attr eff_hp < 489"), "eff_hp=363");
-    EXPECT_EQ(runner.attr_snapshot("text 你好"), "")
-        << "非属性条件不附加快照";
-    EXPECT_EQ(runner.attr_snapshot("attr eff_hp"), "")
-        << "缺运算符与值时不猜";
+    EXPECT_EQ(runner.attr_snapshot("text 你好"), "") << "非属性条件不附加快照";
+    EXPECT_EQ(runner.attr_snapshot("attr eff_hp"), "") << "缺运算符与值时不猜";
     EXPECT_EQ(runner.attr_snapshot("attr nosuch >= 1"), "")
         << "未知属性名给不出快照";
 }
@@ -464,8 +495,9 @@ TEST_F(ScenarioStepsTest, WaitTextTimeoutKeepsPlainReason)
 {
     auto runner = make_runner();
     EXPECT_FALSE(runner.run_step({"wait", "text 根本不存在 timeout=80"}));
-    EXPECT_NE(runner.fail_reason().find("timeout waiting for 'text 根本不存在'"),
-              std::string::npos);
+    EXPECT_NE(
+        runner.fail_reason().find("timeout waiting for 'text 根本不存在'"),
+        std::string::npos);
     EXPECT_EQ(runner.fail_reason().find("（当前"), std::string::npos);
 }
 
@@ -515,8 +547,7 @@ TEST_F(ScenarioStepsTest, RunStepWaitBadConditionFails)
 {
     auto runner = make_runner();
     EXPECT_FALSE(runner.run_step({"wait", "zzz"}));
-    EXPECT_NE(runner.fail_reason().find("bad condition"),
-              std::string::npos);
+    EXPECT_NE(runner.fail_reason().find("bad condition"), std::string::npos);
 }
 
 TEST_F(ScenarioStepsTest, RunStepSleepAcceptsMillisAndRejectsGarbage)
@@ -565,12 +596,10 @@ TEST_F(ScenarioStepsTest, RunMenuStepRequiresOpenMenu)
 {
     auto runner = make_runner();
     EXPECT_FALSE(runner.run_menu_step("1"));
-    EXPECT_NE(runner.fail_reason().find("no menu is open"),
-              std::string::npos);
+    EXPECT_NE(runner.fail_reason().find("no menu is open"), std::string::npos);
 
     EXPECT_FALSE(runner.run_menu_step(""));
-    EXPECT_NE(runner.fail_reason().find("menu needs"),
-              std::string::npos);
+    EXPECT_NE(runner.fail_reason().find("menu needs"), std::string::npos);
 }
 
 TEST_F(ScenarioStepsTest, RunMenuStepSelectsByIndexAndText)
@@ -604,12 +633,10 @@ TEST_F(ScenarioStepsTest, RunCaptureStepRequiresMarkerAndVar)
 {
     auto runner = make_runner();
     EXPECT_FALSE(runner.run_capture_step("编号是"));
-    EXPECT_NE(runner.fail_reason().find("capture needs"),
-              std::string::npos);
+    EXPECT_NE(runner.fail_reason().find("capture needs"), std::string::npos);
 
     EXPECT_FALSE(runner.run_capture_step("编号是 as "));
-    EXPECT_NE(runner.fail_reason().find("capture needs"),
-              std::string::npos);
+    EXPECT_NE(runner.fail_reason().find("capture needs"), std::string::npos);
 }
 
 TEST_F(ScenarioStepsTest, RunCaptureStepExtractsDigitsAfterMarker)
@@ -628,6 +655,26 @@ TEST_F(ScenarioStepsTest, RunCaptureStepFailsWhenMarkerMissing)
     auto runner = make_runner();
     EXPECT_FALSE(runner.run_capture_step("不存在的标记 as var"));
     EXPECT_NE(runner.fail_reason().find("capture marker not found"),
+              std::string::npos);
+}
+
+// marker 按正则解释（design §7 契约）：含捕获组取组文本（非数字变量），
+// 无组保持「匹配后取首段数字」（存量账号 capture 用法）。
+TEST_F(ScenarioStepsTest, RunCaptureStepRegexGroupCapturesText)
+{
+    inject_text("  你看起来约十八岁。生得英俊潇洒，风流倜傥。武功出神入化。");
+
+    auto runner = make_runner();
+    EXPECT_TRUE(runner.run_capture_step("(生得.*?。) as waimao"))
+        << runner.fail_reason();
+    EXPECT_EQ(runner.mutable_vars().at("waimao"), "生得英俊潇洒，风流倜傥。");
+}
+
+TEST_F(ScenarioStepsTest, RunCaptureStepInvalidRegexFails)
+{
+    auto runner = make_runner();
+    EXPECT_FALSE(runner.run_capture_step("([ as var"));
+    EXPECT_NE(runner.fail_reason().find("capture invalid regex"),
               std::string::npos);
 }
 
@@ -660,8 +707,8 @@ TEST_F(ScenarioStepsTest, RunStepFilecopyWritesIntoScratchArea)
     auto runner = make_runner();
     // 目标经 $var 替换（E2E 剧本正是这样引用私有脚本副本）
     runner.mutable_vars()["dst_dir"] = (root / "scripts" / "npc").string();
-    EXPECT_TRUE(runner.run_step(
-        {"filecopy", src.string() + " $dst_dir/target.lua"}))
+    EXPECT_TRUE(
+        runner.run_step({"filecopy", src.string() + " $dst_dir/target.lua"}))
         << runner.fail_reason();
 
     std::string body;
@@ -674,7 +721,8 @@ TEST_F(ScenarioStepsTest, RunStepFilecopyWritesIntoScratchArea)
     EXPECT_EQ(body, "return { a = 1 }");
 
     // 覆盖写：目标已存在时直接覆盖，不报错
-    EXPECT_TRUE(runner.run_step({"filecopy", src.string() + " " + dst.string()}))
+    EXPECT_TRUE(
+        runner.run_step({"filecopy", src.string() + " " + dst.string()}))
         << runner.fail_reason();
 
     std::filesystem::remove_all(root);
@@ -686,9 +734,9 @@ TEST_F(ScenarioStepsTest, RunStepFilecopyMissingSourceFails)
     std::filesystem::create_directories(root);
 
     auto runner = make_runner();
-    EXPECT_FALSE(runner.run_step({"filecopy",
-                                  (root / "nope.lua").string() + " "
-                                      + (root / "dst.lua").string()}));
+    EXPECT_FALSE(
+        runner.run_step({"filecopy", (root / "nope.lua").string() + " "
+                                         + (root / "dst.lua").string()}));
     EXPECT_NE(runner.fail_reason().find("source not found"), std::string::npos);
 
     std::filesystem::remove_all(root);

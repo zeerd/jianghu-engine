@@ -55,7 +55,7 @@ function n.do_greeting1(self, pid)
     end
 
     local pay = env:query("need_pays")
-    if pay ~= 0 and self:query_temp("warning_pays") ~= pay then
+    if pay ~= 0 and self:query("warning_pays", "T") ~= pay then
         local master = env:present("object_id", pid)
         if not master then
             return
@@ -65,9 +65,9 @@ function n.do_greeting1(self, pid)
             master:name() .. "主人，今日收到房屋管理帐单，合计" .. pay .. "。请过目。",
             master
         )
-        self:set_temp("warning_pays", pay)
-        self:AddMenuItem("缴纳房屋帐单", "$0paymoney", master)
-        self:SendMenu(master)
+        self:set("warning_pays", pay, "T")
+        self:add_menu_item("缴纳房屋帐单", "$0paymoney", master)
+        self:send_menu(master)
     end
 
     if #self:querystr("welcome_master") > 0 then
@@ -87,7 +87,8 @@ function n.init(self, me)
                 if is_user(obj) then
                     obj:move(load("room", START_ROOM))
                     if is_master(self, me) ~= 0 then
-                        message_vision(
+                        message(
+                            "vision",
                             "$HIR主人，"
                                 .. me:name()
                                 .. "的身上藏了一个人叫"
@@ -96,14 +97,16 @@ function n.init(self, me)
                             self
                         )
                     else
-                        message_vision(
+                        message(
+                            "vision",
                             "$HIR主人，你的身上藏了一个人叫"
                                 .. obj:name()
                                 .. "，可能意图不轨，赶快报官呀！",
                             self
                         )
                     end
-                    message_vision(
+                    message(
+                        "vision",
                         "$HIR只见金光一闪，"
                             .. me:name()
                             .. "身上携带的"
@@ -112,7 +115,8 @@ function n.init(self, me)
                         self
                     )
                 elseif obj:querystr("id") == "fight_room" then
-                    message_vision(
+                    message(
+                        "vision",
                         "$HIR主人，快来看呀，"
                             .. me:name()
                             .. "的身上居然还有两个人在打架，好希奇哟！不过如此古怪，可能"
@@ -125,10 +129,11 @@ function n.init(self, me)
             end
         end
 
-        local hb = 0 - Level2Exp(me:query("level"))
+        local hb = 0 - level2exp(me:query("level"))
         if me:query("balance") < hb and is_master(self, me) ~= 0 then
             tell_object(me, "你的家已经被查封，现在无法进入。")
-            tell_room(
+            message(
+                "room",
                 me:environment(),
                 "只听“乒”地一声，"
                     .. me:name()
@@ -157,21 +162,21 @@ function n.do_talk(self, me, ask)
 
         local where = self:environment()
         if where and where:query("need_pays") ~= 0 then
-            self:AddMenuItem("缴纳房屋帐单", "$0paymoney", me)
+            self:add_menu_item("缴纳房屋帐单", "$0paymoney", me)
         end
 
-        self:AddMenuItem("改名", "$2name $1 $2", me)
-        self:AddMenuItem("改描述", "$2desc $1 $2", me)
-        self:AddMenuItem("设置欢迎客人词", "$2welcome1 $1 $2", me)
-        self:AddMenuItem("设置欢迎主人词", "$2welcome2 $1 $2", me)
-        self:AddMenuItem("出售物品", "$0rent $1 2", me)
-        self:AddMenuItem("出租物品", "$0rent $1 1", me)
-        self:AddMenuItem("提款", "$0redraw $1", me)
+        self:add_menu_item("改名", "$2name $1 $2", me)
+        self:add_menu_item("改描述", "$2desc $1 $2", me)
+        self:add_menu_item("设置欢迎客人词", "$2welcome1 $1 $2", me)
+        self:add_menu_item("设置欢迎主人词", "$2welcome2 $1 $2", me)
+        self:add_menu_item("出售物品", "$0rent $1 2", me)
+        self:add_menu_item("出租物品", "$0rent $1 1", me)
+        self:add_menu_item("提款", "$0redraw $1", me)
     end
 
-    self:AddMenuItem("购买物品", "$0getobj $1 2", me)
-    self:AddMenuItem("租借物品", "$0getobj $1 1", me)
-    self:SendMenu(me)
+    self:add_menu_item("购买物品", "$0getobj $1 2", me)
+    self:add_menu_item("租借物品", "$0getobj $1 1", me)
+    self:send_menu(me)
 
     return 1
 end
@@ -182,9 +187,9 @@ local function do_getobj(self, me, arg)
 
     if list then
         for obj in iter_items(list) do
-            if obj:query_temp("yongren/rent") == rent then
-                self:AddMenuItem(
-                    obj:name() .. " : " .. obj:query_temp("yongren/price"),
+            if obj:query("yongren/rent", "T") == rent then
+                self:add_menu_item(
+                    obj:name() .. " : " .. obj:query("yongren/price", "T"),
                     "$0giveme $1 " .. obj:object_id(),
                     me
                 )
@@ -192,7 +197,7 @@ local function do_getobj(self, me, arg)
         end
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -205,13 +210,13 @@ local function do_giveme(self, me, arg)
     if is_master(self, me) ~= 0 then
         -- move 绑定不返回结果（l_move 恒返回 nil），取回不校验返回值
         obj:move(me)
-        obj:delete_temp("yongren")
+        obj:del("yongren", "T")
         self:say("你改变主意，不卖" .. obj:name() .. "了。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
-    local price = obj:query_temp("yongren/price")
+    local price = obj:query("yongren/price", "T")
     if price < 0 then
         return notify_fail("这样东西不卖！")
     end
@@ -220,10 +225,10 @@ local function do_giveme(self, me, arg)
         return notify_fail("你没有这么多钱。")
     end
 
-    if obj:query_temp("yongren/rent") == 1 then
+    if obj:query("yongren/rent", "T") == 1 then
         self:say("你租下了" .. obj:name() .. "，花掉" .. price .. "。", me)
     else
-        obj:delete_temp("yongren")
+        obj:del("yongren", "T")
         self:say("你买下了" .. obj:name() .. ", 花掉" .. price .. "。", me)
     end
 
@@ -234,17 +239,17 @@ local function do_giveme(self, me, arg)
         obj:move(me:environment())
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
 
     local where = self:environment()
-    if where:LockData(1) == 0 then
+    if where:lock_data(1) == 0 then
         return 0
     end
     where:load_from_local()
 
     where:add("yongren/balance", price * 4 // 5)
     where:save_to_local()
-    where:LockData(0)
+    where:lock_data(0)
 
     return 1
 end
@@ -279,18 +284,18 @@ end
 local function do_rent(self, me, arg)
     self:say("请选择租借或售卖的物品。", me)
 
-    me:set_temp("yongren/rent", tonumber(arg) or 0)
+    me:set("yongren/rent", tonumber(arg) or 0, "T")
 
     local list = me:get_item_list()
     if list then
         for obj in iter_items(list) do
             if not obj:is_character() and check_validsell(self, obj) ~= 0 then
-                self:AddMenuItem(obj:name(), "$0value $1 " .. obj:object_id(), me)
+                self:add_menu_item(obj:name(), "$0value $1 " .. obj:object_id(), me)
             end
         end
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -300,42 +305,42 @@ local function do_value(self, me, arg)
         return notify_fail("你身上没有这样物品！")
     end
 
-    me:set_temp("yongren/obj", tonumber(arg) or 0)
+    me:set("yongren/obj", tonumber(arg) or 0, "T")
 
-    if me:query_temp("yongren/rent") == 1 then
+    if me:query("yongren/rent", "T") == 1 then
         self:say(obj:name() .. "价值" .. obj:query("value") .. "，请定租借价格！", me)
     else
         self:say(obj:name() .. "价值" .. obj:query("value") .. "，请定出售价格！", me)
     end
 
-    self:AddMenuItem("定价", "$1price $1 $2", me)
-    self:AddMenuItem("放弃", "", me)
-    self:SendMenu(me)
+    self:add_menu_item("定价", "$1price $1 $2", me)
+    self:add_menu_item("放弃", "", me)
+    self:send_menu(me)
 
     return 1
 end
 
 local function do_price(self, me, arg)
     local price = tonumber(arg) or 0
-    local obj = me:present("object_id", me:query_temp("yongren/obj"))
+    local obj = me:present("object_id", me:query("yongren/obj", "T"))
     if not obj then
         return notify_fail("请选定物品！")
     end
 
     obj:move(self)
-    obj:set_temp("yongren/rent", me:query_temp("yongren/rent"))
-    obj:set_temp("yongren/price", price)
+    obj:set("yongren/rent", me:query("yongren/rent", "T"), "T")
+    obj:set("yongren/price", price, "T")
 
     self:say("OK，设定物品价格" .. price .. "。", me)
-    self:SendMenu(me)
+    self:send_menu(me)
 
-    me:delete_temp("yongren")
+    me:del("yongren", "T")
     return 1
 end
 
 local function do_withdraw(self, me)
     local where = self:environment()
-    if where:LockData(1) == 0 then
+    if where:lock_data(1) == 0 then
         return 0
     end
     where:load_from_local()
@@ -344,7 +349,7 @@ local function do_withdraw(self, me)
     where:del("yongren/balance")
 
     where:save_to_local()
-    where:LockData(0)
+    where:lock_data(0)
 
     if balance == 0 then
         return notify_fail("您并没有售出物品。")
@@ -352,7 +357,7 @@ local function do_withdraw(self, me)
 
     pay_money("give", me, balance)
     self:say("您获得了" .. balance .. "的利润。", me)
-    self:SendMenu(me)
+    self:send_menu(me)
 
     log_info(me:name(1) .. "(" .. me:id(1) .. ")从" .. self:name(1) .. "身上提取" .. balance .. "的利润。")
 
@@ -366,22 +371,22 @@ local function do_name(self, me, arg)
     local msg = check_legal_name(name)
     if #msg > 0 then
         self:say(msg, me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     self:set_name(name)
-    self:UpdateMe()
+    self:update_me()
 
     local where = self:environment()
-    if where:LockData(1) == 0 then
+    if where:lock_data(1) == 0 then
         return 0
     end
     where:load_from_local()
 
     where:set("yongren/name", name)
     where:save_to_local()
-    where:LockData(0)
+    where:lock_data(0)
 
     tell_object(me, "OK.")
     return 1
@@ -393,7 +398,7 @@ local function do_desc(self, me, arg)
     local len = #desc
     if len < 1 or len > 500 then
         self:say("给您的仆人描述写得简洁漂亮点。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -404,14 +409,14 @@ local function do_desc(self, me, arg)
     self:set("long", desc)
 
     local where = self:environment()
-    if where:LockData(1) == 0 then
+    if where:lock_data(1) == 0 then
         return 0
     end
     where:load_from_local()
 
     where:set("yongren/long", desc)
     where:save_to_local()
-    where:LockData(0)
+    where:lock_data(0)
 
     return 1
 end
@@ -422,7 +427,7 @@ local function do_welcome1(self, me, arg)
     local len = #welcome
     if len < 1 or len > 250 then
         self:say("给您仆人的欢迎词写得简洁漂亮点。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -433,14 +438,14 @@ local function do_welcome1(self, me, arg)
     self:set("welcome", welcome)
 
     local where = self:environment()
-    if where:LockData(1) == 0 then
+    if where:lock_data(1) == 0 then
         return 0
     end
     where:load_from_local()
 
     where:set("yongren/welcome", welcome)
     where:save_to_local()
-    where:LockData(0)
+    where:lock_data(0)
 
     return 1
 end
@@ -451,7 +456,7 @@ local function do_welcome2(self, me, arg)
     local len = #welcome
     if len < 1 or len > 250 then
         self:say("给您仆人的欢迎词写得简洁漂亮点。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -462,14 +467,14 @@ local function do_welcome2(self, me, arg)
     self:set("welcome_master", welcome)
 
     local where = self:environment()
-    if where:LockData(1) == 0 then
+    if where:lock_data(1) == 0 then
         return 0
     end
     where:load_from_local()
 
     where:set("yongren/welcome_master", welcome)
     where:save_to_local()
-    where:LockData(0)
+    where:lock_data(0)
 
     return 1
 end
@@ -477,7 +482,7 @@ end
 function n.handle_action(self, comm, me, arg)
     -- 打斗与咆哮一律不理会（抢书的 roar 由房间层 house_base 另行拦下）
     if comm == "kill" or comm == "fight" or comm == "cast" then
-        message_vision("$n向$N皱了皱眉.", me, self)
+        message("vision", "$n向$N皱了皱眉.", me, self)
         return 1
     end
 
@@ -512,7 +517,7 @@ function n.handle_action(self, comm, me, arg)
 end
 
 function n.accept_object(self, me, obj)
-    if obj:query_temp("yongren/rent") ~= 0 then
+    if obj:query("yongren/rent", "T") ~= 0 then
         return 1
     end
     return 0

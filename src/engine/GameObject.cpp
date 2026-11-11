@@ -16,27 +16,6 @@
 //---------------------------------------------------------
 // 随机取物品栏某物
 //---------------------------------------------------------
-CContainer* random_get_item(CContainer* me, int type, CContainer* exclude)
-{
-    DTItemList* t;
-    typedef CContainer* PCONTAINER;
-    PCONTAINER obj, item[50];
-    int num = 0;
-
-    if (!me) return 0;
-
-    t = me->get_item_list();
-    for (auto val : *t) {
-        obj = val;
-        if (!obj->query_attr(type)) continue;
-        if (obj == exclude) continue;
-        item[num++] = obj;
-        if (num == 50) break;
-    }
-    if (num) return item[g_utils.random(num)];
-
-    return 0;
-}
 
 //---------------------------------------------------------
 // 角色查询
@@ -164,25 +143,6 @@ void destruct(PCContainer me)
 // [LuaBind] auto-managed bindings
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// RandomGetItem(ob[, nType[, exclude]]) -> object|nil
-// nType 默认
-// IS_ITEM（物品），脚本禁止传数字枚举，如需其他类型用全局常量（IS_MONEY 等）
-int l_random_get_item(lua_State* L)
-{
-    CContainer* me = NULL;
-    if (lua_isuserdata(L, 1)) me = dynamic_cast<CContainer*>(get_object(L, 1));
-    if (!me) {
-        lua_pushnil(L);
-        return 1;
-    }
-    int type            = (int)luaL_optinteger(L, 2, CMainObject::IS_ITEM);
-    CContainer* exclude = NULL;
-    if (lua_isuserdata(L, 3))
-        exclude = dynamic_cast<CContainer*>(get_object(L, 3));
-    lua_bind_push_object(L, random_get_item(me, type, exclude));
-    return 1;
-}
 
 // destruct(ob) - 销毁对象
 int l_destruct(lua_State* L)

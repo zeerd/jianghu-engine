@@ -3,7 +3,7 @@
 #
 # 覆盖（原认领段重开，Box 条目）：
 #   l_locked（Box.cpp:297）+ CBox::locked（Box.cpp:16）——山脚房间
-#     create 时 box3:Locked("一把铜锁锈得发红", 0)（服务端启动即执行）；
+#     create 时 box3:locked("一把铜锁锈得发红", 0)（服务端启动即执行）；
 #   CBox::handle_action 的钥匙支（Box.cpp:71-98）：
 #     · 无钥匙 open → 「你无法打开。」（私发）
 #     · 密码吻合 → un_locked() + 房间播报「只听咔的一响…」
@@ -11,7 +11,7 @@
 #   CItem::do_look 的锁态分支（Item.cpp:181-183）：status==locked 时不渲染
 #     「里面有：」菜单，开锁后渲染——同一 look 指令锁前锁后两个断言。
 #   owner 不符支（Box.cpp:73-77）留单测（HandleActionOwnerMismatchRefusesOpen）
-#   ——锁箱无主（Locked 不传 owner），E2E 无从构造非主人。
+#   ——锁箱无主（locked 不传 owner），E2E 无从构造非主人。
 #
 # 判定：
 #   锁态 look → notext「里面有：」（锁着就该看不见内容，§8.4② 时间窗 3s）

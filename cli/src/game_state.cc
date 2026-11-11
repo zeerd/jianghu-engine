@@ -14,7 +14,7 @@ namespace {
 // 合并重复的 ADDOBJECT（改名重发会再发一次 11+17）：同一容器内按 object
 // id 幂等——只刷新可见状态位，保留已通过 DOWNOBJECT 下载的名字等详情；
 // 不在则追加一条。
-void merge_object_info(ObjectInfo &dst, const ObjectInfo &src)
+void merge_object_info(ObjectInfo& dst, const ObjectInfo& src)
 {
     dst.is_user = src.is_user;
     dst.is_item = src.is_item;
@@ -24,9 +24,9 @@ void merge_object_info(ObjectInfo &dst, const ObjectInfo &src)
     dst.sta     = src.sta;
 }
 
-void merge_object_info(std::vector<ObjectInfo> &list, const ObjectInfo &src)
+void merge_object_info(std::vector<ObjectInfo>& list, const ObjectInfo& src)
 {
-    for (auto &o : list) {
+    for (auto& o : list) {
         if (o.id == src.id) {
             merge_object_info(o, src);
             return;
@@ -35,8 +35,8 @@ void merge_object_info(std::vector<ObjectInfo> &list, const ObjectInfo &src)
     list.push_back(src);
 }
 
-void merge_object_info(std::map<ObjectID, ObjectInfo> &table,
-                       const ObjectInfo &src)
+void merge_object_info(std::map<ObjectID, ObjectInfo>& table,
+                       const ObjectInfo& src)
 {
     auto it = table.find(src.id);
     if (it == table.end()) {
@@ -48,7 +48,7 @@ void merge_object_info(std::map<ObjectID, ObjectInfo> &table,
 
 }  // namespace
 
-std::vector<std::string> GameState::handle_message(const GameMessage &msg)
+std::vector<std::string> GameState::handle_message(const GameMessage& msg)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<std::string> output_lines;
@@ -109,7 +109,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             // env-dependent)
             inventory_.erase(
                 std::remove_if(inventory_.begin(), inventory_.end(),
-                               [target_id](const ObjectInfo &o) {
+                               [target_id](const ObjectInfo& o) {
                                    return o.id == target_id;
                                }),
                 inventory_.end());
@@ -117,9 +117,9 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             // Remove from room objects
             auto it = room_objects_.find(env_id);
             if (it != room_objects_.end()) {
-                auto &vec = it->second;
+                auto& vec = it->second;
                 vec.erase(std::remove_if(vec.begin(), vec.end(),
-                                         [target_id](const ObjectInfo &o) {
+                                         [target_id](const ObjectInfo& o) {
                                              return o.id == target_id;
                                          }),
                           vec.end());
@@ -142,7 +142,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             // 按 base_name 幂等合并：已存在则更新动态字段，保留已下载
             // 的元数据（显示名/图标/法术表由后续推送刷新）。
             bool merged = false;
-            for (auto &s : skills_) {
+            for (auto& s : skills_) {
                 if (s.base_name != sk.base_name) continue;
                 s.id           = sk.id;
                 s.level        = sk.level;
@@ -174,7 +174,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
 
                 // Update inventory item's wield position
                 bool found = false;
-                for (auto &inv_item : inventory_) {
+                for (auto& inv_item : inventory_) {
                     if (inv_item.id == item_oid) {
                         inv_item.wield = wield_pos;
                         found          = true;
@@ -248,7 +248,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             std::string skill_name = msg.get("N");  // 华山剑法
             std::string base_skill = msg.get("E");  // sword
             int16_t icon           = static_cast<int16_t>(msg.get_int("P"));
-            for (auto &s : skills_) {
+            for (auto& s : skills_) {
                 if (s.base_name == base_name) {
                     s.skill_name = skill_name;
                     s.base_skill = base_skill;
@@ -278,8 +278,8 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             info.title       = msg.get("t");
 
             // Search for AddObject entry and fill in name
-            for (auto &[container, objs] : room_objects_) {
-                for (auto &o : objs) {
+            for (auto& [container, objs] : room_objects_) {
+                for (auto& o : objs) {
                     if (o.id == obj_id) {
                         o.name        = info.name;
                         o.internal_id = info.internal_id;
@@ -289,7 +289,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
                     }
                 }
             }
-            for (auto &[container, o] : objects_) {
+            for (auto& [container, o] : objects_) {
                 if (o.id == obj_id) {
                     o.name        = info.name;
                     o.internal_id = info.internal_id;
@@ -300,7 +300,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             }
 
             // Sync to player inventory as well
-            for (auto &inv_item : inventory_) {
+            for (auto& inv_item : inventory_) {
                 if (inv_item.id == obj_id) {
                     inv_item.name        = info.name;
                     inv_item.internal_id = info.internal_id;
@@ -321,13 +321,13 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
                     "$RED" + msg.get("M", "Login failed") + "$COM"));
             }
             else {
-                player_id_         = msg.get_int("U");
-                grant_level_       = static_cast<int>(msg.get_int("G"));
-                server_version_    = msg.get("V");
-                server_uptime_     = msg.get_int("R");
-                server_name_       = msg.get("M");
-                remaining_points_  = static_cast<int>(msg.get_int("l"));
-                logged_in_         = true;
+                player_id_        = msg.get_int("U");
+                grant_level_      = static_cast<int>(msg.get_int("G"));
+                server_version_   = msg.get("V");
+                server_uptime_    = msg.get_int("R");
+                server_name_      = msg.get("M");
+                remaining_points_ = static_cast<int>(msg.get_int("l"));
+                logged_in_        = true;
 
                 // seconds to days, hours, minutes, seconds
                 int days    = static_cast<int>(server_uptime_ / 86400);
@@ -383,7 +383,8 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
                 if (msg.has("tea")) {
                     // tea field present (player is in battle)
                 }
-                if (msg.has("sta")) player_attr_.state = (int8_t)msg.get_int("sta");
+                if (msg.has("sta"))
+                    player_attr_.state = (int8_t)msg.get_int("sta");
                 if (msg.has("idl")) player_attr_.idle = msg.get_int("idl") != 0;
                 // bsy 每次私发 STATE 都是全量标志集：缺失即「翻回不忙」，
                 // 所以这里无条件重算，而不是只在有字段时置真
@@ -439,10 +440,9 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             else if (!online) {
                 // 下线：按 UID 从在线表移除（UID 会话内唯一，重名不影响）
                 online_users_.erase(
-                    std::remove_if(online_users_.begin(), online_users_.end(),
-                                   [uid](const OnlineUser &u) {
-                                       return u.uid == uid;
-                                   }),
+                    std::remove_if(
+                        online_users_.begin(), online_users_.end(),
+                        [uid](const OnlineUser& u) { return u.uid == uid; }),
                     online_users_.end());
             }
             break;
@@ -483,21 +483,21 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
         // 28: DOWNMAGIC
         case 28: {
             DBG("DOWNMAGIC: " << msg.to_string());
-            std::string skill_base_name = msg.get("S");  // 所属技能
-            std::string magic_name      = msg.get("M");  // 法术标识
-            std::string display_name    = msg.get("N");  // 法术显示名称
+            std::string skill_base_name = msg.get("S");      // 所属技能
+            std::string magic_name      = msg.get("M");      // 法术标识
+            std::string display_name    = msg.get("N");      // 法术显示名称
             int force = static_cast<int>(msg.get_int("R"));  // 内力消耗
             int mp    = static_cast<int>(msg.get_int("A"));  // 气/MP消耗
             int valid_cast
-                = static_cast<int>(msg.get_int("V"));  // 有效施展条件
+                = static_cast<int>(msg.get_int("V"));         // 有效施展条件
             int target = static_cast<int>(msg.get_int("T"));  // 目标类型
 
             // Find the skill and add magic to it
-            for (auto &sk : skills_) {
+            for (auto& sk : skills_) {
                 if (sk.base_name != skill_base_name) continue;
                 // 法术随技能全量重推反复下发，按 name 幂等合并
-                MagicInfo *slot = nullptr;
-                for (auto &m : sk.magics) {
+                MagicInfo* slot = nullptr;
+                for (auto& m : sk.magics) {
                     if (m.name == magic_name) {
                         slot = &m;
                         break;
@@ -562,8 +562,8 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
                 std::string key = "i" + std::to_string(i);
                 if (!msg.has(key)) break;
                 ObjectID uid = msg.get_int(key);
-                bool found = false;
-                for (const auto &u : online_users_) {
+                bool found   = false;
+                for (const auto& u : online_users_) {
                     if (u.uid == uid) {
                         found = true;
                         break;
@@ -589,7 +589,7 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
 
             // Update existing entry or add new one
             bool found = false;
-            for (auto &u : online_users_) {
+            for (auto& u : online_users_) {
                 if (u.uid == uid) {
                     u.level       = level;
                     u.title       = title;
@@ -610,8 +610,8 @@ std::vector<std::string> GameState::handle_message(const GameMessage &msg)
             }
 
             // Also update room_objects if this user is in the room
-            for (auto &[container, objs] : room_objects_) {
-                for (auto &o : objs) {
+            for (auto& [container, objs] : room_objects_) {
+                for (auto& o : objs) {
                     if (o.id == uid) {
                         o.name        = name;
                         o.internal_id = account_id;
@@ -683,7 +683,7 @@ std::vector<std::string> GameState::player_info_panels() const
 }
 
 std::vector<std::string> GameState::player_info_panel(
-    const std::string &panel_name) const
+    const std::string& panel_name) const
 {
     return ::player_info_panel(*this, panel_name);
 }
@@ -700,7 +700,7 @@ std::vector<ObjectInfo> GameState::room_npcs() const
     std::vector<ObjectInfo> npcs;
     auto it = room_objects_.find(current_room_);
     if (it == room_objects_.end()) return npcs;
-    for (const auto &obj : it->second) {
+    for (const auto& obj : it->second) {
         if (!obj.is_user && !obj.is_item) {
             npcs.push_back(obj);
         }
@@ -714,7 +714,7 @@ std::vector<ObjectInfo> GameState::room_chars() const
     std::vector<ObjectInfo> chars;
     auto it = room_objects_.find(current_room_);
     if (it == room_objects_.end()) return chars;
-    for (const auto &obj : it->second) {
+    for (const auto& obj : it->second) {
         if (obj.is_user) {
             chars.push_back(obj);
         }
@@ -728,7 +728,7 @@ std::vector<ObjectInfo> GameState::room_items() const
     std::vector<ObjectInfo> items;
     auto it = room_objects_.find(current_room_);
     if (it == room_objects_.end()) return items;
-    for (const auto &obj : it->second) {
+    for (const auto& obj : it->second) {
         if (obj.is_item) {
             items.push_back(obj);
         }

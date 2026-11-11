@@ -448,7 +448,7 @@ int CUser::query_server() { return db_query_server(querystr("id")); }
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:DoActive() - 刷新玩家活动状态（CUser 专用）
+// self:do_active() - 刷新玩家活动状态（CUser 专用）
 int l_do_active(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

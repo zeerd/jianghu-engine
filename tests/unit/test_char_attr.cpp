@@ -109,7 +109,7 @@ TEST_F(CharAttrTest, QueryValidExp)
     ch->set("level", (long)1);
     ch->set("combat_exp", (long)1000);
     ch->set("sk_exp", (long)0);
-    // Level2Exp(1) == 0, so valid = 1000 - 0 - 0
+    // level2exp(1) == 0, so valid = 1000 - 0 - 0
     EXPECT_EQ(ch->query_valid_exp(), 1000);
 }
 

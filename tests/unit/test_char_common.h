@@ -1,7 +1,7 @@
 // test_char_common.h — Shared helpers for CChar split-file unit tests.
 //
 // Provides a lightweight in-memory IDatabase mock so that the Char*.cpp
-// functions which touch g_db (SaveToServer / LoadFromServer / object save)
+// functions which touch g_db (SaveToServer / load_from_server / object save)
 // can be exercised without a real MySQL connection.
 //
 #pragma once

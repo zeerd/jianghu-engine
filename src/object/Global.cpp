@@ -43,28 +43,6 @@ int32_t g_last_destruct_object;
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// current_time_info() -> table{wday, hour} -
-// 返回服务器当前星期几(0=周日)和小时(0-23)
-int l_current_time_info(lua_State* L)
-{
-    time_t t           = time(NULL);
-    struct tm* newtime = localtime(&t);
-    lua_newtable(L);
-    lua_pushinteger(L, newtime->tm_wday);
-    lua_setfield(L, -2, "wday");
-    lua_pushinteger(L, newtime->tm_hour);
-    lua_setfield(L, -2, "hour");
-    return 1;
-}
-
-// get_server_id() -> number - 当前服务器编号（对应全局 sys_server_id）
-// 十八地狱怪物掉宝表（case 7）按服务器编号区分书本池大小
-int l_get_server_id(lua_State* L)
-{
-    lua_pushinteger(L, g_server_id);
-    return 1;
-}
-
 // current_time() -> number - 获取游戏当前时间（心跳 tick）
 int l_current_time(lua_State* L)
 {

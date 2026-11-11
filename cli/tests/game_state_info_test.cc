@@ -63,14 +63,13 @@ protected:
                             const std::string& iid = "", int qty = 1,
                             int weight = 0, int wield = 0)
     {
-        state_.handle_message(make_msg(
-            11, {{"E", "1001"},
-                 {"T", std::to_string(id)},
-                 {"u", "0"},
-                 {"i", "1"},
-                 {"U", "0"}}));
+        state_.handle_message(make_msg(11, {{"E", "1001"},
+                                            {"T", std::to_string(id)},
+                                            {"u", "0"},
+                                            {"i", "1"},
+                                            {"U", "0"}}));
         GameMessage m;
-        m.cmd = 17;
+        m.cmd    = 17;
         m.params = {{"O", std::to_string(id)},
                     {"N", name},
                     {"I", iid},
@@ -80,8 +79,8 @@ protected:
         if (wield != 0) {
             // 14: RTNITEM 设置装备槽位
             state_.handle_message(make_msg(
-                14, {{"I0", std::to_string(id)},
-                     {"E0", std::to_string(wield)}}));
+                14,
+                {{"I0", std::to_string(id)}, {"E0", std::to_string(wield)}}));
         }
     }
 };
@@ -91,8 +90,8 @@ protected:
 TEST(InfoDetail, MakeBarShapes)
 {
     EXPECT_EQ(detail::make_bar(0), "[        ]");
-    EXPECT_EQ(detail::make_bar(1), "[=       ]");    // 非零保底 1 格
-    EXPECT_EQ(detail::make_bar(50), "[====    ]");   // 四舍五入
+    EXPECT_EQ(detail::make_bar(1), "[=       ]");   // 非零保底 1 格
+    EXPECT_EQ(detail::make_bar(50), "[====    ]");  // 四舍五入
     EXPECT_EQ(detail::make_bar(100), "[========]");
     EXPECT_EQ(detail::make_bar(300), "[========]");  // 上限 8 格
 }
@@ -131,19 +130,19 @@ TEST_F(GameStateInfoTest, UnknownPanelNameReturnsEmpty)
 TEST_F(GameStateInfoTest, CharacterPanelShowsOptionalFields)
 {
     login();
-    auto& a = state_.mutable_player_attr();
-    a.name   = "测试小侠";
-    a.gender = "男";
-    a.race   = "人类";
-    a.job    = "武当派";
-    a.title  = "少侠";
-    a.level  = 3;
-    a.age    = 18;
-    a.exp    = 100;
+    auto& a    = state_.mutable_player_attr();
+    a.name     = "测试小侠";
+    a.gender   = "男";
+    a.race     = "人类";
+    a.job      = "武当派";
+    a.title    = "少侠";
+    a.level    = 3;
+    a.age      = 18;
+    a.exp      = 100;
     a.next_exp = 200;
-    a.idle   = true;
-    a.pks    = 1;
-    a.mks    = 2;
+    a.idle     = true;
+    a.pks      = 1;
+    a.mks      = 2;
 
     std::string out = join(player_info_panel(state_, "character"));
     EXPECT_NE(out.find("测试小侠"), std::string::npos);
@@ -158,9 +157,9 @@ TEST_F(GameStateInfoTest, CharacterPanelShowsOptionalFields)
 
 TEST_F(GameStateInfoTest, CharacterPanelExpWithoutNextShowsBare)
 {
-    auto& a   = state_.mutable_player_attr();
-    a.exp     = 100;
-    a.next_exp = 50;  // next <= exp 时不显示分母
+    auto& a         = state_.mutable_player_attr();
+    a.exp           = 100;
+    a.next_exp      = 50;  // next <= exp 时不显示分母
     std::string out = join(player_info_panel(state_, "character"));
     EXPECT_NE(out.find("经  验"), std::string::npos);
     EXPECT_EQ(out.find("100/50"), std::string::npos);
@@ -192,8 +191,8 @@ TEST_F(GameStateInfoTest, LocationPanelShowsMapAndIdle)
 TEST_F(GameStateInfoTest, LocationPanelShowsBattleTag)
 {
     login();
-    state_.handle_message(make_msg(
-        10, {{"R", "5002"}, {"I", ""}, {"N", "战场"}, {"F", "1"}}));
+    state_.handle_message(
+        make_msg(10, {{"R", "5002"}, {"I", ""}, {"N", "战场"}, {"F", "1"}}));
 
     std::string out = join(player_info_panel(state_, "location"));
     EXPECT_NE(out.find("战斗中"), std::string::npos);
@@ -210,12 +209,12 @@ TEST_F(GameStateInfoTest, LocationPanelSkipsMapWhenEmpty)
 
 TEST_F(GameStateInfoTest, VitalsPanelShowsBarsAndBonus)
 {
-    auto& a  = state_.mutable_player_attr();
-    a.hp     = 50;
-    a.max_hp = 100;
-    a.eff_hp = 10;
-    a.mp     = 20;
-    a.max_mp = 40;
+    auto& a   = state_.mutable_player_attr();
+    a.hp      = 50;
+    a.max_hp  = 100;
+    a.eff_hp  = 10;
+    a.mp      = 20;
+    a.max_mp  = 40;
     a.enforce = 5;
 
     std::string out = join(player_info_panel(state_, "vitals"));
@@ -227,8 +226,8 @@ TEST_F(GameStateInfoTest, VitalsPanelShowsBarsAndBonus)
 
 TEST_F(GameStateInfoTest, VitalsPanelZeroMaxShowsPlainValue)
 {
-    auto& a = state_.mutable_player_attr();
-    a.hp    = 7;
+    auto& a  = state_.mutable_player_attr();
+    a.hp     = 7;
     a.max_hp = 0;
 
     std::string out = join(player_info_panel(state_, "vitals"));
@@ -240,10 +239,10 @@ TEST_F(GameStateInfoTest, VitalsPanelZeroMaxShowsPlainValue)
 
 TEST_F(GameStateInfoTest, CombatPanelShowsAttackDefenseAndExp)
 {
-    auto& a       = state_.mutable_player_attr();
-    a.attack      = 30;
-    a.defense     = 12;
-    a.combat_exp  = 123;
+    auto& a      = state_.mutable_player_attr();
+    a.attack     = 30;
+    a.defense    = 12;
+    a.combat_exp = 123;
 
     std::string out = join(player_info_panel(state_, "combat"));
     EXPECT_NE(out.find("攻击"), std::string::npos);
@@ -262,22 +261,18 @@ TEST_F(GameStateInfoTest, SkillsPanelEmptyShowsNotLearned)
 TEST_F(GameStateInfoTest, SkillsPanelMarksMappedAndPrepared)
 {
     login();
-    state_.handle_message(make_msg(13, {{"T", "1"},
-                                        {"S", "taiji_quan"},
-                                        {"L", "3"},
-                                        {"P", "1"},
-                                        {"K", "1"}}));
+    state_.handle_message(make_msg(
+        13,
+        {{"T", "1"}, {"S", "taiji_quan"}, {"L", "3"}, {"P", "1"}, {"K", "1"}}));
     state_.handle_message(make_msg(13, {{"T", "2"},
                                         {"S", "huashan_jianfa"},
                                         {"L", "5"},
                                         {"P", "2"},
                                         {"M", "taiji_quan"}}));
-    state_.handle_message(make_msg(16, {{"S", "taiji_quan"},
-                                        {"N", "太极拳"},
-                                        {"E", "拳法"}}));
-    state_.handle_message(make_msg(16, {{"S", "huashan_jianfa"},
-                                        {"N", "华山剑法"},
-                                        {"E", "剑法"}}));
+    state_.handle_message(
+        make_msg(16, {{"S", "taiji_quan"}, {"N", "太极拳"}, {"E", "拳法"}}));
+    state_.handle_message(make_msg(
+        16, {{"S", "huashan_jianfa"}, {"N", "华山剑法"}, {"E", "剑法"}}));
     conn_.clear_commands();
 
     std::string out = join(player_info_panel(state_, "skills"));
@@ -302,8 +297,8 @@ TEST_F(GameStateInfoTest, InventoryPanelShowsMetaAndSlot)
     add_inventory_item(500, "铁剑", "sword_01", /*qty=*/3, /*weight=*/12);
     add_inventory_item(600, "布衣", "cloth_01", /*qty=*/1, /*weight=*/5,
                        /*wield=*/12);
-    auto& a        = state_.mutable_player_attr();
-    a.max_carry    = 1000;
+    auto& a     = state_.mutable_player_attr();
+    a.max_carry = 1000;
 
     std::string out = join(player_info_panel(state_, "inventory"));
     EXPECT_NE(out.find("铁剑(sword_01) x3"), std::string::npos);

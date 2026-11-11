@@ -41,7 +41,7 @@ return {
         -- 收功回执另行 message_vision（与到期提示文案区分开）。
         if me:dbase_temp("map", "powerup") then
             me:remove_powerup(1)
-            message_vision("$N将真气收回丹田，解除了激励。", me)
+            message("vision", "$N将真气收回丹田，解除了激励。", me)
             return 1
         end
 
@@ -51,7 +51,7 @@ return {
 
         local skill = me:query_skill("force")
         me:add("mp", -50)
-        message_vision("$N微一凝神，运起高级内功，足底尘土泛起，全身真气冲关欲出。", me)
+        message("vision", "$N微一凝神，运起高级内功，足底尘土泛起，全身真气冲关欲出。", me)
 
         self:start_powerup(
             me,
@@ -74,7 +74,7 @@ return {
         end
         me:add("mp", -50)
         me:receive_curing("hp", 100)
-        message_vision("$N盘膝而坐，运功调息，气色逐渐好转。", me)
+        message("vision", "$N盘膝而坐，运功调息，气色逐渐好转。", me)
         me:start_busy(2)
         return 1
     end,
@@ -85,7 +85,7 @@ return {
             return notify_fail("你的内力不足，无法施展狮子吼。")
         end
         me:add("mp", -200)
-        message_vision("$N深吸一口气，运足内力，发出一声震天怒吼！", me)
+        message("vision", "$N深吸一口气，运足内力，发出一声震天怒吼！", me)
         -- 对周围敌人造成伤害
         local room = me:environment()
         if room then
@@ -96,7 +96,7 @@ return {
                         if me:is_fighting_target(obj) then
                             local damage = me:query_skill("force_adv", 1) * 2
                             obj:receive_damage("hp", damage)
-                            message_vision("$N被狮子吼震得气血翻涌！", obj)
+                            message("vision", "$N被狮子吼震得气血翻涌！", obj)
                             obj:set_killer(me)
                         end
                     end

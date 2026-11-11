@@ -43,7 +43,7 @@ return {
                 return notify_fail("别急，慢慢吃。")
             end
 
-            message_vision("$N毫不犹豫地将蛇胆吞了下去。", me)
+            message("vision", "$N毫不犹豫地将蛇胆吞了下去。", me)
 
             -- 即时双损伤（均为确定性数值）：
             -- hp 扣 40% 上限值 → 供回春丹 (receive_healing) 的真实生效分支；
@@ -64,7 +64,7 @@ return {
 
             me:receive_damage("hp", hp_damage)
             me:add("eff_hp", -eff_damage)
-            message_vision("$N脸色一变，显然毒性发作了！", me)
+            message("vision", "$N脸色一变，显然毒性发作了！", me)
 
             -- 挂载「蛇毒」状态：条件脚本见 condition/snake_poison.lua。
             -- duration 的单位是心跳拍数（每拍约 5~9 秒），每颗贡献 poison_supply 拍，
@@ -75,7 +75,7 @@ return {
             local add = self:query("poison_supply") or 2 -- 每颗贡献的时长
             me:apply_condition("snake_poison", current + add, 0, me)
 
-            me:FlushMyInfo()
+            me:flush_my_info()
 
             me:start_busy(3)
             destruct(self)

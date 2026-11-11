@@ -31,11 +31,11 @@ function M.install(hooks)
             return nil
         end
 
-        local idx = me:query_temp("exam/idx")
+        local idx = me:query("exam/idx", "T")
 
         if fmt == "出题" then
             idx = (idx % #QUESTIONS) + 1
-            me:set_temp("exam/idx", idx)
+            me:set("exam/idx", idx, "T")
             return { "考官：天下大考第 " .. idx .. " 题：" .. QUESTIONS[idx].q }
         end
 
@@ -44,10 +44,10 @@ function M.install(hooks)
         end
 
         if fmt == QUESTIONS[idx].a then
-            me:delete_temp("exam/idx")
+            me:del("exam/idx", "T")
             me:add("combat_exp", REWARD)
             -- 奖励入账即推送 RTNINFO：属性面板（总经验/战斗力）立即刷新
-            me:FlushMyInfo()
+            me:flush_my_info()
             -- 奖数走中文数字播报（chinese_number），频道文案里不夹阿拉伯数字
             return { mouren .. " 答对了！奖励经验值" .. chinese_number(REWARD) .. "点。" }
         end

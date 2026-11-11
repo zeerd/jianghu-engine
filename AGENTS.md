@@ -4,18 +4,14 @@
 
 **代码的来源是设计，不是测试！基于测试写代码就是打补丁，只有基于设计的修改才是正确的。禁止打补丁！**
 
-- 生产代码（`src/`、`lua-default/`、`lua-sample/` 等）的每处改动，理由必须是**设计**：
-  机制归属、契约、边界、世界设定。注释里禁止出现测试计划、E2E 剧本、覆盖率、
-  验收清单、文档编号（如「P4 要求…」「为覆盖 XX 函数…」「E2E 需要…」）作为改动
-  或写法的依据——在注释里写“这么改是测试要的”，就说明改动还是错的：那不是完善
-  架构，是打补丁，立刻反思并重新审视整个修改。
-- 测试侧的动机只写在测试与计划文档里，不写进生产代码。
-- 完整条款见 `.claude/rules/copilot-instructions.md` 的编码铁律节。
+- 生产代码（`src/`、`lua-default/`、`lua-sample/` 等）的每处改动理由必须是**设计**，
+  注释里不得出现测试计划、E2E 剧本、覆盖率、验收清单、文档编号这类测试侧依据。
+  完整条款见 `.claude/rules/copilot-instructions.md` 的编码铁律节。
 
 ## 文档分工（铁律）
 
 **指令文件（`.claude/rules/*.instructions.md`）只写怎么做；为什么、机制、沿革进 `docs/design/`，指令侧留指针。**
-完整条款见 `.claude/rules/copilot-instructions.md` 的「指令文件与设计文档的分工」铁律；
+完整条款见 `.claude/rules/instructions.instructions.md`；
 改过指令文件后按 `.claude/rules/self-verification.instructions.md` 逐段自检。
 
 ## 编码规范/风格
@@ -34,7 +30,9 @@
 
 ## 测试
 
-遵循：`.claude/rules/unit-test.instructions.md`
+单元测试遵循技能 `.claude/skills/unit-test/SKILL.md`；测试价值评审与修剪遵循技能
+`.claude/skills/test-audit/SKILL.md`；集成测试遵循技能
+`.claude/skills/integration-test/SKILL.md`。动手前先加载对应技能。
 
 ## 进程安全
 

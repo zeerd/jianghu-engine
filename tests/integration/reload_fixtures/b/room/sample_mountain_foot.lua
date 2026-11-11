@@ -7,10 +7,10 @@ return {
 
     create = function(self)
         self:set_name("青云山山脚")
-        self:add_npc("e2e_reload_npc")
+        self:add_object("npc", "e2e_reload_npc")
 
-        local box = self:Add_Box()
-        box:add_object("e2e_reload_item", 3)
+        local box = self:add_object("box")
+        box:add_object("object", "e2e_reload_item", 3)
         box:set_name("重载箱", "zai xiang")
 
         self:set("long", "【长描述乙】这里是青云山的山脚。")

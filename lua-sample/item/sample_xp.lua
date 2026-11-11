@@ -25,8 +25,8 @@ return {
         -- 引擎把当前内力压在 max_mp 之下，抬了上限内力不会自己跟上来——
         -- 吃完还得打坐一阵，把内力真练进去。
         me:add("max_mp", 100)
-        me:FlushMyInfo()
-        message_vision("$N吃下一粒经验果。", me)
+        me:flush_my_info()
+        message("vision", "$N吃下一粒经验果。", me)
         me:start_busy(2)
         destruct(self)
 

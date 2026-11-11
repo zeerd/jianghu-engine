@@ -13,7 +13,7 @@ return {
     handle_action = function(self, comm, me, arg, target)
         -- grant < 50 的玩家在监狱里，只能执行特定命令
         if me:query("grant") < 50 then
-            if (comm == "say" and me:query_temp("jy/no_say") == 0) or me:query_temp("jy/free") ~= 0 then
+            if (comm == "say" and me:query("jy/no_say", "T") == 0) or me:query("jy/free", "T") ~= 0 then
                 return 0
             end
             tell_object(me, "别忘了，你在蹲监狱！还是乖点吧。")

@@ -37,7 +37,7 @@ protected:
     {
         GameMessage m;
         m.cmd = cmd;
-        for (auto &[k, v] : p) m.params[k] = v;
+        for (auto& [k, v] : p) m.params[k] = v;
         return m;
     }
 };
@@ -146,8 +146,8 @@ TEST_F(GameStateTest, DuplicateAddObjectMergesInsteadOfDuplicating)
     state_.handle_message(make_msg(
         11,
         {{"E", "5001"}, {"T", "3001"}, {"u", "0"}, {"i", "0"}, {"U", "0"}}));
-    state_.handle_message(make_msg(
-        17, {{"O", "3001"}, {"N", "一个奇怪的树"}, {"I", "tree"}}));
+    state_.handle_message(
+        make_msg(17, {{"O", "3001"}, {"N", "一个奇怪的树"}, {"I", "tree"}}));
     state_.handle_message(make_msg(
         11,
         {{"E", "5001"}, {"T", "3001"}, {"u", "0"}, {"i", "0"}, {"U", "1"}}));
@@ -165,8 +165,8 @@ TEST_F(GameStateTest, DuplicateAddObjectKeepsSingleInventoryEntry)
     state_.handle_message(make_msg(
         11,
         {{"E", "1001"}, {"T", "4001"}, {"u", "0"}, {"i", "1"}, {"U", "0"}}));
-    state_.handle_message(make_msg(
-        17, {{"O", "4001"}, {"N", "金创药"}, {"I", "herb"}}));
+    state_.handle_message(
+        make_msg(17, {{"O", "4001"}, {"N", "金创药"}, {"I", "herb"}}));
     state_.handle_message(make_msg(
         11,
         {{"E", "1001"}, {"T", "4001"}, {"u", "0"}, {"i", "1"}, {"U", "1"}}));
@@ -222,12 +222,12 @@ TEST_F(GameStateTest, ReceiveSkillTriggersDownload)
 // skills 映射逐条发 RTNSKILL），记录端必须按 base_name 幂等合并。
 TEST_F(GameStateTest, SkillRepushUpdatesInsteadOfDuplicating)
 {
-    state_.handle_message(make_msg(
-        13, {{"T", "5001"}, {"S", "force"}, {"L", "1"}, {"P", "5"}}));
-    state_.handle_message(make_msg(
-        13, {{"T", "5001"}, {"S", "force"}, {"L", "2"}, {"P", "9"}}));
-    state_.handle_message(make_msg(
-        13, {{"T", "5001"}, {"S", "sword"}, {"L", "1"}, {"P", "5"}}));
+    state_.handle_message(
+        make_msg(13, {{"T", "5001"}, {"S", "force"}, {"L", "1"}, {"P", "5"}}));
+    state_.handle_message(
+        make_msg(13, {{"T", "5001"}, {"S", "force"}, {"L", "2"}, {"P", "9"}}));
+    state_.handle_message(
+        make_msg(13, {{"T", "5001"}, {"S", "sword"}, {"L", "1"}, {"P", "5"}}));
 
     ASSERT_EQ(state_.skills().size(), 2u);
     EXPECT_EQ(state_.skills()[0].base_name, "force");
@@ -241,10 +241,8 @@ TEST_F(GameStateTest, SkillRepushKeepsDownloadedMetadata)
     state_.handle_message(
         make_msg(13, {{"T", "5001"}, {"S", "force"}, {"L", "1"}}));
     // DOWNSKILL 回填显示名后，再次全量重推不得丢失元数据
-    state_.handle_message(make_msg(16, {{"S", "force"},
-                                        {"N", "基本内功"},
-                                        {"E", "force"},
-                                        {"P", "1"}}));
+    state_.handle_message(make_msg(
+        16, {{"S", "force"}, {"N", "基本内功"}, {"E", "force"}, {"P", "1"}}));
     state_.handle_message(
         make_msg(13, {{"T", "5001"}, {"S", "force"}, {"L", "2"}}));
 
@@ -311,8 +309,8 @@ TEST_F(GameStateTest, ReceiveItemWieldPositionsHonorBatchOffset)
         make_msg(14, {{"B", "10"}, {"I10", "7010"}, {"E10", "2"}}));
 
     ASSERT_EQ(state_.inventory().size(), 2u);
-    const ObjectInfo *sword = nullptr;
-    for (const auto &item : state_.inventory()) {
+    const ObjectInfo* sword = nullptr;
+    for (const auto& item : state_.inventory()) {
         if (item.id == 7010) sword = &item;
     }
     ASSERT_NE(sword, nullptr) << "第二批条目不得被丢弃";
@@ -354,10 +352,8 @@ TEST_F(GameStateTest, ReceivePlayerInfo)
 TEST_F(GameStateTest, ReceivePlayerInfoWithDbgLogging)
 {
     g_dbg_enabled.store(true);
-    state_.handle_message(make_msg(15, {{"T", "1001"},
-                                        {"p", "张三"},
-                                        {"e", "500"},
-                                        {"g", "1000"}}));
+    state_.handle_message(make_msg(
+        15, {{"T", "1001"}, {"p", "张三"}, {"e", "500"}, {"g", "1000"}}));
 
     EXPECT_EQ(state_.player_attr().name, "张三");
     EXPECT_EQ(state_.player_attr().hp, 500);

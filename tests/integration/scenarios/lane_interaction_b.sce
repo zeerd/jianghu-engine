@@ -19,6 +19,7 @@
 #   建立，不动物品、不占任何唯一资源。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include interaction/rendezvous.sce
 include interaction/party_b.sce
 # 玩家收徒四段排在组队**之后**（与 L5 同序配对；段落位置理由见 recruit_a 头注）：

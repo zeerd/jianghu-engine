@@ -318,8 +318,8 @@ void CRoom::remove_all_box()
     m_box_num = 0;
 }
 
-// Do_Action, handle_action(3参), SendMenu, AddMenuItem, say,
-// DownLoad, GetInfo, SendCommand — 实现在 RoomInterface.cpp
+// do_action, handle_action(3参), send_menu, add_menu_item, say,
+// download, get_info, send_command — 实现在 RoomInterface.cpp
 
 int CRoom::handle_action(char* comm, CChar* me, char* arg, char* tar)
 {
@@ -384,92 +384,96 @@ int l_room_reset(lua_State* L)
     return 0;
 }
 
-// self:add_npc(base_name, bx, by, ex, ey, dir, active, ival) - 往房间增加NPC
-int l_add_npc(lua_State* L)
+// npc 摆放表选项的整型读取：缺键取 0（与原位置参数的缺省一致）
+static int32_t add_table_opt(lua_State* L, int tbl, const char* key)
 {
+    int32_t v = 0;
+    lua_getfield(L, tbl, key);
+    if (lua_isnumber(L, -1)) v = (int32_t)lua_tointeger(L, -1);
+    lua_pop(L, 1);
+    return v;
+}
+
+// self:add_object(kind, ...) -> object|nil - 容器放置统一入口。KIND 取
+// npc/door/item/box（房间系，即 CRoom 对应工厂）与 object（箱子入物，
+// 第三参 amount 缺省 1）。npc 的摆放参数收进表选项 {x,y,ex,ey,dir,active,
+// interval}，缺省全 0；未登记 KIND 报错；self 类型不符返回 0。
+int l_add_object(lua_State* L)
+{
+    const char* kind = luaL_checkstring(L, 2);
+    if (strcmp(kind, "npc") != 0 && strcmp(kind, "door") != 0
+        && strcmp(kind, "item") != 0 && strcmp(kind, "box") != 0
+        && strcmp(kind, "object") != 0)
+        return luaL_error(L, "unknown add kind: %s", kind);
+
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
 
-    CRoom* r = dynamic_cast<CRoom*>(obj);
-    if (!r) return 0;
-
-    const char* base_name = luaL_checkstring(L, 2);
-    int32_t bx            = (int32_t)luaL_optinteger(L, 3, 0);
-    int32_t by            = (int32_t)luaL_optinteger(L, 4, 0);
-    int32_t ex            = (int32_t)luaL_optinteger(L, 5, 0);
-    int32_t ey            = (int32_t)luaL_optinteger(L, 6, 0);
-    int dir               = (int)luaL_optinteger(L, 7, 0);
-    int active            = (int)luaL_optinteger(L, 8, 0);
-    int ival              = (int)luaL_optinteger(L, 9, 0);
-
-    // 单个转换，无静态缓冲区冲突
-    CNpc* npc = r->add_npc(base_name, bx, by, ex, ey, dir, active, ival);
-
-    // 返回创建的 NPC 对象（供脚本 set_name / init 等后续操作）
-    lua_bind_push_object(L, npc);
-    return 1;
-}
-
-// self:add_door(door, next_room, next_door, dir) -> object -
-// 增加出口，返回出口对象
-int l_add_door(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    CRoom* r         = obj ? dynamic_cast<CRoom*>(obj) : NULL;
-    if (!r) {
-        lua_pushnil(L);
+    if (strcmp(kind, "object") == 0) {
+        CBox* box = dynamic_cast<CBox*>(obj);
+        if (!box) return 0;
+        const char* name = luaL_checkstring(L, 3);
+        int32_t amount   = (int32_t)luaL_optinteger(L, 4, 1);
+        lua_bind_push_object(L, box->add_object(name, amount));
         return 1;
     }
 
-    const char* door      = luaL_checkstring(L, 2);
-    const char* next_room = luaL_checkstring(L, 3);
-    const char* next_door = luaL_optstring(L, 4, "");
-    const char* dir       = luaL_optstring(L, 5, "");
-
-    // 多次调用必须复制到局部变量
-    char doorBuf[256], nextBuf[256], nextDoorBuf[256], dirBuf[64];
-    strncpy(doorBuf, door, 255);
-    doorBuf[255] = 0;
-    strncpy(nextBuf, next_room, 255);
-    nextBuf[255] = 0;
-    strncpy(nextDoorBuf, next_door, 255);
-    nextDoorBuf[255] = 0;
-    strncpy(dirBuf, dir, 63);
-    dirBuf[63] = 0;
-
-    lua_bind_push_object(L, r->add_door(doorBuf, nextBuf, nextDoorBuf, dirBuf));
-    return 1;
-}
-
-// self:add_item(item_name) -> object - 往房间放物品
-int l_add_item(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
     CRoom* r = dynamic_cast<CRoom*>(obj);
     if (!r) return 0;
 
-    const char* item_name = luaL_checkstring(L, 2);
-    lua_bind_push_object(L, r->add_item(item_name));
-    return 1;
-}
+    if (strcmp(kind, "npc") == 0) {
+        const char* name = luaL_checkstring(L, 3);
+        int32_t bx = 0, by = 0, ex = 0, ey = 0;
+        int dir = 0, active = 0, ival = 0;
+        if (lua_istable(L, 4)) {
+            bx     = add_table_opt(L, 4, "x");
+            by     = add_table_opt(L, 4, "y");
+            ex     = add_table_opt(L, 4, "ex");
+            ey     = add_table_opt(L, 4, "ey");
+            dir    = add_table_opt(L, 4, "dir");
+            active = add_table_opt(L, 4, "active");
+            ival   = add_table_opt(L, 4, "interval");
+        }
+        lua_bind_push_object(
+            L, r->add_npc(name, bx, by, ex, ey, dir, active, ival));
+        return 1;
+    }
 
-// self:Add_Box(box_type) -> object - 往房间放箱子（默认 "box"）
-int l_add_box(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (strcmp(kind, "door") == 0) {
+        const char* door      = luaL_checkstring(L, 3);
+        const char* next_room = luaL_checkstring(L, 4);
+        const char* next_door = luaL_optstring(L, 5, "");
+        const char* dir       = luaL_optstring(L, 6, "");
 
-    CRoom* r = dynamic_cast<CRoom*>(obj);
-    if (!r) return 0;
+        // 多次调用必须复制到局部变量
+        char doorBuf[256], nextBuf[256], nextDoorBuf[256], dirBuf[64];
+        strncpy(doorBuf, door, 255);
+        doorBuf[255] = 0;
+        strncpy(nextBuf, next_room, 255);
+        nextBuf[255] = 0;
+        strncpy(nextDoorBuf, next_door, 255);
+        nextDoorBuf[255] = 0;
+        strncpy(dirBuf, dir, 63);
+        dirBuf[63] = 0;
 
-    const char* box_type = luaL_optstring(L, 2, "box");
+        lua_bind_push_object(
+            L, r->add_door(doorBuf, nextBuf, nextDoorBuf, dirBuf));
+        return 1;
+    }
+
+    if (strcmp(kind, "item") == 0) {
+        const char* item_name = luaL_checkstring(L, 3);
+        lua_bind_push_object(L, r->add_item(item_name));
+        return 1;
+    }
+
+    // kind == "box"：房间放箱（类型缺省 "box"）
+    const char* box_type = luaL_optstring(L, 3, "box");
     lua_bind_push_object(L, r->add_box(box_type));
     return 1;
 }
 
-// self:PresentDoor(id) -> object - 取出口对象（id 或方向均可），无则为 nil
+// self:present_door(id) -> object - 取出口对象（id 或方向均可），无则为 nil
 int l_present_door(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

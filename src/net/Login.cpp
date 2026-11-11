@@ -539,7 +539,7 @@ void on_offline(long objectid)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// GetIP(ob) -> string - 获取角色 IP 地址
+// get_ip(ob) -> string - 获取角色 IP 地址
 int l_get_ip(lua_State* L)
 {
     CChar* ch = NULL;

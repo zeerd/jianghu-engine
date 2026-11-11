@@ -93,10 +93,10 @@ function npc.create(self)
     self:set_skill("parry", BASE_SKILL_LEVEL)
     self:set_skill("dodge", BASE_SKILL_LEVEL)
 
-    self:map_skill("force", "force")
-    self:map_skill("unarmed", "unarmed")
-    self:map_skill("parry", "parry")
-    self:map_skill("dodge", "dodge")
+    self:skill_map("set", "force", "force")
+    self:skill_map("set", "unarmed", "unarmed")
+    self:skill_map("set", "parry", "parry")
+    self:skill_map("set", "dodge", "dodge")
 end
 
 -- 对话入口（为什么在这里而不用 set_inquiry，见文件头第一、二节）：
@@ -127,7 +127,7 @@ end
 
 -- 死亡：被打散就散成一地木头并自毁（不走 die("base")：不掉尸体、不结算 NK 经验）
 function npc.die(self)
-    message_vision("$N的关节一松，噼里啪啦散成了一堆木头。", self)
+    message("vision", "$N的关节一松，噼里啪啦散成了一堆木头。", self)
     destruct(self)
 end
 

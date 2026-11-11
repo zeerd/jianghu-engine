@@ -34,7 +34,7 @@ return {
         if sign_id == "" then
             self:set("sign/id", me:querystr("id"))
             self:set("sign/name", me:querystr("name"))
-            message_vision("$N提起笔，在婚姻登记表上签下了自己的名字。", me)
+            message("vision", "$N提起笔，在婚姻登记表上签下了自己的名字。", me)
             tell_object(
                 me,
                 "把登记表交给意中人，由对方在你身边签下第二个名字，登记才算完成。"
@@ -67,7 +67,7 @@ return {
         other:set("couple/id", me:querystr("id"))
 
         self:remove_call_out("fade_sign")
-        message_vision("$N与$n在婚姻登记表上签下彼此的名字，结为夫妻。", me, other)
+        message("vision", "$N与$n在婚姻登记表上签下彼此的名字，结为夫妻。", me, other)
         -- 关系既成，喜讯照惯例走 news 频道通告全服
         do_channel(
             nil,
@@ -89,7 +89,7 @@ return {
         if is_user(env) then
             tell_object(env, "婚姻登记表上的签名渐渐淡去了……")
         elseif env then
-            tell_room(env, "婚姻登记表上的签名渐渐淡去了……")
+            message("room", env, "婚姻登记表上的签名渐渐淡去了……")
         end
     end,
 }

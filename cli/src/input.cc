@@ -9,10 +9,10 @@
 #include "terminal_ui.h"
 
 // Display all player info panels (used by .info CLI command).
-static void show_player_info(const GameState &gs, TerminalUI &ui)
+static void show_player_info(const GameState& gs, TerminalUI& ui)
 {
     auto panels = gs.player_info_panels();
-    for (const auto &line : panels) {
+    for (const auto& line : panels) {
         if (!line.empty()) {
             ui.add_line(color::convert(line));
         }
@@ -20,15 +20,15 @@ static void show_player_info(const GameState &gs, TerminalUI &ui)
 }
 
 // Display skills info (used by .skills CLI command).
-static void show_skills(const GameState &gs, TerminalUI &ui)
+static void show_skills(const GameState& gs, TerminalUI& ui)
 {
-    const auto &skills = gs.skills();
+    const auto& skills = gs.skills();
     ui.add_line(color::convert("$HIG=== 技能列表 ===$COM"));
     if (skills.empty()) {
         ui.add_line("  (无技能)");
         return;
     }
-    for (const auto &s : skills) {
+    for (const auto& s : skills) {
         if (s.level > 0 || s.potential > 0) {
             std::string line = "  " + s.skill_name;
             if (!s.base_skill.empty() && s.base_skill != s.skill_name) {
@@ -50,7 +50,7 @@ static void show_skills(const GameState &gs, TerminalUI &ui)
 
             // Display magics/绝招 for this skill
             if (!s.magics.empty()) {
-                for (const auto &magic : s.magics) {
+                for (const auto& magic : s.magics) {
                     std::ostringstream magic_ss;
                     magic_ss << "    |_ " << magic.display_name << "("
                              << magic.name << ")";
@@ -73,12 +73,12 @@ static void show_skills(const GameState &gs, TerminalUI &ui)
     }
 }
 
-static void show_player_info_panel(const GameState &gs,
-                                   const std::string &panel_name,
-                                   TerminalUI &ui)
+static void show_player_info_panel(const GameState& gs,
+                                   const std::string& panel_name,
+                                   TerminalUI& ui)
 {
     auto panels = gs.player_info_panel(panel_name);
-    for (const auto &line : panels) {
+    for (const auto& line : panels) {
         if (!line.empty()) {
             ui.add_line(color::convert(line));
         }
@@ -94,8 +94,7 @@ void InputProcessor::show_help_text()
         "Channel: .tune show current or switch channels (chat/new/...)");
     ui_.add_line(
         "Standard: /get /drop /wield /unwield /use /go /give /look /say /tell");
-    ui_.add_line(
-        "  /get <item> from <container> — 从箱子/尸体取物（便捷式）");
+    ui_.add_line("  /get <item> from <container> — 从箱子/尸体取物（便捷式）");
     ui_.add_line("  /kill /fight /halt /flee /join /apprentice /learn");
     ui_.add_line("  /teach /sleep /exercise /enable /prepare /study /practice");
     ui_.add_line("  /abandon /enforce /cast");
@@ -123,13 +122,13 @@ void InputProcessor::show_help_text()
         "/loan — 贷款");
 }
 
-InputProcessor::InputProcessor(CommandHandler &cmd_handler, GameState &state,
-                               Connection &conn, TerminalUI &ui)
+InputProcessor::InputProcessor(CommandHandler& cmd_handler, GameState& state,
+                               Connection& conn, TerminalUI& ui)
     : cmd_handler_(cmd_handler), state_(state), conn_(conn), ui_(ui)
 {
 }
 
-void InputProcessor::process_cli_cmd(const std::string &input)
+void InputProcessor::process_cli_cmd(const std::string& input)
 {
     if (input == ".quit" || input == ".exit") {
         should_quit_ = true;
@@ -157,7 +156,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
         ui_.add_line(color::convert("$HIG=== Room Objects ===$COM"));
         if (!npcs.empty()) {
             ui_.add_line(color::convert("$YELNPCs:$COM"));
-            for (const auto &o : npcs) {
+            for (const auto& o : npcs) {
                 std::string line
                     = "  [" + (!o.internal_id.empty() ? o.internal_id : "-")
                       + "] " + o.name;
@@ -168,7 +167,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
         }
         if (!chars.empty()) {
             ui_.add_line(color::convert("$GRNPlayers:$COM"));
-            for (const auto &o : chars) {
+            for (const auto& o : chars) {
                 std::string line
                     = "  [" + (!o.internal_id.empty() ? o.internal_id : "-")
                       + "] " + o.name;
@@ -178,7 +177,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
         }
         if (!items.empty()) {
             ui_.add_line(color::convert("$CYNItems:$COM"));
-            for (const auto &o : items) {
+            for (const auto& o : items) {
                 std::string line
                     = "  [" + (!o.internal_id.empty() ? o.internal_id : "-")
                       + "] " + o.name;
@@ -200,7 +199,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
         else {
             if (!npcs.empty()) {
                 ui_.add_line(color::convert("$YELNPCs:$COM"));
-                for (const auto &o : npcs) {
+                for (const auto& o : npcs) {
                     std::string line
                         = "  [" + (!o.internal_id.empty() ? o.internal_id : "-")
                           + "] " + o.name;
@@ -211,7 +210,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
             }
             if (!chars.empty()) {
                 ui_.add_line(color::convert("$GRNPlayers:$COM"));
-                for (const auto &o : chars) {
+                for (const auto& o : chars) {
                     std::string line
                         = "  [" + (!o.internal_id.empty() ? o.internal_id : "-")
                           + "] " + o.name;
@@ -230,7 +229,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
             ui_.add_line("  无");
         }
         else {
-            for (const auto &d : doors) {
+            for (const auto& d : doors) {
                 std::string line = "  " + d.dir_label + " -> " + d.room_name;
                 // if (!d.door_key.empty()) line += " (" + d.door_key + ")";
                 ui_.add_line(line);
@@ -250,12 +249,12 @@ void InputProcessor::process_cli_cmd(const std::string &input)
         // Characters (NPCs + players)
         if (!npcs.empty() || !chars.empty()) {
             ui_.add_line(color::convert("$HIG人物：$COM"));
-            for (const auto &o : npcs) {
+            for (const auto& o : npcs) {
                 std::string line = "  " + o.name;
                 if (!o.title.empty()) line += " " + o.title;
                 ui_.add_line(line);
             }
-            for (const auto &o : chars) {
+            for (const auto& o : chars) {
                 std::string line = "  " + o.name;
                 if (!o.title.empty()) line += " " + o.title;
                 ui_.add_line(line);
@@ -269,7 +268,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
         // Items on ground
         if (!items.empty()) {
             ui_.add_line(color::convert("$HIG物品：$COM"));
-            for (const auto &o : items) {
+            for (const auto& o : items) {
                 std::string line = "  " + o.name;
                 if (o.qty > 1) line += " x" + std::to_string(o.qty);
                 ui_.add_line(line);
@@ -279,7 +278,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
         // Exits
         if (!doors.empty()) {
             ui_.add_line(color::convert("$HIG出口：$COM"));
-            for (const auto &d : doors) {
+            for (const auto& d : doors) {
                 std::string line = "  " + d.dir_label + " -> " + d.room_name;
                 ui_.add_line(line);
             }
@@ -292,7 +291,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
             ui_.add_line("  (******)");
         }
         else {
-            for (const auto &o : items) {
+            for (const auto& o : items) {
                 std::string line
                     = "  [" + (!o.internal_id.empty() ? o.internal_id : "-")
                       + "] " + o.name;
@@ -314,7 +313,7 @@ void InputProcessor::process_cli_cmd(const std::string &input)
     }
 }
 
-void InputProcessor::process_server_cmd(const std::string &input)
+void InputProcessor::process_server_cmd(const std::string& input)
 {
     // Login handler
     if (input.rfind("login", 0) == 0) {
@@ -379,7 +378,7 @@ void InputProcessor::process_server_cmd(const std::string &input)
     }
 }
 
-bool InputProcessor::process_line(const std::string &input)
+bool InputProcessor::process_line(const std::string& input)
 {
     if (input.empty()) return true;
 

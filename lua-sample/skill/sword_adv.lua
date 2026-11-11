@@ -109,10 +109,10 @@ return {
         if me:query_skill("hand_adv", 1) < 10 then
             return notify_fail("你的掌法火候不够，无法施展剑气三连。")
         end
-        if me:query_skill_mapped("hand") ~= "hand_adv" then
+        if me:skill_map("query", "hand") ~= "hand_adv" then
             return notify_fail("你没有激发高级掌法，不能在剑招中夹杂使用剑气三连。")
         end
-        if me:query_skill_prepared("hand") ~= "hand_adv" then
+        if me:skill_prepare("query", "hand") ~= "hand_adv" then
             return notify_fail("你没有准备好高级掌法，不能在剑招中夹杂使用剑气三连。")
         end
 
@@ -121,23 +121,23 @@ return {
 
         me:add("mp", -100)
         -- 绝招运劲：三击期间出手抬升（按青云心法等级），收招回扣
-        me:add_temp("apply/attack", extra)
+        me:add("apply/attack", extra, "T")
 
         -- 第一击：武器招
-        message_vision("$N运足内力，将真气灌注剑身，第一剑疾刺而出！", me, target)
+        message("vision", "$N运足内力，将真气灌注剑身，第一剑疾刺而出！", me, target)
         combat_attack("normal", me, target, TYPE_QUICK)
 
         -- 第二击：空手招（str 临时加成只包这一击，随即回扣）
-        message_vision("$N弃剑换掌，右掌蓄劲拍向$n的胸口！", me, target)
-        me:add_temp("apply/str", palm_level // 4)
+        message("vision", "$N弃剑换掌，右掌蓄劲拍向$n的胸口！", me, target)
+        me:add("apply/str", palm_level // 4, "T")
         combat_attack("unarmed", me, target, "hand", TYPE_QUICK)
-        me:add_temp("apply/str", -(palm_level // 4))
+        me:add("apply/str", -(palm_level // 4), "T")
 
         -- 第三击：回到武器招
-        message_vision("$N弃掌换剑，长剑回环又是一道剑气！", me, target)
+        message("vision", "$N弃掌换剑，长剑回环又是一道剑气！", me, target)
         combat_attack("normal", me, target, TYPE_QUICK)
 
-        me:add_temp("apply/attack", -extra)
+        me:add("apply/attack", -extra, "T")
 
         -- 施展绝招即攒「高级剑法」熟练度（量级与施法收益同公式）。第三个
         -- 参数 weak_mode 置 1：玩家侧只累计熟练度、不即时升级。这是一种可以

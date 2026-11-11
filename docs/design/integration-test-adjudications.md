@@ -7,8 +7,7 @@
 > **改裁定时结论与证据同轮同步**：§6 某行改了，本台账对应小节必须跟着改（或删除）；
 > 覆盖后从 §6 销账移出的条目，证据留在本台账作沿革，不回流 §6。
 >
-> **计划书不进本文件**：计划书是任务清单、用完即删；只有会被后来读者需要的甄别证据才落这里
-> （分工铁律见 `.claude/rules/copilot-instructions.md`「铁律：计划书与设计文档的分工」）。
+> **计划书不进本文件**：计划书是任务清单、用完即删；只有会被后来读者需要的甄别证据才落这里。
 
 ## §0 与未命中清单的关系
 
@@ -110,7 +109,9 @@ C++ 直调脚本字段/钩子（`C→Lua`），胶水方向天然无人走；0 �
    后——`calculate_damage`、`can_prepare_combine` 不在注册面；
 3. **教材未定义字段/4 参链 8**：`greeting`/`finish_kill`/`is_defeated`/`accept_fight`/
    `valid_force_pro` 无字段定义；`handle_action4` 四参链教材只给 3 参版、菜单走 3 参已命中；
-4. **教材零调用胶水 7**：`lua_do_wield` 系与 glue 四 API——教材 grep 零调用。
+4. **教材零调用胶水 7**：`lua_do_wield` 系与 glue 四 API——教材 grep 零调用
+   （其中 `lua_do_wield`/`call_base_do_wield` 与 `lua_do_un_wield`/`call_base_do_unwield`
+   已随后续绑定瘦身删除）。
 
 与 9 个 N1 胶水绑定、`base_query_action`/`has_query_action` 回落链（教材 29 攻击技能全有
 `query_action` 字段）同性质：**教材没用 / 入口不属 E2E 域**，非可达性缺口。

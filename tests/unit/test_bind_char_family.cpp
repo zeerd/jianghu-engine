@@ -99,18 +99,6 @@ TEST_F(BindCharFamilyTest, ApprenticeUnknownActionErrors)
     EXPECT_EQ(-1, call(l_apprentice, 2));
 }
 
-TEST_F(BindCharFamilyTest, PreventLearn)
-{
-    // 契约：非嫡传弟子学本门功夫被拒 → 返回 1
-    lua_bind_push_object(L, &master);
-    lua_bind_push_object(L, &appr);
-    lua_pushstring(L, "sword");
-    int k = call(l_prevent_learn, 3);
-    ASSERT_EQ(1, k);
-    EXPECT_EQ(1, lua_tointeger(L, -1));
-    lua_pop(L, k);
-}
-
 TEST_F(BindCharFamilyTest, ReleaseMaster)
 {
     // 无 family/user 的玩家师父记录 → guard 早退（void 无返回）

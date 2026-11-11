@@ -59,15 +59,27 @@ TEST_F(BindCharAttrTest, QueryExp)
     // 契约：可用经验对普通 CChar 同样可读（玩家侧升级/学技能的扣费依据），
     // level/sk_exp 未设时 = 经验总额
     lua_bind_push_object(L, &ch);
-    EXPECT_EQ(50000, CallInt(l_query_valid_exp, 1));
+    int k = call_method(L, "query_valid_exp", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_EQ(50000, lua_tointeger(L, -1));
+    lua_pop(L, k);
 }
 
 TEST_F(BindCharAttrTest, LearnBonusAndInvalid)
 {
     lua_bind_push_object(L, &ch);
     CallInt(l_learn_bonus, 1);
+
+    // 契约：is_invalid 是谓词，恒返回布尔（Lua 里 0 为真，不可回整数）
     lua_bind_push_object(L, &ch);
-    EXPECT_GE(CallInt(l_is_invalid, 1), 0);
+    EXPECT_FALSE(CallBool(l_is_invalid, 1));
+
+    // 非角色对象同样回一个布尔，不回空
+    CContainer box;
+    lua_bind_push_object(L, &box);
+    EXPECT_EQ(1, call(l_is_invalid, 1));
+    EXPECT_TRUE(lua_isboolean(L, -1));
+    lua_pop(L, 1);
 }
 
 TEST_F(BindCharAttrTest, RespectRudeSelf)
@@ -137,20 +149,20 @@ TEST_F(BindCharAttrTest, SkillLevelExpConversions)
 
     EXPECT_EQ(CChar::level2skill(10), lua_int("level2skill(10)"));
 
-    EXPECT_EQ(CChar::level2_exp(3), lua_int("Level2Exp(3)"));
+    EXPECT_EQ(CChar::level2_exp(3), lua_int("level2exp(3)"));
 
-    EXPECT_EQ(CChar::level2_exp(100), lua_int("Level2Exp(100)"));
+    EXPECT_EQ(CChar::level2_exp(100), lua_int("level2exp(100)"));
 
-    EXPECT_EQ(CChar::level2_exp(175), lua_int("Level2Exp(175)"));
+    EXPECT_EQ(CChar::level2_exp(175), lua_int("level2exp(175)"));
 
     EXPECT_EQ(CChar::exp2level(100), lua_int("exp2level(100)"));
 
     EXPECT_EQ(CChar::exp2level(350), lua_int("exp2level(350)"));
 
-    EXPECT_EQ(0, lua_int("Level2Exp(0)"));
+    EXPECT_EQ(0, lua_int("level2exp(0)"));
 
     // 176 级起外推：每级 +1 亿（表覆盖到 175，公式语义不落 int32 截断）
-    EXPECT_EQ(1917735009LL + 176 * 100000000LL, lua_int("Level2Exp(176)"));
+    EXPECT_EQ(1917735009LL + 176 * 100000000LL, lua_int("level2exp(176)"));
 }
 
 // ---- CharLook.cpp (static) ----

@@ -26,7 +26,7 @@ namespace {
 // 输出经 UI 写线程异步落 stdout，取文本前必须先排空该线程。
 class OutputCapture {
 public:
-    explicit OutputCapture(TerminalUI &ui)
+    explicit OutputCapture(TerminalUI& ui)
         : ui_(ui), saved_(std::cout.rdbuf(out_.rdbuf()))
     {
     }
@@ -42,9 +42,9 @@ public:
     }
 
 private:
-    TerminalUI &ui_;
+    TerminalUI& ui_;
     std::stringstream out_;
-    std::streambuf *saved_;
+    std::streambuf* saved_;
 };
 
 }  // namespace
@@ -57,8 +57,7 @@ protected:
     CommandHandler handler_;
     std::filesystem::path logs_dir_;
 
-    CommandHandlerTest()
-        : state_(conn_), handler_(state_, conn_, ui_)
+    CommandHandlerTest() : state_(conn_), handler_(state_, conn_, ui_)
     {
         logs_dir_ = test_tmp_dir() / "jianghu_cli_commands_test_logs";
         ui_.set_logs_dir(logs_dir_.string());
@@ -101,17 +100,16 @@ protected:
                          bool is_user = false, bool is_item = false,
                          int qty = 1, const std::string& iid = "")
     {
-        state_.handle_message(make_msg(
-            11, {{"E", "5001"},
-                 {"T", std::to_string(id)},
-                 {"u", is_user ? "1" : "0"},
-                 {"i", is_item ? "1" : "0"},
-                 {"U", "0"}}));
+        state_.handle_message(make_msg(11, {{"E", "5001"},
+                                            {"T", std::to_string(id)},
+                                            {"u", is_user ? "1" : "0"},
+                                            {"i", is_item ? "1" : "0"},
+                                            {"U", "0"}}));
         GameMessage m17;
-        m17.cmd             = 17;
-        m17.params["O"]     = std::to_string(id);
-        m17.params["N"]     = name;
-        m17.params["a"]     = std::to_string(qty);
+        m17.cmd         = 17;
+        m17.params["O"] = std::to_string(id);
+        m17.params["N"] = name;
+        m17.params["a"] = std::to_string(qty);
         if (!iid.empty()) m17.params["I"] = iid;
         state_.handle_message(m17);
     }
@@ -120,17 +118,15 @@ protected:
     void add_inventory_item(ObjectID id, const std::string& name,
                             const std::string& iid = "", int qty = 1)
     {
-        state_.handle_message(make_msg(
-            11, {{"E", "1001"},
-                 {"T", std::to_string(id)},
-                 {"u", "0"},
-                 {"i", "1"},
-                 {"U", "0"}}));
-        state_.handle_message(make_msg(
-            17, {{"O", std::to_string(id)},
-                 {"N", name},
-                 {"I", iid},
-                 {"a", std::to_string(qty)}}));
+        state_.handle_message(make_msg(11, {{"E", "1001"},
+                                            {"T", std::to_string(id)},
+                                            {"u", "0"},
+                                            {"i", "1"},
+                                            {"U", "0"}}));
+        state_.handle_message(make_msg(17, {{"O", std::to_string(id)},
+                                            {"N", name},
+                                            {"I", iid},
+                                            {"a", std::to_string(qty)}}));
     }
 };
 
@@ -467,8 +463,7 @@ TEST_F(CommandHandlerTest, DropIntoBuildsWireFormat)
     // drop 助手经 find_target 解析（/t 契约：只收 ID）——物品用英文 id、
     // 容器同理；服务端 arg 要求容器 id 落第 4 段，前两段给 0 走坐标回落
     add_inventory_item(500, "金创药", "jin chuang yao");
-    add_room_object(600, "柜子", /*is_user=*/false, /*is_item=*/true, 1,
-                    "box");
+    add_room_object(600, "柜子", /*is_user=*/false, /*is_item=*/true, 1, "box");
     OutputCapture cap(ui_);
     EXPECT_TRUE(handler_.process("drop jin chuang yao into box"));
     EXPECT_EQ(conn_.last_command(), "1001 drop 500 0 0 into 600\t");
@@ -476,8 +471,7 @@ TEST_F(CommandHandlerTest, DropIntoBuildsWireFormat)
 
 TEST_F(CommandHandlerTest, DropIntoItemNotFound)
 {
-    add_room_object(600, "柜子", /*is_user=*/false, /*is_item=*/true, 1,
-                    "box");
+    add_room_object(600, "柜子", /*is_user=*/false, /*is_item=*/true, 1, "box");
     OutputCapture cap(ui_);
     EXPECT_TRUE(handler_.process("drop 火焰刀 into box"));
     EXPECT_NE(cap.str().find("Item not found: 火焰刀"), std::string::npos);

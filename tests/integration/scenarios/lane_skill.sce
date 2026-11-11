@@ -13,6 +13,7 @@
 #     与它对话，别道既不问它也不打它，故对练结果不会互相踩。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include common/room_look_inquiry.sce
 include provision/study_supplies.sce
 include skill/learn_basic.sce

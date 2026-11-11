@@ -13,7 +13,7 @@ class CFB;
  * @brief 副本出口对象。
  *
  * 与普通 CDoor 的唯一差异：enter_door 不在全局房间表里找目标，而是经
- * m_parent_fb->load_fb_room 动态创建/复用副本房间。bind 复用 CDoor::bind。
+ * m_parent_fb->load_fb_room 动态创建/复用副本房间。
  * 由 CFBRoom::new_door 工厂产出，存放于 CRoom::m_door_list（不再单列）。
  */
 class CFBDoor : public CDoor {

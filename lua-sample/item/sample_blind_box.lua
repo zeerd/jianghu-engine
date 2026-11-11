@@ -53,7 +53,7 @@ return {
         end
 
         prize:move(me)
-        message_vision("$N掀开盲盒的盖子，从里面拿出了$n。", me, prize)
+        message("vision", "$N掀开盲盒的盖子，从里面拿出了$n。", me, prize)
 
         -- 记档：写独立表并读回累计次数，回执只发开盒人（失败也私发，见模块头注）
         local n, err = draw_log.record(me:name(), prize:name())

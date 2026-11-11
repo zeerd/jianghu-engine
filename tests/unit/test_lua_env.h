@@ -42,6 +42,34 @@ inline lua_State* ensure_lua_env_impl()
 // 读配置 + 起引擎（幂等）+ 注册绑定 + 装载钩子表
 inline lua_State* ensure_lua_env() { return ensure_lua_env_impl(); }
 
+// 调用全局 Lua 函数（前导组合出的 API）：入参（不含函数）已压栈，
+// 返回值个数（-1 = 调用失败，错误信息已弹出）
+inline int call_global(lua_State* L, const char* name, int nargs)
+{
+    int base = lua_gettop(L) - nargs;
+    lua_getglobal(L, name);
+    lua_insert(L, base + 1);
+    if (lua_pcall(L, nargs, LUA_MULTRET, 0) != LUA_OK) {
+        lua_pop(L, 1);
+        return -1;
+    }
+    return lua_gettop(L) - base;
+}
+
+// 调用对象方法（经 __index 解析，含前导定义的方法）：self + 入参已压栈，
+// 返回值个数（-1 = 调用失败，错误信息已弹出）
+inline int call_method(lua_State* L, const char* name, int nargs)
+{
+    int base = lua_gettop(L) - nargs;  // self 所在槽（1-based base+1）
+    lua_getfield(L, base + 1, name);
+    lua_insert(L, base + 1);
+    if (lua_pcall(L, nargs, LUA_MULTRET, 0) != LUA_OK) {
+        lua_pop(L, 1);
+        return -1;
+    }
+    return lua_gettop(L) - base;
+}
+
 // 换装 login.lua：写入 → check_player 经 load_script 按 hash 自动重载读到
 // 新文件 → 收尾还原原文件（或删除），不污染脚本目录
 class ScopedLoginScript {

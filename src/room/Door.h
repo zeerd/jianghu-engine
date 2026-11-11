@@ -16,7 +16,6 @@ class CChar;
  */
 class CDoor : public CMainObject {
 public:
-    virtual void bind(const char* next_room, const char* NextDoor);
     virtual int enter_door(CChar* me);
 
     // 锁死

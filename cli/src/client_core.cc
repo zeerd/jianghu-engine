@@ -80,10 +80,9 @@ void ClientCore::start_heartbeat()
 {
     if (cfg_.heartbeat_interval <= 0) return;
 
-    int interval_sec = cfg_.heartbeat_interval;
-    heartbeat_thread_ = std::thread([this, interval_sec]() {
-        run_heartbeat_loop(interval_sec);
-    });
+    int interval_sec  = cfg_.heartbeat_interval;
+    heartbeat_thread_ = std::thread(
+        [this, interval_sec]() { run_heartbeat_loop(interval_sec); });
 }
 
 void ClientCore::run_heartbeat_loop(int interval_sec)
@@ -100,8 +99,8 @@ void ClientCore::run_heartbeat_loop(int interval_sec)
 
 void ClientCore::send_heartbeat()
 {
-    conn_->send_command_utf8(
-        std::to_string(state_.player_id()) + " tune 0 reducedrop\t");
+    conn_->send_command_utf8(std::to_string(state_.player_id())
+                             + " tune 0 reducedrop\t");
 }
 
 void ClientCore::process_received()
@@ -117,7 +116,8 @@ void ClientCore::process_received()
                 {
                     std::lock_guard<std::mutex> lock(output_mutex_);
                     output_lines_.push_back(line);
-                    while (output_lines_.size() > 2000) output_lines_.pop_front();
+                    while (output_lines_.size() > 2000)
+                        output_lines_.pop_front();
                 }
                 ui_.add_line(line);
             }

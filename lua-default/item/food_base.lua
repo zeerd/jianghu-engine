@@ -75,7 +75,7 @@ function food_base.do_use(self, me, target)
         end
 
         eat_msg = eat_msg .. hpstr .. mpstr
-        message_vision(eat_msg, me, self)
+        message("vision", eat_msg, me, self)
 
         -- 调用 finish_eat 钩子
         -- 优先调用脚本自定义的 finish_eat（通过 Lua 方法查找链）
@@ -85,13 +85,13 @@ function food_base.do_use(self, me, target)
         end)
         if ok and result and result ~= 0 then
             -- finish_eat 返回非 0：保留物品（如 backleg 变成骨头）
-            me:SendState()
+            me:send_state()
             return 1
         end
 
         -- 默认行为：销毁物品
         destruct(self)
-        me:SendState()
+        me:send_state()
         return 1
     end
 
@@ -101,8 +101,8 @@ function food_base.do_use(self, me, target)
     end
 
     eat_msg = eat_msg .. hpstr .. mpstr
-    message_vision(eat_msg, me, self)
-    me:SendState()
+    message("vision", eat_msg, me, self)
+    me:send_state()
     return 1
 end
 

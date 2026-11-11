@@ -12,12 +12,12 @@
 
 namespace detail {
 
-std::string make_header(const std::string &text)
+std::string make_header(const std::string& text)
 {
     return color::convert("$CYN[ " + text + " ]$COM");
 }
 
-std::string make_line(const std::string &key, const std::string &value)
+std::string make_line(const std::string& key, const std::string& value)
 {
     size_t pad = (key.length() >= 8) ? 0 : (8 - key.length());
     return "  " + color::convert("$COM" + key + "$COM:") + std::string(pad, ' ')
@@ -41,7 +41,7 @@ std::string make_bar(double pct)
 
 namespace {
 
-std::vector<std::string> panel_character(const GameState &gs)
+std::vector<std::string> panel_character(const GameState& gs)
 {
     auto a = gs.player_attr();
     std::vector<std::string> lines;
@@ -69,7 +69,7 @@ std::vector<std::string> panel_character(const GameState &gs)
     return lines;
 }
 
-std::vector<std::string> panel_location(const GameState &gs)
+std::vector<std::string> panel_location(const GameState& gs)
 {
     auto a = gs.player_attr();
     std::vector<std::string> lines;
@@ -88,7 +88,7 @@ std::vector<std::string> panel_location(const GameState &gs)
     return lines;
 }
 
-std::vector<std::string> panel_attributes(const GameState &gs)
+std::vector<std::string> panel_attributes(const GameState& gs)
 {
     auto a = gs.player_attr();
     std::vector<std::string> lines;
@@ -100,7 +100,7 @@ std::vector<std::string> panel_attributes(const GameState &gs)
     return lines;
 }
 
-static std::string make_vital_line(const char *label, int64_t cur,
+static std::string make_vital_line(const char* label, int64_t cur,
                                    int64_t max_val, int64_t eff = 0,
                                    int64_t enforce = 0)
 {
@@ -113,7 +113,7 @@ static std::string make_vital_line(const char *label, int64_t cur,
         + (enforce > 0 ? " (+" + std::to_string(enforce) + ")" : ""));
 }
 
-std::vector<std::string> panel_vitals(const GameState &gs)
+std::vector<std::string> panel_vitals(const GameState& gs)
 {
     auto a = gs.player_attr();
     std::vector<std::string> lines;
@@ -124,7 +124,7 @@ std::vector<std::string> panel_vitals(const GameState &gs)
     return lines;
 }
 
-std::vector<std::string> panel_combat(const GameState &gs)
+std::vector<std::string> panel_combat(const GameState& gs)
 {
     auto a = gs.player_attr();
     std::vector<std::string> lines;
@@ -140,15 +140,15 @@ std::vector<std::string> panel_combat(const GameState &gs)
 }
 
 // Helper: true if item has valid metadata (for .info display filtering).
-static bool inv_has_meta(const ObjectInfo &item)
+static bool inv_has_meta(const ObjectInfo& item)
 {
     return !item.name.empty() || item.internal_id.length() > 0
            || item.wield != 0;
 }
 
-std::vector<std::string> panel_skills(const GameState &gs)
+std::vector<std::string> panel_skills(const GameState& gs)
 {
-    const auto &skills = gs.skills();
+    const auto& skills = gs.skills();
     std::vector<std::string> lines;
     lines.push_back(detail::make_header(
         " 武功 (共" + std::to_string(skills.size()) + "个)"));
@@ -157,10 +157,10 @@ std::vector<std::string> panel_skills(const GameState &gs)
             color::convert("  " + detail::make_header("$YEL(未习得)$COM")));
     }
     else {
-        for (const auto &sk : skills) {
+        for (const auto& sk : skills) {
             std::ostringstream ss;
             bool mapped = false;
-            for (const auto &m : skills) {
+            for (const auto& m : skills) {
                 if (sk.base_name == m.mapped_skill) {
                     mapped = true;
                     break;
@@ -176,9 +176,9 @@ std::vector<std::string> panel_skills(const GameState &gs)
     return lines;
 }
 
-std::vector<std::string> panel_inventory(const GameState &gs)
+std::vector<std::string> panel_inventory(const GameState& gs)
 {
-    const auto &inv = gs.inventory();
+    const auto& inv = gs.inventory();
     auto a          = gs.player_attr();
     std::vector<std::string> lines;
     lines.push_back(detail::make_header(" 携带物品"));
@@ -190,7 +190,7 @@ std::vector<std::string> panel_inventory(const GameState &gs)
         // Show all items uniformly (like xclient's unified ItemList).
         // Format:  "名称(internal_id)" or  "名称(internal_id)[槽位名]" for
         // equipped.
-        for (const auto &item : inv) {
+        for (const auto& item : inv) {
             if (!inv_has_meta(item)) continue;
 
             std::string line = item.name;
@@ -217,7 +217,7 @@ std::vector<std::string> panel_inventory(const GameState &gs)
         }
 
         int64_t total = 0;
-        for (const auto &item : inv) total += static_cast<int64_t>(item.weight);
+        for (const auto& item : inv) total += static_cast<int64_t>(item.weight);
         double pct = a.max_carry > 0
                          ? static_cast<double>(total) / a.max_carry * 100.0
                          : 0.0;
@@ -240,11 +240,11 @@ std::vector<std::string> panel_inventory(const GameState &gs)
 // Public API — declared in game_state_info.h
 // =========================================================================
 
-std::vector<std::string> player_info_panels(const GameState &gs)
+std::vector<std::string> player_info_panels(const GameState& gs)
 {
     std::vector<std::string> all;
     auto push = [&all, &gs](auto fn) {
-        for (auto &&l : fn(gs)) all.push_back(std::move(l));
+        for (auto&& l : fn(gs)) all.push_back(std::move(l));
     };
     push(panel_character);
     push(panel_location);
@@ -256,8 +256,8 @@ std::vector<std::string> player_info_panels(const GameState &gs)
     return all;
 }
 
-std::vector<std::string> player_info_panel(const GameState &gs,
-                                           const std::string &panel_name)
+std::vector<std::string> player_info_panel(const GameState& gs,
+                                           const std::string& panel_name)
 {
     if (panel_name == "character") return panel_character(gs);
     if (panel_name == "location") return panel_location(gs);

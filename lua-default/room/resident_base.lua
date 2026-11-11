@@ -97,7 +97,7 @@ end
 
 -- 写入/注销住户登记。登记表按户主 id 分片，字段为 name/short/owner/time
 function resident_base.set_house(self, menpai, m)
-    if self:LockData(1) == 0 then
+    if self:lock_data(1) == 0 then
         return 0
     end
     self:load_from_local()
@@ -111,7 +111,7 @@ function resident_base.set_house(self, menpai, m)
     end
 
     self:save_to_local()
-    self:LockData(0)
+    self:lock_data(0)
     return 1
 end
 
@@ -130,7 +130,7 @@ function resident_base.update_register(self, house)
         flag1 = true
         owner = add_user()
         owner:set("id", owner_key)
-        owner:LoadFromServer()
+        owner:load_from_server()
     end
 
     local second_key = house:querystr("second_owner")
@@ -141,7 +141,7 @@ function resident_base.update_register(self, house)
             flag2 = true
             owner2 = add_user()
             owner2:set("id", second_key)
-            owner2:LoadFromServer()
+            owner2:load_from_server()
         end
 
         house:set("long", string.format("这里是%s和%s的共享房间。", owner:name(1), owner2:name(1)))
@@ -171,7 +171,7 @@ function resident_base.remove_house(self, house)
         flag1 = true
         owner = add_user()
         owner:set("id", owner_key)
-        owner:LoadFromServer()
+        owner:load_from_server()
     end
 
     owner:del("resident")
@@ -213,7 +213,7 @@ function resident_base.clear_house(self)
                 flag1 = true
                 owner = add_user()
                 owner:set("id", room:querystr("owner"))
-                owner:LoadFromServer()
+                owner:load_from_server()
             end
 
             if owner:query("balance") > -2000000000 then
@@ -254,7 +254,7 @@ function resident_base.check_second_owner(self, me)
     local owner = me:id(1)
     for _, key in ipairs(house_keys(self)) do
         if self:querystr("house/" .. key .. "/owner") == owner and key ~= owner then
-            self:AddMenuItem(
+            self:add_menu_item(
                 string.format("进入%s", self:querystr("house/" .. key .. "/name")),
                 string.format("$0enter 0 %s", key),
                 me
@@ -264,7 +264,7 @@ function resident_base.check_second_owner(self, me)
 end
 
 -- 属区统计与菜单：自定义 do_look 的房间播完自己的场景后调用本函数拼装
--- 属区信息与菜单（SendMenu 在此发出）。do_look = 场景长描述 + 本函数。
+-- 属区信息与菜单（send_menu 在此发出）。do_look = 场景长描述 + 本函数。
 function resident_base.zone_look(self, me)
     local has_house = self:dbase("map", "house")
     local msg
@@ -280,9 +280,9 @@ function resident_base.zone_look(self, me)
     self:say(msg, me)
 
     if me:querystr("resident") == self:querystr("resident") then
-        self:AddMenuItem("回家", string.format("$0enter 0 %s", me:id(1)), me)
+        self:add_menu_item("回家", string.format("$0enter 0 %s", me:id(1)), me)
     elseif resident_base.can_apply_house(self) == 1 then
-        self:AddMenuItem(string.format("申请成为%s居民", self:querystr("resident")), "$0applyhouse", me)
+        self:add_menu_item(string.format("申请成为%s居民", self:querystr("resident")), "$0applyhouse", me)
     end
 
     resident_base.check_second_owner(self, me)
@@ -291,22 +291,22 @@ function resident_base.zone_look(self, me)
     if invite ~= "" then
         local u = find("online", invite)
         if u then
-            self:AddMenuItem(string.format("去%s的家", u:name()), string.format("$0enter 0 %s", u:id(1)), me)
+            self:add_menu_item(string.format("去%s的家", u:name()), string.format("$0enter 0 %s", u:id(1)), me)
         end
     end
 
     if has_house then
-        self:AddMenuItem("查看有哪些住户", "$0checkhouse", me)
+        self:add_menu_item("查看有哪些住户", "$0checkhouse", me)
     end
 
     if me:querystr("resident") == self:querystr("resident") then
         local room = get_my_house(me)
         if room then
-            self:AddMenuItem(string.format("卖掉%s", room:name()), "$0sellhouse 0 0", me)
+            self:add_menu_item(string.format("卖掉%s", room:name()), "$0sellhouse 0 0", me)
         end
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -324,26 +324,26 @@ end
 function resident_base.applyhouse(self, me)
     if me:querystr("resident") ~= "" then
         self:say(string.format("你已经申请成为%s人了。", me:querystr("resident")), me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     if me:query("age") < resident_base.house_min_age(self) then
         self:say("你还没成年，做不了房主。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
-    self:AddMenuItem("申请单人间", "$0applyroom 0 1", me)
-    self:AddMenuItem("申请双人套房", "$0applyroom 0 2", me)
-    self:SendMenu(me)
+    self:add_menu_item("申请单人间", "$0applyroom 0 1", me)
+    self:add_menu_item("申请双人套房", "$0applyroom 0 2", me)
+    self:send_menu(me)
     return 1
 end
 
 -- 申请单人间时房款折半
 function resident_base.need_money(self, me)
     local money = resident_base.house_price(self)
-    if me:query_temp("house/size") == 1 then
+    if me:query("house/size", "T") == 1 then
         money = math.floor(money / 2)
     end
     return money
@@ -353,15 +353,15 @@ end
 function resident_base.applyroom(self, me, arg)
     local coin = me:present("id", "coin")
 
-    me:set_temp("house/size", 2)
+    me:set("house/size", 2, "T")
     if arg == "1" then
-        me:set_temp("house/size", 1)
+        me:set("house/size", 1, "T")
     end
 
     local money = resident_base.need_money(self, me)
     if not coin or coin:query("value") < money then
         self:say(string.format("申请房间需要%d金，请备好现金再来。", money), me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -371,18 +371,18 @@ end
 
 -- 房间属性设置菜单
 function resident_base.menulist(self, me)
-    self:AddMenuItem("设置房间名称", "$2housename 0 $2", me)
-    self:AddMenuItem("设置房间描述", "$2housedesc 0 $2", me)
+    self:add_menu_item("设置房间名称", "$2housename 0 $2", me)
+    self:add_menu_item("设置房间描述", "$2housedesc 0 $2", me)
 
-    if me:query_temp("house/size") > 1 then
-        self:AddMenuItem("设置第二房主", "$2addmaster 0 $2", me)
+    if me:query("house/size", "T") > 1 then
+        self:add_menu_item("设置第二房主", "$2addmaster 0 $2", me)
     end
 
     if me:dbase_temp("str", "house/name") ~= "" then
-        self:AddMenuItem("申请房间", "$0registerhouse", me)
+        self:add_menu_item("申请房间", "$0registerhouse", me)
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
 end
 
 -- 设置第二房主（须在线）
@@ -391,7 +391,7 @@ function resident_base.addmaster(self, me, arg)
     if not owner then
         self:say("对不起，请这个人在线时再来注册房主。", me)
     else
-        me:set_temp("house/owner", arg)
+        me:set("house/owner", arg, "T")
     end
 
     resident_base.menulist(self, me)
@@ -405,7 +405,7 @@ function resident_base.housename(self, me, arg)
     if msg ~= "" then
         self:say(msg, me)
     else
-        me:set_temp("house/name", name)
+        me:set("house/name", name, "T")
     end
 
     resident_base.menulist(self, me)
@@ -419,7 +419,7 @@ function resident_base.housedesc(self, me, arg)
     if len < 1 or len > 500 then
         self:say("给您的房间描述写得简洁漂亮点。", me)
     else
-        me:set_temp("house/desc", desc)
+        me:set("house/desc", desc, "T")
     end
 
     resident_base.menulist(self, me)
@@ -430,34 +430,34 @@ end
 function resident_base.registerhouse(self, me)
     local house_name = me:dbase_temp("str", "house/name")
     if house_name == "" then
-        self:AddMenuItem("请给您的房间起个名字", "$1housename 0 $2", me)
-        self:SendMenu(me)
+        self:add_menu_item("请给您的房间起个名字", "$1housename 0 $2", me)
+        self:send_menu(me)
         return 1
     end
 
     if resident_base.can_apply_house(self) == 0 then
         self:say("对不起，本居民区已无空房，不能办理申请手续！", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     local money = resident_base.need_money(self, me)
     if pay_money("take", me, money) == 0 then
         self:say("对不起，你的现金不足！", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     local room = get_local_house(self, me:querystr("id"), true)
     if not room then
         self:say("此房间不存在!", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     room:set_name(me:dbase_temp("str", "house/name"))
     room:set("desc", me:dbase_temp("str", "house/desc"))
-    room:set("size", me:query_temp("house/size"))
+    room:set("size", me:query("house/size", "T"))
     room:set("owner", me:id(1))
     room:set("belong", self:querystr("base_name"))
     room:set("second_owner", me:dbase_temp("str", "house/owner"))
@@ -468,11 +468,11 @@ function resident_base.registerhouse(self, me)
     room:setup()
 
     me:set("resident", self:querystr("resident"))
-    me:delete_temp("house")
+    me:del("house", "T")
 
     if me:querystr("title") == "普通百姓" then
         me:set("title", string.format("%s百姓", self:querystr("resident")))
-        me:UpdateMe()
+        me:update_me()
     end
 
     me:set("start_city", room:querystr("base_name"))
@@ -482,8 +482,8 @@ function resident_base.registerhouse(self, me)
     resident_base.update_register(self, room)
     room:save_to_local()
 
-    self:AddMenuItem(string.format("进入%s。", room:name()), string.format("$0enter 0 %s", me:id(1)), me)
-    self:SendMenu(me)
+    self:add_menu_item(string.format("进入%s。", room:name()), string.format("$0enter 0 %s", me:id(1)), me)
+    self:send_menu(me)
 
     log_info(
         "%s(%s)在%s申请住房%s(%s)，花费%d。",
@@ -505,7 +505,7 @@ function resident_base.checkhouse(self, me)
     end
 
     for _, key in ipairs(house_keys(self)) do
-        self:AddMenuItem(
+        self:add_menu_item(
             string.format(
                 "%s(%s)",
                 self:querystr("house/" .. key .. "/name"),
@@ -516,7 +516,7 @@ function resident_base.checkhouse(self, me)
         )
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -524,7 +524,7 @@ end
 function resident_base.backhome(self, me, arg)
     if not self:dbase("map", "house/" .. arg) then
         self:say("你要进入的房间不在本区！", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -536,31 +536,32 @@ function resident_base.backhome(self, me, arg)
         local room = get_local_house(self, arg)
         if not room then
             self:say("此房间不存在!", me)
-            self:SendMenu(me)
+            self:send_menu(me)
             return 1
         end
 
         if not is_owner and not is_second then
             if not room:present("id", arg) then
                 self:say("主人不在家，不能闯入！", me)
-                self:SendMenu(me)
+                self:send_menu(me)
                 return 1
             end
         end
 
-        MessageVision(
+        message(
+            "vision_room",
             me,
             "chat",
             string.format("%s进入了%s。", me:name(), self:querystr("house/" .. arg .. "/name")),
             me
         )
         me:move(room)
-        MessageVision(me, "chat", string.format("%s走了进来。", me:name()), me)
+        message("vision_room", me, "chat", string.format("%s走了进来。", me:name()), me)
         return 1
     end
 
     self:say(string.format("你试图闯入%s，结果没有成功！", self:querystr("house/" .. arg .. "/name")), me)
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -569,7 +570,7 @@ function resident_base.sellhouse(self, me, arg)
     local my_id = me:querystr("id")
     if not self:dbase("map", "house/" .. my_id) then
         self:say("你要卖掉的房间不在本区！", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -606,14 +607,14 @@ function resident_base.sellhouse(self, me, arg)
             ),
             me
         )
-        self:AddMenuItem("决定卖了", "$0sellhouse 0 1", me)
-        self:AddMenuItem("离开", "", me)
-        self:SendMenu(me)
+        self:add_menu_item("决定卖了", "$0sellhouse 0 1", me)
+        self:add_menu_item("离开", "", me)
+        self:send_menu(me)
         return 1
     end
 
     self:say(string.format("你卖掉了%s，获得%d。", room:name(), price), me)
-    self:SendMenu(me)
+    self:send_menu(me)
 
     pay_money("give", me, price)
 
@@ -625,7 +626,7 @@ function resident_base.sellhouse(self, me, arg)
         room:name(1),
         room:querystr("base_name"),
         price,
-        GetIP(me)
+        get_ip(me)
     )
 
     resident_base.remove_house(self, room)
@@ -636,20 +637,20 @@ end
 function resident_base.reset(self)
     self:base_reset()
 
-    local wait = self:query_temp("wait_clear")
+    local wait = self:query("wait_clear", "T")
     if wait ~= 0 then
-        self:set_temp("wait_clear", wait - 1)
+        self:set("wait_clear", wait - 1, "T")
         return
     end
 
     self:load_from_local()
-    self:set_temp("wait_clear", 40 + random(40))
+    self:set("wait_clear", 40 + random(40), "T")
     resident_base.clear_house(self)
 end
 
 -- 载入存档并初始化房间
 function resident_base.setup(self)
-    self:set_temp("wait_clear", 40 + random(40))
+    self:set("wait_clear", 40 + random(40), "T")
     self:load_from_local()
     self:base_setup()
 end

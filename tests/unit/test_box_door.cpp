@@ -178,7 +178,7 @@ TEST_F(BoxDoorTest, UnLockedWithoutResumeOpensImmediately)
 }
 
 // ====================================================================
-// CDoor —— 绑定与出口查找
+// CDoor —— 出口查找
 // ====================================================================
 
 TEST_F(BoxDoorTest, BindAndPresentDoor)
@@ -191,10 +191,12 @@ TEST_F(BoxDoorTest, BindAndPresentDoor)
     EXPECT_EQ(door, room.present_door("E"));     // 按方向
     EXPECT_EQ(nullptr, room.present_door("north"));
 
-    door->bind("room/c", "south");
+    // 改绑目标房与目标门就是写这两个 dbase 键（脚本侧同形）
+    door->set("next_room", "room/c");
+    door->set("next_door", "south");
     EXPECT_STREQ("room/c", door->querystr("next_room"));
     EXPECT_STREQ("south", door->querystr("next_door"));
-    EXPECT_EQ(door, room.present_door("east"));  // 绑定不改 id
+    EXPECT_EQ(door, room.present_door("east"));  // 改绑不改 id
 }
 
 // ====================================================================
@@ -208,7 +210,8 @@ TEST_F(BoxDoorTest, EnterDoorMovesCharAndClearsTempFlag)
     g_room_list[kTargetRoom] = &target;
 
     CDoor door;
-    door.bind(kTargetRoom, "south");
+    door.set("next_room", kTargetRoom);
+    door.set("next_door", "south");
 
     CChar me;
     EXPECT_EQ(1, door.enter_door(&me));
@@ -226,7 +229,8 @@ TEST_F(BoxDoorTest, EnterDoorMoveFails_ClearsTempFlag)
     g_room_list[kTargetRoom] = &target;
 
     CDoor door;
-    door.bind(kTargetRoom, "south");
+    door.set("next_room", kTargetRoom);
+    door.set("next_door", "south");
 
     CChar me;
     me.set_name("重甲", "heavy1");

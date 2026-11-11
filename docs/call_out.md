@@ -34,7 +34,7 @@
 ## 例子一：效果对自己起作用（定时回血）
 
 ```lua
--- npc/sample_healer.lua（自己的脚本）
+-- 示意：效果写在自己的脚本里（下例以 NPC 脚本为例）
 local npc = {}
 
 -- 入口函数（引擎调用）：15 拍后执行 recover
@@ -66,7 +66,7 @@ return npc
 ## 例子二：效果对目标起作用（时效到期）
 
 ```lua
--- item/sample_amulet.lua（发起效果的脚本）
+-- 示意：延迟函数写在发起 call_out 的脚本里（下例以物品脚本为例）
 local item = {}
 
 -- 入口函数（引擎调用）：me = 使用护符的玩家，comm = 玩家输入的命令字

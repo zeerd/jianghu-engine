@@ -307,18 +307,6 @@ int l_create_family(lua_State* L)
     return 0;
 }
 
-// self:prevent_learn(me, skill) -> number
-int l_prevent_learn(lua_State* L)
-{
-    CChar* c = dynamic_cast<CChar*>(get_object(L, 1));
-    if (!c) return 0;
-    CChar* me = NULL;
-    if (lua_isuserdata(L, 2)) me = dynamic_cast<CChar*>(get_object(L, 2));
-    const char* skill = luaL_optstring(L, 3, "");
-    lua_pushinteger(L, me ? c->prevent_learn(me, skill) : 0);
-    return 1;
-}
-
 // query_recruit(id) -> table|nil -
 // 查询某人收徒记录（key=弟子id，值={name,apprentice,exp}）
 int l_query_recruit(lua_State* L)

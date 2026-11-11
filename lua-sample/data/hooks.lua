@@ -76,10 +76,10 @@ function hooks.fight(me, victim)
 
     local left = me:query_left_weapon()
     if left and left:query("can_combo") ~= 0 then
-        me:set_temp("action_flag", 1)
+        me:set("action_flag", 1, "T")
         tell_object(me, "你左手短兵疾递，连环刺出！")
         combat_attack("weapon", me, victim, left, TYPE_QUICK)
-        me:set_temp("action_flag", 0)
+        me:set("action_flag", 0, "T")
     end
 end
 
@@ -117,7 +117,7 @@ function hooks.post_buy(vendor, buyer, goods)
         return
     end
 
-    message_vision_self("$N冲$n笑道：盲盒拆开之前不退不换，想清楚再开。", vendor, buyer)
+    message("vision_self", "$N冲$n笑道：盲盒拆开之前不退不换，想清楚再开。", vendor, buyer)
 end
 
 -- hooks.calculate_damage(me, victim, damage)

@@ -16,7 +16,7 @@ public:
     virtual ~Connection();
 
     // Connect to server. Returns true on success.
-    bool connect(const std::string &host, int port);
+    bool connect(const std::string& host, int port);
 
     bool is_connected() const;
     virtual std::string local_ip() const;
@@ -25,18 +25,18 @@ public:
     bool is_eof() const { return !connected_ && sock_fd_ != kInvalidSocket; }
 
     /** Low-level: send pre-encoded bytes (appends "\n", returns success). */
-    virtual bool send(const std::string &data);
+    virtual bool send(const std::string& data);
 
     /** High-level protocol helpers — all handle UTF-8→GBK + XOR internally.
      *  Wire-format functions in protocol namespace are available for callers
      * who need to build custom strings. */
-    bool send_login(const std::string &account, const std::string &password);
-    bool send_register(const std::string &account, const std::string &password,
-                       const std::string &gender, int strength,
+    bool send_login(const std::string& account, const std::string& password);
+    bool send_register(const std::string& account, const std::string& password,
+                       const std::string& gender, int strength,
                        int constitution, int intelligence, int dexterity);
     /** Generic: UTF-8 → GBK → XOR → TCP. Caller must build wire format string.
      */
-    virtual bool send_command_utf8(const std::string &utf8_bytes);
+    virtual bool send_command_utf8(const std::string& utf8_bytes);
     // Disconnect
     void disconnect();
 
@@ -57,5 +57,5 @@ private:
     std::vector<std::string> recv_queue_;
     std::string incomplete_message_;
 
-    bool encode_and_send(const std::string &utf8_text);
+    bool encode_and_send(const std::string& utf8_text);
 };

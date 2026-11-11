@@ -22,6 +22,7 @@ jianghu.ncb
 /.codebuddy
 /.vscode
 /.vs
+/.claude/skills/skill-creator
 /data/config.ini
 /log
 /x64

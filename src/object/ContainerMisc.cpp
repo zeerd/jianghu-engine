@@ -279,7 +279,7 @@ int CContainer::lock_data_impl(int locked)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"
 
-// self:Save() -> number
+// self:save_to_local() -> number
 int l_save(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -292,8 +292,8 @@ int l_save(lua_State* L)
     return 1;
 }
 
-// self:Load()/self:load_from_local() -> number - 从磁盘重新加载数据
-// （与 Save 对应，房间/容器）
+// self:load_from_local() -> number - 从磁盘重新加载数据
+// （与 save_to_local 对应，房间/容器）
 int l_load_from_local(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -306,7 +306,7 @@ int l_load_from_local(lua_State* L)
     return 1;
 }
 
-// self:LockData(locked) -> number - 锁定/解锁容器数据（帮会/房屋持久化用）
+// self:lock_data(locked) -> number - 锁定/解锁容器数据（帮会/房屋持久化用）
 int l_lockdata(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -319,7 +319,7 @@ int l_lockdata(lua_State* L)
     return 1;
 }
 
-// self:DownLoad(me)
+// self:download(me)
 int l_download(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -354,7 +354,7 @@ int l_wear(lua_State* L)
     return 1;
 }
 
-// self:SendMenu(me) - 发送房间菜单
+// self:send_menu(me) - 发送房间菜单
 int l_send_menu(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -369,7 +369,7 @@ int l_send_menu(lua_State* L)
     return 0;
 }
 
-// self:AddMenuItem(show, cmd, me) - 添加一个菜单项（与 CItem::AddMenuItem
+// self:add_menu_item(show, cmd, me) - 添加一个菜单项（与 CItem::add_menu_item
 // 等价）
 int l_add_menu_item(lua_State* L)
 {

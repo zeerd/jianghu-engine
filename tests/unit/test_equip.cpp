@@ -5,9 +5,9 @@
 //     与 apply 修正的施加；
 //   - do_un_wield 撤销装备位与 apply 修正；
 //   - do_action 的环境守卫（无环境记日志返回 0）与向 CItem 的回退；
-//   - l_do_wield / l_do_unwield 对 CLuaEquip 的真实分发。
+//   - do_action_base 对 CLuaEquip 的真实分发。
 //
-// 夹具范式（见 unit-test.instructions / testing-facts）：自装并恢复
+// 夹具范式：自装并恢复
 // g_item_mgr、 房间 set("infinity",1)、清理顺序先 move(nullptr) 再 delete。
 
 #include "pch.h"
@@ -255,12 +255,12 @@ TEST_F(EquipTest, DoAction_UnknownActFallsBackToItem)
     EXPECT_EQ(eq->do_action(999, me), 0);
 }
 
-// ---------------- l_do_wield / l_do_unwield 绑定 ----------------
+// ---------------- do_action_base 绑定 ----------------
 
-TEST_F(EquipTest, BindDoWield_DispatchesToCLuaEquip)
+TEST_F(EquipTest, DoActionBase_WieldReachesBaseImplement)
 {
-    // CLuaEquip 走通 l_do_wield 的 e 分支（非 equip 守卫已被
-    // test_bind_item.DoWieldUnwieldGuard 覆盖）
+    // 覆写 do_action 的装备回落 DO_WIELD：do_action_base 直达
+    // CEquip::do_action → do_wield（绕过脚本重写），装备位落定
     CLuaEquip lua_eq("equip_bind_script");
     SetApply();
     lua_eq.set("wield_position", (int32_t)WIELD_HAND);
@@ -268,27 +268,45 @@ TEST_F(EquipTest, BindDoWield_DispatchesToCLuaEquip)
     lua_eq.move(me);
 
     lua_bind_push_object(L, &lua_eq);
-    EXPECT_EQ(CallInt(l_do_wield, 1), 1);
+    lua_pushinteger(L, (lua_Integer)CChar::DO_WIELD);
+    EXPECT_EQ(CallInt(l_do_action_base, 2), 1);
     EXPECT_EQ(lua_eq.query("equipped"), WIELD_RIGHT_HAND);
 
+    lua_eq.move(nullptr);
+}
+
+TEST_F(EquipTest, DoActionBase_UnwieldReachesBaseImplement)
+{
+    // 覆写 do_action 的装备回落 DO_UNWIELD：do_action_base 直达
+    // CEquip::do_action → do_un_wield（绕过脚本重写），装备位清空
+    CLuaEquip lua_eq("equip_bind_script");
+    SetApply();
+    lua_eq.set("wield_position", (int32_t)WIELD_HAND);
+    lua_eq.set("equipped", (int32_t)WIELD_RIGHT_HAND);
+    lua_eq.set_name("长鞭", "equip_bind_script");
+    lua_eq.move(me);
+
     lua_bind_push_object(L, &lua_eq);
-    EXPECT_EQ(CallInt(l_do_unwield, 1), 1);
+    lua_pushinteger(L, (lua_Integer)CChar::DO_UNWIELD);
+    EXPECT_EQ(CallInt(l_do_action_base, 2), 1);
     EXPECT_EQ(lua_eq.query("equipped"), 0);
 
     lua_eq.move(nullptr);
 }
 
-TEST_F(EquipTest, BindDoWield_RejectsNonCharEnvironment)
+TEST_F(EquipTest, DoActionBase_WieldRejectsNonCharEnvironment)
 {
-    // CLuaEquip 在普通容器里：do_wield 首行 IS_CHAR 检查拒绝（返回 0
-    // 而非崩溃），证明绑定直达 CEquip 内部守卫。
+    // 装备在普通容器里：do_action_base 走 CEquip::do_action 的
+    // CAN_EQUIPPED 门（环境非角色）回落 CItem::do_action 空实现，
+    // 返回 0 且不改装备位
     CLuaEquip lua_eq("equip_bind_script2");
     SetApply();
     lua_eq.set("wield_position", (int32_t)WIELD_HAND);
     lua_eq.move(room);
 
     lua_bind_push_object(L, &lua_eq);
-    EXPECT_EQ(CallInt(l_do_wield, 1), 0);
+    lua_pushinteger(L, (lua_Integer)CChar::DO_WIELD);
+    EXPECT_EQ(CallInt(l_do_action_base, 2), 0);
     EXPECT_EQ(lua_eq.query("equipped"), 0);
 
     lua_eq.move(nullptr);

@@ -23,7 +23,7 @@ house.check_rent = house_rent.check_rent
 
 -- 加一个柜子：可装 50 件，且不许装人
 local function make_box(self, box_name)
-    local box = self:Add_Box()
+    local box = self:add_object("box")
     box:set_name(box_name, "box")
     box:set("max_items", 50)
     box:set("no_drop_man", 1)
@@ -61,7 +61,7 @@ local function make_yongren(self)
     setup_char(npc)
     npc:move(self)
 
-    self:set_temp("yongren", npc:object_id())
+    self:set("yongren", npc:object_id(), "T")
 end
 
 -- 房屋已不存在：延迟析构，等主循环统一冲刷
@@ -128,7 +128,7 @@ function house.check_pays(self)
         temporary = true
         owner = add_user()
         owner:set("id", owner_key)
-        owner:LoadFromServer()
+        owner:load_from_server()
     end
 
     if owner:query("balance") >= price then
@@ -170,7 +170,7 @@ end
 
 -- 按房型出对应地图，装上回属区的门；存档完好的房顺带查一次管理费
 function house.setup(self)
-    local door = self:add_door("出口", self:querystr("belong"), self:querystr("name"), "out")
+    local door = self:add_object("door", "出口", self:querystr("belong"), self:querystr("name"), "out")
     door:set_name(self:querystr("belong"))
 
     if self:query("size") < 2 then
@@ -193,7 +193,7 @@ function house.reset(self)
         end
     end
 
-    if not find("npc", self:query_temp("yongren")) then
+    if not find("npc", self:query("yongren", "T")) then
         make_yongren(self)
     end
 
@@ -209,16 +209,16 @@ function house.do_look(self, me)
     local second_owner = self:querystr("second_owner")
     local me_id = me:id(1)
     if owner == me_id or second_owner == me_id then
-        self:AddMenuItem("拒绝客人来访", "$2kickout 0 $2", me)
-        self:AddMenuItem("修改房间名称", "$2housename 0 $2", me)
-        self:AddMenuItem("修改房间描述", "$2housedesc 0 $2", me)
+        self:add_menu_item("拒绝客人来访", "$2kickout 0 $2", me)
+        self:add_menu_item("修改房间名称", "$2housename 0 $2", me)
+        self:add_menu_item("修改房间描述", "$2housedesc 0 $2", me)
 
         if owner == me_id and self:query("size") > 1 then
-            self:AddMenuItem("邀请其他人同住", "$2addmaster 0 $2", me)
+            self:add_menu_item("邀请其他人同住", "$2addmaster 0 $2", me)
         end
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -241,11 +241,11 @@ function house.housename(self, me, arg)
     local msg = check_legal_name(name)
     if msg ~= "" then
         self:say(msg, me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
-    if self:LockData(1) == 0 then
+    if self:lock_data(1) == 0 then
         return 0
     end
 
@@ -257,7 +257,7 @@ function house.housename(self, me, arg)
     self:set_name(name)
 
     house.update_register(self)
-    self:LockData(0)
+    self:lock_data(0)
 
     tell_object(me, "OK.")
     return 1
@@ -269,7 +269,7 @@ function house.housedesc(self, me, arg)
     local len = #desc
     if len < 1 or len > 500 then
         self:say("给您的房间描述写得简洁漂亮点。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -277,7 +277,7 @@ function house.housedesc(self, me, arg)
         return 0
     end
 
-    if self:LockData(1) == 0 then
+    if self:lock_data(1) == 0 then
         return 0
     end
 
@@ -289,7 +289,7 @@ function house.housedesc(self, me, arg)
     self:set("desc", desc)
 
     self:save_to_local()
-    self:LockData(0)
+    self:lock_data(0)
 
     return 1
 end
@@ -298,19 +298,19 @@ end
 function house.addmaster(self, me, arg)
     if self:querystr("owner") ~= me:id(1) then
         self:say("对不起，只有户主才邀请其他人同住。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     if self:query("size") < 2 then
         self:say("对不起，这个房间不能再住其他人了。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     if not find("online", arg) then
         self:say("对不起，请这个人在线时再来注册房主。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -333,7 +333,7 @@ function house.do_kick(self, me, arg)
     end
 
     if house_rent.same_object(who:environment(), self) then
-        message_vision("$HIY$N飞起一脚，将$n踢出了门外！", me, who)
+        message("vision", "$HIY$N飞起一脚，将$n踢出了门外！", me, who)
 
         local rented = {}
         house_rent.each_item(who, function(obj)
@@ -344,7 +344,7 @@ function house.do_kick(self, me, arg)
         end)
         for _, obj in ipairs(rented) do
             obj:move(self)
-            message_vision("$n从$N身上掉落下来。", who, obj)
+            message("vision", "$n从$N身上掉落下来。", who, obj)
         end
 
         who:move(load("room", self:querystr("belong")))
@@ -353,7 +353,7 @@ function house.do_kick(self, me, arg)
     end
 
     if who:dbase_temp("str", "invite") == self:querystr("owner") then
-        who:delete_temp("invite")
+        who:del("invite", "T")
     end
 
     return 1
@@ -377,10 +377,10 @@ function house.do_paymoney(self, me, arg)
             me,
             "房屋帐单"
         )
-        self:AddMenuItem("结算", "$0paymoney 0 1", me)
-        self:AddMenuItem("不予理会", "", me)
+        self:add_menu_item("结算", "$0paymoney 0 1", me)
+        self:add_menu_item("不予理会", "", me)
     else
-        if self:LockData(1) == 0 then
+        if self:lock_data(1) == 0 then
             return 0
         end
 
@@ -400,11 +400,11 @@ function house.do_paymoney(self, me, arg)
             house.update_register(self)
         end
 
-        self:LockData(0)
+        self:lock_data(0)
         self:say(string.format("支付了%d金结算帐单！", pay), me)
     end
 
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -430,7 +430,7 @@ function house.handle_action(self, comm, me, arg, tar)
 
     -- 任何时候都不可以使用 roar
     if yongren and comm == "cast" and arg == "force roar" then
-        message_vision("$N拦住$n道：“想抢书？出去！”", yongren, me)
+        message("vision", "$N拦住$n道：“想抢书？出去！”", yongren, me)
         return 1
     end
 

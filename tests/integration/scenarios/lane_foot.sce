@@ -10,10 +10,13 @@
 #     全服只有一把钥匙、只有本道会开；
 #   · 排行榜的应答是房间播报（say 无目标），只在此道触发并断言；
 #   · 房屋从申请到卖房是同一角色的连贯流程，且本道自带现金与金创药。
+#   · 穿戴类四件（青巾/皮胸甲/布鞋/玉项链）归本道独占采购与穿卸
+#     （design §2.4 稀缺资源清单），临时属性断言见 equip_temp_attr.sce。
 #
 # 其余各道各自登录、各自采购，互不依赖本道留下的任何东西。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include common/room_look_inquiry.sce
 include mountain_foot/rank.sce
 # 卸力前置（供能 + 激发 + 脱战起势负支）：本道唯一的服务请求，越早发供能
@@ -23,6 +26,10 @@ include mountain_foot/rank.sce
 include mountain_foot/parry_xieli_prep.sce
 include mountain_foot/open_boxes.sce
 include mountain_foot/buy_sell.sce
+# 穿戴临时属性（青巾/皮胸甲/布鞋/玉项链 逐件穿卸查属性）：必须在 buy_sell
+#   之后（刚在商人处买齐四件）、在 wield_sword 之前（此刻手槽空、无四维类
+#   技能，四维基线即注册值）
+include mountain_foot/equip_temp_attr.sce
 # 锁箱段须在 buy_sell 之后（向商人买钥匙），且钥匙/锁箱归本道独占（§8.4③）。
 # 必须排在盲盒**之前**：盲盒奖池 13 件里有铜钥匙，抽中时本道已持钥，
 # 「空手 open → 你无法打开」这一支就永远走不到（实测抽中即红，约 1/13）

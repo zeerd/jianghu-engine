@@ -263,7 +263,7 @@ int l_set_amount(lua_State* L)
     return 0;
 }
 
-// self:Split(n) -> object - 从物品中分出一部分，返回新物品
+// self:split(n) -> object - 从物品中分出一部分，返回新物品
 int l_split(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

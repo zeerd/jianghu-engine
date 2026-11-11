@@ -25,6 +25,7 @@
 #   §9「疑似对端未到位」）；L5 侧对应等待（比试观战完毕）超时则反查本道日志。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include interaction/spectate.sce
 # 演武场段排 spectate 之后：spectate 段内有 clear，先消费完 L5 跨道信号
 # 再开比（§8.6⑦），且演武场与茶棚互不相干（§8.6③ 会合房间纪律不受影响）

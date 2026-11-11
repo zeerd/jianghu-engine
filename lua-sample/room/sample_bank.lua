@@ -10,8 +10,8 @@ return {
 
     create = function(self)
         self:set_name("山脚钱庄")
-        self:add_npc("sample_banker")
-        self:add_door("青云山山脚", "青云山山脚", "山脚钱庄")
+        self:add_object("npc", "sample_banker")
+        self:add_object("door", "青云山山脚", "青云山山脚", "山脚钱庄")
         self:set("no_fight", 1)
 
         self:set(

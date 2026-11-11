@@ -68,7 +68,7 @@ function npc.do_refresh(self, param1, param2)
     local map = load("room", "青云山山顶")
     if map:query("random/tree") == 0 then
         if random(5) == 1 then
-            map:add_item("sample_tree")
+            map:add_object("item", "sample_tree")
             map:set("random/tree", 1)
         else
             -- 未命中：5 秒后再掷一次，直到怪树出现

@@ -34,12 +34,12 @@ return {
         end
 
         if target:querystr("status") == "locked" then
-            target:UnLocked()
+            target:unlocked()
             tell_object(me, "你用钥匙把锁打开了。")
             return 1
         end
 
-        target:Locked("用钥匙锁上的", 0)
+        target:locked("用钥匙锁上的", 0)
         tell_object(me, "你用钥匙把锁锁上了。")
         return 1
     end,

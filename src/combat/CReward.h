@@ -32,7 +32,7 @@ private:
                               int32_t cx, CUser* player1, CUser* player2,
                               CUser* player3);
     void handle_pk_reward(CChar* killer, CChar* victim, int pkreward,
-                          int pk_chang, int32_t lose, int32_t gain,
-                          const char* killerid, CContainer* env);
+                          int pk_chang, int32_t lose, const char* killerid,
+                          CContainer* env);
     void handle_npc_kill_reward(CChar* killer, CChar* victim, int32_t reward);
 };

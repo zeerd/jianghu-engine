@@ -72,7 +72,7 @@ return {
             end
             local damage = me:query_skill("unarmed_adv", 1) + random(20)
             target:receive_damage("hp", damage)
-            message_vision("$N第" .. i .. "击打在$n身上！", me, target)
+            message("vision", "$N第" .. i .. "击打在$n身上！", me, target)
         end
         me:start_busy(2)
         return 1

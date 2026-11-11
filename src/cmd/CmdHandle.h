@@ -11,7 +11,7 @@ void drop_all(CChar* me);
 int notify_fail(const char* fmt, ...);
 int check_ap(int ap, CChar* me);
 void resume_ap(int ap, CChar* me);
-int is_relative(CChar* me, CChar* who);
+bool is_relative(CChar* me, CChar* who);
 CChar* get_room_char(CChar* me, int32_t target);
 CContainer* get_room_object(CChar* me, int32_t target);
 CContainer* get_self_object(CChar* me, int32_t target);

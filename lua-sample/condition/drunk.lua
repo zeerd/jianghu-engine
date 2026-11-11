@@ -26,10 +26,10 @@ return {
     update_condition = function(self, me, duration)
         if duration <= 0 then
             -- 酒力散尽：醒过来并回满气血，返回 0 让引擎摘掉本状态。
-            -- 回血只改服务端 dbase，客户端的气血快照要靠 FlushMyInfo 才推得过去
+            -- 回血只改服务端 dbase，客户端的气血快照要靠 flush_my_info 才推得过去
             revive(me, 0)
             me:receive_healing("hp", me:query("max_hp"))
-            me:FlushMyInfo()
+            me:flush_my_info()
             tell_object(me, "酒醒了，你长长吐出一口气。")
             return 0
         end

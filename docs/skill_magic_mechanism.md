@@ -17,17 +17,17 @@
 
 | 概念 | 含义 | 存放位置 |
 |:---|:---|:---|
-| **技能种类（usage）** | 22 个固定种类：`throwing` / `force` / `unarmed` / `sword` / `parry` / … | `CCmdStandard::enable`（`src/cmd/CmdStandardMaster.cpp:587`）、`CLuaSkillT::setup_base_skill`（`src/lua/LuaSkill.inl:58`） |
+| **技能种类（usage）** | 22 个固定种类：`throwing` / `force` / `unarmed` / `sword` / `parry` / … | `CCmdStandard::enable`（`src/cmd/CmdStandardMaster.cpp`）、`CLuaSkillT::setup_base_skill`（`src/lua/LuaSkill.cpp`） |
 | **基础技能** | 与种类同名的技能，即"这一类的默认技能"：`throwing` / `force` / … | 脚本 `lua-default/skill/basic/<种类>.lua` |
 | **高级技能** | 玩家用 `enable <种类> <高级技能>` 顶替某一种类的高级技能：`throw_adv` / `force_adv` / … | 脚本 `lua-sample/skill/<高级技能>.lua` |
 
-角色侧的映射记在 `CChar::skill_map`（`src/char/CharSkill.cpp:127`）：
+角色侧的映射记在 `CChar::skill_map`（`src/char/CharSkill.cpp`）：
 
 ```
 skill_map["throwing"] = "throw_adv"     // enable throwing throw_adv 之后
 ```
 
-**要点：技能对象是全局单例**（`g_skill_list`，`src/skill/SkillMgr.cpp:17`），
+**要点：技能对象是全局单例**（`g_skill_list`，`src/skill/SkillMgr.cpp`），
 映射是**角色级**的。所以"某技能有哪些法术"是技能自身的属性，与角色无关；
 `enable` 只决定**用哪个技能**。
 
@@ -47,7 +47,7 @@ create = function(self)
 end
 ```
 
-签名（`src/skill/Skill.cpp:247` 的 `l_add_magic`）：
+签名（`src/skill/Skill.cpp` 的 `l_add_magic`）：
 
 ```
 add_magic(名称, 显示名, mp, ap, 目标, 施法时机, Lua函数名 [, hostile])
@@ -81,7 +81,7 @@ valid_enable = function(self, usage)
 end,
 ```
 
-技能创建收尾时（`src/lua/LuaSkill.inl:113` `inherit_base_magics`）：
+技能创建收尾时（`src/lua/LuaSkill.cpp` 的 `CLuaSkill::inherit_base_magics`）：
 
 ```
 对每个 valid_enable 为真的种类 U：
@@ -93,7 +93,7 @@ end,
 
 | 规则 | 说明 |
 |:---|:---|
-| **同名以自身为准** | 本技能自己注册过的法术不会被继承项覆盖（`inherit_magics`，`src/skill/Skill.cpp:71`） |
+| **同名以自身为准** | 本技能自己注册过的法术不会被继承项覆盖（`inherit_magics`，`src/skill/Skill.cpp`） |
 | **基础技能没有法术 → 不产生幽灵条目** | 基础技能表为空时，本技能表照旧为空 |
 | **只继承存在的脚本** | `script_exists` 过滤，避免为不存在的种类造出空技能 |
 | **防循环** | 创建链上的技能名记在静态集合里（`s_creating_skills`），A 继承 B、B 又继承 A 时不再往下走 |
@@ -108,7 +108,7 @@ end,
 | 高级投掷 `throw_adv` | `feixing`（自注册）+ **`sneak`（继承）** | `feixing`→自身，`sneak`→基本投掷 |
 
 所以**高级技能的法术清单里含基础技能的法术** —— 这正是客户端技能面板要显示的内容
-（`DOWNMAGIC` 逐条下发，`src/skill/Skill.cpp:98`）。
+（`DOWNMAGIC` 逐条下发，`src/skill/Skill.cpp` 的 `CSkill::download`）。
 
 ### 3.4 脚本里没有 `base` 字段
 
@@ -142,7 +142,7 @@ cast <种类名> <法术名>
 > `cast throw_adv feixing` 走不通：映射是按种类名建的，
 > `query_skill_mapped("throw_adv")` 查不到 → 报"请先准备技能"。
 
-`src/cmd/CmdStandardCombat.cpp:59` 的解析顺序：
+`src/cmd/CmdStandardCombat.cpp` 的 `CCmdStandard::cast` 解析顺序：
 
 ```
 1. 角色是否学会该种类            query_skill(arg, 1) < 1 → "你还不会这种技能！"
@@ -161,7 +161,7 @@ cast <种类名> <法术名>
 table** 里取函数 —— 而继承来的 `sneak`，`do_sneak` 在 `throwing.lua` 里，
 **不在** `throw_adv.lua` 里。
 
-所以施法分派（`src/lua/LuaSkill.inl:292`）按归属走：
+所以施法分派（`src/lua/LuaSkill.cpp` 的 `CLuaSkill` 转发路径）按归属走：
 
 | 法术来源 | 执行者 | 例子 |
 |:---|:---|:---|
@@ -176,7 +176,7 @@ CLuaSkillT::cast(magic, me, target)
   └─ 本脚本的函数                    → pcall 执行
 ```
 
-`CSkill::cast`（`src/skill/Skill.cpp:131`）只保留"转发"这一件事：
+`CSkill::cast`（`src/skill/Skill.cpp`）只保留"转发"这一件事：
 C++ 侧**不实现法术**，法术一律由 Lua 脚本提供。
 
 ### 4.3 脚本回调的回落：与法术继承同构
@@ -198,7 +198,7 @@ CLuaSkillT::hit_ob(me, victim, damage)
 ```
 
 - 回落只走一层，且只回落到**脚本里确实实现了该回调**的基础技能
-  （`CSkill::has_hit_ob()` / `CSkill::has_query_action()`，`src/skill/Skill.h:70`）
+  （`CSkill::has_hit_ob()` / `CSkill::has_query_action()`，`src/skill/Skill.h`）
   —— 避免继承链成环时递归不止。
 - 脚本加载失败也走回落（与其他回调一致）。
 - 基础技能也没有时，最后回落到 C++ 基类的默认实现（`CSkill` 为空）。
@@ -241,12 +241,12 @@ CLuaSkillT::hit_ob(me, victim, damage)
 原因：继承项的 `owner` 指向基础技能。基础技能被销毁后，若继承者还留在缓存里，
 它的继承项就指向了已释放的对象 —— 施法转发时会踩到野指针。
 
-`skill_release_one`（`src/skill/SkillMgr.cpp:63`）会**连带摘除继承者**
+`skill_release_one`（`src/skill/SkillMgr.cpp`）会**连带摘除继承者**
 （传递闭包：继承自它的、以及继承自那些的），下次 `load_skill` 时重建并重新继承。
 
 | 场景 | 正确做法 |
 |:---|:---|
-| 脚本热重载（`reload <脚本名>`） | `skill_release_one(name)`（`src/lua/LuaEngine.cpp:1324` 已如此） |
+| 脚本热重载（`reload <脚本名>`） | `skill_release_one(name)`（`src/lua/LuaEngine.cpp` 的重载路径已如此） |
 | 全部重载（`reload all`） | `skill_release()` 一次全清（整体销毁，归属指针不会悬垂） |
 | 测试里清理全局技能缓存 | `skill_release_one(name)` |
 
@@ -261,7 +261,7 @@ CLuaSkillT::hit_ob(me, victim, damage)
 | `DOWNSKILL`（C=16） | 技能详情下行 | `S=` 脚本名，`N=` 技能名，`E=` 可 enable 的种类列表（逗号分隔），`P=` 图标 |
 | `DOWNMAGIC`（C=28） | 每个法术一条 | `S=` 所属技能，`M=` 法术标识，`N=` 显示名，`R=` mp，`A=` ap，`T=` 目标类型，`V=` 施法时机 |
 
-客户端（`cli/src/game_state.cc:463`）按 `S=` 把法术归到对应技能下，
+客户端（`cli/src/game_state.cc` 的下行归并）按 `S=` 把法术归到对应技能下，
 按 `M=` 幂等合并（法术会随技能全量重推反复下发）。
 
 ---

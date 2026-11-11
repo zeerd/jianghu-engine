@@ -185,23 +185,36 @@ TEST_F(BindGlobalTest, TellAndVisionGuards)
 
     EXPECT_EQ(0, CallRetCount(l_tell_object, 2));
 
+    lua_pushstring(L, "vision");
+
     lua_pushstring(L, "look around");
 
-    EXPECT_EQ(0, CallRetCount(l_message_vision, 1));
+    EXPECT_EQ(0, CallRetCount(l_message, 2));
+
+    lua_pushstring(L, "room");
 
     lua_bind_push_object(L, &c);
 
     lua_pushstring(L, "room msg");
 
-    EXPECT_EQ(0, CallRetCount(l_tell_room, 2));
+    EXPECT_EQ(0, CallRetCount(l_message, 3));
 
-    // message_channel with no me -> guard returns
+    // message kind="channel" with no me -> guard returns
+
+    lua_pushstring(L, "channel");
 
     lua_pushstring(L, "chat");
 
     lua_pushstring(L, "hello");
 
-    EXPECT_EQ(0, CallRetCount(l_message_channel, 2));
+    EXPECT_EQ(0, CallRetCount(l_message, 3));
+}
+
+// 未登记 KIND 是脚本写错，与 dbase/load 的未知 action 同律报错
+TEST_F(BindGlobalTest, MessageUnknownKindErrors)
+{
+    lua_pushstring(L, "nope");
+    EXPECT_EQ(-1, call(l_message, 1));
 }
 
 // ---------------- net/LoginAuth.cpp ----------------
@@ -297,7 +310,7 @@ TEST_F(BindGlobalTest, GetRoomChar)
 
     lua_pushinteger(L, 1);
 
-    int k = call(l_get_room_char, 2);
+    int k = call_global(L, "get_room_char", 2);
 
     ASSERT_EQ(1, k);
 
@@ -313,7 +326,7 @@ TEST_F(BindGlobalTest, GetRoomChar)
 
     lua_pushinteger(L, 0);
 
-    k = call(l_get_room_char, 2);
+    k = call_global(L, "get_room_char", 2);
 
     ASSERT_EQ(1, k);
 
@@ -327,7 +340,7 @@ TEST_F(BindGlobalTest, GetRoomChar)
 
     lua_pushinteger(L, ch.object_id());
 
-    k = call(l_get_room_char, 2);
+    k = call_global(L, "get_room_char", 2);
 
     ASSERT_EQ(1, k);
 
@@ -347,7 +360,7 @@ TEST_F(BindGlobalTest, GetRoomChar)
 
     lua_pushinteger(L, box.object_id());
 
-    k = call(l_get_room_char, 2);
+    k = call_global(L, "get_room_char", 2);
 
     ASSERT_EQ(1, k);
 
@@ -361,7 +374,7 @@ TEST_F(BindGlobalTest, GetRoomChar)
 
     lua_pushinteger(L, 123456789);
 
-    k = call(l_get_room_char, 2);
+    k = call_global(L, "get_room_char", 2);
 
     ASSERT_EQ(1, k);
 
@@ -381,15 +394,18 @@ TEST_F(BindGlobalTest, IsRelative)
 
     other.set_name("o", "o1");
 
-    // 非角色参数 → 0（守卫）
-
+    // 非角色参数 → false（守卫），且必须回布尔而非数字
     lua_bind_push_object(L, &c);
 
     lua_bind_push_object(L, &ch);
 
-    EXPECT_EQ(0, CallInt(l_is_relative, 2));
+    EXPECT_EQ(1, call_global(L, "is_relative", 2));
 
-    // 同房间两人：无亲属关系 → 0
+    EXPECT_TRUE(lua_isboolean(L, -1));
+
+    lua_pop(L, 1);
+
+    // 同房间两人：无亲属关系 → false
 
     ch.move(&c);
 
@@ -399,9 +415,15 @@ TEST_F(BindGlobalTest, IsRelative)
 
     lua_bind_push_object(L, &other);
 
-    EXPECT_EQ(0, CallInt(l_is_relative, 2));
+    int k = call_global(L, "is_relative", 2);
 
-    // 一人处于另一人身体内（环境包含）→ 1
+    ASSERT_EQ(1, k);
+
+    EXPECT_FALSE(lua_toboolean(L, -1));
+
+    lua_pop(L, k);
+
+    // 一人处于另一人身体内（环境包含）→ true
 
     ch.move(&other);
 
@@ -409,7 +431,13 @@ TEST_F(BindGlobalTest, IsRelative)
 
     lua_bind_push_object(L, &other);
 
-    EXPECT_EQ(1, CallInt(l_is_relative, 2));
+    k = call_global(L, "is_relative", 2);
+
+    ASSERT_EQ(1, k);
+
+    EXPECT_TRUE(lua_toboolean(L, -1));
+
+    lua_pop(L, k);
 
     ch.move(nullptr);
 
@@ -423,17 +451,34 @@ TEST_F(BindGlobalTest, TimeHelpers)
 {
     EXPECT_GE(CallInt(l_current_time, 0), 0);
 
-    int k = call(l_current_time_info, 0);
+    // current_time_info 现由前导组合（os.date）：wday 口径 0=周日、hour 0-23
+    int k = call_global(L, "current_time_info", 0);
 
-    EXPECT_EQ(1, k);
+    ASSERT_EQ(1, k);
 
-    EXPECT_TRUE(lua_istable(L, -1));
+    ASSERT_TRUE(lua_istable(L, -1));
+
+    lua_getfield(L, -1, "wday");
+
+    int wday = (int)lua_tointeger(L, -1);
+
+    lua_pop(L, 1);
+
+    EXPECT_GE(wday, 0);
+
+    EXPECT_LE(wday, 6);
+
+    lua_getfield(L, -1, "hour");
+
+    int hour = (int)lua_tointeger(L, -1);
+
+    lua_pop(L, 1);
+
+    EXPECT_GE(hour, 0);
+
+    EXPECT_LE(hour, 23);
 
     lua_pop(L, k);
-
-    // 桥接必须转发全局值而非常量
-
-    EXPECT_EQ(g_server_id, CallInt(l_get_server_id, 0));
 }
 
 // ---------------- engine/GameObject.cpp ----------------
@@ -475,7 +520,7 @@ TEST_F(BindGlobalTest, RandomGetItemEmpty)
 {
     lua_bind_push_object(L, &c);
 
-    int k = call(l_random_get_item, 1);
+    int k = call_global(L, "random_get_item", 1);
 
     EXPECT_EQ(1, k);
 
@@ -1060,7 +1105,9 @@ TEST_F(BindGlobalTest, MessageChannel_TargetedDelivery)
 
     you2->delete_temp("client/loading");
 
-    // channel(str) + msg(str) + me(userdata) + you(userdata) 全参
+    // kind="channel" + channel(str) + msg(str) + me(userdata) + you(userdata)
+
+    lua_pushstring(L, "channel");
 
     lua_pushstring(L, "chat");
 
@@ -1070,7 +1117,7 @@ TEST_F(BindGlobalTest, MessageChannel_TargetedDelivery)
 
     lua_bind_push_object(L, you2);
 
-    EXPECT_EQ(0, CallRetCount(l_message_channel, 4)) << "绑定全参(472-476)";
+    EXPECT_EQ(0, CallRetCount(l_message, 5)) << "绑定全参(472-476)";
 
     EXPECT_TRUE(you2->has("频道甲")) << "对端代词替换+定向投递(155-164)";
 
@@ -1110,7 +1157,9 @@ TEST_F(BindGlobalTest, MessageVision_WithObjects_BindsFullArgs)
 
     actor->delete_temp("client/loading");
 
-    // message_vision(msg, me, you) 三参 → 绑定体取 userdata 深路(443-446)
+    // message(kind="vision", msg, me, you) → 绑定体取 userdata 深路
+
+    lua_pushstring(L, "vision");
 
     lua_pushstring(L, "$N念了一句咒语");
 
@@ -1118,11 +1167,13 @@ TEST_F(BindGlobalTest, MessageVision_WithObjects_BindsFullArgs)
 
     lua_bind_push_object(L, actor);
 
-    EXPECT_EQ(0, CallRetCount(l_message_vision, 3)) << "绑定三参(443-447)";
+    EXPECT_EQ(0, CallRetCount(l_message, 4)) << "绑定三参(443-447)";
 
-    // MessageVision(me, channel, msg[, exclude1]) 四参 → 453-462 与排除位
+    // kind="vision_room" + (me, channel, msg[, exclude1]) → 与排除位
 
     // 458-459
+
+    lua_pushstring(L, "vision_room");
 
     lua_bind_push_object(L, actor);
 
@@ -1132,7 +1183,7 @@ TEST_F(BindGlobalTest, MessageVision_WithObjects_BindsFullArgs)
 
     lua_bind_push_object(L, actor);  // exclude1 → userdata 取值行(458-459)
 
-    EXPECT_EQ(0, CallRetCount(l_message_vision_channel, 4))
+    EXPECT_EQ(0, CallRetCount(l_message, 5))
 
         << "绑定四参(453-462)";
 
@@ -1178,7 +1229,9 @@ TEST_F(BindGlobalTest, MessageVisionSelf_BindsFullArgs)
 
     you2->delete_temp("client/loading");
 
-    // message_vision_self(msg, me, you) 三参全绑 → 绑定体深路(439-447)
+    // kind="vision_self" + (msg, me, you) → 绑定体深路
+
+    lua_pushstring(L, "vision_self");
 
     lua_pushstring(L, "$N低声对$n耳语");
 
@@ -1186,7 +1239,7 @@ TEST_F(BindGlobalTest, MessageVisionSelf_BindsFullArgs)
 
     lua_bind_push_object(L, you2);
 
-    EXPECT_EQ(0, CallRetCount(l_message_vision_self, 3)) << "绑定三参(439-447)";
+    EXPECT_EQ(0, CallRetCount(l_message, 4)) << "绑定三参(439-447)";
 
     EXPECT_TRUE(you2->has("密语者")) << "私语送达对端并替换 $N(445)";
 
@@ -1230,7 +1283,7 @@ TEST_F(BindGlobalTest, NotifyFail_FormatArgs_ComposesMessage)
 TEST_F(BindGlobalTest, RandomGetItemDeepPath)
 
 {
-    // 51 件：50 件计数 + 1 件 exclude → 恰好触发 num==50 上限 break(34)
+    // 51 件（末件作 exclude）：50 件上限 break + exclude 跳过 + type 过滤
 
     std::vector<CItem*> items;
 
@@ -1250,27 +1303,25 @@ TEST_F(BindGlobalTest, RandomGetItemDeepPath)
 
     CContainer* excl = items.back();
 
-    CContainer* got = random_get_item(&ch, CMainObject::IS_ITEM, excl);
-
-    ASSERT_NE(nullptr, got) << "命中物件(30-36)";
-
-    EXPECT_NE(got, excl) << "exclude 被跳过(32)";
-
-    EXPECT_TRUE(got->query_attr(CMainObject::IS_ITEM)) << "type 过滤(31)";
-
     lua_bind_push_object(L, &ch);
 
     lua_pushinteger(L, CMainObject::IS_ITEM);
 
     lua_bind_push_object(L, excl);
 
-    int k = call(l_random_get_item, 3);
+    int k = call_global(L, "random_get_item", 3);
 
     ASSERT_EQ(1, k);
 
-    EXPECT_FALSE(lua_isnil(L, -1)) << "绑定成功回推(211)";
+    ASSERT_TRUE(lua_isuserdata(L, -1)) << "命中物件";
 
-    if (k > 0) lua_pop(L, k);
+    CMainObject* got = lua_bind_check_object(L, -1);
+
+    EXPECT_NE(got, excl) << "exclude 被跳过";
+
+    EXPECT_TRUE(got->query_attr(CMainObject::IS_ITEM)) << "type 过滤";
+
+    lua_pop(L, k);
 
     for (auto* it : items) {
         it->move(nullptr);
@@ -1282,9 +1333,9 @@ TEST_F(BindGlobalTest, RandomGetItemDeepPath)
 TEST_F(BindGlobalTest, RandomGetItemNullArgsAndLivingFalse)
 
 {
-    lua_pushinteger(L, 1);  // 非 userdata → me NULL
+    lua_pushinteger(L, 1);  // 非 userdata → nil 守卫
 
-    int k1 = call(l_random_get_item, 1);
+    int k1 = call_global(L, "random_get_item", 1);
 
     ASSERT_EQ(1, k1);
 

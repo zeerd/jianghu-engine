@@ -1,10 +1,12 @@
 ---
-name: 'Unit Test'
-description: 'Test functions after modified codes'
-applyTo: '**/*.cpp,**/*.h'
+name: unit-test
+description: "单元测试操作规程。凡涉及编写、修改、评审、运行 C++/Lua 单元测试的任务——改了 src/ 下的 .cpp/.h 要补测试、动 tests/unit/ 或 tests.vcxproj、接 Mock/接口、跑 run-coverage.ps1、查 coverage_history 的 delta、排查 tests.exe 崩溃或链接错误——一律先加载本技能。硬门禁（修改必须带测试、run-coverage.ps1 唯一认可、禁止 Debug、delta ≥ 0）与创建规范、类化重构步骤、故障排查表都在这里。"
 ---
-本文件是**指令文件**：规范、流程、命令、阈值、排查。架构与设计理由见
-`docs/design/unit-test.md`；分工铁律见 `copilot-instructions.md`。
+
+# 单元测试（unit-test）
+
+本技能是单元测试的**操作规程**：规范、流程、命令、阈值、排查。架构与设计理由见
+`docs/design/unit-test.md`。
 
 在 `tests/unit/` 目录下使用 Google Test 框架创建单元测试。
 

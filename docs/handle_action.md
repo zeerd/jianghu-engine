@@ -37,28 +37,28 @@ virtual int handle_action(char* comm, CChar* me, char* arg, char* tar) = 0;
 
 **实现者**：`CChar`、`CItem`、`CRoom`（`IActionHandler.h` 顶部注释）。基类默认实现均返回 0（不拦截）：
 
-- `CChar::handle_action(3 参)` → `return 0`（`src/char/CharInterface.cpp:43`）
-- `CItem::handle_action(3/4 参)` → `return 0`（`src/item/ItemInterface.cpp:39`、`:41`）
-- `CRoom::handle_action(3 参)` → `return 0`（`src/room/RoomInterface.cpp:23`）
+- `CChar::handle_action(3 参)` → `return 0`（`src/char/CharInterface.cpp`，`CChar::handle_action`）
+- `CItem::handle_action(3/4 参)` → `return 0`（`src/item/ItemInterface.cpp`，`CItem::handle_action`）
+- `CRoom::handle_action(3 参)` → `return 0`（`src/room/RoomInterface.cpp`，`CRoom::handle_action`）
 
 ### 基类的「有效默认行为」
 
 四参版并非全为空：
 
-- **`CRoom::handle_action(4 参)`**（`src/room/Room.cpp:338`）实现帮派 `back`（返回总部）命令。
-- **`CChar::handle_action(4 参)`**（`src/char/CharInterface.cpp:45`）遍历角色背包内的物品，逐个调用其四参 `handle_action`——这是**随身物品截获命令**的机制（例如武器截获 `kill`）。
+- **`CRoom::handle_action(4 参)`**（`src/room/Room.cpp`，`CRoom::handle_action`）实现帮派 `back`（返回总部）命令。
+- **`CChar::handle_action(4 参)`**（`src/char/CharInterface.cpp`，`CChar::handle_action`）遍历角色背包内的物品，逐个调用其四参 `handle_action`——这是**随身物品截获命令**的机制（例如武器截获 `kill`）。
 - 业务级准入规则（如免战保护）不在 C++ 实现：命令分发器在角色目标截获之前询问
   `hooks.combat_rule("command_gate", actor, target, comm)`，具体状态键由脚本自行约定，见下节调用顺序。
-- **居民区脚本**（`lua-default/room/resident_base.lua` 的 `handle_action`，对声明 `type = "resident"` 且脚本自调 `install` 装配的房间）处理房产命令（`enter`/`applyhouse`/…），末尾回退房间基类 `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp:338`）。
+- **居民区脚本**（`lua-default/room/resident_base.lua` 的 `handle_action`，对声明 `type = "resident"` 且脚本自调 `install` 装配的房间）处理房产命令（`enter`/`applyhouse`/…），末尾回退房间基类 `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp`）。
 - **房屋脚本**（`lua-default/room/house_base.lua` 的 `handle_action`）截获
   `kill`/`fight`/`cast`/`join` 等，阻止非主人滥用房产，末尾同样回退房间基类
-  `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp:338`）。
+  `base_handle_action4`，即 `CRoom::handle_action`（`src/room/Room.cpp`）。
 
 ---
 
 ## 三、调用顺序（命令分发器）
 
-唯一的命令入口是 `CCmdHandle::command`（`src/cmd/CmdHandle.cpp:151`）。其内部顺序如下（截取关键步骤）：
+唯一的命令入口是 `CCmdHandle::command`（`src/cmd/CmdHandle.cpp`）。其内部顺序如下（截取关键步骤）：
 
 ```mermaid
 flowchart TD
@@ -81,7 +81,7 @@ flowchart TD
 
 对应源码：
 
-1. **环境（房间）先截获**（`CmdHandle.cpp:224`）：
+1. **环境（房间）先截获**（`CmdHandle.cpp`，`CCmdHandle::command` 内环境截获段）：
    ```cpp
    // 环境所附加的动作, 可截获玩家命令。
    if (!filter
@@ -90,7 +90,7 @@ flowchart TD
    ```
    `where = me->environment()`。注意这里调用的是**四参版**，`me` 站在哪个地图房间，就先进哪个房间的 `handle_action`。
 
-2. **目标对象再截获**（`CmdHandle.cpp:239`，准入询问在 `:243`）：仅当命令带 `target` 且能在房间或背包里 `present` 到对象时：
+2. **目标对象再截获**（`CmdHandle.cpp`，`CCmdHandle::command` 内目标截获段，准入询问紧随其前）：仅当命令带 `target` 且能在房间或背包里 `present` 到对象时：
    ```cpp
    who = where->present(target);
    if (!who) who = me->present(target);
@@ -121,12 +121,12 @@ flowchart TD
 
 3. 环境/目标都返回 0 后，才轮到 `do_channel` → `handlecommand`（依次查标准/用户/巫师命令表，未命中再分发 Lua 命令表；真正的 `guard`/`kill`/`fight` 实现位于标准命令表）→ `do_emote` → `notify_fail`。
 
-> **要点**：房间钩子（四参）永远**先于**目标对象钩子（三参）；两者都**先于**命令表。因此「限制某类玩家在某场景使用某命令」这类规则写在房间的 `handle_action` 里，会在 `CCmdStandard::guard()`（`src/cmd/CmdStandardCombat.cpp:224`）执行**之前**就把命令拦下。
+> **要点**：房间钩子（四参）永远**先于**目标对象钩子（三参）；两者都**先于**命令表。因此「限制某类玩家在某场景使用某命令」这类规则写在房间的 `handle_action` 里，会在 `CCmdStandard::guard()`（`src/cmd/CmdStandardCombat.cpp`）执行**之前**就把命令拦下。
 
 ### 其他调用点
 
-- **随身物品链**：`CChar::handle_action(4 参)`（`src/char/CharInterface.cpp:45`）把命令转发给背包内每个物品的四参 `handle_action`。
-- **排行榜刷新**：`src/db/SqlRank.cpp:58` 用三参 `handle_action("update", NULL, ...)` 把榜单数据推给界面处理者。
+- **随身物品链**：`CChar::handle_action(4 参)`（`src/char/CharInterface.cpp`）把命令转发给背包内每个物品的四参 `handle_action`。
+- **排行榜刷新**：`src/db/SqlRank.cpp`（`CRankManager` 榜单刷新路径）用三参 `handle_action("update", NULL, ...)` 把榜单数据推给界面处理者。
 
 ---
 
@@ -136,11 +136,11 @@ flowchart TD
 
 | 脚本类型 | 触发条件 | 查找的脚本字段 | Lua 签名 | 源码 |
 |---|---|---|---|---|
-| **Room** | C++ 四参 `handle_action` | `handle_action` | `function(self, comm, me, arg, tar)` | `src/lua/LuaRoom.inl:293` |
-| **NPC（3 参）** | C++ 三参 `handle_action` | `handle_action` | `function(self, comm, me, arg)` | `src/lua/LuaNpc.inl:272` |
-| **NPC（4 参）** | C++ 四参 `handle_action` | `handle_action4` | `function(self, comm, me, arg, tar)` | `src/lua/LuaNpc.inl:306` |
-| **Item（3 参）** | C++ 三参 `handle_action` | `handle_action` | `function(self, comm, me, arg)` | `src/lua/LuaItem.inl:305` |
-| **Item（4 参）** | C++ 四参 `handle_action` | `handle_action4` | `function(self, comm, me, arg, tar)` | `src/lua/LuaItem.inl:338` |
+| **Room** | C++ 四参 `handle_action` | `handle_action` | `function(self, comm, me, arg, tar)` | `src/lua/LuaRoom.inl`（`CLuaRoomT::handle_action`） |
+| **NPC（3 参）** | C++ 三参 `handle_action` | `handle_action` | `function(self, comm, me, arg)` | `src/lua/LuaNpc.inl`（`CLuaNpcT::handle_action`） |
+| **NPC（4 参）** | C++ 四参 `handle_action` | `handle_action4` | `function(self, comm, me, arg, tar)` | `src/lua/LuaNpc.inl`（`CLuaNpcT::handle_action` 四参重载） |
+| **Item（3 参）** | C++ 三参 `handle_action` | `handle_action` | `function(self, comm, me, arg)` | `src/lua/LuaItem.inl`（`CLuaItemT::handle_action`） |
+| **Item（4 参）** | C++ 四参 `handle_action` | `handle_action4` | `function(self, comm, me, arg, tar)` | `src/lua/LuaItem.inl`（`CLuaItemT::handle_action` 四参重载） |
 
 NPC/Item 的四参版挂在 `handle_action4` 字段，Room 则仍叫 `handle_action`（Room 只有四参这一种入口）。
 
@@ -170,7 +170,7 @@ GBK，可直接比较。三条分发路径（`src/lua/LuaRoom.inl`、`src/lua/Lu
   self:base_handle_action(comm, me, arg)        -- 回退 3 参基类
   self:base_handle_action4(comm, me, arg, tar)  -- 回退 4 参基类
   ```
-  绑定见 `src/lua/LuaBind.cpp:221-222`（`base_handle_action` / `base_handle_action4`），实现 `src/lua/LuaBindGlue.cpp:298` / `:450`。三参版 `base_handle_action` 仅覆盖 NPC 系；四参版 `base_handle_action4` 覆盖房间系（`CLuaRoom`/`CLuaFBRoom`）与 `CLuaNpc`，物品的基类回退由框架自动完成。
+  绑定注册见 `src/lua/LuaBind.cpp`（`base_handle_action` / `base_handle_action4` 两条表项），实现 `src/lua/LuaBindGlue.cpp`（`l_base_handle_action` / `l_base_handle_action4`）。三参版 `base_handle_action` 仅覆盖 NPC 系；四参版 `base_handle_action4` 覆盖房间系（`CLuaRoom`/`CLuaFBRoom`）与 `CLuaNpc`，物品的基类回退由框架自动完成。
 
 **关键：漏写 `base` 回退 = 丢基类功能。** 典型：房间脚本若以 `return 0` 收尾而不调 `base_handle_action4`，就会**吞掉 `CRoom::handle_action` 的帮派 `back`（返回总部）** 逻辑。正确写法应以回退收尾：
 
@@ -179,7 +179,7 @@ GBK，可直接比较。三条分发路径（`src/lua/LuaRoom.inl`、`src/lua/Lu
 return self:base_handle_action4(comm, me, arg, tar)
 ```
 
-`l_base_handle_action` / `l_base_handle_action4` 用 `dynamic_cast` 到具体类型后**非虚限定调用**，避免 Lua→C++→Lua 的无限递归（`src/lua/LuaBindGlue.cpp:296`、`:446-448` 注释）。
+`l_base_handle_action` / `l_base_handle_action4` 用 `dynamic_cast` 到具体类型后**非虚限定调用**，避免 Lua→C++→Lua 的无限递归（`src/lua/LuaBindGlue.cpp`，两函数的头注与分发注释）。
 
 ---
 
@@ -251,7 +251,7 @@ end
 
 1. **`comm` 与 `me` 写反**：脚本里 `me:query(...)` 会把字符串当对象、`comm == "guard"` 永远不成立，回退 `base_handle_action` 时还会抛 `bad argument (string expected, got jianghu_object)` 被框架 `pcall` 吞掉并记入 ERROR 日志，命令拦截**静默失效**。评审/编写时对照第四节表格确认字段名与顺序。
 
-2. **忘调 `base` 回退**：房间脚本以 `return 0` 收尾会丢失 `CRoom::handle_action` 的 `back`（`src/room/Room.cpp:338`）；NPC 以 `return 0` 收尾会丢失 `CChar::handle_action(4 参)` 的背包物品转发。凡接管 `handle_action` 又需要基类副作用的，末尾应 `return self:base_handle_action4(...)`（或 3 参版）。
+2. **忘调 `base` 回退**：房间脚本以 `return 0` 收尾会丢失 `CRoom::handle_action` 的 `back`（`src/room/Room.cpp`）；NPC 以 `return 0` 收尾会丢失 `CChar::handle_action(4 参)` 的背包物品转发。凡接管 `handle_action` 又需要基类副作用的，末尾应 `return self:base_handle_action4(...)`（或 3 参版）。
 
 3. **`self:func()` 崩溃**：`self` 是 C++ userdata，脚本自定义函数**不能**用 `self:xxx()` 调用（`attempt to call a nil value`）。必须提取成 `local function` 再直接调用。
 
@@ -268,11 +268,11 @@ end
 | 主题 | 位置 |
 |---|---|
 | 接口声明 | `src/interfaces/IActionHandler.h` |
-| 命令分发顺序 | `src/cmd/CmdHandle.cpp:151`（①:224 ②:239，准入询问 `:243`） |
-| 命令准入钩子 | `src/combat/CombatRules.cpp:11`（`hooks.combat_rule`） |
-| Room 桥接 | `src/lua/LuaRoom.inl:293` / `src/lua/LuaRoom.h:105` |
-| NPC 桥接 | `src/lua/LuaNpc.inl:272`（3 参）/ `:306`（4 参，字段 `handle_action4`） |
-| Item 桥接 | `src/lua/LuaItem.inl:305`（3 参）/ `:338`（4 参，字段 `handle_action4`） |
-| `base` 回退绑定 | `src/lua/LuaBindGlue.cpp:298` / `:450`；注册 `src/lua/LuaBind.cpp:221-222` |
-| 基类默认行为 | `src/room/Room.cpp:338`（back）、`src/char/CharInterface.cpp:45`（背包转发）、`lua-default/room/resident_base.lua`（房产命令）、`lua-default/room/house_base.lua`（房屋命令截获） |
+| 命令分发顺序 | `src/cmd/CmdHandle.cpp`（`CCmdHandle::command`：①环境截获 ②目标截获 + `command_gate` 准入询问） |
+| 命令准入钩子 | `src/combat/CombatRules.cpp`（`hooks.combat_rule`） |
+| Room 桥接 | `src/lua/LuaRoom.inl`（`CLuaRoomT::handle_action`）/ `src/lua/LuaRoom.h` |
+| NPC 桥接 | `src/lua/LuaNpc.inl`（`CLuaNpcT::handle_action`，3 参 / 4 参两重载，4 参字段 `handle_action4`） |
+| Item 桥接 | `src/lua/LuaItem.inl`（`CLuaItemT::handle_action`，3 参 / 4 参两重载，4 参字段 `handle_action4`） |
+| `base` 回退绑定 | `src/lua/LuaBindGlue.cpp`（`l_base_handle_action` / `l_base_handle_action4`）；注册 `src/lua/LuaBind.cpp` |
+| 基类默认行为 | `src/room/Room.cpp`（`CRoom::handle_action`，back）、`src/char/CharInterface.cpp`（`CChar::handle_action` 四参，背包转发）、`lua-default/room/resident_base.lua`（房产命令）、`lua-default/room/house_base.lua`（房屋命令截获） |
 | 编码转换 | `src/util/Encoding.cpp`（加载期 `utf8_to_gbk`；`gbk_to_utf8` 仅日志用） |

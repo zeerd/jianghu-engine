@@ -1,6 +1,6 @@
 // test_fightroom_team.cpp - CFightRoom 双队（team0/team1）分支的团队操作测试
 //
-// 覆盖 GetTeamMsg / getTeamList / Do_LeaveTeam / Join_Team / heart_beat 中
+// 覆盖 GetTeamMsg / getTeamList / Do_LeaveTeam / join_team / heart_beat 中
 // 按 team 下标复制的两队分支，作为把这些分支抽成公共函数时的行为基线。
 //
 // Build+Run: .\run-coverage.ps1
@@ -64,7 +64,7 @@ protected:
         fr.move(&room);
     }
 
-    // 比试用例经 Begin_Fight 注册全局心跳，摘除后再析构，避免悬挂指针
+    // 比试用例经 begin_fight 注册全局心跳，摘除后再析构，避免悬挂指针
     void TearDown() override { set_heart_beat_obj(&fr, 0); }
 
     void PlaceTeam(int team, CChar* c)
@@ -144,7 +144,7 @@ TEST_F(FightRoomTeamTest, DoLeaveTeamClearsSlotAndTemp)
     EXPECT_EQ(fr.m_Team[1].obj[0], nullptr);
 }
 
-// Join_Team: 两队分别入队并写入各自战斗临时变量
+// join_team: 两队分别入队并写入各自战斗临时变量
 TEST_F(FightRoomTeamTest, JoinTeamAssignsBothSides)
 {
     EXPECT_EQ(fr.join_team(&alpha, CFightRoom::FIGHT_TEAM_A), 1);
@@ -160,7 +160,7 @@ TEST_F(FightRoomTeamTest, JoinTeamAssignsBothSides)
     EXPECT_EQ(beta.query_temp("fight/is_fighting"), 1);
 }
 
-// Join_Team: 非法队伍号不入队，但战斗临时变量照常写入
+// join_team: 非法队伍号不入队，但战斗临时变量照常写入
 TEST_F(FightRoomTeamTest, JoinTeamInvalidTeamKeepsRoster)
 {
     EXPECT_EQ(fr.join_team(&alpha, 5), 1);
@@ -170,7 +170,7 @@ TEST_F(FightRoomTeamTest, JoinTeamInvalidTeamKeepsRoster)
     EXPECT_EQ(alpha.query_temp("fight/fight_team"), 5);
 }
 
-// Join_Team: 队伍满员拒绝入队，被拒者不写战斗临时变量
+// join_team: 队伍满员拒绝入队，被拒者不写战斗临时变量
 TEST_F(FightRoomTeamTest, JoinTeamRejectsWhenFull)
 {
     CChar c1, c2, c3, c4, extra;
@@ -273,7 +273,7 @@ TEST_F(FightRoomTeamTest, AttackDispatchesToUsersInFightRoom)
     EXPECT_TRUE(got_combat_payload);  // 战斗描述送到了房内玩家
 }
 
-// Can_Join 准入规则：空缺允许、满员拒绝、阈值对局期间一律拒绝
+// can_join 准入规则：空缺允许、满员拒绝、阈值对局期间一律拒绝
 TEST_F(FightRoomTeamTest, CanJoinGuardsAdmission)
 {
     CChar c1, c2, c3, c4;
@@ -294,7 +294,7 @@ TEST_F(FightRoomTeamTest, CanJoinGuardsAdmission)
     EXPECT_EQ(fr.can_join(1, &alpha), 0);
 }
 
-// Query 属性开关：Lua 脚本靠它判定战斗房间与可拾取性
+// query 属性开关：Lua 脚本靠它判定战斗房间与可拾取性
 TEST_F(FightRoomTeamTest, QueryFightRoomAttributes)
 {
     EXPECT_EQ(fr.query_attr(CMainObject::CAN_GET), 0);

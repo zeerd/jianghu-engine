@@ -274,7 +274,7 @@ int CLuaSkill::lua_add_magic(const char* magicName, const char* displayName,
 {
     if (!magicName || !luaFuncName) return 0;
 
-    // 创建 Magic_t 并加入 m_MagicList（用于 DownLoad 显示）
+    // 创建 Magic_t 并加入 m_MagicList（用于 download 显示）
     auto magic              = std::make_unique<Magic_t>();
     magic->name             = displayName ? displayName : magicName;
     magic->mp               = mp;

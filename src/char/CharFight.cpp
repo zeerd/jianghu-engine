@@ -391,7 +391,7 @@ int l_init(lua_State* L)
     return 0;
 }
 
-// Do_BiShi(me, victim, name, check) -> room
+// do_bishi(me, victim, name, check) -> room
 int l_do_bishi(lua_State* L)
 {
     CChar* me        = dynamic_cast<CChar*>(get_object(L, 1));

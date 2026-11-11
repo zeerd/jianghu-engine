@@ -9,11 +9,11 @@ return {
 
     create = function(self)
         self:set_name("青云山山脚")
-        self:add_npc("e2e_reload_npc")
+        self:add_object("npc", "e2e_reload_npc")
 
         -- 重载药放在箱里：取物走 look 菜单（与教材木箱同款链路）
-        local box = self:Add_Box()
-        box:add_object("e2e_reload_item", 3)
+        local box = self:add_object("box")
+        box:add_object("object", "e2e_reload_item", 3)
         box:set_name("重载箱", "zai xiang")
 
         self:set("long", "【长描述甲】这里是青云山的山脚。")

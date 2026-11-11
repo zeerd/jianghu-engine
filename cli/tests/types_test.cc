@@ -3,7 +3,8 @@
 // Build+Run（仓库根目录）：
 //   msbuild cli\tests\jianghu_cli_tests.vcxproj /p:Configuration=Release
 //     /p:Platform=Win32
-//   bin\cli\jianghu_cli_tests.exe --gtest_filter=GameMessage*:WieldPositionName*
+//   bin\cli\jianghu_cli_tests.exe
+//   --gtest_filter=GameMessage*:WieldPositionName*
 
 #include "types.h"
 
@@ -21,7 +22,7 @@ TEST(GameMessage, GetReturnsValueOrDefault)
 TEST(GameMessage, GetIntParsesAndFallsBack)
 {
     GameMessage m;
-    m.params["C"] = "42";
+    m.params["C"]   = "42";
     m.params["bad"] = "abc";
     EXPECT_EQ(m.get_int("C"), 42);
     EXPECT_EQ(m.get_int("bad"), 0);
@@ -40,7 +41,7 @@ TEST(GameMessage, HasChecksPresence)
 TEST(GameMessage, ToStringContainsCmdAndParams)
 {
     GameMessage m;
-    m.cmd = 19;
+    m.cmd         = 19;
     m.params["M"] = "hi";
     std::string s = m.to_string();
     EXPECT_NE(s.find("cmd=19"), std::string::npos);

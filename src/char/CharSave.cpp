@@ -306,7 +306,7 @@ int CChar::load()
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:LoadFromServer() -> number - 从服务器加载该角色数据（1 成功 / 0 失败）
+// self:load_from_server() -> number - 从服务器加载该角色数据（1 成功 / 0 失败）
 int l_load_from_server(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

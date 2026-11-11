@@ -1,7 +1,7 @@
 # betray_and_repent.sce — 山顶判师 → 半山腰悔过（黑风寨总教头 / 青云子）
 #
 # 覆盖：
-#   l_remove_betrayer（CharLevel.cpp 的 Remove_Betrayer 绑定）——青云子「悔过」
+#   l_remove_betrayer（CharLevel.cpp 的 remove_betrayer 绑定）——青云子「悔过」
 #   菜单第一支清除判师记录（引擎侧代价：按判师次数把全部武功每重降 20 级）。
 #   判师的置位面教材原本是空的（expell 不写 betrayer），由黑风寨总教头的 do_talk
 #   「判师」补：release_master（顺带消 l_release_master）+ 清家门 + betrayer
@@ -11,7 +11,7 @@
 #   · 判师三回执按因果落缓冲：总教头的 say → recruit 的「请与其交谈」tell →
 #     /apprentice 的「恭喜您成为黑风寨的第 2 代弟子」tell（总教头是第 1 代，
 #     recruit 给新徒分第 2 代）；
-#   · 悔过两支成对成反：第一支「判师记录已消」只在 Remove_Betrayer 调通后才发
+#   · 悔过两支成对成反：第一支「判师记录已消」只在 remove_betrayer 调通后才发
 #     （脚本中途报错则 handle_action 中断、该行永不出现），第二支「并无判师记录」
 #     证明记录真已清空——置位与清除各得一证，不依赖 DSL 读不到的 dbase。
 #

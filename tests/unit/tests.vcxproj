@@ -39,8 +39,8 @@
   <!-- Intermediate directory must be unique per project. The MSBuild default
        ($(Configuration)\, i.e. tests\Release\) is shared with leftovers of other
        projects and triggers MSB8028 (broken clean/rebuild). OutDir is left
-       untouched on purpose: run-coverage.ps1 and unit-test.instructions.md
-       depend on tests\Debug\tests.exe and Release\tests.exe. -->
+       untouched on purpose: run-coverage.ps1
+       depends on tests\Debug\tests.exe and Release\tests.exe. -->
   <PropertyGroup>
     <IntDir>$(SolutionDir)bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>

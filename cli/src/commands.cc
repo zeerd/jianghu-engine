@@ -10,14 +10,14 @@
 #include "game_state.h"
 #include "protocol.h"
 
-CommandHandler::CommandHandler(GameState &state, Connection &conn,
-                               TerminalUI &ui)
+CommandHandler::CommandHandler(GameState& state, Connection& conn,
+                               TerminalUI& ui)
     : state_(state), conn_(conn), ui_(ui)
 {
 }
 
 // 去除首尾空白：复合命令（get from / drop into / use on）切分参数共用
-static std::string trim_ws(const std::string &s)
+static std::string trim_ws(const std::string& s)
 {
     size_t a = s.find_first_not_of(" \t");
     if (a == std::string::npos) return std::string();
@@ -25,7 +25,7 @@ static std::string trim_ws(const std::string &s)
     return s.substr(a, b - a + 1);
 }
 
-bool CommandHandler::process(const std::string &input)
+bool CommandHandler::process(const std::string& input)
 {
     if (input.empty()) return false;
 
@@ -119,16 +119,15 @@ bool CommandHandler::process(const std::string &input)
             std::string item_name      = trim_ws(args.substr(0, pos));
             std::string container_name = trim_ws(args.substr(pos + 6));
 
-            ObjectID item_id = item_name.empty()
-                                   ? 0
-                                   : state_.find_target(item_name);
-            ObjectID box_id  = container_name.empty()
-                                   ? 0
-                                   : state_.find_target(container_name);
+            ObjectID item_id
+                = item_name.empty() ? 0 : state_.find_target(item_name);
+            ObjectID box_id = container_name.empty()
+                                  ? 0
+                                  : state_.find_target(container_name);
 
             if (item_id == 0) {
-                ui_.add_line(color::convert(
-                    "$REDItem not found: " + item_name + "$COM"));
+                ui_.add_line(color::convert("$REDItem not found: " + item_name
+                                            + "$COM"));
                 return true;
             }
             if (box_id == 0) {
@@ -164,8 +163,8 @@ bool CommandHandler::process(const std::string &input)
                                   : state_.find_target(container_name);
 
             if (item_id == 0) {
-                ui_.add_line(color::convert(
-                    "$REDItem not found: " + item_name + "$COM"));
+                ui_.add_line(color::convert("$REDItem not found: " + item_name
+                                            + "$COM"));
                 return true;
             }
             if (box_id == 0) {
@@ -193,13 +192,12 @@ bool CommandHandler::process(const std::string &input)
 
             ObjectID item_id
                 = item_name.empty() ? 0 : state_.find_target(item_name);
-            ObjectID tgt_id = target_name.empty()
-                                  ? 0
-                                  : state_.find_target(target_name);
+            ObjectID tgt_id
+                = target_name.empty() ? 0 : state_.find_target(target_name);
 
             if (item_id == 0) {
-                ui_.add_line(color::convert(
-                    "$REDItem not found: " + item_name + "$COM"));
+                ui_.add_line(color::convert("$REDItem not found: " + item_name
+                                            + "$COM"));
                 return true;
             }
             if (tgt_id == 0) {
@@ -249,7 +247,7 @@ bool CommandHandler::process(const std::string &input)
     return conn_.send_command_utf8(full_cmd);
 }
 
-std::vector<std::string> CommandHandler::parse_args(const std::string &args_str)
+std::vector<std::string> CommandHandler::parse_args(const std::string& args_str)
 {
     std::vector<std::string> result;
     std::istringstream iss(args_str);
@@ -260,7 +258,7 @@ std::vector<std::string> CommandHandler::parse_args(const std::string &args_str)
     return result;
 }
 
-bool CommandHandler::process_tune(const std::string &args_text)
+bool CommandHandler::process_tune(const std::string& args_text)
 {
     if (args_text.empty()) {
         // Show current channel info
@@ -268,7 +266,7 @@ bool CommandHandler::process_tune(const std::string &args_text)
         ui_.add_line("Current channel: " + state_.current_channel());
         std::ostringstream iss;
         iss << "Available channels: ";
-        const auto &chs = state_.channels();
+        const auto& chs = state_.channels();
         for (size_t i = 0; i < chs.size(); ++i) {
             if (i > 0) iss << ", ";
             iss << chs[i];
@@ -291,7 +289,7 @@ bool CommandHandler::process_tune(const std::string &args_text)
 // /give <item_type> [amount]
 // Target is set beforehand via /t command (using state_.target_id()).
 // xclient wire format: give <obj_id> to <target_id>
-bool CommandHandler::process_give(const std::string &args_text)
+bool CommandHandler::process_give(const std::string& args_text)
 {
     if (args_text.empty()) {
         ui_.add_line(color::convert("$HIG=== Give ===$COM"));
@@ -344,7 +342,7 @@ bool CommandHandler::process_give(const std::string &args_text)
     // Find item in inventory by internal_id or display name
     ObjectID obj_id = 0;
     int qty_in_inv  = 1;
-    for (const auto &item : state_.inventory()) {
+    for (const auto& item : state_.inventory()) {
         if (item.internal_id == item_type || item.name == item_type) {
             obj_id     = item.id;
             qty_in_inv = item.qty > 0 ? item.qty : 1;
@@ -379,10 +377,10 @@ bool CommandHandler::process_give(const std::string &args_text)
     return conn_.send_command_utf8(cmd_ss.str());
 }
 
-bool CommandHandler::process_sell(const std::string &args_text)
+bool CommandHandler::process_sell(const std::string& args_text)
 {
-    const auto &inv = state_.inventory();
-    for (const auto &item : inv) {
+    const auto& inv = state_.inventory();
+    for (const auto& item : inv) {
         if (item.internal_id == args_text || item.name == args_text) {
             std::ostringstream cmd_ss;
             ObjectID vendor_id = state_.target_id();

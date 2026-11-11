@@ -40,6 +40,7 @@
 #   con30 是生存轴（max_hp 1260），dex30 顺带拉高 dp（仍不足以闪避，仅尽人事）。
 
 include common/login.sce
+include common/attr_register_verify.sce
 include common/room_look_inquiry.sce
 include provision/raid_supplies.sce
 # 拜师必须在 force 链之前（learn 要求 is_apprentice_of）——apprentice 结尾停半山腰，

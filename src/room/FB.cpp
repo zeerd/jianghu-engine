@@ -325,7 +325,7 @@ void CFB::change_room(CContainer* me)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:Begin_FB(source_map, limit_time, flag) - 门派副本开始
+// self:begin_fb(source_map, limit_time, flag) - 门派副本开始
 int l_begin_fb(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -339,7 +339,7 @@ int l_begin_fb(lua_State* L)
     return 0;
 }
 
-// self:MoveIn(me[, party]) - 门派副本移入玩家
+// self:move_in(me[, party]) - 门派副本移入玩家
 int l_move_in(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

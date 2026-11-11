@@ -11,14 +11,14 @@ M.name = "青云山山顶"
 
 M.create = function(self)
     self:set_name("青云山山顶")
-    self:add_door("青云山半山腰", "青云山半山腰", "青云山山顶")
+    self:add_object("door", "青云山半山腰", "青云山半山腰", "青云山山顶")
 
     -- 练级青蛇：1级，不会还手；击杀由 data/hooks.lua 的 kill_bonus 挂点
     -- 奖励 10000 经验并掉落蛇胆，死后随房间 reset 自动补充
-    self:add_npc("sample_qingshe")
+    self:add_object("npc", "sample_qingshe")
 
     -- 黑风寨总教头：判师改投的去处（见 npc/sample_heifeng_master.lua）
-    self:add_npc("sample_heifeng_master")
+    self:add_object("npc", "sample_heifeng_master")
 
     self:set(
         "long",
@@ -30,8 +30,8 @@ M.do_look = function(self, me)
     -- 只复用公共模块的描述显示，不复用 do_look（因为需要追加自定义菜单项）
     common.say_long(self, me)
     self:say("山顶前方有一座山寨，你可以选择闯入。", me)
-    self:AddMenuItem("闯入山寨", "$0enter_fb $1", me)
-    self:SendMenu(me)
+    self:add_menu_item("闯入山寨", "$0enter_fb $1", me)
+    self:send_menu(me)
     return 1
 end
 
@@ -44,8 +44,8 @@ end
 
 M.do_enter_fb = function(self, me, arg)
     local fb = load("fb", "sample_stronghold_fb")
-    fb:Begin_FB("青云山山顶", 3600, 1)
-    return fb:MoveIn(me)
+    fb:begin_fb("青云山山顶", 3600, 1)
+    return fb:move_in(me)
 end
 
 return M

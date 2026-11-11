@@ -53,7 +53,7 @@ function mirror_base.make_mirror(self, me, diff)
     self:set_skill("force", lvl)
     self:set_skill("unarmed", lvl)
 
-    self:map_skill("sword", "sword")
+    self:skill_map("set", "sword", "sword")
 
     -- 复制玩家技能等级
     local skills = me:query_skills()
@@ -64,18 +64,18 @@ function mirror_base.make_mirror(self, me, diff)
     end
 
     -- 复制玩家技能映射（enable 关系）
-    local mappings = me:query_skill_map_list()
+    local mappings = me:skill_map("list")
     if mappings then
         for _, item in ipairs(mappings) do
-            self:map_skill(item.usage, item.mapped)
+            self:skill_map("set", item.usage, item.mapped)
         end
     end
 
     -- 复制玩家激发（备战斗招式）
-    local prepares = me:query_skill_prepare_list()
+    local prepares = me:skill_prepare("list")
     if prepares then
         for _, item in ipairs(prepares) do
-            self:prepare_skill(item.usage, item.prepared)
+            self:skill_prepare("set", item.usage, item.prepared)
         end
     end
 
@@ -96,32 +96,32 @@ function mirror_base.make_mirror(self, me, diff)
     self:set("level", me:query("level") * diff // 10)
 
     -- 附加属性（装备/技能带来的临时加成）
-    self:set_temp("apply/str", me:query_temp("apply/str") * diff // 10)
-    self:set_temp("apply/dex", me:query_temp("apply/dex") * diff // 10)
-    self:set_temp("apply/attack", me:query_temp("apply/attack") * diff // 10)
-    self:set_temp("apply/defense", me:query_temp("apply/defense") * diff // 10)
-    self:set_temp("apply/armor", me:query_temp("apply/armor") * diff // 10)
-    self:set_temp("apply/damage", me:query_temp("apply/damage") * diff // 10)
-    self:set_temp("apply/dodge", me:query_temp("apply/dodge") * diff // 10)
-    self:set_temp("apply/parry", me:query_temp("apply/parry") * diff // 10)
+    self:set("apply/str", me:query("apply/str", "T") * diff // 10, "T")
+    self:set("apply/dex", me:query("apply/dex", "T") * diff // 10, "T")
+    self:set("apply/attack", me:query("apply/attack", "T") * diff // 10, "T")
+    self:set("apply/defense", me:query("apply/defense", "T") * diff // 10, "T")
+    self:set("apply/armor", me:query("apply/armor", "T") * diff // 10, "T")
+    self:set("apply/damage", me:query("apply/damage", "T") * diff // 10, "T")
+    self:set("apply/dodge", me:query("apply/dodge", "T") * diff // 10, "T")
+    self:set("apply/parry", me:query("apply/parry", "T") * diff // 10, "T")
 
     -- 内功线：玩家没给映射时用基本内功兜底。原版在这里无条件改走专属
     -- 法术线（magic），简版没有法术线，玩家自己的内功映射原样保留——
     -- 玩家若把内功 enable 到高级内功上，镜像照用。
-    if self:query_skill_mapped("force") == "" then
-        self:map_skill("force", "force")
+    if self:skill_map("query", "force") == "" then
+        self:skill_map("set", "force", "force")
     end
 
     -- 检查轻功：基本轻功实在太烂（够不到基线的 1.5 倍），
     -- 就把轻功映射收回基本轻功，不再跟着玩家的烂映射走
     local limit = lvl + lvl // 2
     if self:query_skill("dodge") < limit then
-        self:map_skill("dodge", "dodge")
+        self:skill_map("set", "dodge", "dodge")
     end
 
     -- 检查招架：同理，收回到与武器同一套的基本招架路数
     if self:query_skill("parry") < limit then
-        self:map_skill("parry", "sword")
+        self:skill_map("set", "parry", "sword")
     end
 
     -- 简版不配武器：没有可加载的武器物品，空手迎战（原版会按最高
@@ -139,7 +139,7 @@ function mirror_base.chat_msg(self)
         return nil
     end
 
-    message_vision("$N身形晃了几晃，眨眼间就消失了！", self)
+    message("vision", "$N身形晃了几晃，眨眼间就消失了！", self)
     destruct(self)
     return nil
 end
@@ -170,12 +170,12 @@ function mirror_base.install(npc)
     -- 故装的是闭包。脚本自定义 die 则整个接管（如练功木人散架）。
     if npc.die == nil then
         npc.die = function(self)
-            local me = find("object", self:query_temp("last_damage_from"), 1)
+            local me = find("object", self:query("last_damage_from", "T"), 1)
             if me then
                 npc.reward_killer(self, me)
             end
 
-            message_vision("$N惨叫一声，化为灰烬。", self)
+            message("vision", "$N惨叫一声，化为灰烬。", self)
             destruct(self)
         end
     end

@@ -29,30 +29,56 @@ CMapping* CContainer::query_entire_temp_dbase() { return &_T; }
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"
 
-// self:set(key, value)  value 可以是 number 或 string
+// 末参作用域选袋："T" → 临时属性袋，nil/缺省 → 持久 dbase，其他值报错
+// （写错落点比写错值更难排查，宁可拒绝）
+static bool scope_is_temp(lua_State* L, int idx)
+{
+    if (lua_isnoneornil(L, idx)) return false;
+    const char* scope = luaL_checkstring(L, idx);
+    if (strcmp(scope, "T") == 0) return true;
+    luaL_error(L, "unknown dbase scope: %s", scope);  // 不返回
+    return false;
+}
+
+// self:set(key, value[, "T"])  value 可以是 number 或 string
 int l_set(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
 
     const char* key = luaL_checkstring(L, 2);
+    bool temp       = scope_is_temp(L, 4);
     // 注意：不能用 lua_isnumber —— 它对可转数字的字符串（如 "1"）也返回 true，
     // 会把 set("owner", "1") 错存成数字，导致 querystr("owner") 读不到。
     if (lua_type(L, 3) == LUA_TNUMBER) {
-        obj->set(key, (mapping_value_t)lua_tointeger(L, 3));
+        mapping_value_t v = (mapping_value_t)lua_tointeger(L, 3);
+        if (temp)
+            obj->set_temp(key, v);
+        else
+            obj->set(key, v);
     }
     else if (lua_isstring(L, 3)) {
-        obj->set(key, lua_tostring(L, 3));
+        const char* v = lua_tostring(L, 3);
+        if (temp)
+            obj->set_temp(key, v);
+        else
+            obj->set(key, v);
     }
     return 0;
 }
 
-// self:query(key) -> number
+// self:query(key[, "T"]) -> number
 // key 可以是字符串（dbase 键）或数字（C++ 枚举属性如 IS_ITEM=3）
 int l_query(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
+
+    if (scope_is_temp(L, 3)) {
+        const char* key = luaL_checkstring(L, 2);
+        lua_pushinteger(L, (lua_Integer)obj->query_temp(key));
+        return 1;
+    }
 
     if (lua_type(L, 2) == LUA_TNUMBER) {
         lua_pushinteger(L, obj->query_attr((int)lua_tointeger(L, 2)));
@@ -76,7 +102,7 @@ int l_querystr(lua_State* L)
     return 1;
 }
 
-// self:add(key, value)
+// self:add(key, value[, "T"])
 int l_add(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -84,18 +110,24 @@ int l_add(lua_State* L)
 
     const char* key     = luaL_checkstring(L, 2);
     mapping_value_t val = (mapping_value_t)luaL_checkinteger(L, 3);
-    obj->add(key, val);
+    if (scope_is_temp(L, 4))
+        obj->add_temp(key, val);
+    else
+        obj->add(key, val);
     return 0;
 }
 
-// self:del(key)
+// self:del(key[, "T"])
 int l_del(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
     if (!obj) return 0;
 
     const char* key = luaL_checkstring(L, 2);
-    obj->del(key);
+    if (scope_is_temp(L, 3))
+        obj->delete_temp(key);
+    else
+        obj->del(key);
     return 0;
 }
 
@@ -110,32 +142,6 @@ int l_set_name(lua_State* L)
 
     obj->set_name(name, id);
     return 0;
-}
-
-// self:set_temp(key, value)
-int l_set_temp(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
-    const char* key = luaL_checkstring(L, 2);
-    // 同上：lua_isnumber 会把 "1" 当数字，这里用 lua_type 精确区分
-    if (lua_type(L, 3) == LUA_TNUMBER)
-        obj->set_temp(key, (mapping_value_t)lua_tointeger(L, 3));
-    else if (lua_isstring(L, 3))
-        obj->set_temp(key, lua_tostring(L, 3));
-    return 0;
-}
-
-// self:query_temp(key) -> number
-int l_query_temp(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
-    const char* key = luaL_checkstring(L, 2);
-    lua_pushinteger(L, (lua_Integer)obj->query_temp(key));
-    return 1;
 }
 
 // ---- 持久 dbase 分派 self:dbase(action, key[, value]) ----
@@ -373,25 +379,4 @@ int l_id(lua_State* L)
     const char* n = obj->id(flag);
     lua_pushstring(L, n ? n : "");
     return 1;
-}
-
-// self:add_temp(key, value)
-int l_add_temp(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    const char* key     = luaL_checkstring(L, 2);
-    mapping_value_t val = (mapping_value_t)luaL_checkinteger(L, 3);
-    obj->add_temp(key, val);
-    return 0;
-}
-
-// self:delete_temp(key)
-int l_delete_temp(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    const char* key = luaL_checkstring(L, 2);
-    obj->delete_temp(key);
-    return 0;
 }

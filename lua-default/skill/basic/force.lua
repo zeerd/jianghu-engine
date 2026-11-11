@@ -67,7 +67,7 @@ return {
             return damage_bonus
         end
 
-        damage = damage - victim:query_temp("apply/armor_vs_force")
+        damage = damage - victim:query("apply/armor_vs_force", "T")
 
         if damage_bonus + damage < 0 then
             damage_bonus = 0
@@ -104,7 +104,7 @@ return {
         me:add("mp", -n)
         me:receive_healing("hp", q)
 
-        message_vision("$N深深吸了几口气，脸色看起来好多了。", me)
+        message("vision", "$N深深吸了几口气，脸色看起来好多了。", me)
 
         if me:is_fighting() then
             me:start_busy(1)

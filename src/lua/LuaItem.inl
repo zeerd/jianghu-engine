@@ -507,19 +507,6 @@ void CLuaItemT<T>::init()
     T::init();
 }
 
-// 供 Lua 调用的装备动作包装
-template <typename T>
-int CLuaItemT<T>::lua_do_wield()
-{
-    return call_base_do_wield(has_do_wield<T>());
-}
-
-template <typename T>
-int CLuaItemT<T>::lua_do_un_wield()
-{
-    return call_base_do_unwield(has_do_wield<T>());
-}
-
 // 供 Lua 调用的默认动作（绕过 Lua 重写，直接调用基类 Do_Action）
 template <typename T>
 int CLuaItemT<T>::lua_do_action_base(int act, CChar* me)

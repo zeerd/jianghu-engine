@@ -5,13 +5,14 @@
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <regex>
 #include <sstream>
 #include <thread>
 
 #include "client_core.h"
 #include "game_state.h"
 
-bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
+bool CScenarioRunner::eval_cond(const std::string& cond, std::string& detail)
 {
     std::string c = trim(cond);
     if (c.empty()) {
@@ -19,11 +20,12 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
         return false;
     }
 
-    size_t sp         = c.find_first_of(" \t");
-    std::string key   = lower_ascii((sp == std::string::npos) ? c : c.substr(0, sp));
-    std::string val   = (sp == std::string::npos) ? "" : trim(c.substr(sp + 1));
+    size_t sp = c.find_first_of(" \t");
+    std::string key
+        = lower_ascii((sp == std::string::npos) ? c : c.substr(0, sp));
+    std::string val = (sp == std::string::npos) ? "" : trim(c.substr(sp + 1));
 
-    GameState &st = core_.state();
+    GameState& st = core_.state();
 
     if (key == "always") return true;
     if (key == "login") return st.is_logged_in() && st.player_id() != 0;
@@ -64,8 +66,8 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
             return false;
         }
         bool found = false;
-        for (const auto &line : core_.recent_output(2000)) {
-            for (const auto &needle : needles) {
+        for (const auto& line : core_.recent_output(2000)) {
+            for (const auto& needle : needles) {
                 if (line.find(needle) != std::string::npos) {
                     found = true;
                     break;
@@ -78,9 +80,9 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
     }
 
     if (key == "object") {
-        for (const auto &[container, objs] : st.room_objects()) {
+        for (const auto& [container, objs] : st.room_objects()) {
             (void)container;
-            for (const auto &o : objs) {
+            for (const auto& o : objs) {
                 if (o.name == val || o.internal_id == val
                     || o.name.find(val) != std::string::npos) {
                     return true;
@@ -91,7 +93,7 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
     }
 
     if (key == "item") {
-        for (const auto &o : st.inventory()) {
+        for (const auto& o : st.inventory()) {
             if (o.name == val || o.internal_id == val
                 || o.name.find(val) != std::string::npos) {
                 return true;
@@ -102,9 +104,10 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
 
     if (key == "attr") return eval_attr_cond(val, detail);
 
-    // wield <物品> <槽位>：等待某物品真的被装备到指定槽位（如 wield 铁剑 右手）。
-    // 只断言「回执文本提到装备」是不够的——回执不说明落在哪个槽位；
-    // 物品名子串匹配（同 item/object），槽位按 .info 的显示名比对，也接受数字槽位。
+    // wield <物品> <槽位>：等待某物品真的被装备到指定槽位（如 wield 铁剑
+    // 右手）。 只断言「回执文本提到装备」是不够的——回执不说明落在哪个槽位；
+    // 物品名子串匹配（同 item/object），槽位按 .info
+    // 的显示名比对，也接受数字槽位。
     if (key == "wield") {
         size_t slot_pos = val.find_first_of(" \t");
         if (slot_pos == std::string::npos) {
@@ -113,11 +116,10 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
         }
         std::string item_name = trim(val.substr(0, slot_pos));
         std::string slot      = trim(val.substr(slot_pos + 1));
-        for (const auto &o : st.inventory()) {
+        for (const auto& o : st.inventory()) {
             if (o.wield == 0) continue;  // 0 = 未装备，槽位名只会是「未知」
-            bool name_hit
-                = (o.name == item_name || o.internal_id == item_name
-                   || o.name.find(item_name) != std::string::npos);
+            bool name_hit = (o.name == item_name || o.internal_id == item_name
+                             || o.name.find(item_name) != std::string::npos);
             if (!name_hit) continue;
             if (wield_position_name(o.wield) == slot
                 || std::to_string(o.wield) == slot) {
@@ -134,10 +136,10 @@ bool CScenarioRunner::eval_cond(const std::string &cond, std::string &detail)
 // 取属性当前值。属性名单只此一份：eval_attr_cond 的判定与 wait_cond 的超时
 // 诊断都读它，避免两处各写一份而漂移。
 // 之所以需要它：剧本失败时只回显条件、不回显当前值，就没法区分
-//「状态还没到位」与「状态变了却没同步到客户端」——后者才是真 bug。
-bool CScenarioRunner::attr_value(const std::string &name, long long &out) const
+// 「状态还没到位」与「状态变了却没同步到客户端」——后者才是真 bug。
+bool CScenarioRunner::attr_value(const std::string& name, long long& out) const
 {
-    const PlayerAttr &a = core_.state().player_attr();
+    const PlayerAttr& a = core_.state().player_attr();
     if (name == "exp")
         out = a.exp;
     else if (name == "combat_exp")
@@ -156,13 +158,23 @@ bool CScenarioRunner::attr_value(const std::string &name, long long &out) const
         out = a.level;
     else if (name == "shen")
         out = a.shen;
+    else if (name == "str")  // RTNINFO E=：四维含 apply/* 装备修正与技能加成
+        out = a.str;
+    else if (name == "con")  // RTNINFO F=
+        out = a.con;
+    else if (name == "int")  // RTNINFO G=
+        out = a.intel;
+    else if (name == "dex")  // RTNINFO H=
+        out = a.dex;
+    else if (name == "damage")  // RTNINFO J=：apply/damage 临时修正
+        out = a.damage;
     else
         return false;
     return true;
 }
 
 // 把 `attr <name> <op> <value>` 中该属性的当前值拼成 "<name>=<值>"
-std::string CScenarioRunner::attr_snapshot(const std::string &cond) const
+std::string CScenarioRunner::attr_snapshot(const std::string& cond) const
 {
     static const std::string prefix = "attr ";
     if (cond.compare(0, prefix.size(), prefix) != 0) return "";
@@ -176,8 +188,8 @@ std::string CScenarioRunner::attr_snapshot(const std::string &cond) const
     return name + "=" + std::to_string(value);
 }
 
-bool CScenarioRunner::eval_attr_cond(const std::string &val,
-                                     std::string &detail)
+bool CScenarioRunner::eval_attr_cond(const std::string& val,
+                                     std::string& detail)
 {
     std::istringstream iss(val);
     std::string name, op;
@@ -202,13 +214,13 @@ bool CScenarioRunner::eval_attr_cond(const std::string &val,
     return false;
 }
 
-bool CScenarioRunner::wait_cond(const std::string &cond, int timeout_ms)
+bool CScenarioRunner::wait_cond(const std::string& cond, int timeout_ms)
 {
     // notext 语义相反：全程监视"不该出现的文本"，一旦出现立即失败，
     // 坚持到期满无出现才算通过；其余条件为"等到出现"。
-    std::string c     = trim(cond);
-    size_t sp         = c.find_first_of(" \t");
-    std::string token = (sp == std::string::npos) ? c : c.substr(0, sp);
+    std::string c           = trim(cond);
+    size_t sp               = c.find_first_of(" \t");
+    std::string token       = (sp == std::string::npos) ? c : c.substr(0, sp);
     const bool watch_absent = (lower_ascii(token) == "notext");
 
     auto deadline = std::chrono::steady_clock::now()
@@ -240,7 +252,7 @@ bool CScenarioRunner::wait_cond(const std::string &cond, int timeout_ms)
             if (std::chrono::steady_clock::now() >= deadline) {
                 // 附带当前值：属性类断言失败时，只给条件等于没给信息——
                 // 必须能看出是「还没到位」还是「变了没同步过来」。
-                std::string why = "timeout waiting for '" + cond + "'";
+                std::string why        = "timeout waiting for '" + cond + "'";
                 const std::string snap = attr_snapshot(c);
                 if (!snap.empty()) why += "（当前 " + snap + "）";
                 return fail(why);
@@ -250,7 +262,7 @@ bool CScenarioRunner::wait_cond(const std::string &cond, int timeout_ms)
     }
 }
 
-bool CScenarioRunner::run_step(const Step &step)
+bool CScenarioRunner::run_step(const Step& step)
 {
     echo_step(step);
 
@@ -311,7 +323,8 @@ bool CScenarioRunner::run_step(const Step &step)
 
     if (verb == "set") {
         size_t sp = args.find_first_of(" \t");
-        if (sp == std::string::npos) return fail("set needs: set <name> <value>");
+        if (sp == std::string::npos)
+            return fail("set needs: set <name> <value>");
         std::string name = trim(args.substr(0, sp));
         vars_[name]      = subst(trim(args.substr(sp + 1)));
         save_vars();
@@ -345,9 +358,10 @@ bool CScenarioRunner::run_step(const Step &step)
 
         if (verb == "filedelete") {
             if (!scratch_ok(a)) {
-                return fail("file write refused, destination must be under "
-                            "test_tmp/ or tmp/: "
-                            + a);
+                return fail(
+                    "file write refused, destination must be under "
+                    "test_tmp/ or tmp/: "
+                    + a);
             }
             std::error_code ec;
             if (!std::filesystem::exists(a)) {
@@ -368,9 +382,10 @@ bool CScenarioRunner::run_step(const Step &step)
         std::string src = a.substr(0, sp);
         std::string dst = trim(a.substr(sp + 1));
         if (!scratch_ok(dst)) {
-            return fail("file write refused, destination must be under "
-                        "test_tmp/ or tmp/: "
-                        + dst);
+            return fail(
+                "file write refused, destination must be under "
+                "test_tmp/ or tmp/: "
+                + dst);
         }
 
         std::error_code ec;
@@ -406,13 +421,13 @@ bool CScenarioRunner::run_step(const Step &step)
     return fail("unknown step verb: " + verb);
 }
 
-bool CScenarioRunner::run_menu_step(const std::string &want)
+bool CScenarioRunner::run_menu_step(const std::string& want)
 {
     if (want.empty()) return fail("menu needs an index or text");
     if (!core_.state().in_menu()) {
         return fail("menu selection attempted but no menu is open");
     }
-    const auto &items = core_.state().menu_items();
+    const auto& items = core_.state().menu_items();
     int idx           = -1;
     if (all_digits(want)) {
         idx = std::stoi(want) - 1;
@@ -432,23 +447,55 @@ bool CScenarioRunner::run_menu_step(const std::string &want)
     return true;
 }
 
-bool CScenarioRunner::run_capture_step(const std::string &args)
+bool CScenarioRunner::run_capture_step(const std::string& args)
 {
     size_t p = args.rfind(" as ");
     if (p == std::string::npos) {
-        return fail("capture needs: capture <marker> as <var>");
+        return fail("capture needs: capture <正则> as <var>");
     }
     std::string marker = trim(args.substr(0, p));
     std::string var    = trim(args.substr(p + 4));
     if (marker.empty() || var.empty()) {
-        return fail("capture needs: capture <marker> as <var>");
+        return fail("capture needs: capture <正则> as <var>");
+    }
+
+    // marker 按 ECMAScript 正则解释（design §7 的 capture 契约）：
+    //   含捕获组 → 取首个实际匹配组的文本（抓句子这类非数字变量）；
+    //   无捕获组 → 取匹配位置后的第一段数字（账号 id 等数字用法）。
+    // 非法正则是剧本笔误，立即失败不静默降级成字面量。
+    std::regex re;
+    try {
+        re = std::regex(marker, std::regex::ECMAScript);
+    } catch (const std::regex_error&) {
+        return fail("capture invalid regex: " + marker);
     }
 
     auto lines = core_.recent_output(2000);
     for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
-        size_t m = it->find(marker);
-        if (m == std::string::npos) continue;
-        size_t pos = m + marker.size();
+        std::smatch m;
+        if (!std::regex_search(*it, m, re)) continue;
+
+        if (re.mark_count() > 0) {
+            bool captured = false;
+            for (size_t g = 1; g < m.size(); ++g) {
+                if (m[g].matched && !m[g].str().empty()) {
+                    vars_[var] = m[g].str();
+                    captured   = true;
+                    break;
+                }
+            }
+            if (captured) {
+                save_vars();
+                if (opts_.echo) {
+                    core_.ui().post_raw("[script] captured " + var + "="
+                                        + vars_[var] + "\n");
+                }
+                return true;
+            }
+            continue;  // 组存在但本行没匹配上，试下一行
+        }
+
+        size_t pos = static_cast<size_t>(m.position(0) + m.length(0));
         while (pos < it->size()
                && !std::isdigit(static_cast<unsigned char>((*it)[pos]))) {
             ++pos;
@@ -463,7 +510,7 @@ bool CScenarioRunner::run_capture_step(const std::string &args)
             save_vars();
             if (opts_.echo) {
                 core_.ui().post_raw("[script] captured " + var + "="
-                                        + vars_[var] + "\n");
+                                    + vars_[var] + "\n");
             }
             return true;
         }

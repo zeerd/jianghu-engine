@@ -12,9 +12,9 @@ return {
 
     create = function(self)
         self:set_name("山脚林间空地")
-        self:add_npc("sample_road_rogue")
+        self:add_object("npc", "sample_road_rogue")
         -- 双向开门：山脚那一侧的门由 room/sample_mountain_foot.lua 对称声明
-        self:add_door("青云山山脚", "青云山山脚", "山脚林间空地")
+        self:add_object("door", "青云山山脚", "青云山山脚", "山脚林间空地")
         self:set(
             "long",
             "山路在此分出一条岔口，林木掩着一片空地，地上散着折断的草茎"

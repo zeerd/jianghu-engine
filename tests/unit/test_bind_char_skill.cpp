@@ -26,10 +26,33 @@ TEST_F(BindCharSkillTest, SetQuerySkill)
 
 TEST_F(BindCharSkillTest, MiniSkill)
 {
-    ch.set_skill("unarmed", 30);
+    // 契约：最低武功等级（前导 index.mini_skill 组合 query_skills）；
+    // 无技能回 0（吸收原 CharSkillTest.MiniSkill_None）
     lua_bind_push_object(L, &ch);
-    // 契约：最低武功等级（单技能时即该技能）
-    EXPECT_EQ(30, CallInt(l_mini_skill, 1));
+    int k = call_method(L, "mini_skill", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_EQ(0, lua_tointeger(L, -1));
+    lua_pop(L, k);
+
+    ch.set_skill("unarmed", 50);
+    ch.set_skill("dodge", 10);
+    ch.set_skill("force", 30);
+    lua_bind_push_object(L, &ch);
+    k = call_method(L, "mini_skill", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_EQ(10, lua_tointeger(L, -1)) << "多技能取最小";
+    lua_pop(L, k);
+}
+
+TEST_F(BindCharSkillTest, ClearCondition)
+{
+    // 契约：前导 index.clear_condition 清持久 + 临时 condition 整键
+    ch.apply_condition("poison", 5, 10);
+    ASSERT_GT(ch.query_condition("poison"), 0);
+
+    lua_bind_push_object(L, &ch);
+    EXPECT_EQ(0, call_method(L, "clear_condition", 1));
+    EXPECT_EQ(ch.query_condition("poison"), 0);
 }
 
 TEST_F(BindCharSkillTest, DeleteSkill)
@@ -65,23 +88,27 @@ TEST_F(BindCharSkillTest, MapAndQueryMapped)
     ch.set_skill("unarmed", 10);
     ch.set_skill("parry", 5);  // target must be learned
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "set");
     lua_pushstring(L, "unarmed");
     lua_pushstring(L, "parry");
-    CallVoid(l_map_skill, 3);
+    CallVoid(l_skill_map, 4);
 
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "query");
     lua_pushstring(L, "unarmed");
     std::string s;
-    CallStr(l_query_skill_mapped, 2, s);
+    CallStr(l_skill_map, 3, s);
     EXPECT_EQ("parry", s);
 
-    // clear_map 后映射清空（与上面的写入成对，clear 才有契约意义）
+    // clear 后映射清空（与上面的写入成对，clear 才有契约意义）
     lua_bind_push_object(L, &ch);
-    EXPECT_EQ(0, CallRetCount(l_clear_skill_map, 1));
+    lua_pushstring(L, "clear");
+    EXPECT_EQ(0, CallRetCount(l_skill_map, 2));
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "query");
     lua_pushstring(L, "unarmed");
     s = "keep";
-    CallStr(l_query_skill_mapped, 2, s);
+    CallStr(l_skill_map, 3, s);
     EXPECT_TRUE(s.empty());
 }
 
@@ -107,14 +134,17 @@ TEST_F(BindCharSkillTest, MapListAndPrepareList)
     ch.map_skill("unarmed", "parry");
     ch.prepare_skill("blade", "sword");
     lua_bind_push_object(L, &ch);
-    EXPECT_GE(CallRetCount(l_query_skill_map_list, 1), 1);
+    lua_pushstring(L, "list");
+    EXPECT_GE(CallRetCount(l_skill_map, 2), 1);
     lua_bind_push_object(L, &ch);
-    EXPECT_GE(CallRetCount(l_query_skill_prepare_list, 1), 1);
+    lua_pushstring(L, "list");
+    EXPECT_GE(CallRetCount(l_skill_prepare, 2), 1);
 
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "query");
     lua_pushstring(L, "blade");
     std::string s;
-    CallStr(l_query_skill_prepared, 2, s);
+    CallStr(l_skill_prepare, 3, s);
 }
 
 TEST_F(BindCharSkillTest, IncAndImproveSkill)
@@ -140,30 +170,46 @@ TEST_F(BindCharSkillTest, PrepareSkillAndClears)
     ch.set_skill("cuff", 10);
     ch.set_skill("strike", 10);
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "set");
     lua_pushstring(L, "cuff");
     lua_pushstring(L, "strike");
-    EXPECT_EQ(0, CallRetCount(l_prepare_skill, 3));
+    EXPECT_EQ(0, CallRetCount(l_skill_prepare, 4));
 
     // 契约：prepare 写入可读回
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "query");
     lua_pushstring(L, "cuff");
     std::string s;
-    EXPECT_TRUE(CallStr(l_query_skill_prepared, 2, s));
+    EXPECT_TRUE(CallStr(l_skill_prepare, 3, s));
     EXPECT_EQ("strike", s);
 
-    // clear_prepare 后读回空串
+    // clear 后读回空串
     lua_bind_push_object(L, &ch);
-    EXPECT_EQ(0, CallRetCount(l_clear_skill_prepare, 1));
+    lua_pushstring(L, "clear");
+    EXPECT_EQ(0, CallRetCount(l_skill_prepare, 2));
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "query");
     lua_pushstring(L, "cuff");
     s = "keep";
-    CallStr(l_query_skill_prepared, 2, s);
+    CallStr(l_skill_prepare, 3, s);
     EXPECT_TRUE(s.empty());
 
     // clear_skill 清空已学技能表
     lua_bind_push_object(L, &ch);
     EXPECT_EQ(0, CallRetCount(l_clear_skill, 1));
     EXPECT_EQ(0, ch.query_skills()->get_count());
+}
+
+// 未登记 ACTION 是脚本写错，与 dbase/load 的未知 action 同律报错
+TEST_F(BindCharSkillTest, UnknownActionErrors)
+{
+    lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "nope");
+    EXPECT_EQ(-1, call(l_skill_map, 2));
+
+    lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "nope");
+    EXPECT_EQ(-1, call(l_skill_prepare, 2));
 }
 
 TEST_F(BindCharSkillTest, SkillNeedPoints)

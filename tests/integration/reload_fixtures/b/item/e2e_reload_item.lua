@@ -14,7 +14,7 @@ return {
     end,
 
     do_use = function(self, me, target)
-        message_vision("$N服下一剂重载药，【物品乙】药力发作。", me)
+        message("vision", "$N服下一剂重载药，【物品乙】药力发作。", me)
         return 1
     end,
 }

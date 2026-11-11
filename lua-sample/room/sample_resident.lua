@@ -20,11 +20,11 @@ return resident_base.install({
 
     create = function(self)
         self:set_name("青云城住宅区")
-        self:add_door("青云山山脚", "青云山山脚", "青云城住宅区")
+        self:add_object("door", "青云山山脚", "青云山山脚", "青云城住宅区")
         self:set("resident", "青云")
         self:set("no_fight", 1)
 
-        self:add_npc("sample_marriage", 1)
+        self:add_object("npc", "sample_marriage", { x = 1 })
 
         self:set(
             "long",

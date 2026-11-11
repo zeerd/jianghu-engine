@@ -2,7 +2,7 @@
 #
 # 覆盖（原认领段重开，FightRoom 12 条收益）：
 #   lua 侧建房链（sample_arena_master.lua do_talk）：
-#     l_is_fight_room（验型）→ l_can_join（验名额）→ l_set_single（单人比试）
+#     query(IS_FIGHTROOM)（验型）→ l_can_join（验名额）→ l_set_single（单人比试）
 #     → l_join_team ×2（双方入队）→ l_begin_fight（开打）
 #   战况查询（战报四连，全部私发给挑战者）：
 #     l_get_fight_team_num（A/B 两队人数，内含 C++ get_team_count）
@@ -22,7 +22,7 @@
 #   /ask 比武 → 私发战报「演武比试开打…」（say 第二参收件人，§8.6①）
 #   入队即置战斗态 → wait battle
 #   教头 6 心跳拍后点到为止 → 房间版「点到为止」（battle 房内只有本道，
-#     且句含教头自称）→ End_Fight 播报「演武比试结束了。」（该句只有
+#     且句含教头自称）→ end_fight 播报「演武比试结束了。」（该句只有
 #     收比武房会发，全服唯一触发源是本段）
 #   wait battle_end + wait room 演武场（end_fight 把房内角色移回环境）
 #
@@ -55,7 +55,7 @@ wait battle_end timeout=10000
 wait room 山脚演武场 timeout=10000
 cmd /t 0
 
-# --- 指教：引擎比试绑定一把梭（Do_BiShi 建房 + 入队 + 开打，阈值血线收场） -----
+# --- 指教：引擎比试绑定一把梭（do_bishi 建房 + 入队 + 开打，阈值血线收场） -----
 # 排在上一段收场之后：教头已回演武场、双方都脱战，才约得了第二场
 cmd /t yan wu
 clear
@@ -63,7 +63,7 @@ cmd /ask 指教
 # 私发的应答与切房推送同时在途：先收战斗态，再收那句应答（都进同一缓冲）
 wait battle timeout=15000
 wait text 接招吧 timeout=10000
-# 比试房名就是 Do_BiShi 的 name 参数，收场播报由 end_fight 拼「<房名>结束了。」
+# 比试房名就是 do_bishi 的 name 参数，收场播报由 end_fight 拼「<房名>结束了。」
 # ——与上一段的「演武比试结束了」分属两间房，互不误认
 wait text 演武指教结束了 timeout=60000
 wait battle_end timeout=15000

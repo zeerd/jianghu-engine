@@ -13,7 +13,7 @@
 
 // Check if a command string has unresolved placeholders ($2, $3, etc.)
 static std::vector<std::string> find_unresolved_placeholders(
-    const std::string &cmd)
+    const std::string& cmd)
 {
     std::vector<std::string> result;
     for (size_t i = 0; i < cmd.size(); ++i) {
@@ -35,8 +35,8 @@ static std::vector<std::string> find_unresolved_placeholders(
 
 // Replace unresolved placeholders with user-provided values
 static std::string replace_placeholders(
-    std::string cmd, const std::vector<std::string> &placeholders,
-    const std::vector<std::string> &values)
+    std::string cmd, const std::vector<std::string>& placeholders,
+    const std::vector<std::string>& values)
 {
     for (size_t i = 0; i < placeholders.size() && i < values.size(); ++i) {
         size_t pos = 0;
@@ -48,7 +48,7 @@ static std::string replace_placeholders(
     return cmd;
 }
 
-static std::string resolve_menu_cmd(const std::string &raw_cmd, int64_t npc_id)
+static std::string resolve_menu_cmd(const std::string& raw_cmd, int64_t npc_id)
 {
     // Strip $ format prefix and replace $1 with NPC ID
     std::string result;
@@ -69,7 +69,7 @@ static std::string resolve_menu_cmd(const std::string &raw_cmd, int64_t npc_id)
     return result;
 }
 
-std::vector<std::string> GameState::handle_question(const GameMessage &msg)
+std::vector<std::string> GameState::handle_question(const GameMessage& msg)
 {
     std::vector<std::string> out;
     ObjectID npc_id = msg.get_int("N");
@@ -143,7 +143,7 @@ std::string GameState::select_menu_item(int index)
         return "";
     }
 
-    const auto &item = menu_state_.items[static_cast<size_t>(index)];
+    const auto& item = menu_state_.items[static_cast<size_t>(index)];
     std::string cmd  = resolve_menu_cmd(item.raw_cmd, menu_state_.npc_id);
 
     // Check for unresolved placeholders ($2, $3, etc.)
@@ -174,7 +174,7 @@ std::string GameState::select_menu_item(int index)
 // Returns the completed command string, or empty if still waiting for more
 // input
 std::string GameState::complete_pending_menu_command(
-    const std::string &user_input)
+    const std::string& user_input)
 {
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -184,7 +184,7 @@ std::string GameState::complete_pending_menu_command(
 
     // 去掉首尾空白后再切分
     std::string trimmed = user_input;
-    size_t first = trimmed.find_first_not_of(" \t\r\n");
+    size_t first        = trimmed.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) return "";  // 空输入，继续等待
     size_t last = trimmed.find_last_not_of(" \t\r\n");
     trimmed     = trimmed.substr(first, last - first + 1);

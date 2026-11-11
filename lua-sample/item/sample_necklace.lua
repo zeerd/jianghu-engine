@@ -18,6 +18,6 @@ return {
         self:set("wear_msg", "$N戴上一条$n。")
         self:set("remove_msg", "$N取下颈间的$n。")
 
-        self:set("apply/per", 1)
+        self:set("apply/per", 3)
     end,
 }

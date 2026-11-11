@@ -669,7 +669,7 @@ TEST_F(FBRoomBindTest, LoadFbRoomBindReturnsRoom)
     lua_pop(L, k);
 }
 
-// self:Begin_FB(...) —— 正向路径写入状态键（原测试只覆盖守卫）
+// self:begin_fb(...) —— 正向路径写入状态键（原测试只覆盖守卫）
 TEST_F(FBRoomBindTest, BeginFbBindWritesState)
 {
     CFB* fb = own(new CFB());

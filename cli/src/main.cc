@@ -12,37 +12,37 @@ namespace {
 
 struct CliOptions {
     Config cfg;
-    bool show_help          = false;
-    int exit_code           = 0;
+    bool show_help = false;
+    int exit_code  = 0;
     std::string script;
     std::string report;
     std::string vars;
     int step_timeout_ms = 15000;
 };
 
-void print_help(const char *program)
+void print_help(const char* program)
 {
-    std::cout
-        << "Usage: " << program
-        << " [-h] [--dbg] [--config file] [--script file]\n"
-           "\n"
-           "  -h, --help                 显示帮助\n"
-           "  -d, --dbg                  打开调试输出\n"
-           "  -c, --config <file>        指定配置文件\n"
-           "      --script <file>        无头剧本模式（不进入交互）\n"
-           "      --report <file>        剧本结果报告输出路径\n"
-           "      --vars <file>          剧本变量文件（key=value）\n"
-           "      --step-timeout <ms>    单个 wait/assert 的超时（默认 15000）\n";
+    std::cout << "Usage: " << program
+              << " [-h] [--dbg] [--config file] [--script file]\n"
+                 "\n"
+                 "  -h, --help                 显示帮助\n"
+                 "  -d, --dbg                  打开调试输出\n"
+                 "  -c, --config <file>        指定配置文件\n"
+                 "      --script <file>        无头剧本模式（不进入交互）\n"
+                 "      --report <file>        剧本结果报告输出路径\n"
+                 "      --vars <file>          剧本变量文件（key=value）\n"
+                 "      --step-timeout <ms>    单个 wait/assert 的超时（默认 "
+                 "15000）\n";
 }
 
 /// 解析命令行参数。返回 0 继续运行，1 应直接退出。
-int parse_args(int argc, char *argv[], CliOptions &opt)
+int parse_args(int argc, char* argv[], CliOptions& opt)
 {
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
 
-        auto need_value = [&](const std::string &name,
-                              std::string &out) -> bool {
+        auto need_value
+            = [&](const std::string& name, std::string& out) -> bool {
             if (i + 1 >= argc) {
                 std::cerr << "Missing value for " << name << "\n";
                 opt.exit_code = 1;
@@ -129,7 +129,7 @@ int parse_args(int argc, char *argv[], CliOptions &opt)
 
 }  // namespace
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     init_console();
 
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
         // 交互模式
         Application app(opt.cfg);
         return app.run();
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
         std::cerr << "Fatal error: " << e.what() << "\n";
         return 1;
     }

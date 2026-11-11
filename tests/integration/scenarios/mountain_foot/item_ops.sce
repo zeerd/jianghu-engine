@@ -9,6 +9,9 @@
 #   · 卸下回执「你将铁剑插回剑鞘。」是 message_vision 的本人版
 #     （模板 $N将手中的$n插回剑鞘。→ $N 渲染为「你」），房间版带名字，
 #     同房别的账号不会误满足；
+#   · 属性复原：铁剑 apply/str +1 / apply/damage +10 随卸下撤销——str 回
+#     注册基线 24；damage ≤5（左手匕首 apply/damage 5 仍在，left_hand.sce
+#     收尾把它装回左手参战，铁剑的 +10 必须消失）；
 #   · 丢弃回执「你向山脚茶棚里丢下数量1的酒壶。」同为本人版，且茶棚只本道
 #     会来（其余各道不去茶棚），无串扰；
 #   · 酒壶带 value=50，不会走 do_drop 里「并不值钱」的销毁分支，回执唯一。
@@ -23,6 +26,8 @@ cmd /t sample_sword_basic
 clear
 cmd /unwield
 wait text 你将手中的铁剑插回剑鞘 timeout=10000
+wait attr str == 24 timeout=10000
+wait attr damage <= 5 timeout=10000
 
 cmd /t cha hu
 clear

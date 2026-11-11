@@ -1,5 +1,5 @@
 // test_bind_room.cpp — binds in room/Room.cpp (+ RoomMgr.cpp)
-// 箱子/出口自身的绑定（l_unlocked/l_locked/l_add_object/l_door_bind）见
+// 箱子/出口自身的绑定（l_unlocked/l_locked/l_add_object）见
 // test_box_door.cpp
 #include "test_bind_common.h"
 #include "Room.h"
@@ -17,12 +17,13 @@ protected:
 TEST_F(BindRoomTest, AddDoorAndExits)
 {
     lua_bind_push_object(L, &room);
+    lua_pushstring(L, "door");
     lua_pushstring(L, "north");
     lua_pushstring(L, "room/next1");
     lua_pushstring(L, "south");
     lua_pushstring(L, "N");
-    int k = call(l_add_door, 5);
-    ASSERT_EQ(1, k);  // add_door 恒定把新建的出口对象交还脚本
+    int k = call(l_add_object, 6);
+    ASSERT_EQ(1, k);  // kind=door 恒定把新建的出口对象交还脚本
     ASSERT_EQ(LUA_TUSERDATA, lua_type(L, -1));
     CMainObject* door = lua_bind_check_object(L, -1);
     ASSERT_NE(nullptr, door);
@@ -36,7 +37,7 @@ TEST_F(BindRoomTest, AddDoorAndExits)
     if (k >= 0) lua_pop(L, k);
 }
 
-// 脚本侧以 self:PresentDoor(id) / self:room_exits() 形态调用，两者必须在
+// 脚本侧以 self:present_door(id) / self:room_exits() 形态调用，两者必须在
 // object_methods 注册；直接调 C 函数的用例绕过了注册表，抓不到缺失。
 TEST_F(BindRoomTest, PresentDoorAndRoomExitsMethods)
 {
@@ -46,9 +47,9 @@ TEST_F(BindRoomTest, PresentDoorAndRoomExitsMethods)
     lua_setglobal(L, "__room");
     ASSERT_EQ(LUA_OK,
               luaL_dostring(L,
-                            "__byid = __room:PresentDoor('north')\n"
-                            "__bydir = __room:PresentDoor('N')\n"
-                            "__miss = __room:PresentDoor('no_such_door')\n"
+                            "__byid = __room:present_door('north')\n"
+                            "__bydir = __room:present_door('N')\n"
+                            "__miss = __room:present_door('no_such_door')\n"
                             "__exits = __room:room_exits()\n"));
 
     lua_getglobal(L, "__byid");
@@ -95,15 +96,10 @@ TEST_F(BindRoomTest, RemoveAllDoors)
     EXPECT_EQ(0u, room.query_exits()->size());
 }
 
-// door_bind / locked / unlocked / add_object need CBox/CDoor -> guard branch
+// locked / unlocked / add_object need CBox -> guard branch
 TEST_F(BindRoomTest, BoxAndDoorGuards)
 {
-    lua_bind_push_object(L, &room);  // CRoom is not CDoor/CBox
-    lua_pushstring(L, "room/x");
-    lua_pushstring(L, "y");
-    EXPECT_EQ(0, CallRetCount(l_door_bind, 3));
-
-    lua_bind_push_object(L, &room);
+    lua_bind_push_object(L, &room);  // CRoom is not CBox
     lua_pushstring(L, "s");
     lua_pushinteger(L, 10);
     EXPECT_EQ(0, CallRetCount(l_locked, 3));
@@ -112,36 +108,48 @@ TEST_F(BindRoomTest, BoxAndDoorGuards)
     EXPECT_EQ(0, CallRetCount(l_unlocked, 1));
 
     lua_bind_push_object(L, &room);
+    lua_pushstring(L, "object");
     lua_pushstring(L, "obj");
-    EXPECT_EQ(0, CallRetCount(l_add_object, 2));
+    EXPECT_EQ(0, CallRetCount(l_add_object, 3));
 }
 
-// add_item / add_box need an item factory; add_npc needs a real load_npc
-// (not mockable here) so it is covered only via its type guard below.
+// item / box 需要物件工厂；npc 需要真实 load_npc
+// （此处无法 mock），故仅由下方类型守卫覆盖。
 TEST_F(BindRoomTest, AddItemBoxFactory)
 {
     CMockItemMgr mgr;
     ItemFactory f(&mgr);
     lua_bind_push_object(L, &room);
+    lua_pushstring(L, "item");
     lua_pushstring(L, "sword");
-    int k = call(l_add_item, 2);
+    int k = call(l_add_object, 3);
     EXPECT_GE(k, 0);
     if (k >= 0) lua_pop(L, k);
 
     lua_bind_push_object(L, &room);
     lua_pushstring(L, "box");
-    k = call(l_add_box, 2);
+    k = call(l_add_object, 2);
     EXPECT_GE(k, 0);
     if (k >= 0) lua_pop(L, k);
 }
 
-// add_npc guard: self not a CRoom -> returns 0 (never calls load_npc)
+// add_object(kind="npc") guard: self not a CRoom -> returns 0（不触发
+// load_npc）
 TEST_F(BindRoomTest, AddNpcGuard)
 {
     CChar ch;
     lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "npc");
     lua_pushstring(L, "mob");
-    EXPECT_EQ(0, CallRetCount(l_add_npc, 2));
+    EXPECT_EQ(0, CallRetCount(l_add_object, 3));
+}
+
+// 未登记的 KIND 是脚本写错，与 dbase/load 的未知 action 同律报错
+TEST_F(BindRoomTest, AddUnknownKindErrors)
+{
+    lua_bind_push_object(L, &room);
+    lua_pushstring(L, "nope");
+    EXPECT_EQ(-1, call(l_add_object, 2));
 }
 
 // init with no user -> base init（void 转发、pcall 不抛）
@@ -157,20 +165,6 @@ TEST_F(BindRoomTest, RoomResetGuard)
     CChar ch;
     lua_bind_push_object(L, &ch);
     EXPECT_EQ(0, CallRetCount(l_room_reset, 1));
-}
-
-// ---------------- door_bind：真实 CDoor 全参（48-56 深路） ----------------
-TEST_F(BindRoomTest, DoorBind_FullArgsBindsTargetRoom)
-{
-    CDoor door;
-    door.set_name("东门", "dbind_probe");
-
-    lua_bind_push_object(L, &door);
-    lua_pushstring(L, "room/z");
-    lua_pushstring(L, "north");
-    EXPECT_EQ(0, CallRetCount(l_door_bind, 3)) << "取串+截断缓冲+绑定(48-56)";
-    EXPECT_STREQ("room/z", door.querystr("next_room"));
-    EXPECT_STREQ("north", door.querystr("next_door"));
 }
 
 // ====================================================================
@@ -224,9 +218,10 @@ TEST_F(BindRoomTest, AddObjectBindLoadsItemsIntoBox)
     box.move(&room);
 
     lua_bind_push_object(L, &box);
+    lua_pushstring(L, "object");
     lua_pushstring(L, "sword");
     lua_pushinteger(L, 2);
-    int k = call(l_add_object, 3);
+    int k = call(l_add_object, 4);
     if (k > 0) lua_pop(L, k);
 
     int n = 0;

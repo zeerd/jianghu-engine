@@ -130,16 +130,6 @@ TEST_F(CharSkillTest, SkillNeedPoints_MinOne)
     EXPECT_EQ(ch->skill_need_points("unarmed"), 1);
 }
 
-// ---------------- mini_skill ----------------
-TEST_F(CharSkillTest, MiniSkill_None) { EXPECT_EQ(ch->mini_skill(), 0); }
-TEST_F(CharSkillTest, MiniSkill_Min)
-{
-    ch->set_skill("unarmed", 50);
-    ch->set_skill("dodge", 10);
-    ch->set_skill("force", 30);
-    EXPECT_EQ(ch->mini_skill(), 10);
-}
-
 // ---------------- can_learn ----------------
 TEST_F(CharSkillTest, CanLearn)
 {
@@ -174,11 +164,4 @@ TEST_F(CharSkillTest, ApplyCondition_WithSource)
     ch->apply_condition(src, "dizzy", 3, 0);
     EXPECT_GT(ch->query_condition("dizzy"), 0);
     delete src;
-}
-
-TEST_F(CharSkillTest, ClearCondition)
-{
-    ch->apply_condition("poison", 5, 10);
-    ch->clear_condition();
-    EXPECT_EQ(ch->query_condition("poison"), 0);
 }

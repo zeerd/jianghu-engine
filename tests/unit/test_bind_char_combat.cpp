@@ -401,7 +401,7 @@ TEST_F(BindCharCombatTest, StateQueries)
 
     lua_bind_push_object(L, &ch);
 
-    EXPECT_EQ(0, CallRetCount(l_clear_condition, 1));
+    EXPECT_EQ(0, call_method(L, "clear_condition", 1));
 
     lua_bind_push_object(L, &ch);
 

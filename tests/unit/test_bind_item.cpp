@@ -24,7 +24,7 @@ TEST_F(BindItemTest, SetAmountAndQueries)
     CallInt(l_query_weight, 1);
 }
 
-// Split with nothing to split off (nAmount == full) -> returns this
+// split with nothing to split off (nAmount == full) -> returns this
 TEST_F(BindItemTest, SplitAllReturnsSelf)
 {
     item.set_amount(4);
@@ -55,15 +55,6 @@ TEST_F(BindItemTest, DoActionBase)
     int k = call(l_do_action_base, 2);
     EXPECT_EQ(1, k);
     lua_pop(L, k);
-}
-
-// l_do_wield / l_do_unwield require a CLuaEquip; a plain CItem hits the guard
-TEST_F(BindItemTest, DoWieldUnwieldGuard)
-{
-    lua_bind_push_object(L, &item);
-    EXPECT_EQ(0, CallInt(l_do_wield, 1));
-    lua_bind_push_object(L, &item);
-    EXPECT_EQ(0, CallInt(l_do_unwield, 1));
 }
 
 // make_corpse: victim nil -> guard pushes nil

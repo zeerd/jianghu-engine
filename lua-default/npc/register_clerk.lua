@@ -34,7 +34,7 @@ function npc.do_greeting(self, pid)
     if not who then
         return
     end
-    message_vision("$n冲$N招了招手，说道：想入江湖，先注册一个角色吧！", who, self)
+    message("vision", "$n冲$N招了招手，说道：想入江湖，先注册一个角色吧！", who, self)
 end
 
 function npc.chat_msg(self)
@@ -54,23 +54,23 @@ end
 -- 菜单项文案即格式说明书：玩家在首次输入之前就该看得到规则，
 -- 不能等答错一次才通过错误提示倒推。
 local function reg_menu(self, me)
-    self:AddMenuItem("设置角色姓名。", "$2regname $1 $2", me)
-    self:AddMenuItem("设置登录密码（4~22 个字符）。", "$2regpass $1 $2", me)
-    self:AddMenuItem("设置邮箱地址（须含 @，如 name@example.com）。", "$2regemail $1 $2", me)
-    self:AddMenuItem("选择性别。", "$0reggender $1", me)
-    self:AddMenuItem(
+    self:add_menu_item("设置角色姓名。", "$2regname $1 $2", me)
+    self:add_menu_item("设置登录密码（4~22 个字符）。", "$2regpass $1 $2", me)
+    self:add_menu_item("设置邮箱地址（须含 @，如 name@example.com）。", "$2regemail $1 $2", me)
+    self:add_menu_item("选择性别。", "$0reggender $1", me)
+    self:add_menu_item(
         "设置天赋属性（依次为力量、智慧、体质、敏捷，"
             .. "单项 10~30、总和 84，如 21 21 21 21）。",
         "$2regstat $1 $2",
         me
     )
-    self:AddMenuItem("确认创建角色。", "$0regdone $1", me)
-    self:SendMenu(me)
+    self:add_menu_item("确认创建角色。", "$0regdone $1", me)
+    self:send_menu(me)
 end
 
 -- 开始/继续注册
 local function do_regchar(self, me)
-    me:set_temp("regclerk/step", 1)
+    me:set("regclerk/step", 1, "T")
     if #me:dbase_temp("str", "regclerk/name") == 0 then
         self:say("想创建角色，先用『设置角色姓名』告诉我你的名字吧。", me)
     else
@@ -94,7 +94,7 @@ local function do_regname(self, me, arg)
         return 1
     end
 
-    me:set_temp("regclerk/name", arg)
+    me:set("regclerk/name", arg, "T")
     tell_object(me, "Ok.")
     reg_menu(self, me)
     return 1
@@ -104,7 +104,7 @@ local function do_regpass(self, me, arg)
     if #arg < 4 or #arg > 22 then
         tell_object(me, "密码长度必须在 4 到 22 个字符之间。")
     else
-        me:set_temp("regclerk/pass", arg)
+        me:set("regclerk/pass", arg, "T")
         tell_object(me, "Ok.")
     end
     reg_menu(self, me)
@@ -126,7 +126,7 @@ local function do_regemail(self, me, arg)
         return 1
     end
 
-    me:set_temp("regclerk/email", arg)
+    me:set("regclerk/email", arg, "T")
     tell_object(me, "Ok.")
     reg_menu(self, me)
     return 1
@@ -134,16 +134,16 @@ end
 
 local function do_reggender(self, me, arg)
     if arg == "男性" or arg == "女性" then
-        me:set_temp("regclerk/gender", arg)
+        me:set("regclerk/gender", arg, "T")
         tell_object(me, "Ok.")
         reg_menu(self, me)
         return 1
     end
 
     self:say("你想注册为男性还是女性？", me)
-    self:AddMenuItem("男性", "$0reggender $1 男性", me)
-    self:AddMenuItem("女性", "$0reggender $1 女性", me)
-    self:SendMenu(me)
+    self:add_menu_item("男性", "$0reggender $1 男性", me)
+    self:add_menu_item("女性", "$0reggender $1 女性", me)
+    self:send_menu(me)
     return 1
 end
 
@@ -181,10 +181,10 @@ local function do_regstat(self, me, arg)
         return 1
     end
 
-    me:set_temp("regclerk/str", nums[1])
-    me:set_temp("regclerk/int", nums[2])
-    me:set_temp("regclerk/con", nums[3])
-    me:set_temp("regclerk/dex", nums[4])
+    me:set("regclerk/str", nums[1], "T")
+    me:set("regclerk/int", nums[2], "T")
+    me:set("regclerk/con", nums[3], "T")
+    me:set("regclerk/dex", nums[4], "T")
     tell_object(me, "Ok.")
     reg_menu(self, me)
     return 1
@@ -216,7 +216,7 @@ local function do_regdone(self, me)
         reg_menu(self, me)
         return 1
     end
-    if me:query_temp("regclerk/str") == 0 then
+    if me:query("regclerk/str", "T") == 0 then
         self:say("你还没有设置天赋属性呢。", me)
         reg_menu(self, me)
         return 1
@@ -227,10 +227,10 @@ local function do_regdone(self, me)
         pass,
         email,
         gender,
-        me:query_temp("regclerk/str"),
-        me:query_temp("regclerk/int"),
-        me:query_temp("regclerk/con"),
-        me:query_temp("regclerk/dex")
+        me:query("regclerk/str", "T"),
+        me:query("regclerk/int", "T"),
+        me:query("regclerk/con", "T"),
+        me:query("regclerk/dex", "T")
     )
     if id == 0 then
         self:say((err ~= nil and #err > 0) and err or "注册失败，请稍后再试。", me)
@@ -239,15 +239,15 @@ local function do_regdone(self, me)
     end
 
     me:set("regclerk/done", 1)
-    me:delete_temp("regclerk/step")
-    me:delete_temp("regclerk/name")
-    me:delete_temp("regclerk/pass")
-    me:delete_temp("regclerk/email")
-    me:delete_temp("regclerk/gender")
-    me:delete_temp("regclerk/str")
-    me:delete_temp("regclerk/int")
-    me:delete_temp("regclerk/con")
-    me:delete_temp("regclerk/dex")
+    me:del("regclerk/step", "T")
+    me:del("regclerk/name", "T")
+    me:del("regclerk/pass", "T")
+    me:del("regclerk/email", "T")
+    me:del("regclerk/gender", "T")
+    me:del("regclerk/str", "T")
+    me:del("regclerk/int", "T")
+    me:del("regclerk/con", "T")
+    me:del("regclerk/dex", "T")
 
     self:say("注册成功！你的角色账号是 " .. id .. "，请牢记。", me)
     self:say(
@@ -259,9 +259,9 @@ end
 
 -- talk 入口：列出注册相关话题（与凶猛的狗的 do_talk 菜单同构）
 function npc.do_talk(self, me, ask)
-    me:set_temp("regclerk/talked", 1)
-    self:AddMenuItem("与注册专员谈关于创建角色的事", "$0regchar $1", me)
-    self:SendMenu(me)
+    me:set("regclerk/talked", 1, "T")
+    self:add_menu_item("与注册专员谈关于创建角色的事", "$0regchar $1", me)
+    self:send_menu(me)
     return 1
 end
 
@@ -271,7 +271,7 @@ function npc.handle_action(self, comm, me, arg)
         return do_regchar(self, me)
     end
 
-    if me:query_temp("regclerk/step") ~= 0 then
+    if me:query("regclerk/step", "T") ~= 0 then
         if comm == "regname" then
             return do_regname(self, me, arg)
         elseif comm == "regpass" then

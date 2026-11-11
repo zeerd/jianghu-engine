@@ -200,38 +200,3 @@ int CEquip::do_action(int act, CChar* me)
 
     return CItem::do_action(act, me);
 }
-
-//---------------------------------------------------------
-// [LuaBind] auto-managed bindings
-//---------------------------------------------------------
-#include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// self:Do_Wield() -> number - 调用 CEquip 的 protected Do_Wield（供 do_action
-// 脚本使用）
-int l_do_wield(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CLuaEquip* e = dynamic_cast<CLuaEquip*>(obj);
-    if (e) {
-        lua_pushinteger(L, e->lua_do_wield());
-        return 1;
-    }
-    lua_pushinteger(L, 0);
-    return 1;
-}
-
-// self:Do_UnWield() -> number - 调用 CEquip 的 protected Do_UnWield（供
-// do_action 脚本使用）
-int l_do_unwield(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CLuaEquip* e = dynamic_cast<CLuaEquip*>(obj);
-    if (e) {
-        lua_pushinteger(L, e->lua_do_un_wield());
-        return 1;
-    }
-    lua_pushinteger(L, 0);
-    return 1;
-}

@@ -408,7 +408,7 @@ void CFightRoom::heart_beat()
     }
 }
 
-int CFightRoom::join_team(CChar* ob, int Team)  // Join_Team(me, FIGHT_TEAM_A);
+int CFightRoom::join_team(CChar* ob, int Team)  // join_team(me, FIGHT_TEAM_A);
 {
     int ret = true;
     try {
@@ -530,7 +530,7 @@ int32_t CFightRoom::query_turn_ap(CChar* me)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:Select_Member(team) -> object - 选取战斗房间某队伍成员
+// self:select_member(team) -> object - 选取战斗房间某队伍成员
 int l_select_member(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -542,7 +542,7 @@ int l_select_member(lua_State* L)
     return 1;
 }
 
-// self:Can_Join(team) -> boolean - 战斗房间是否可加入该队
+// self:can_join(team) -> boolean - 战斗房间是否可加入该队
 int l_can_join(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -557,7 +557,7 @@ int l_can_join(lua_State* L)
     return 1;
 }
 
-// self:Join_Team(ob, team)
+// self:join_team(ob, team)
 int l_join_team(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -571,7 +571,7 @@ int l_join_team(lua_State* L)
     return 0;
 }
 
-// self:Begin_Fight([flag[, hp_check]]) - 开始战斗
+// self:begin_fight([flag[, hp_check]]) - 开始战斗
 int l_begin_fight(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -595,7 +595,7 @@ int l_set_single(lua_State* L)
     return 0;
 }
 
-// self:End_Fight() - 结束战斗
+// self:end_fight() - 结束战斗
 int l_end_fight(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -606,7 +606,7 @@ int l_end_fight(lua_State* L)
     return 0;
 }
 
-// self:Leave_Team(ob) - 战斗房间中离开队伍
+// self:leave_team(ob) - 战斗房间中离开队伍
 int l_leave_team(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -617,16 +617,6 @@ int l_leave_team(lua_State* L)
     if (lua_isuserdata(L, 2)) ob = dynamic_cast<CChar*>(get_object(L, 2));
     if (ob) fr->leave_team(ob);
     return 0;
-}
-
-// self:is_fight_room() -> boolean - 是否战斗房间
-int l_is_fight_room(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CFightRoom* fr = dynamic_cast<CFightRoom*>(obj);
-    lua_pushboolean(L, fr ? 1 : 0);
-    return 1;
 }
 
 // get_team_list(me, team, target, num) -> table|nil

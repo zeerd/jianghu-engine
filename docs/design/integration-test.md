@@ -2,8 +2,6 @@
 
 > 本文档是集成测试的**设计文档**：架构、道模型、关键契约、覆盖率口径——即"为什么这么设计"，
 > 外加参数表（§1.7）与剧本 DSL 词汇表（§7）这两份随源头维护的清单。
-> 动手操作请看指令文件 `.claude/rules/integration-test.instructions.md`（运行与调试方式、
-> 剧本编写与断言纪律、排查、提交前清单）。
 
 ---
 
@@ -118,7 +116,7 @@ default_script_root = lua-default ; 兜底默认脚本
 |------|---------|------|
 | **剧本报告/退出码** | 业务流程没跑通（wait 超时、断言失败） | 各道 CLI `--report status=` + 退出码兜底 |
 | **崩溃 dump** | 剧本判定之后的进程死亡（关服路径 UAF 等） | 启动前快照仓库根 `*.dmp`，停服后 diff，新增即 FAIL；dump 原地保留作证据 |
-| **服务端日志** | 服务端侧报错（Lua 异常、命令失败、DB 错误）——剧本收不到这些 | 启动前记 `tests/integration/log\` 字节偏移，停服后只扫新增区间：未登记 ERROR/FATAL 即 FAIL（白名单登记制，见指令 §3.5）；WARN 仅计数报告。每轮以 `--log-run-id` 启动，日志单独落 `M-D-<runid>.txt` 且报告点名该文件 |
+| **服务端日志** | 服务端侧报错（Lua 异常、命令失败、DB 错误）——剧本收不到这些 | 启动前记 `tests/integration/log\` 字节偏移，停服后只扫新增区间：未登记 ERROR/FATAL 即 FAIL（白名单登记制）；WARN 仅计数报告。每轮以 `--log-run-id` 启动，日志单独落 `M-D-<runid>.txt` 且报告点名该文件 |
 | **绝对预算** | 耗时慢性爬升（滑动基线放行机制失效） | `-DurationBudgetSec`（默认 420s）超限高声告警；调预算走 diff 评审（见 §2.5） |
 
 设计取舍：服务端日志与崩溃 dump 是「剧本绿但系统坏」的唯一两双外部眼睛——
@@ -211,7 +209,7 @@ vars 计算，DSL 无算术）→ 段 2 断言喊话是「第 `${expect_n}` 个�
 ### 1.7 入口脚本参数（`run-integration-tests.ps1`）
 
 > **参数的唯一登记处是脚本 `param` 块**；本表随脚本同步维护，是给读者看的说明书。
-> 新增/修改参数：改脚本 `param` + 本表，**指令文件不列参数**（分工见 copilot-instructions 铁律）。
+> 新增/修改参数：改脚本 `param` + 本表；操作规程不列参数。
 
 | 参数 | 说明 |
 |------|------|
@@ -283,13 +281,13 @@ L7 的 vars 注入 `peer`/`peer_acct` = L5（`PeerId=5`），L5 的 vars 反向�
 ### 2.4 共享世界的隔离原则
 
 世界里稀缺且不可再生的资源必须**钉给唯一一道**——山脚木箱与药箱（L1）、山顶怪树经验果
-与青蛇及其掉落的蛇胆（L3）、排行榜房间播报（L1）、蛇胆与传送符（L4）；商人库存按各道所需
+与青蛇及其掉落的蛇胆（L3）、排行榜房间播报（L1）、蛇胆与传送符（L4）、穿戴类四件
+（青巾/皮胸甲/布鞋/玉项链，山脚商人独此四件、库存各 5，采购与穿卸全归 L1）；商人库存按各道所需
 采购、合计不超上限。**黑风寨副本是唯一双道共享的稀缺资源**：L3 只在链尾路过大厅
 找小头目离开（不打山贼），山贼战与庭院首刷归 L8——两道靠**双向频道握手**错峰
 （L3 到寨口广播「L3已到寨口」→ L8 战后收到才回广播「黑风寨已清」→ L3 收到才
 进寨），使两道在单例副本上**不同时间开战/通行**；握手的设计依据是 clear 抹信号的
-教训（L8 战后信号早于 L3 的消费 wait 3 分钟会被 L3 沿途 clear 吞掉；纪律条款见
-指令文件 §8.6⑦），双向先广播再回话让两个到达都落在对端 wait 已启动的窗口内。
+教训（L8 战后信号早于 L3 的消费 wait 3 分钟会被 L3 沿途 clear 吞掉），双向先广播再回话让两个到达都落在对端 wait 已启动的窗口内。
 
 **互动道（L5/L6/L7）不得触碰以上任何钉给唯一道的资源**，会合房间内不做资源操作，
 自购补给走互动道自己的 provision 片段。
@@ -298,10 +296,9 @@ L7 的 vars 注入 `peer`/`peer_acct` = L5（`PeerId=5`），L5 的 vars 反向�
 **本人版**（`message_vision` 对本人渲染「你…」、对旁人渲染「<名字>…」，故取「你…」前缀），
 或**把该播报钉给唯一一道**（如尸体腐烂、排行榜）。`notify_fail`、`tell_object`、
 `say(msg, me)` 与 `attr`/`item`/`room`/`menu` 类条件天然只与本人相关。
-（断言纪律的操作条款见指令文件 §8。）
 
 > `hooks.setup_human`（新角色起步本金）是示例世界的正常功能、不是测试脚手架——删掉后
-> 并行账号会踩踏全服唯一一份金币（警告全文见指令文件 §8.4）。
+> 并行账号会踩踏全服唯一一份金币。
 
 ### 2.5 耗时模型与绝对预算
 
@@ -396,8 +393,7 @@ downloaduser 往返突发撞限流）；下线 `notify_offline` 广播 SENDUSER 
 （关服路径 `g_terminated` 拦下）。CLI 配套：`find_target` 只按 ID 匹配；USERLIST
 （/who 分页）为合并式，不清空丢账号字段。
 
-游戏内提示只写规则限定（`/t <id> …`），不作设计解释。剧本侧的目标类型表与复位纪律
-见指令文件 §8.5/§8.6⑥。
+游戏内提示只写规则限定（`/t <id> …`），不作设计解释。
 
 ---
 
@@ -460,8 +456,8 @@ SnoopSystem/AutoFight）与 E2E 差异是**有意的**：被测对象不同—�
 ### 5.4 覆盖率缺口认知（来自 PoC 验证）
 
 > **E2E 覆盖率的缺口是系统性的，不是操作姿势问题。** E2E 覆盖率不设数字门槛
-> （见 §5.2 的定位：参考手段，非通过门槛）；单测口径的覆盖率门槛（及格/良好线）
-> 与 delta ≥ 0 的增量门禁以 `.claude/rules/unit-test.instructions.md` 为准。
+> （见 §5.2 的定位：参考手段，非通过门槛）；单测口径的覆盖率门槛（及格/良好线）与
+> delta ≥ 0 的增量门禁归单元测试域（见 `docs/design/unit-test.md`）。
 >
 > E2E **无法覆盖**的典型功能（需单测兜底）：
 > - 巫师命令（`CmdWizard*.cpp`）
@@ -489,18 +485,17 @@ SnoopSystem/AutoFight）与 E2E 差异是**有意的**：被测对象不同—�
 | **依赖特定世界状态/资源归属的触发面**（`victim_penalty`、`AutoFight` 主动敌意类、组队/夫妻状态拖入 PK 战斗房） | 样本世界可战斗 NPC 全部钉给唯一道、进取型 NPC 只在 L3 独占副本、教材不设 `vendetta_mark`/berserk 触发源——E2E 没有合法触发面；**不为测试挪动资源归属与世界设定**，单测兜底；E2E 的 PK 段保持组队解散后的干净状态，不踩双队籍 |
 | **内力经济/公式封顶挡住的战斗分支**（`l_receive_wound` 反震、`do_roar` 狮子吼、`do_sneak` 同队检查） | 反震在 `mp_you ≤ 3mp` 封顶下 damage ≥ 1 恒成立（数学不可达，非概率问题）；`do_roar` 的 mp≥200 超出 `mp ≤ 2×max_mp` 的经济封顶；同队检查被前置 PvE 收窄与 `query_team` 0 歧义挡住——均为引擎机制的结构性结论，**不为覆盖而改游戏机制**，机制设计修订才重开；C++ 调用点随正常分支已覆盖 |
 | **低价值协议透传与不存在的入口**（`mv`/`loc` 地图定位、`info`/`item` 命令） | `loc` 核心副作用每次登录已覆盖（ADDOBJECT 链）；`mv` 无分支无状态机且无头 CLI 不发坐标，补发只测「透传不崩」；`info`/`item` 经查无声明无实现无注册——无代码可测，记录不测 |
-| **接口/机制占位与基类缺省回退**（IActionHandler/IEquippable/IHittable 纯虚占位、CFB/CRoom 空占位、模板分派编译期占位支、无脚本或缺字段时的 C++ 基类默认实现） | 占位体由接口契约/模板机制必须存在，运行期无分发入口，或仅在「脚本缺席」时可达而 E2E 世界脚本齐备——保留不测；重开条件：分发器新增对该签名/缺省支的调用路径；逐函数登记见 `docs/plans/integration-test-adjudications.md` §9 |
+| **接口/机制占位与基类缺省回退**（IActionHandler/IEquippable/IHittable 纯虚占位、CFB/CRoom 空占位、模板分派编译期占位支、无脚本或缺字段时的 C++ 基类默认实现） | 占位体由接口契约/模板机制必须存在，运行期无分发入口，或仅在「脚本缺席」时可达而 E2E 世界脚本齐备——保留不测；重开条件：分发器新增对该签名/缺省支的调用路径；逐函数登记见 `docs/design/integration-test-adjudications.md` §9 |
 | **死代码与零调用方** | 全库无调用方/无生产者的函数（含触发即 ERROR 的兜底路径）没有入口，E2E 无从可达——**禁止为覆盖触发**；逐条登记在认领清单（阶段工具），不进本表 |
 | **基础设施与外部依赖**（CreateDump / Logger / HeartBeat alarm / db 断连 / LuaSyntaxChecker / MySQL 方言 / 托盘 `tray_icon_*`） | 生命周期与方言路径单测兜底；E2E 用 SQLite（CI/CD 零外部服务依赖），`--check-lua` 是独立命令行模式；托盘仅桌面会话触发，E2E 无头运行不进 |
+| **热重载不覆盖的脚本域**（`lua-default` 实例脚本不参与自动重载与 `reload all`；`data/hooks.lua`、`constants.lua`、根脚本 `damage_msg.lua` 任何 reload 都不覆盖） | 前者是生产脚本保护（`fromDefault` 跳过，改动靠手动 `reload <名>` 或重启；其 require 类共享模块仍随 `reload all` 清 require 缓存换新）；后者开机直载不进 `m_scripts`——**改这些文件需重启是设计边界**，E2E 不为触发而重启服务器 |
 
 ---
 
 ## 7. 剧本 DSL 契约
 
 > **动词与 wait 条件的唯一实现方是 CLI**（`cli/src/scenario_steps.cc` 等）；本节是给
-> 剧本作者看的契约说明书，随 CLI 实现同步维护。**新增动词/条件：改 CLI + 本节，
-> 指令文件不维护 DSL 词汇表**（分工见 copilot-instructions 铁律）。怎么写好剧本
-> （wait 纪律、sleep 用法、断言纪律）见指令文件 §8。
+> 剧本作者看的契约说明书，随 CLI 实现同步维护。**新增动词/条件：改 CLI + 本节。**
 
 剧本文件（`*.sce`）采用行式文本，最小动词集：
 
@@ -511,9 +506,9 @@ SnoopSystem/AutoFight）与 E2E 差异是**有意的**：被测对象不同—�
 | `wait` | `wait <cond> [timeout=ms]` | 等待条件满足，超时即失败 |
 | `menu` | `menu <序号\|文本>` | 按文本解析后选择菜单项 |
 | `menuinput` | `menuinput <text>` | 喂 `$2` 占位输入 |
-| `capture` | `capture <正则> as <var>` | 从最近输出抓取变量（如注册返回账号 id） |
+| `capture` | `capture <正则> as <var>` | 从最近输出按正则抓取变量：含捕获组取首组文本（抓句子等非数字变量），无组取匹配后的首段数字（如注册返回账号 id）；非法正则即失败 |
 | `assert` | `assert <cond>` | 失败即整案失败 |
-| `sleep` | `sleep <ms>` | 节流 / 信令间隙 / 无信号时间等待（合法边界见指令 §8.1） |
+| `sleep` | `sleep <ms>` | 节流 / 信令间隙 / 无信号时间等待 |
 | `filecopy` | `filecopy <源> <目标>` | 复制覆盖文件（热重载片段切换脚本变体用）。**目标只允许落在 `test_tmp/` 或 `tmp/` 暂存区**，写进教材/生产目录一律拒绝；源取首个空白前的 token、目标取行尾余下全文（目标可含空格）；路径经 `$var` 替换 |
 | `filedelete` | `filedelete <路径>` | 删除文件（缺文件兜底场景）。同样的暂存区白名单；目标不存在即失败（路径笔误必须立刻暴露） |
 | `include` | `include <file>` | 复用其他剧本文件 |
@@ -534,7 +529,7 @@ SnoopSystem/AutoFight）与 E2E 差异是**有意的**：被测对象不同—�
 | `item <名>` | 背包/身上出现指定物品 |
 | `battle` / `battle_end` | 进入/结束战斗 |
 | `busy` / `not_busy` | 等待忙碌起止：`busy`=等到进入忙碌，`not_busy`=等到忙碌结束（拍数走完/中断放行）。两者都由服务端 STATE 的翻转推送驱动。**分段到达**：动作回执（命令中途发送）与 STATE（命令末 `CUser::execute_command` 尾 `send_off`，`User.cpp:426`）分两段到达 CLI——`wait text` 命中回执时起始 STATE 可能仍在途，紧接的 `wait not_busy` 会拿旧快照误判「不忙」立即通过（由此拒绝回执的下一条命令被 `is_busy()` 拒）。判别三种姿势：① **单分支必 busy 点**（回执只有成功文案、`start_busy` 必发生）→ 回执后 `wait busy` 收下起始（轮询天然容忍在途）再 `wait not_busy`，零盲等；② **双分支点**（成功/拒绝回执，拒绝支不产生 busy、`wait busy` 必卡超时）→ 回执后 `sleep 500` 跳过在途间隙（间隙上界=命令剩余执行+网络，毫秒级，500ms 裕量充足）再 `wait not_busy`；③ `wait text` 等到的是**更晚的服务端消息**（下一条命令的回执、`battle_end` 等——同 TCP 有序流 ⟹ 起始 STATE 必已到达）或前有秒级等待 → 直接 `wait not_busy` |
-| `attr <名> <op> <值>` | 属性断言，支持 `hp` `max_hp` `eff_hp` `mp` `max_mp` `level` `exp` `combat_exp` `shen`（如 `attr eff_hp >= 531`） |
+| `attr <名> <op> <值>` | 属性断言，支持 `hp` `max_hp` `eff_hp` `mp` `max_mp` `level` `exp` `combat_exp` `shen` `str` `con` `int` `dex` `damage`（四维与 damage 是 RTNINFO 的合成值，含 `apply/*` 装备修正与技能加成；如 `attr eff_hp >= 531`、`attr str == 24`） |
 | `wield <物品> <槽位>` | 该物品真的装备在指定槽位（如 `wield 铁剑 右手`），槽位名与 `.info` 一致 |
 
 ### 7.2 变量机制
@@ -542,4 +537,3 @@ SnoopSystem/AutoFight）与 E2E 差异是**有意的**：被测对象不同—�
 - **输入变量**：由 `run-integration-tests.ps1` 写入 `--vars` 文件（如 `name=xxx` `pass=yyy` `acct=123`）
 - **产出变量**：`capture` 抓取的变量供后续剧本使用
 - **引用语法**：`$name`、`$acct`、`$pass` 等
-| **热重载不覆盖的脚本域**（`lua-default` 实例脚本不参与自动重载与 `reload all`；`data/hooks.lua`、`constants.lua`、根脚本 `damage_msg.lua` 任何 reload 都不覆盖） | 前者是生产脚本保护（`fromDefault` 跳过，改动靠手动 `reload <名>` 或重启；其 require 类共享模块仍随 `reload all` 清 require 缓存换新）；后者开机直载不进 `m_scripts`——**改这些文件需重启是设计边界**，E2E 不为触发而重启服务器 |

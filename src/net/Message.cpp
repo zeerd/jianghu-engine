@@ -421,59 +421,67 @@ int l_tell_object(lua_State* L)
     return 0;
 }
 
-// message_vision(msg, me, you)
-int l_message_vision(lua_State* L)
+// message(kind, ...) -> nil - 消息分派口。KIND 取 vision（房间视野）/
+// vision_self（私发双方）/ vision_room（按频道的房间视野）/ channel（按频道
+// 投递）/ room（指定房间裸文本）；后续参数与原各消息函数一致，整体右移一位。
+// 未登记 KIND 报错。
+int l_message(lua_State* L)
 {
-    const char* msg = luaL_checkstring(L, 1);
-    CContainer* me  = NULL;
-    CContainer* you = NULL;
-    if (lua_isuserdata(L, 2)) me = dynamic_cast<CContainer*>(get_object(L, 2));
-    if (lua_isuserdata(L, 3)) you = dynamic_cast<CContainer*>(get_object(L, 3));
-    message_vision(msg, me, you);
-    return 0;
-}
+    const char* kind = luaL_checkstring(L, 1);
+    if (strcmp(kind, "vision") != 0 && strcmp(kind, "vision_self") != 0
+        && strcmp(kind, "vision_room") != 0 && strcmp(kind, "channel") != 0
+        && strcmp(kind, "room") != 0)
+        return luaL_error(L, "unknown message kind: %s", kind);
 
-// message_vision_self(msg, me, you) - 只私发双方、不向房间广播
-// （对应 C++ message_vision 的 self=true；既有 message_vision 的第 4 参
-//  历史上被忽略，不能挪用，故独立成键）
-int l_message_vision_self(lua_State* L)
-{
-    const char* msg = luaL_checkstring(L, 1);
-    CContainer* me  = NULL;
-    CContainer* you = NULL;
-    if (lua_isuserdata(L, 2)) me = dynamic_cast<CContainer*>(get_object(L, 2));
-    if (lua_isuserdata(L, 3)) you = dynamic_cast<CContainer*>(get_object(L, 3));
-    message_vision(msg, me, you, true);
-    return 0;
-}
+    if (strcmp(kind, "vision") == 0 || strcmp(kind, "vision_self") == 0) {
+        const char* msg = luaL_checkstring(L, 2);
+        CContainer* me  = NULL;
+        CContainer* you = NULL;
+        if (lua_isuserdata(L, 3))
+            me = dynamic_cast<CContainer*>(get_object(L, 3));
+        if (lua_isuserdata(L, 4))
+            you = dynamic_cast<CContainer*>(get_object(L, 4));
+        message_vision(msg, me, you, strcmp(kind, "vision_self") == 0);
+        return 0;
+    }
 
-// MessageVision(me, channel, msg[, exclude1[, exclude2]])
-int l_message_vision_channel(lua_State* L)
-{
-    CContainer* me = NULL;
-    if (lua_isuserdata(L, 1)) me = dynamic_cast<CContainer*>(get_object(L, 1));
-    const char* channel = luaL_checkstring(L, 2);
-    const char* msg     = luaL_checkstring(L, 3);
-    CContainer* e1      = NULL;
-    CContainer* e2      = NULL;
-    if (lua_isuserdata(L, 4)) e1 = dynamic_cast<CContainer*>(get_object(L, 4));
-    if (lua_isuserdata(L, 5)) e2 = dynamic_cast<CContainer*>(get_object(L, 5));
-    message_vision_room(me, channel, msg, e1, e2);
-    return 0;
-}
+    if (strcmp(kind, "vision_room") == 0) {
+        CContainer* me = NULL;
+        if (lua_isuserdata(L, 2))
+            me = dynamic_cast<CContainer*>(get_object(L, 2));
+        const char* channel = luaL_checkstring(L, 3);
+        const char* msg     = luaL_checkstring(L, 4);
+        CContainer* e1      = NULL;
+        CContainer* e2      = NULL;
+        if (lua_isuserdata(L, 5))
+            e1 = dynamic_cast<CContainer*>(get_object(L, 5));
+        if (lua_isuserdata(L, 6))
+            e2 = dynamic_cast<CContainer*>(get_object(L, 6));
+        message_vision_room(me, channel, msg, e1, e2);
+        return 0;
+    }
 
-// message_channel(channel, msg, me[, you])  （全局 message_channel）
-// 按频道向 me 所在房间内订阅该频道的用户广播（含 refuse_channel 检查）
-int l_message_channel(lua_State* L)
-{
-    const char* channel = luaL_checkstring(L, 1);
-    const char* msg     = luaL_checkstring(L, 2);
-    CChar* me           = NULL;
-    if (lua_isuserdata(L, 3)) me = dynamic_cast<CChar*>(get_object(L, 3));
-    if (!me) return 0;
-    CContainer* you = NULL;
-    if (lua_isuserdata(L, 4)) you = dynamic_cast<CContainer*>(get_object(L, 4));
-    message_channel(channel, msg, me, you);
+    if (strcmp(kind, "channel") == 0) {
+        const char* channel = luaL_checkstring(L, 2);
+        const char* msg     = luaL_checkstring(L, 3);
+        CChar* me           = NULL;
+        if (lua_isuserdata(L, 4)) me = dynamic_cast<CChar*>(get_object(L, 4));
+        if (!me) return 0;
+        CContainer* you = NULL;
+        if (lua_isuserdata(L, 5))
+            you = dynamic_cast<CContainer*>(get_object(L, 5));
+        message_channel(channel, msg, me, you);
+        return 0;
+    }
+
+    // kind == "room"：指定房间的裸文本广播（原 tell_room）
+    CContainer* room = NULL;
+    if (lua_isuserdata(L, 2))
+        room = dynamic_cast<CContainer*>(get_object(L, 2));
+    const char* msg = luaL_checkstring(L, 3);
+    CChar* exclude  = NULL;
+    if (lua_isuserdata(L, 4)) exclude = dynamic_cast<CChar*>(get_object(L, 4));
+    if (room) tell_room(room, msg, exclude);
     return 0;
 }
 
@@ -485,17 +493,4 @@ int l_chinese_number(lua_State* L)
     const char* s = chinese_number(i, buf);
     lua_pushstring(L, s ? s : "");
     return 1;
-}
-
-// tell_room(room, msg, exclude)
-int l_tell_room(lua_State* L)
-{
-    CContainer* room = NULL;
-    if (lua_isuserdata(L, 1))
-        room = dynamic_cast<CContainer*>(get_object(L, 1));
-    const char* msg = luaL_checkstring(L, 2);
-    CChar* exclude  = NULL;
-    if (lua_isuserdata(L, 3)) exclude = dynamic_cast<CChar*>(get_object(L, 3));
-    if (room) tell_room(room, msg, exclude);
-    return 0;
 }

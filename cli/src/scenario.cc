@@ -17,11 +17,11 @@ namespace {
 // repeat 区块展开的上限：防止误写超大次数把步骤表撑爆。
 constexpr long long MAX_REPEAT_COUNT = 10000;
 
-using Step               = CScenarioRunner::Step;
-using RepeatFrame        = CScenarioRunner::RepeatFrame;
+using Step        = CScenarioRunner::Step;
+using RepeatFrame = CScenarioRunner::RepeatFrame;
 
 // 生成「第 index 轮迭代把序号写入 var」的 set 步骤。
-Step make_index_step(const RepeatFrame &frame, int index)
+Step make_index_step(const RepeatFrame& frame, int index)
 {
     Step step;
     step.verb     = "set";
@@ -33,7 +33,7 @@ Step make_index_step(const RepeatFrame &frame, int index)
 
 }  // namespace
 
-std::string CScenarioRunner::trim(const std::string &s)
+std::string CScenarioRunner::trim(const std::string& s)
 {
     size_t a = s.find_first_not_of(" \t\r\n");
     if (a == std::string::npos) return "";
@@ -43,13 +43,13 @@ std::string CScenarioRunner::trim(const std::string &s)
 
 std::string CScenarioRunner::lower_ascii(std::string s)
 {
-    for (char &c : s) {
+    for (char& c : s) {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
     return s;
 }
 
-bool CScenarioRunner::all_digits(const std::string &s)
+bool CScenarioRunner::all_digits(const std::string& s)
 {
     if (s.empty()) return false;
     for (char c : s) {
@@ -58,7 +58,7 @@ bool CScenarioRunner::all_digits(const std::string &s)
     return true;
 }
 
-CScenarioRunner::CScenarioRunner(ClientCore &core, const ScenarioOptions &opts)
+CScenarioRunner::CScenarioRunner(ClientCore& core, const ScenarioOptions& opts)
     : core_(core), opts_(opts)
 {
 }
@@ -84,10 +84,10 @@ void CScenarioRunner::save_vars() const
     if (opts_.vars_path.empty()) return;
     std::ofstream out(opts_.vars_path, std::ios::trunc);
     if (!out) return;
-    for (const auto &[k, v] : vars_) out << k << "=" << v << "\n";
+    for (const auto& [k, v] : vars_) out << k << "=" << v << "\n";
 }
 
-std::string CScenarioRunner::subst(const std::string &in) const
+std::string CScenarioRunner::subst(const std::string& in) const
 {
     std::string out;
     out.reserve(in.size());
@@ -128,8 +128,8 @@ std::string CScenarioRunner::subst(const std::string &in) const
     return out;
 }
 
-bool CScenarioRunner::load_script(const std::string &path, int depth,
-                                  const std::string &scenario)
+bool CScenarioRunner::load_script(const std::string& path, int depth,
+                                  const std::string& scenario)
 {
     if (depth > 8) {
         fail_reason_ = "include nesting too deep: " + path;
@@ -144,9 +144,8 @@ bool CScenarioRunner::load_script(const std::string &path, int depth,
 
     std::string base_dir = path;
     size_t slash         = base_dir.find_last_of("\\/");
-    base_dir             = (slash == std::string::npos)
-                               ? std::string()
-                               : base_dir.substr(0, slash + 1);
+    base_dir = (slash == std::string::npos) ? std::string()
+                                            : base_dir.substr(0, slash + 1);
 
     std::string line;
     int line_no = 0;
@@ -163,15 +162,16 @@ bool CScenarioRunner::load_script(const std::string &path, int depth,
 
         size_t sp = line.find_first_of(" \t");
         Step step;
-        step.verb    = (sp == std::string::npos) ? line : line.substr(0, sp);
-        step.args    = (sp == std::string::npos) ? "" : trim(line.substr(sp + 1));
+        step.verb = (sp == std::string::npos) ? line : line.substr(0, sp);
+        step.args = (sp == std::string::npos) ? "" : trim(line.substr(sp + 1));
         step.line_no = line_no;
         step.verb    = lower_ascii(step.verb);
 
         if (step.verb == "include") {
             std::string inc = subst(step.args);
-            if (!inc.empty() && (inc[0] == '/' || inc[0] == '\\'
-                                 || (inc.size() > 1 && inc[1] == ':'))) {
+            if (!inc.empty()
+                && (inc[0] == '/' || inc[0] == '\\'
+                    || (inc.size() > 1 && inc[1] == ':'))) {
                 // 绝对路径
             }
             else {
@@ -189,7 +189,7 @@ bool CScenarioRunner::load_script(const std::string &path, int depth,
     return true;
 }
 
-bool CScenarioRunner::parse_repeat(const Step &step, RepeatFrame &frame)
+bool CScenarioRunner::parse_repeat(const Step& step, RepeatFrame& frame)
 {
     std::istringstream iss(subst(step.args));
     std::string count_text;
@@ -200,11 +200,12 @@ bool CScenarioRunner::parse_repeat(const Step &step, RepeatFrame &frame)
     long long count = std::stoll(count_text);
     if (count > MAX_REPEAT_COUNT) {
         return fail("line " + std::to_string(step.line_no)
-                    + ": repeat count exceeds " + std::to_string(MAX_REPEAT_COUNT));
+                    + ": repeat count exceeds "
+                    + std::to_string(MAX_REPEAT_COUNT));
     }
-    frame.count     = static_cast<int>(count);
-    frame.line_no   = step.line_no;
-    frame.scenario  = step.scenario;
+    frame.count    = static_cast<int>(count);
+    frame.line_no  = step.line_no;
+    frame.scenario = step.scenario;
 
     std::string as;
     if (iss >> as) {
@@ -224,15 +225,15 @@ bool CScenarioRunner::expand_loops()
     return true;
 }
 
-bool CScenarioRunner::expand_range(const std::vector<Step> &src, size_t begin,
+bool CScenarioRunner::expand_range(const std::vector<Step>& src, size_t begin,
                                    size_t end, int depth,
-                                   std::vector<Step> &out)
+                                   std::vector<Step>& out)
 {
     if (depth > 8) {
         return fail("repeat nesting too deep");
     }
     for (size_t i = begin; i < end; ++i) {
-        const Step &step = src[i];
+        const Step& step = src[i];
         if (step.verb == "end") {
             return fail("line " + std::to_string(step.line_no)
                         + ": end without repeat");
@@ -272,7 +273,7 @@ bool CScenarioRunner::expand_range(const std::vector<Step> &src, size_t begin,
     return true;
 }
 
-bool CScenarioRunner::fail(const std::string &reason)
+bool CScenarioRunner::fail(const std::string& reason)
 {
     fail_reason_ = reason;
     return false;
@@ -290,7 +291,7 @@ std::string fmt_sec(double sec)
 
 }  // namespace
 
-void CScenarioRunner::echo_step(const Step &step) const
+void CScenarioRunner::echo_step(const Step& step) const
 {
     if (!opts_.echo) return;
     // [+-]秒 是本步相对剧本开始的时刻：日志里相邻两条回显的差值就是该步耗时，
@@ -313,14 +314,14 @@ double CScenarioRunner::elapsed_sec() const
 }
 
 // 把路径折成相对顶层剧本目录的归属名（'/' 分隔），失败退回文件名
-std::string CScenarioRunner::scenario_name_of(const std::string &path) const
+std::string CScenarioRunner::scenario_name_of(const std::string& path) const
 {
     const std::filesystem::path p(path);
     if (script_root_.empty()) return p.filename().generic_string();
 
     std::error_code ec;
-    const std::filesystem::path rel = std::filesystem::relative(
-        p, std::filesystem::path(script_root_), ec);
+    const std::filesystem::path rel
+        = std::filesystem::relative(p, std::filesystem::path(script_root_), ec);
     if (ec || rel.empty()) return p.filename().generic_string();
     return rel.generic_string();
 }
@@ -334,12 +335,12 @@ void CScenarioRunner::close_scenario(double now_sec)
 }
 
 // 跨剧本：先关旧段，再打一条带时刻的 [timing] 边界行
-void CScenarioRunner::open_scenario(const std::string &scenario)
+void CScenarioRunner::open_scenario(const std::string& scenario)
 {
     const double now = elapsed_sec();
     close_scenario(now);
-    open_scenario_  = scenario;
-    seg_start_sec_  = now;
+    open_scenario_ = scenario;
+    seg_start_sec_ = now;
     if (opts_.echo) {
         core_.ui().post_raw("[+" + fmt_sec(now) + "] [timing] " + scenario
                             + "\n");
@@ -352,26 +353,26 @@ void CScenarioRunner::print_timing() const
     if (!opts_.echo || scenario_sec_.empty()) return;
 
     std::map<std::string, int> steps_by_scenario;
-    for (const auto &step : steps_) ++steps_by_scenario[step.scenario];
+    for (const auto& step : steps_) ++steps_by_scenario[step.scenario];
 
     std::vector<std::pair<std::string, double>> rows(scenario_sec_.begin(),
                                                      scenario_sec_.end());
     std::sort(rows.begin(), rows.end(),
-              [](const auto &a, const auto &b) { return a.second > b.second; });
+              [](const auto& a, const auto& b) { return a.second > b.second; });
 
     double total = 0.0;
-    for (const auto &row : rows) total += row.second;
+    for (const auto& row : rows) total += row.second;
 
     core_.ui().post_raw("[timing] summary total=" + fmt_sec(total)
                         + "s steps=" + std::to_string(steps_.size()) + "\n");
-    for (const auto &row : rows) {
+    for (const auto& row : rows) {
         core_.ui().post_raw("[timing] " + fmt_sec(row.second) + "s "
                             + std::to_string(steps_by_scenario[row.first]) + " "
                             + row.first + "\n");
     }
 }
 
-bool CScenarioRunner::write_report(const std::string &status) const
+bool CScenarioRunner::write_report(const std::string& status) const
 {
     if (opts_.report_path.empty()) return true;
     std::ofstream out(opts_.report_path, std::ios::trunc);
@@ -379,15 +380,16 @@ bool CScenarioRunner::write_report(const std::string &status) const
     out << "status=" << status << "\n";
     if (!fail_reason_.empty()) out << "reason=" << fail_reason_ << "\n";
     if (fail_line_ > 0) out << "line=" << fail_line_ << "\n";
-    for (const auto &[k, v] : vars_) out << "var." << k << "=" << v << "\n";
+    for (const auto& [k, v] : vars_) out << "var." << k << "=" << v << "\n";
     return true;
 }
 
 int CScenarioRunner::run()
 {
     // 计时零点与分场景归属根：include 名一律相对顶层剧本所在目录折算
-    start_tp_    = std::chrono::steady_clock::now();
-    script_root_ = std::filesystem::path(opts_.script_path).parent_path().string();
+    start_tp_ = std::chrono::steady_clock::now();
+    script_root_
+        = std::filesystem::path(opts_.script_path).parent_path().string();
 
     load_vars();
     if (!load_script(opts_.script_path, 0, scenario_name_of(opts_.script_path))
@@ -399,13 +401,13 @@ int CScenarioRunner::run()
 
     if (opts_.echo) {
         core_.ui().post_raw(std::string("[scenario] running ")
-                                + opts_.script_path + " ("
-                                + std::to_string(steps_.size()) + " steps)\n");
+                            + opts_.script_path + " ("
+                            + std::to_string(steps_.size()) + " steps)\n");
     }
 
-    for (const auto &step : steps_) {
+    for (const auto& step : steps_) {
         if (core_.server_closed()) {
-            fail_line_ = step.line_no;
+            fail_line_   = step.line_no;
             fail_reason_ = "server closed the connection";
             std::cerr << "[scenario] FAIL at line " << step.line_no << ": "
                       << fail_reason_ << "\n";
@@ -435,7 +437,7 @@ int CScenarioRunner::run()
     return 0;
 }
 
-int run_scenario(ClientCore &core, const ScenarioOptions &opts)
+int run_scenario(ClientCore& core, const ScenarioOptions& opts)
 {
     CScenarioRunner runner(core, opts);
     return runner.run();

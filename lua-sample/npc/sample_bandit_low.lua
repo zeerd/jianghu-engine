@@ -34,10 +34,10 @@ function npc.create(self)
     self:set_skill("dodge", 25 + random(15))
     self:set_skill("parry", 25 + random(15))
 
-    self:map_skill("sword", "sword")
-    self:map_skill("force", "force")
-    self:map_skill("dodge", "dodge")
-    self:map_skill("parry", "parry")
+    self:skill_map("set", "sword", "sword")
+    self:skill_map("set", "force", "force")
+    self:skill_map("set", "dodge", "dodge")
+    self:skill_map("set", "parry", "parry")
 
     self:carry_object("sample_sword_basic"):wield()
 

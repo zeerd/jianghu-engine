@@ -2,7 +2,6 @@
 
 > 本文档是单元测试的**设计文档**：静态库 + Mock 架构与目录结构（§1）、可测试性设计（§2）、
 > Debug 口径（§3）——即"为什么这么设计"，外加目录布局这份导航清单。
-> 动手操作请看指令文件 `.claude/rules/unit-test.instructions.md`（规范、流程、命令、阈值、排查）。
 
 ---
 
@@ -79,7 +78,7 @@ cli/tests/                       # CLI 测试工程（jianghu_cli_tests.vcxproj�
 
 1. **链接器不支持替换**：静态库符号在链接时解析，测试代码调用 `load_item()` 时已绑定到库内实现，无法在链接时替换为 mock。
 2. **同名符号覆盖不可行**：在 mock 中定义同名 `load_item()` 会报 `LNK2005: already defined`——该编译单元中其他被引用的符号（`find_item` 等）会把整个 .obj 拉入，造成重复定义。
-3. **排除编译单元是错误方向**：把生产 .cpp 从库中排除、在测试工程里单独编译，改变了编译连接关系，测的不是同一份代码（指令文件「禁止事项」因此禁止该做法）。
+3. **排除编译单元是错误方向**：把生产 .cpp 从库中排除、在测试工程里单独编译，改变了编译连接关系，测的不是同一份代码（单元测试规范因此禁止该做法）。
 
 **解决方案：接口 + 全局指针依赖注入**
 
@@ -95,15 +94,14 @@ cli/tests/                       # CLI 测试工程（jianghu_cli_tests.vcxproj�
 
 用全局指针而非构造函数注入：JH 是大型遗留代码库，类之间耦合紧密，全局指针是侵入性最小的方案。
 
-实施步骤、新增外部依赖的 Mock 流程与 seam 判据见指令文件「可测试性设计」节。
-
 ---
 
 ## 3. Debug 口径：Debug 与 Release 不是同一个被测对象
 
 Debug 与 Release 不是同一个被测对象。Debug 的栈填充区与调试堆会暂时掩盖越界写/未初始化内存，优化开关又会改变 UB 的表现；生产代码跑的是 Release。Debug 全绿只证明 Debug 没问题，不证明生产没问题。
 
-因此 Debug 版测试程序被硬门禁封死：`TestConfigGate.DebugBuildIsNotAcceptance` 无条件失败，Debug 版无论怎么跑都在结果里报红——门禁本身是指令文件「构建命令和运行方法」的可执行事实，本节是它的理由。
+因此 Debug 版测试程序被硬门禁封死：`TestConfigGate.DebugBuildIsNotAcceptance` 无条件
+失败，Debug 版无论怎么跑都在结果里报红——本节即该门禁的理由。
 
 **Release-only 的依据**：生产服务器以 `Release|Win32`（`/MT`、`NDEBUG`、`/O2`）构建，
 覆盖率也直接在 Release 上采集（Release 带 PDB，OpenCppCoverage 行映射正常）——

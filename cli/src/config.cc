@@ -8,7 +8,7 @@
 
 #include "compat.h"
 
-static std::string trim(const std::string &s)
+static std::string trim(const std::string& s)
 {
     auto start = s.find_first_not_of(" \t\r");
     if (start == std::string::npos) return "";
@@ -23,27 +23,24 @@ static std::string default_config_path()
     return home + "/.jianghu/config";
 }
 
-static std::string expand_home(const std::string &path)
+static std::string expand_home(const std::string& path)
 {
     if (path.empty() || path[0] != '~') return path;
     std::string home = home_dir();
     return home.empty() ? path : home + path.substr(1);
 }
 
-static void ensure_dir(const std::string &path)
-{
-    make_dirs(path);
-}
+static void ensure_dir(const std::string& path) { make_dirs(path); }
 
 std::string config_path()
 {
     // Allow override via CC_JIANGHU_CONFIG env var
-    const char *env = getenv("CC_JIANGHU_CONFIG");
+    const char* env = getenv("CC_JIANGHU_CONFIG");
     if (env && strlen(env) > 0) return std::string(env);
     return default_config_path();
 }
 
-Config load_config(const std::string &path)
+Config load_config(const std::string& path)
 {
     Config cfg;
     std::string p = path.empty() ? default_config_path() : path;

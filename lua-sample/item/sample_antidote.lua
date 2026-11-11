@@ -30,7 +30,7 @@ return {
             return notify_fail("你身上并没有毒，用不着解毒丸。")
         end
 
-        message_vision("$N仰头吞下一丸解毒药，只觉周身毒气散尽。", me)
+        message("vision", "$N仰头吞下一丸解毒药，只觉周身毒气散尽。", me)
         -- 解的是全身状态表：蛇毒、酒醉一并散去
         me:clear_condition()
 

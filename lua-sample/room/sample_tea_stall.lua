@@ -16,7 +16,7 @@ return {
         self:set("resource/fee", 10)
 
         -- 连接回山脚
-        self:add_door("青云山山脚", "青云山山脚", "山脚茶棚")
+        self:add_object("door", "青云山山脚", "青云山山脚", "山脚茶棚")
 
         self:set(
             "long",
@@ -28,7 +28,7 @@ return {
     do_look = function(self, me)
         self:say(self:querystr("long"), me)
         self:say("这里可以给容器装水（fill <容器ID>）。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end,
 }

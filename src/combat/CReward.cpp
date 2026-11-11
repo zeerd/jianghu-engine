@@ -328,22 +328,18 @@ void CReward::pk_reward(CChar* killer, CChar* victim)
 
 // 处理PK奖励逻辑
 void CReward::handle_pk_reward(CChar* killer, CChar* victim, int pkreward,
-                               int pk_chang, int32_t lose, int32_t gain,
-                               const char* killerid, CContainer* env)
+                               int pk_chang, int32_t lose, const char* killerid,
+                               CContainer* env)
 {
     char msg[255];
     victim->delete_temp("last_fainted_from");
 
-    if (killerid == victim->querystr("kill/last_killer"))
-        gain = victim->query("kill/last_lose") / 2;
-    gain = 0;
-    if (gain < 0) gain = 0;
+    // PK 击杀者经验收益恒为 0（作者裁定的设计：PK 动机是仇杀与声望，非刷级），
+    // 击杀者侧无经验入账；受害方损失由 lose 单独结算。
+    const int32_t gain = 0;
 
-    killer->add("kill/pkgain", gain);
-    killer->add("combat_exp", gain);
     victim->set("kill/kill_time", g_current_time);
     victim->set("kill/last_killer", killerid);
-    victim->set("kill/last_lose", gain);
     victim->add("kill/pklose", lose);
     victim->add("combat_exp", -lose);
     victim->reset_level();
@@ -428,7 +424,7 @@ void CReward::handle_npc_kill_reward(CChar* killer, CChar* victim,
 // 杀手奖励主函数
 void CReward::killer_reward(CChar* killer, CChar* victim)
 {
-    int32_t lose, gain;
+    int32_t lose;
     char msg[255];
 
     if (victim->query_attr(CChar::IS_USER)) {
@@ -446,11 +442,9 @@ void CReward::killer_reward(CChar* killer, CChar* victim)
             const char* killerid = killer->querystr("id");
             lose                 = victim_lose(killer, victim);
             if (pkreward) lose = lose * 2;
-            gain = lose * 8 / 10;
-            if (gain < 0) gain = 0;
 
-            handle_pk_reward(killer, victim, pkreward, pk_chang, lose, gain,
-                             killerid, env);
+            handle_pk_reward(killer, victim, pkreward, pk_chang, lose, killerid,
+                             env);
         }
         else {
             victim_penalty(victim);

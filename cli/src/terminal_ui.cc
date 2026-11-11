@@ -28,7 +28,7 @@ TerminalUI::~TerminalUI()
     }
 }
 
-void TerminalUI::set_logs_dir(const std::string &dir)
+void TerminalUI::set_logs_dir(const std::string& dir)
 {
     logs_dir_ = dir.empty() ? default_logs_dir() : dir;
 
@@ -39,7 +39,7 @@ void TerminalUI::set_logs_dir(const std::string &dir)
 std::string TerminalUI::timestamp()
 {
     time_t now    = time(nullptr);
-    struct tm *tm = localtime(&now);
+    struct tm* tm = localtime(&now);
     char buf[32];
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
     return std::string(buf);
@@ -48,7 +48,7 @@ std::string TerminalUI::timestamp()
 void TerminalUI::ensure_log_file()
 {
     time_t now    = time(nullptr);
-    struct tm *tm = localtime(&now);
+    struct tm* tm = localtime(&now);
     int today     = tm->tm_yday;  // day of year (0-365)
 
     if (log_file_.is_open() && today == current_log_day_) {
@@ -85,13 +85,13 @@ void TerminalUI::writer_loop()
         OutItem item;
         {
             std::unique_lock<std::mutex> lock(out_mutex_);
-            out_cv_.wait(lock,
-                         [this] { return out_stopping_ || !out_queue_.empty(); });
+            out_cv_.wait(
+                lock, [this] { return out_stopping_ || !out_queue_.empty(); });
             if (out_queue_.empty()) {
                 if (out_stopping_) return;
                 continue;
             }
-            item        = std::move(out_queue_.front());
+            item         = std::move(out_queue_.front());
             out_writing_ = true;
             out_queue_.pop_front();
         }
@@ -124,7 +124,7 @@ void TerminalUI::writer_loop()
     }
 }
 
-void TerminalUI::add_line(const std::string &line)
+void TerminalUI::add_line(const std::string& line)
 {
     OutItem item;
     item.out = line + "\033[0m\n";
@@ -142,7 +142,7 @@ void TerminalUI::add_line(const std::string &line)
     out_cv_.notify_one();
 }
 
-void TerminalUI::post_raw(const std::string &text)
+void TerminalUI::post_raw(const std::string& text)
 {
     if (text.empty()) return;
 

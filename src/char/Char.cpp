@@ -296,12 +296,6 @@ int CChar::is_fighting(CContainer* enemy)
     return 1;
 }
 
-void CChar::clear_condition()
-{
-    del("condition");
-    delete_temp("condition");
-}
-
 int32_t CChar::query_condition(const char* cnd)
 {
     char key[40];
@@ -355,20 +349,6 @@ int l_query_condition(lua_State* L)
     int32_t dur     = ch->query_condition(cnd);
     lua_pushinteger(L, dur);
     return 1;
-}
-
-// self:clear_condition()
-// 调用 CChar::clear_condition（清除所有 condition 及临时 condition）
-int l_clear_condition(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-
-    ch->clear_condition();
-    return 0;
 }
 
 // self:is_busy() -> boolean

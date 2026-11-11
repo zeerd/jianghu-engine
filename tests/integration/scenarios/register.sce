@@ -7,7 +7,10 @@
 #   gender : 注册性别（男性/女性）——wakeup2 双人同睡按道声明异性
 #            （$Lanes 的 Gender 字段，L5=男性 L6=女性），其余道默认男性
 #   attrs: 天赋四维 str int con dex（单项 10~30、总和 84，register_clerk 校验）——
-#          默认均分 21 21 21 21；L8 声明 con/dex 30 流（见 $Lanes L8 注释）
+#          run-integration-tests.ps1 按 $Lanes 各道 Attrs 注入（缺省 21 21 21 21，
+#          L1 取 24 20 21 19、L8 取 10 14 30 30），同时拆写 attr_str/attr_int/
+#          attr_con/attr_dex 四键供登录后 common/attr_register_verify.sce 断言
+#          四维真的落到了对应键上
 # 产出变量：
 #   acct : 注册成功后服务器返回的角色账号 id（供各道 lane_*.sce 登录使用）
 #

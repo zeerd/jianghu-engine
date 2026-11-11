@@ -215,7 +215,10 @@ $OccExe = "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe"
 # 各道分别注册、分别采购、分别推进，靠共享世界里「钉给唯一一道」的资源隔离。
 # 改这里即可增删道（Scripts 对应 scenarios\ 下的 lane*.sce）。
 $Lanes = @(
-    @{ Id = 1; Desc = "山脚基础+房屋"; Script = "lane_foot.sce" },
+    # L1 的 Attrs 是注册四维非均值样本（四值互异才能拦「注册键位落错」，
+    # 均值账号测不出 str↔dex 互换）：con 钉 21——max_hp = 300 + level×con×3
+    # + (age−14)×con，动 con 会改掉全链 HP 数值基线；str 取 24 不压低伤害。
+    @{ Id = 1; Desc = "山脚基础+房屋"; Script = "lane_foot.sce"; Attrs = "24 20 21 19" },
     @{ Id = 2; Desc = "武学链"; Script = "lane_skill.sce"; WizardId = 9 },
     @{ Id = 3; Desc = "山顶战斗尾"; Script = "lane_combat.sce"; WizardId = 9 },
     # L4 依赖巫师服务（WizardId=9）：NPC 师徒家门查询（场景 C 的 family/user
@@ -842,6 +845,10 @@ foreach ($lane in $ActiveLanes) {
     $lane.Result = $null
     $gender = if ($lane.Gender) { $lane.Gender } else { "男性" }
     $attrs = if ($lane.Attrs) { $lane.Attrs } else { "21 21 21 21" }
+    # attrs 顺序 = str int con dex（register.sce 输入序）。注册四维落点断言
+    # （common/attr_register_verify.sce）逐项比较，剧本侧拆不了字符串，故在此
+    # 拆写 attr_str/attr_int/attr_con/attr_dex 四个独立键。
+    $attrParts = @($attrs -split '\s+' | Where-Object { $_ })
     # 无 BOM UTF-8：gender 含中文（女性），ASCII 会损坏为 ??；BOM 会毁掉首行
     # key（CLI load_vars 按原始字节切 '='，BOM 拼进 "name" 使 $name 替换失效）。
     # 后续 peer/peer_acct 追加是纯 ASCII，与本文件字节兼容；CLI save_vars 重写
@@ -852,7 +859,7 @@ foreach ($lane in $ActiveLanes) {
         "acct=1`npass=$wizardPass`n"
     }
     else {
-        "name=$($lane.Name)`npass=e2e1234`nemail=$($lane.Email)`ngender=$gender`nattrs=$attrs`n"
+        "name=$($lane.Name)`npass=e2e1234`nemail=$($lane.Email)`ngender=$gender`nattrs=$attrs`nattr_str=$($attrParts[0])`nattr_int=$($attrParts[1])`nattr_con=$($attrParts[2])`nattr_dex=$($attrParts[3])`n"
     }
     [System.IO.File]::WriteAllText($lane.VarsFile, $varsText,
         (New-Object System.Text.UTF8Encoding($false)))

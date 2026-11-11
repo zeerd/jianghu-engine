@@ -10,40 +10,40 @@ return {
 
     create = function(self)
         self:set_name("青云山山脚")
-        self:add_npc("sample_guide")
-        self:add_npc("sample_vendor")
+        self:add_object("npc", "sample_guide")
+        self:add_object("npc", "sample_vendor")
         -- 巡游NPC：起点放在路口（出口最多），random_move 由此走遍全图
-        self:add_npc("sample_wanderer")
-        self:add_door("青云山半山腰", "青云山半山腰", "青云山山脚")
-        self:add_door("山脚茶棚", "山脚茶棚", "青云山山脚")
-        self:add_door("山脚钱庄", "山脚钱庄", "青云山山脚")
-        self:add_door("青云城住宅区", "青云城住宅区", "青云山山脚")
-        self:add_door("山脚演武场", "山脚演武场", "青云山山脚")
-        self:add_door("山脚林间空地", "山脚林间空地", "青云山山脚")
+        self:add_object("npc", "sample_wanderer")
+        self:add_object("door", "青云山半山腰", "青云山半山腰", "青云山山脚")
+        self:add_object("door", "山脚茶棚", "山脚茶棚", "青云山山脚")
+        self:add_object("door", "山脚钱庄", "山脚钱庄", "青云山山脚")
+        self:add_object("door", "青云城住宅区", "青云城住宅区", "青云山山脚")
+        self:add_object("door", "山脚演武场", "山脚演武场", "青云山山脚")
+        self:add_object("door", "山脚林间空地", "山脚林间空地", "青云山山脚")
         self:set("no_fight", 1)
 
         -- 放置箱子（set_name 第二参是 /t 用的英文 id：单参会被构造期的
         -- id 回落固化成空串，故两箱各给独立 id，当前房间内可精确定位）
-        local box = self:Add_Box()
-        box:add_object("sample_sword_basic", 1)
-        box:add_object("coin", 60000)
+        local box = self:add_object("box")
+        box:add_object("object", "sample_sword_basic", 1)
+        box:add_object("object", "coin", 60000)
         -- 棋子声明了 can_combine_in_box=false：暗器进箱不并堆，按盒取用
-        box:add_object("sample_chess", 1)
+        box:add_object("object", "sample_chess", 1)
         box:set_name("木箱", "mu xiang")
 
-        local box2 = self:Add_Box()
-        box2:add_object("sample_heal", 3)
+        local box2 = self:add_object("box")
+        box2:add_object("object", "sample_heal", 3)
         box2:set_name("药箱", "yao xiang")
 
-        -- 锁着的宝箱：演示箱子上锁（Locked 绑定设 status/reason/duration）。
+        -- 锁着的宝箱：演示箱子上锁（locked 绑定设 status/reason/duration）。
         -- 铜锁无主（不传 owner，人人可持钥匙试开）；密码与商人卖的钥匙配套
         -- （key.lua 的 password 同值），开锁走 CBox::handle_action 的钥匙支。
         -- 箱中一册剑法秘籍，配得上一把锁。
-        local box3 = self:Add_Box()
-        box3:add_object("sample_book_sword", 1)
+        local box3 = self:add_object("box")
+        box3:add_object("object", "sample_book_sword", 1)
         box3:set_name("锁着的箱子", "suo xiang")
         box3:set("password", 123456)
-        box3:Locked("一把铜锁锈得发红", 0)
+        box3:locked("一把铜锁锈得发红", 0)
 
         self:set(
             "long",

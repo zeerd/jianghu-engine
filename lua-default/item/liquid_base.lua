@@ -68,7 +68,7 @@ function liquid_base.do_use(self, me, target)
         msg = string.format("$N拿起$n咕噜噜地喝了几口%s。", self:querystr("liquid/name"))
     end
 
-    message_vision(msg, me, self)
+    message("vision", msg, me, self)
 
     me:add("hp", 1)
     if me:is_fighting() then
@@ -99,7 +99,7 @@ function liquid_base.do_use(self, me, target)
 
     local liquid_type = self:querystr("liquid/type")
     if liquid_type == "alcohol" then
-        message_vision("$N的脸色一阵红一阵白，好象是喝醉了！", me)
+        message("vision", "$N的脸色一阵红一阵白，好象是喝醉了！", me)
         me:apply_condition("drunk", me:query_condition("drunk") + (self:query("liquid/drunk_supply") or 0))
     end
     if liquid_type == "xx_poison" then
@@ -147,17 +147,21 @@ function liquid_base.do_fill(self, me)
     if fee > 0 then
         if me:query("balance") >= fee then
             me:add_balance(-fee)
-            message_vision("$N高喊道：老板，记在账上！", me)
+            message("vision", "$N高喊道：老板，记在账上！", me)
         else
             return notify_fail("穷光蛋！不要乱凑热闹了！")
         end
     end
 
     if self:query("liquid/remaining") ~= 0 then
-        message_vision(string.format("$N将%s里剩下的%s倒掉。", self:name(), self:querystr("liquid/name")), me)
+        message(
+            "vision",
+            string.format("$N将%s里剩下的%s倒掉。", self:name(), self:querystr("liquid/name")),
+            me
+        )
     end
 
-    message_vision(string.format("$N将%s装满%s。", self:name(), liquid_name), me)
+    message("vision", string.format("$N将%s装满%s。", self:name(), liquid_name), me)
 
     if me:is_fighting() then
         me:start_busy(2)

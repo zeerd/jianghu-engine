@@ -37,11 +37,6 @@ struct has_handle_action4<
 template <typename T>
 struct has_owner_is_killed : std::true_type {};
 
-// 检测 T 是否含有 Do_Wield()/Do_UnWield()（CEquip 的 protected 方法，
-// 仅 CEquip 及其派生类拥有，用继承关系判断）
-template <typename T>
-struct has_do_wield : std::is_base_of<CEquip, T> {};
-
 template <typename T>
 class CLuaItemT : public T {
 public:
@@ -105,10 +100,6 @@ public:
     // self:base_init() - 供脚本显式调用 C++ 基类 init（非虚限定调用防递归）
     void base_init() { T::init(); }
 
-    // 供 Lua 调用的公共包装：调用 CEquip 的 protected Do_Wield()/Do_UnWield()
-    int lua_do_wield();
-    int lua_do_un_wield();
-
     // 供 Lua 调用的默认动作：调用 CItem::Do_Action（绕过 Lua 重写）
     int lua_do_action_base(int act, CChar* me);
 
@@ -136,13 +127,6 @@ private:
     }
     void call_base_owner_is_killed(std::false_type, CChar* killer)
     { /* 基类无此方法，忽略 */ }
-
-    // 标签分派：仅当 T 派生自 CEquip 时才调用 Do_Wield/Do_UnWield，
-    // 否则返回安全默认值。
-    int call_base_do_wield(std::true_type) { return do_wield(); }
-    int call_base_do_wield(std::false_type) { return 0; }
-    int call_base_do_unwield(std::true_type) { return do_un_wield(); }
-    int call_base_do_unwield(std::false_type) { return 0; }
 
     // 基类 Do_Action 回退：调用 T 的直接基类实现（对 CEquip 系为
     // CItem::Do_Action）

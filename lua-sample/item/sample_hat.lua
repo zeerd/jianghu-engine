@@ -18,6 +18,6 @@ return {
         self:set("wear_msg", "$N束起一顶$n。")
         self:set("remove_msg", "$N解下头上的$n。")
 
-        self:set("apply/int", 1)
+        self:set("apply/int", 2)
     end,
 }

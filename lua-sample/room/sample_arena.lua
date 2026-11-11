@@ -13,8 +13,8 @@ return {
 
     create = function(self)
         self:set_name("山脚演武场")
-        self:add_npc("sample_arena_master")
-        self:add_door("青云山山脚", "青云山山脚", "山脚演武场")
+        self:add_object("npc", "sample_arena_master")
+        self:add_object("door", "青云山山脚", "青云山山脚", "山脚演武场")
 
         self:set(
             "long",

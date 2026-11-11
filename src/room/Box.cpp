@@ -278,7 +278,7 @@ CBox::~CBox()
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:UnLocked([resume]) -> number - 开锁（CBox；resume>0 时扣减耐久）
+// self:unlocked([resume]) -> number - 开锁（CBox；resume>0 时扣减耐久）
 int l_unlocked(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -310,20 +310,4 @@ int l_locked(lua_State* L)
     }
     box->locked((char*)season, duration, me);
     return 0;
-}
-
-// self:add_object(obj_name, nAmount) -> object - 往箱子放东西（CBox）
-int l_add_object(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
-    CBox* b = dynamic_cast<CBox*>(obj);
-    if (!b) return 0;
-
-    const char* obj_name = luaL_checkstring(L, 2);
-    int32_t amount       = (int32_t)luaL_optinteger(L, 3, 1);
-
-    lua_bind_push_object(L, b->add_object(obj_name, amount));
-    return 1;
 }

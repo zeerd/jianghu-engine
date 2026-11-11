@@ -256,24 +256,6 @@ int32_t CChar::skill_need_points(const char* skill)
     return need_pt;
 }
 
-// 返回最低技能的等级
-int CChar::mini_skill()
-{
-    CVector v;
-    int max_skill = 9999;
-
-    if (!skills.get_count()) return 0;
-
-    skills.keys(v);
-
-    for (int i = 0; i < v.count(); i++) {
-        int lv = skills[v[i]];
-        if (max_skill > lv) max_skill = lv;
-    }
-
-    return max_skill;
-}
-
 int CChar::can_learn(const char* skillname)
 {
     if (!skillname[0]) return 0;
@@ -320,17 +302,6 @@ int l_query_skill(lua_State* L)
     const char* skill = luaL_checkstring(L, 2);
     int raw           = (int)luaL_optinteger(L, 3, 0);
     lua_pushinteger(L, ch->query_skill(skill, raw));
-    return 1;
-}
-
-// self:mini_skill() -> number - 最低武功等级
-int l_mini_skill(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    lua_pushinteger(L, ch->mini_skill());
     return 1;
 }
 
@@ -385,28 +356,40 @@ int l_apply_condition(lua_State* L)
     return 0;
 }
 
-// self:query_skill_mapped(skill) -> string
-int l_query_skill_mapped(lua_State* L)
+// self:skill_map(action, ...) - 技能映射（usage -> 高级技能）分派口。
+// ACTION 取 set(skill[, mapped_to]) / query(skill) / list / clear；
+// set 缺 mapped_to 清该 usage 的映射。未登记 ACTION 报错，self 非角色返回 0。
+int l_skill_map(lua_State* L)
 {
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    const char* skill = luaL_checkstring(L, 2);
-    const char* val   = ch->query_skill_mapped(skill);
-    lua_pushstring(L, val ? val : "");
-    return 1;
-}
+    const char* action = luaL_checkstring(L, 2);
+    if (strcmp(action, "set") != 0 && strcmp(action, "query") != 0
+        && strcmp(action, "list") != 0 && strcmp(action, "clear") != 0)
+        return luaL_error(L, "unknown skill_map action: %s", action);
 
-// self:query_skill_map_list() -> table|nil
-// 返回技能映射表（usage -> 映射的高级技能名）的条目数组 [{usage, mapped}]
-int l_query_skill_map_list(lua_State* L)
-{
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
+    CChar* ch        = obj ? dynamic_cast<CChar*>(obj) : NULL;
     if (!ch) return 0;
 
+    if (strcmp(action, "set") == 0) {
+        const char* skill = luaL_checkstring(L, 3);
+        const char* mto   = luaL_optstring(L, 4, NULL);
+        ch->map_skill(skill, mto);
+        return 0;
+    }
+
+    if (strcmp(action, "query") == 0) {
+        const char* skill = luaL_checkstring(L, 3);
+        const char* val   = ch->query_skill_mapped(skill);
+        lua_pushstring(L, val ? val : "");
+        return 1;
+    }
+
+    if (strcmp(action, "clear") == 0) {
+        ch->clear_skill_map();
+        return 0;
+    }
+
+    // action == "list"：返回 [{usage, mapped}] 条目数组，无映射时 nil
     CMapping* map = ch->query_skill_map();
     if (!map) {
         lua_pushnil(L);
@@ -451,28 +434,40 @@ int l_inc_skill(lua_State* L)
     return 0;
 }
 
-// self:query_skill_prepared(skill) -> string
-int l_query_skill_prepared(lua_State* L)
+// self:skill_prepare(action, ...) - 技能备战（usage -> 备战技能）分派口。
+// ACTION 取 set(skill[, prepared]) / query(skill) / list / clear；
+// set 缺 prepared 清该 usage 的备战。未登记 ACTION 报错，self 非角色返回 0。
+int l_skill_prepare(lua_State* L)
 {
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    const char* skill = luaL_checkstring(L, 2);
-    const char* val   = ch->query_skill_prepared(skill);
-    lua_pushstring(L, val ? val : "");
-    return 1;
-}
+    const char* action = luaL_checkstring(L, 2);
+    if (strcmp(action, "set") != 0 && strcmp(action, "query") != 0
+        && strcmp(action, "list") != 0 && strcmp(action, "clear") != 0)
+        return luaL_error(L, "unknown skill_prepare action: %s", action);
 
-// self:query_skill_prepare_list() -> table|nil
-// 返回技能备战映射表（usage -> 备战技能名）的条目数组 [{usage, prepared}]
-int l_query_skill_prepare_list(lua_State* L)
-{
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
+    CChar* ch        = obj ? dynamic_cast<CChar*>(obj) : NULL;
     if (!ch) return 0;
 
+    if (strcmp(action, "set") == 0) {
+        const char* skill = luaL_checkstring(L, 3);
+        const char* mto   = luaL_optstring(L, 4, NULL);
+        ch->prepare_skill(skill, mto);
+        return 0;
+    }
+
+    if (strcmp(action, "query") == 0) {
+        const char* skill = luaL_checkstring(L, 3);
+        const char* val   = ch->query_skill_prepared(skill);
+        lua_pushstring(L, val ? val : "");
+        return 1;
+    }
+
+    if (strcmp(action, "clear") == 0) {
+        ch->clear_skill_prepare();
+        return 0;
+    }
+
+    // action == "list"：返回 [{usage, prepared}] 条目数组，无备战时 nil
     CMapping* map = ch->query_skill_prepare();
     if (!map) {
         lua_pushnil(L);
@@ -516,32 +511,6 @@ int l_improve_skill(lua_State* L)
     return 0;
 }
 
-// self:map_skill(skill, mapped_to)
-int l_map_skill(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    const char* skill = luaL_checkstring(L, 2);
-    const char* mto   = luaL_optstring(L, 3, NULL);
-    ch->map_skill(skill, mto);
-    return 0;
-}
-
-// self:prepare_skill(skill, mapped_to)
-int l_prepare_skill(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    const char* skill = luaL_checkstring(L, 2);
-    const char* mto   = luaL_optstring(L, 3, NULL);
-    ch->prepare_skill(skill, mto);
-    return 0;
-}
-
 // self:clear_skill() - 清空已学技能
 int l_clear_skill(lua_State* L)
 {
@@ -550,28 +519,6 @@ int l_clear_skill(lua_State* L)
     CChar* ch = dynamic_cast<CChar*>(obj);
     if (!ch) return 0;
     ch->clear_skill();
-    return 0;
-}
-
-// self:clear_skill_map() - 清空技能映射
-int l_clear_skill_map(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    ch->clear_skill_map();
-    return 0;
-}
-
-// self:clear_skill_prepare() - 清空技能备战
-int l_clear_skill_prepare(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-    CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    ch->clear_skill_prepare();
     return 0;
 }
 

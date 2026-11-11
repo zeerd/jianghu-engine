@@ -420,7 +420,6 @@ void CAttack::calculate_damage(AttackContext& ctx)
     unsigned long defense_factor
         = CChar::level2_exp(ctx.victim->query("level")) + 1;
     unsigned long my_exp = CChar::level2_exp(ctx.me->query("level"));
-    if (my_exp < 0) my_exp = 1;
 
     while ((unsigned long)RANDOM(defense_factor, "combatd") > my_exp) {
         ctx.damage -= ctx.damage / 3;

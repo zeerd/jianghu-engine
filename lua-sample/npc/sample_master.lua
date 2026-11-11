@@ -1,6 +1,6 @@
 -- sample_master.lua  半山腰师父
 -- 示例NPC：展示师父NPC的简单实现
--- 使用DownLoad()机制，师父会什么就教什么
+-- 使用download()机制，师父会什么就教什么
 
 local npc = {}
 
@@ -52,14 +52,14 @@ function npc.create(self)
     self:set_skill("literate", 400)
     self:set_skill("poison", 400)
 
-    self:map_skill("force", "force_adv")
-    self:map_skill("unarmed", "unarmed_adv")
-    self:map_skill("parry", "parry_adv")
-    self:map_skill("dodge", "dodge_adv")
-    self:map_skill("sword", "sword_adv")
-    self:map_skill("throwing", "throw_adv")
+    self:skill_map("set", "force", "force_adv")
+    self:skill_map("set", "unarmed", "unarmed_adv")
+    self:skill_map("set", "parry", "parry_adv")
+    self:skill_map("set", "dodge", "dodge_adv")
+    self:skill_map("set", "sword", "sword_adv")
+    self:skill_map("set", "throwing", "throw_adv")
 
-    self:prepare_skill("unarmed", "unarmed_adv")
+    self:skill_prepare("set", "unarmed", "unarmed_adv")
 
     self:carry_object("sample_sword_adv"):wield()
     self:carry_object("sample_chess")
@@ -69,35 +69,35 @@ function npc.attempt_apprentice(self, me)
     -- 检查叛师次数
     if me:query("betrayer") >= 2 then
         self:say("你叛师次数太多了，我不能收你。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 0
     end
 
     -- 检查是否已经有门派
     if me:querystr("family/family_name") ~= "" and me:querystr("family/family_name") ~= "青云门" then
         self:say("你已经拜入其他门派，我不能收你。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 0
     end
 
     -- 检查是否已经是本门弟子
     if me:querystr("family/family_name") == "青云门" then
         self:say("你已经是我的弟子了，好好修炼吧。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 0
     end
 
     -- 收徒
     self:say("好，从今天起你就是我青云门的弟子了。", me)
     self:command("recruit " .. me:object_id())
-    self:DownLoad(me)
+    self:download(me)
     -- 入门礼：师父讲法口传心授，弟子历练大进（每号一次）
     if me:query("reward/exp") < 1 then
         me:add("combat_exp", 50000)
         me:set("reward/exp", 1)
         self:say("为师今日传你本门口诀，好好参悟。", me)
     end
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -118,7 +118,7 @@ end
 
 -- 问话入口：只注册「悔过」「验看」两条问话，其余交回 base_do_talk，
 -- 保持对陌生问话的原有回绝。
---   悔过：判师记录（betrayer）的清除入口——机制全在引擎 Remove_Betrayer
+--   悔过：判师记录（betrayer）的清除入口——机制全在引擎 remove_betrayer
 --     （清记录，按判师次数把全部武功每重降 20 级），本脚本只管菜单与前后文。
 --   验看：弟子的门规与实学核验，取值机制见 npc.handle_inspect。
 function npc.do_talk(self, me, ask)
@@ -127,11 +127,11 @@ function npc.do_talk(self, me, ask)
     end
 
     if ask == "验看" then
-        self:AddMenuItem("请师父验看根骨", "$0inspect $1", me)
+        self:add_menu_item("请师父验看根骨", "$0inspect $1", me)
     else
-        self:AddMenuItem("我愿意承受代价，洗去判师之名", "$0repent $1", me)
+        self:add_menu_item("我愿意承受代价，洗去判师之名", "$0repent $1", me)
     end
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -170,7 +170,7 @@ function npc.handle_action(self, comm, me, arg)
         end
 
         self:say("悔过的代价先说清：判师几次，全部武功便每重降 20 级。", me)
-        me:Remove_Betrayer(me)
+        me:remove_betrayer(me)
         self:say("判师记录已消。", me)
         return 1
     end

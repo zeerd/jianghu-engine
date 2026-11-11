@@ -68,7 +68,7 @@ void resume_ap(int ap, CChar* me)
 }
 
 // 判断两人是否亲属关系。
-int is_relative(CChar* me, CChar* who)
+bool is_relative(CChar* me, CChar* who)
 {
     // 可以查看师傅的技能
     if (me->is_apprentice_of(who)) return 1;
@@ -390,27 +390,5 @@ int l_notify_fail(lua_State* L)
         notify_fail("%s", msg);
     }
     lua_pushinteger(L, 0);
-    return 1;
-}
-
-// get_room_char(me, target) -> object|nil - 查找 me 所在房间内的角色
-int l_get_room_char(lua_State* L)
-{
-    CChar* me = lua_check_char(L, 1);
-    if (!me) {
-        lua_pushnil(L);
-        return 1;
-    }
-    int32_t target = (int32_t)luaL_checkinteger(L, 2);
-    lua_bind_push_object(L, get_room_char(me, target));
-    return 1;
-}
-
-// is_relative(me, who) -> number - 判断两人是否亲属/师徒/伴侣关系
-int l_is_relative(lua_State* L)
-{
-    CChar* me  = lua_check_char(L, 1);
-    CChar* who = lua_check_char(L, 2);
-    lua_pushinteger(L, (me && who) ? is_relative(me, who) : 0);
     return 1;
 }

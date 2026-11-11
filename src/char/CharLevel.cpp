@@ -51,14 +51,14 @@ int CChar::skill2level(int sk)
 // 等级、经验值、属性，技能点对照表
 //
 // 数据唯一来源：lua-xxxx/data/level_exp.lua
-// C++ 首次调用 Level2Exp() 时通过 require("data.level_exp") 从 Lua 加载并缓存。
-// C++ 中不保留任何硬编码的经验值数据。
+// C++ 首次调用 level2_exp() 时通过 require("data.level_exp") 从 Lua
+// 加载并缓存。 C++ 中不保留任何硬编码的经验值数据。
 
 static std::vector<int32_t> s_level_exp;
 static bool s_level_exp_loaded = false;
 
 // 重置 level_exp 缓存（供测试使用）。
-// 下次调用 Level2Exp() 会重新从 Lua 加载。
+// 下次调用 level2_exp() 会重新从 Lua 加载。
 void CChar::reset_level_exp_cache()
 {
     s_level_exp.clear();
@@ -237,7 +237,7 @@ void CChar::remove_betrayer(CChar* me)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// self:Remove_Betrayer() - 清除判师记录（CChar 静态方法，作用于 self）
+// self:remove_betrayer() - 清除判师记录（CChar 静态方法，作用于 self）
 int l_remove_betrayer(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

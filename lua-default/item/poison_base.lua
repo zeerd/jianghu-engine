@@ -14,9 +14,9 @@ function poison_base.do_look(self, me)
 
     local poi = me:query_skill("poison", 1)
     if self:environment() and self:environment():object_id() == me:object_id() and poi > 0 then
-        self:AddMenuItem("涂抹毒膏", "$0tumo $1", me)
-        self:AddMenuItem("停止观察", "", me)
-        self:SendMenu(me)
+        self:add_menu_item("涂抹毒膏", "$0tumo $1", me)
+        self:add_menu_item("停止观察", "", me)
+        self:send_menu(me)
     end
 
     return 1
@@ -29,7 +29,7 @@ function poison_base.do_mo(self, me)
         return notify_fail("这一剂%s被用完了。", self:name(1))
     end
 
-    if me:query_temp("poison/modu") ~= 0 then
+    if me:query("poison/modu", "T") ~= 0 then
         return notify_fail("你的武器上已经涂过%s了。", self:name(1))
     end
 
@@ -49,8 +49,8 @@ function poison_base.do_mo(self, me)
         return notify_fail("你现在内力不够，无法保证自己不中毒。")
     end
 
-    me:set_temp("poison/modu", 1)
-    me:set_temp("poison/mo_type", self:querystr("poison_type"))
+    me:set("poison/modu", 1, "T")
+    me:set("poison/mo_type", self:querystr("poison_type"), "T")
     me:add("mp", -30)
     me:call_out("remove_effect", skill, 0, 0)
 
@@ -62,8 +62,8 @@ end
 
 -- 涂毒效果超时回调（call_out 注册）
 function poison_base.remove_effect(self, p1, p2)
-    self:delete_temp("poison/modu")
-    self:SendState()
+    self:del("poison/modu", "T")
+    self:send_state()
     tell_object(self, "你涂在武器上的毒药失效了。")
 end
 

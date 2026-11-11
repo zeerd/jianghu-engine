@@ -27,8 +27,7 @@ namespace {
 
 /// 用 Windows API 在两个代码页之间转码（src_cp → dst_cp）。
 /// 输入为空或转码失败时返回原串。
-std::string codepage_convert(const std::string &input, UINT src_cp,
-                             UINT dst_cp)
+std::string codepage_convert(const std::string& input, UINT src_cp, UINT dst_cp)
 {
     if (input.empty()) return {};
 
@@ -56,8 +55,8 @@ constexpr UINT kGbkCodePage = 936;  // GBK 在 Windows 上的代码页
 #else
 
 /// iconv 封装：src_code → dst_code。失败时返回空串。
-std::string iconv_convert(const char *dst_code, const char *src_code,
-                          const std::string &input)
+std::string iconv_convert(const char* dst_code, const char* src_code,
+                          const std::string& input)
 {
     iconv_t cd = iconv_open(dst_code, src_code);
     if (cd == reinterpret_cast<iconv_t>(-1)) {
@@ -70,8 +69,8 @@ std::string iconv_convert(const char *dst_code, const char *src_code,
     size_t out_bytes = in_bytes * 2 + 8;
     std::string result(out_bytes, '\0');
 
-    char *in_buf    = const_cast<char *>(input.data());
-    char *out_buf   = &result[0];
+    char* in_buf    = const_cast<char*>(input.data());
+    char* out_buf   = &result[0];
     size_t in_left  = in_bytes;
     size_t out_left = out_bytes;
 
@@ -95,12 +94,12 @@ std::string g_comm_key       = kDefaultCommKey;
 
 }  // namespace
 
-void set_comm_key(const std::string &key)
+void set_comm_key(const std::string& key)
 {
     g_comm_key = key.empty() ? std::string(kDefaultCommKey) : key;
 }
 
-void dump_hex(const std::string &data, size_t offset, size_t len)
+void dump_hex(const std::string& data, size_t offset, size_t len)
 {
     for (size_t i = offset; i < offset + len && i < data.size(); i++) {
         printf("%02X ", (unsigned char)data[i]);
@@ -109,7 +108,7 @@ void dump_hex(const std::string &data, size_t offset, size_t len)
     printf("\n%zu\n", len);
 }
 
-std::optional<GameMessage> parse_message(const std::string &raw)
+std::optional<GameMessage> parse_message(const std::string& raw)
 {
     if (raw.empty()) return std::nullopt;
 
@@ -155,7 +154,8 @@ std::optional<GameMessage> parse_message(const std::string &raw)
             in_key = true;
         }
         else if (c == '=') {
-            // 首个 '=' 是 key/value 分隔；值内再出现的 '=' 属消息正文，原样收进 val
+            // 首个 '=' 是 key/value 分隔；值内再出现的 '=' 属消息正文，原样收进
+            // val
             if (in_key)
                 in_key = false;
             else
@@ -183,32 +183,32 @@ std::optional<GameMessage> parse_message(const std::string &raw)
     return msg;
 }
 
-std::string command(const std::string &cmd,
-                    const std::vector<std::string> &args)
+std::string command(const std::string& cmd,
+                    const std::vector<std::string>& args)
 {
     std::ostringstream oss;
     oss << cmd;
-    for (const auto &a : args) oss << ' ' << a;
+    for (const auto& a : args) oss << ' ' << a;
     oss << '\t';
     std::string final = oss.str();
     return final;
 }
 
-std::string immediate(const std::string &cmd,
-                      const std::vector<std::string> &args)
+std::string immediate(const std::string& cmd,
+                      const std::vector<std::string>& args)
 {
     std::ostringstream oss;
     oss << "0 " << cmd;
-    for (const auto &a : args) oss << ' ' << a;
+    for (const auto& a : args) oss << ' ' << a;
     oss << '\t';
     return oss.str();
 }
 
-std::string format_login(const std::string &local_ip,
-                         const std::string &version_prefix,
-                         const std::string &account,
-                         const std::string &password, const std::string &card,
-                         const std::string &cardpass)
+std::string format_login(const std::string& local_ip,
+                         const std::string& version_prefix,
+                         const std::string& account,
+                         const std::string& password, const std::string& card,
+                         const std::string& cardpass)
 {
     // Server uses analyse_string() which splits on SPACE (' ').
     // The DecodeStr() layer strips '\n' and '\t' during XOR, so
@@ -221,10 +221,10 @@ std::string format_login(const std::string &local_ip,
     return oss.str();
 }
 
-std::string format_register(const std::string &version_prefix,
-                            const std::string &account,
-                            const std::string &password,
-                            const std::string &gender, int strength,
+std::string format_register(const std::string& version_prefix,
+                            const std::string& account,
+                            const std::string& password,
+                            const std::string& gender, int strength,
                             int constitution, int intelligence, int dexterity)
 {
     // Server register format: "register client_name account password gender str
@@ -237,7 +237,7 @@ std::string format_register(const std::string &version_prefix,
 }
 
 std::string format_tell(int64_t uid, int64_t target_id,
-                        const std::string &content)
+                        const std::string& content)
 {
     // tell wire format: "{uid} tell {target_id} <content>\t"
     std::ostringstream oss;
@@ -245,7 +245,7 @@ std::string format_tell(int64_t uid, int64_t target_id,
     return oss.str();
 }
 
-std::string format_chat(int64_t uid, const std::string &content)
+std::string format_chat(int64_t uid, const std::string& content)
 {
     // xchat wire format: "{uid} chat 0 <content>\t"  (public broadcast to room)
     std::ostringstream oss;
@@ -253,11 +253,11 @@ std::string format_chat(int64_t uid, const std::string &content)
     return oss.str();
 }
 
-std::string encode_str(const std::string &input)
+std::string encode_str(const std::string& input)
 {
     // XOR cipher matching server's DecodeStr，双向同一变换、同一密钥
     // （密钥来源见 set_comm_key）
-    const std::string &key = g_comm_key;
+    const std::string& key = g_comm_key;
     const int key_len      = static_cast<int>(key.size());
 
     std::string result = input;
@@ -277,7 +277,7 @@ std::string encode_str(const std::string &input)
     return result;
 }
 
-std::string gbk_to_utf8(const std::string &input)
+std::string gbk_to_utf8(const std::string& input)
 {
     if (input.empty()) return {};
 #ifdef _WIN32
@@ -287,7 +287,7 @@ std::string gbk_to_utf8(const std::string &input)
 #endif
 }
 
-std::string utf8_to_gbk(const std::string &input)
+std::string utf8_to_gbk(const std::string& input)
 {
     if (input.empty()) return {};
 #ifdef _WIN32

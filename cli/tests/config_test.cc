@@ -20,7 +20,7 @@ std::filesystem::path test_dir()
 }
 
 // 写入临时配置文件（body 原样落盘）并加载。
-Config load_conf(const std::string &body)
+Config load_conf(const std::string& body)
 {
     auto path = test_dir() / "cli.conf";
     std::ofstream out(path, std::ios::trunc);
@@ -30,10 +30,7 @@ Config load_conf(const std::string &body)
 }
 
 // 指向临时目录的 logs_dir 行，避免落盘时创建用户目录。
-std::string logs_line()
-{
-    return "logs_dir = " + test_dir().string() + "\n";
-}
+std::string logs_line() { return "logs_dir = " + test_dir().string() + "\n"; }
 
 }  // namespace
 
@@ -83,7 +80,7 @@ TEST(ConfigParse, MissingFileReturnsDefaults)
 // logs_dir 里的 ~ 展开为主目录，否则日志会写进相对路径。
 TEST(ConfigParse, ExpandsTildeInLogsDir)
 {
-    Config c          = load_conf("logs_dir = ~/AppData\n");
+    Config c               = load_conf("logs_dir = ~/AppData\n");
     const std::string home = home_dir();
     EXPECT_EQ(c.logs_dir, home.empty() ? "~/AppData" : home + "/AppData");
 }
@@ -93,17 +90,16 @@ TEST(ConfigParse, ExpandsTildeInLogsDir)
 // 位置等于没有日志）。副作用：确保缺省目录存在，属 CLI 本人生命周期行为。
 TEST(ConfigParse, DefaultLogsDirExpandsHome)
 {
-    Config c             = load_conf("port = 6601\n");
+    Config c               = load_conf("port = 6601\n");
     const std::string home = home_dir();
-    EXPECT_EQ(c.logs_dir,
-              home.empty() ? "~/.local/share/jianghu/logs"
-                           : home + "/.local/share/jianghu/logs");
+    EXPECT_EQ(c.logs_dir, home.empty() ? "~/.local/share/jianghu/logs"
+                                       : home + "/.local/share/jianghu/logs");
 }
 
 // 未设 CC_JIANGHU_CONFIG 时，配置文件固定取 ~/.jianghu/config。
 TEST(ConfigPath, DefaultPathUsesHomeConfigLocation)
 {
-    const char *prev = getenv("CC_JIANGHU_CONFIG");
+    const char* prev = getenv("CC_JIANGHU_CONFIG");
     std::string prev_val;
     if (prev) prev_val = prev;
     _putenv_s("CC_JIANGHU_CONFIG", "");

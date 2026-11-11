@@ -325,8 +325,8 @@ int l_die(lua_State* L)
     return 0;
 }
 
-// self:SendState()        - 广播状态给房间内其他玩家并私发完整状态
-// self:SendState(other)   - 仅刷新自身，不广播（尊重 Lua 第二参数）
+// self:send_state()        - 广播状态给房间内其他玩家并私发完整状态
+// self:send_state(other)   - 仅刷新自身，不广播（尊重 Lua 第二参数）
 int l_send_state(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

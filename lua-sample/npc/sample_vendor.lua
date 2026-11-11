@@ -43,6 +43,13 @@ function npc.create(self)
     -- （见 item/sample_dagger.lua、item/sample_short_sword.lua）
     self:carry_good("sample_dagger", 5)
     self:carry_good("sample_short_sword", 3)
+    -- 穿戴类：帽/甲/鞋/项链各落一个装备槽，靠 apply/* 给穿戴者加临时属性
+    -- （见 item/sample_hat.lua 等）。上架压在队尾，前面各商品的 /buy 序号
+    -- 不随后续加货挪动
+    self:carry_good("sample_hat", 5)
+    self:carry_good("sample_armor", 5)
+    self:carry_good("sample_boots", 5)
+    self:carry_good("sample_necklace", 5)
 
     -- 自身装备
     self:carry_object("sample_sword_basic"):wear()
@@ -55,8 +62,8 @@ function npc.do_talk(self, me, ask)
         return self:base_do_talk(me, ask)
     end
 
-    self:AddMenuItem("索取一份交易文书", "$0get_trade_doc $1", me)
-    self:SendMenu(me)
+    self:add_menu_item("索取一份交易文书", "$0get_trade_doc $1", me)
+    self:send_menu(me)
     return 1
 end
 
@@ -72,9 +79,9 @@ function npc.do_get_trade_doc(self, me)
     end
 
     doc:move(me)
-    message_vision("$N递给$n一份交易文书。", self, me)
+    message("vision", "$N递给$n一份交易文书。", self, me)
     self:say("拿好了，凭这份文书才好与各地商人做买卖。", me)
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 

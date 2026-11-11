@@ -40,7 +40,7 @@ function npc.do_talk(self, me, ask)
     -- 单删、准备表、映射表、技能列表刷新一并走一遍——判师的代价就是忘光
     local had = me:query_skill("qingyun_xinfa", 1)
     me:delete_skill("qingyun_xinfa")
-    me:FlushMySkill()
+    me:flush_my_skill()
     tell_object(me, string.format("你已散尽本门武学：青云心法 %d 级已废。", had))
 
     me:apprentice("release")

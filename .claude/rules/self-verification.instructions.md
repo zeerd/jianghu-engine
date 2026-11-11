@@ -13,8 +13,4 @@ applyTo: '**'
 
 ## 文档落地后（动过 `.claude/rules/*.instructions.md` 时）
 
-- 按 `instructions.instructions.md` §6 自检清单逐项过一遍（行为合同 vs 事实仓库）。
-- 逐段过 `copilot-instructions.md`「铁律：指令文件与设计文档的分工」自测题：这段是让人「照着做」还是「读了懂」？「读了懂」成段的（论证/机制/沿革/实测数据）移入 `docs/design/` 留指针。
-- 会漂的事实与清单（道数、默认参数、参数表、动词/条件表、资源清单）核对源头（脚本/CLI/design），指令文件不维护第二份。
-- 与 `docs/design/*.md` 对句查重：同一句话只许存在一处，另一处是指针。
-- 指令文件与设计文档同步改过之后，两边的交叉指针（design §X ↔ 指令 §Y）逐个核对仍然成立。
+- 按 `instructions.instructions.md` §4「交付前自检」清单逐项过一遍（含「照着做 / 读了懂」自测题、与设计文档的对句查重、交叉指针核对）。

@@ -15,10 +15,10 @@ return {
 
         -- 副本门：退回庭院。第三个参数是庭院一侧的出口名（来路出口）。
         -- 敌人清场前 valid_leave 会拒绝使用。
-        self:add_door("庭院大门", "黑风寨庭院", "聚义大厅")
+        self:add_object("door", "庭院大门", "黑风寨庭院", "聚义大厅")
 
         -- 添加副本管理员
-        local npc = self:add_npc("sample_fb_manager")
+        local npc = self:add_object("npc", "sample_fb_manager")
         if npc then
             npc:set_name("黑风寨小头目", "xiao tou mu")
             npc:set("title", "副本管理员")
@@ -36,10 +36,10 @@ return {
         if self:query("spawned") == 0 then
             -- 刷出3个小喽啰
             for i = 1, 3 do
-                self:add_npc("sample_bandit_low")
+                self:add_object("npc", "sample_bandit_low")
             end
             -- 刷出1个大当家
-            self:add_npc("sample_bandit_boss")
+            self:add_object("npc", "sample_bandit_boss")
             self:set("spawned", 1)
         end
     end,

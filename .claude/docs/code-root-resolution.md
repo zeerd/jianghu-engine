@@ -38,9 +38,8 @@ and a skill never disagree about where the code lives.
 
 ## Unresolved does not default to `src/`
 
-This is the rule the whole file exists for, and it is obligation 2 of
-`.claude/rules/skill-authoring.md`: an absent value may not default to the
-permissive one.
+This is the rule the whole file exists for: an absent value may not default to
+the permissive one.
 
 **For a read or scan:** report `NOT ASSESSED — code root unresolved` and say
 which check did not run. Never report zero hits.

@@ -16,21 +16,21 @@ public:
     // Always succeeds — simple scrolling output
     bool init() { return true; }
 
-    /// Set logs directory. If empty (default), uses  ~/.local/share/jianghu/logs.
-    /// Must be called before any add_line() call.
-    void set_logs_dir(const std::string &dir);
+    /// Set logs directory. If empty (default), uses
+    /// ~/.local/share/jianghu/logs. Must be called before any add_line() call.
+    void set_logs_dir(const std::string& dir);
 
     // Print a line to stdout and append to daily log file
-    void add_line(const std::string &line);
+    void add_line(const std::string& line);
 
     // 写 stdout 的原始文本（调用方已含换行），不进会话日志。
-    void post_raw(const std::string &text);
+    void post_raw(const std::string& text);
 
     // 等待输出队列排空（含最后一条写盘完成）；返回是否在超时前排空。
     bool flush_output();
 
     // No-op in simple mode
-    void set_status(const std::string &) {}
+    void set_status(const std::string&) {}
 
     // Signal shutdown
     void shutdown() { running_ = false; }

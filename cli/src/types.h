@@ -12,10 +12,10 @@ struct GameMessage {
     int cmd;                                    // Command code (&C=N)
     std::map<std::string, std::string> params;  // key=val pairs
 
-    std::string get(const std::string &key,
-                    const std::string &default_val = "") const;
-    int64_t get_int(const std::string &key, int64_t default_val = 0) const;
-    bool has(const std::string &key) const;
+    std::string get(const std::string& key,
+                    const std::string& default_val = "") const;
+    int64_t get_int(const std::string& key, int64_t default_val = 0) const;
+    bool has(const std::string& key) const;
     std::string to_string() const;  // for debugging
 };
 
@@ -62,9 +62,9 @@ struct MagicInfo {
     std::string name;          // 法术标识 (base_name, from M)
     std::string display_name;  // 法术显示名称 (from N)
     int force = 0;             // 每次施展消耗内力点 (from R)
-    int mana = 0;  // 每次施展消耗法力/内力 (from M field - xclient uses mana)
-    int mp         = 0;  // 每次施展消耗MP/气 (from A)
-    int ap         = 0;  // 每次施展消耗AP (from A - xclient uses ap)
+    int mana  = 0;  // 每次施展消耗法力/内力 (from M field - xclient uses mana)
+    int mp    = 0;  // 每次施展消耗MP/气 (from A)
+    int ap    = 0;  // 每次施展消耗AP (from A - xclient uses ap)
     int valid_cast = 0;  // 有效施展条件 (from V)
     int target     = 0;  // 目标类型 (from T)
 };
@@ -151,7 +151,7 @@ inline std::string wield_position_name(int pos)
 
 // Door / exit
 struct DoorInfo {
-    std::string door_key;  // &D= — direction keyword e.g. "north", "south"
+    std::string door_key;   // &D= — direction keyword e.g. "north", "south"
     std::string dir_label;  // &A= — display direction label e.g. "正北", "南方"
     std::string room_name;  // &N= — destination room display name
     ObjectID dest_room_id

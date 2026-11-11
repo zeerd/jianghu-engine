@@ -44,7 +44,7 @@ return {
         if not me:is_fighting() then
             return notify_fail("卸力只在与人交手时才能施展。")
         end
-        if me:query_temp("xieli") ~= 0 then
+        if me:query("xieli", "T") ~= 0 then
             return notify_fail("你已经运起卸力了。")
         end
         if me:query_skill("parry_adv", 1) < 10 then
@@ -56,9 +56,9 @@ return {
 
         local bonus = me:query_skill("parry_adv", 1) // 10
         me:add("mp", -40)
-        me:set_temp("xieli", 1)
-        me:add_temp("apply/defense", bonus)
-        message_vision("$N沉肩坠肘，将周身来力尽数卸开。", me)
+        me:set("xieli", 1, "T")
+        me:add("apply/defense", bonus, "T")
+        message("vision", "$N沉肩坠肘，将周身来力尽数卸开。", me)
         -- 统一写法（docs/call_out.md）：延迟函数写在发起 call_out 的脚本里，
         -- 在效果作用的对象上注册；delay=0 的 call_out_combat 心跳不走表，
         -- 只等这场战斗结束（角色离开战斗房）时被引擎触发，
@@ -70,8 +70,8 @@ return {
     -- 卸力收势（延迟函数：执行时 self = 挂状态的角色）
     -- param1: 施放时的加成值，直接回扣相同数量，不假设拥有整个 apply/defense
     xieli_end = function(self, param1, param2)
-        self:add_temp("apply/defense", -param1)
-        self:delete_temp("xieli")
-        message_vision("$N吐气开声，卸力架势散去。", self)
+        self:add("apply/defense", -param1, "T")
+        self:del("xieli", "T")
+        message("vision", "$N吐气开声，卸力架势散去。", self)
     end,
 }

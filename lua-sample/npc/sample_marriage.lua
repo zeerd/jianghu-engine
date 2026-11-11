@@ -27,14 +27,14 @@ end
 function npc.do_marry_info(self, me)
     if me:dbase("map", "couple") then
         self:say("你已经结婚了，一生一世一双人。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     self:say("想结婚吗？双方自愿，到我这登记即可。", me)
     self:say("费用：100 金。交钱领一张婚姻登记表：", me)
     self:say("你先在表上签名，再把它交给意中人，由对方在你身边签名，即结为夫妻。", me)
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 
@@ -42,21 +42,21 @@ end
 function npc.do_divorce_info(self, me)
     if not me:dbase("map", "couple") then
         self:say("你还没结婚，何来离婚？", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     local partner = find("online", me:querystr("couple/id"))
     if not partner then
         self:say("你的伴侣不在线，无法办理离婚。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
     self:say("离婚乃大事，三思而后行。确定要离婚吗？", me)
-    self:AddMenuItem("我决心已下", "$0confirm_divorce $1", me)
-    self:AddMenuItem("再考虑考虑", "$0cancel $1", me)
-    self:SendMenu(me)
+    self:add_menu_item("我决心已下", "$0confirm_divorce $1", me)
+    self:add_menu_item("再考虑考虑", "$0cancel $1", me)
+    self:send_menu(me)
     return 1
 end
 
@@ -65,7 +65,7 @@ function npc.do_confirm_divorce(self, me)
     local partner = find("online", me:querystr("couple/id"))
     if not partner then
         self:say("你的伴侣已下线，无法办理。", me)
-        self:SendMenu(me)
+        self:send_menu(me)
         return 1
     end
 
@@ -76,8 +76,8 @@ function npc.do_confirm_divorce(self, me)
     partner:add("couple_betray", 1)
 
     self:say("姻缘已尽，各自珍重。", me)
-    message_vision("$N与$n解除了夫妻关系。", me, partner)
-    self:SendMenu(me)
+    message("vision", "$N与$n解除了夫妻关系。", me, partner)
+    self:send_menu(me)
     return 1
 end
 
@@ -85,7 +85,7 @@ end
 function npc.accept_object(self, who, ob)
     if who:dbase("map", "couple") then
         self:say("你已经结婚了。", who)
-        self:SendMenu(who)
+        self:send_menu(who)
         return 0
     end
 
@@ -93,15 +93,15 @@ function npc.accept_object(self, who, ob)
         local form = load("item", "sample_marriage_form")
         if not form then
             self:say("登记表用完了，改日再来吧。", who)
-            self:SendMenu(who)
+            self:send_menu(who)
             return 0
         end
 
         destruct(ob)
-        message_vision("$N接过月老递来的一张婚姻登记表。", who)
+        message("vision", "$N接过月老递来的一张婚姻登记表。", who)
         form:move(who)
         self:say("先自己签名，再让意中人在你身边签名，登记即成。", who)
-        self:SendMenu(who)
+        self:send_menu(who)
         return 1
     end
 
@@ -109,9 +109,9 @@ function npc.accept_object(self, who, ob)
 end
 
 function npc.do_talk(self, me, ask)
-    self:AddMenuItem("结婚登记", "$0marry_info $1", me)
-    self:AddMenuItem("离婚登记", "$0divorce_info $1", me)
-    self:SendMenu(me)
+    self:add_menu_item("结婚登记", "$0marry_info $1", me)
+    self:add_menu_item("离婚登记", "$0divorce_info $1", me)
+    self:send_menu(me)
     return 1
 end
 

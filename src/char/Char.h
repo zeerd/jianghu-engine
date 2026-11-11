@@ -125,7 +125,6 @@ public:
     int is_killing(CChar* ob);
 
     int32_t query_condition(const char* cnd);
-    void clear_condition();
 
     int is_fighting(CContainer* enemy = NULL);
     int is_busy();
@@ -231,14 +230,13 @@ public:
     void flush_my_skill(CChar* me);
     void flush_my_equip();
     void flush_my_info();
-    int mini_skill();
     static void remove_betrayer(CChar* me);
     int query_unarmed();
     virtual void finish_kill(CChar* me);
     int learn_bonus();
     int refuse_channel(const char* channel);
 
-    int is_invalid();
+    bool is_invalid();
 
     int is_loading();
     int query_grant();

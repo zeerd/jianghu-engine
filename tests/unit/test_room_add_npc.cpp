@@ -9,7 +9,8 @@
 //   3. NPC 健在但身在别处 -> return_home 领回，不重复写坐标。
 //   4. add_npc 必须是可多态分派的：经 CRoom* 调用副本房间时，副本特有约束
 //      （NPC 不可拾取）同样生效。
-//   5. 绑定 self:add_npc(...) 正向路径返回 NPC 对象，缺省参数取 0。
+//   5. 绑定 self:add_object("npc", name[, opts]) 正向路径返回 NPC 对象，
+//      opts 表（x/y/ex/ey/dir/active/interval）缺省取 0。
 #include "test_bind_common.h"
 
 #include <string>
@@ -216,15 +217,41 @@ protected:
 };
 
 // ---------------------------------------------------------------------
-// 契约 5：绑定正向路径返回 NPC，六键按参数写入
+// 契约 5：绑定正向路径返回 NPC，六键按 opts 表写入
 // ---------------------------------------------------------------------
+namespace {
+
+// 压入 add_object("npc", ...) 的摆放表 {x,y,ex,ey,dir,active,interval}
+void push_npc_opts(lua_State* L, int x, int y, int ex, int ey, int dir,
+                   int active, int interval)
+{
+    lua_createtable(L, 0, 7);
+    struct {
+        const char* key;
+        int val;
+    } opts[] = {{"x", x},
+                {"y", y},
+                {"ex", ex},
+                {"ey", ey},
+                {"dir", dir},
+                {"active", active},
+                {"interval", interval}};
+    for (auto& o : opts) {
+        lua_pushinteger(L, o.val);
+        lua_setfield(L, -2, o.key);
+    }
+}
+
+}  // namespace
+
 TEST_F(RoomAddNpcBindTest, BindAddNpc_ReturnsNpcWithMapKeys)
 {
     lua_bind_push_object(L, &room);
+    lua_pushstring(L, "npc");
     lua_pushstring(L, "bind_npc_full");
-    for (int v : {61, 62, 63, 64, 7, 1, 0}) lua_pushinteger(L, v);
+    push_npc_opts(L, 61, 62, 63, 64, 7, 1, 0);
 
-    int k = call(l_add_npc, 9);
+    int k = call(l_add_object, 4);
     ASSERT_EQ(1, k);
     ASSERT_EQ(LUA_TUSERDATA, lua_type(L, -1));
     CNpc* npc = static_cast<CNpc*>(lua_bind_check_object(L, -1));
@@ -237,16 +264,17 @@ TEST_F(RoomAddNpcBindTest, BindAddNpc_ReturnsNpcWithMapKeys)
 }
 
 // ---------------------------------------------------------------------
-// 契约 4+5：绑定层不得自带副本知识——经 self:add_npc 落到副本房间时，
-// 不可拾取约束由多态分派产生。
+// 契约 4+5：绑定层不得自带副本知识——经 self:add_object("npc", …) 落到
+// 副本房间时，不可拾取约束由多态分派产生。
 // ---------------------------------------------------------------------
 TEST_F(RoomAddNpcBindTest, BindAddNpc_OnFbRoom_AppliesFbRule)
 {
     lua_bind_push_object(L, &fbr);
+    lua_pushstring(L, "npc");
     lua_pushstring(L, "bind_npc_fb");
-    for (int v : {71, 72, 73, 74, 4, 0, 0}) lua_pushinteger(L, v);
+    push_npc_opts(L, 71, 72, 73, 74, 4, 0, 0);
 
-    int k = call(l_add_npc, 9);
+    int k = call(l_add_object, 4);
     ASSERT_EQ(1, k);
     ASSERT_EQ(LUA_TUSERDATA, lua_type(L, -1));
     CNpc* npc = static_cast<CNpc*>(lua_bind_check_object(L, -1));
@@ -259,14 +287,16 @@ TEST_F(RoomAddNpcBindTest, BindAddNpc_OnFbRoom_AppliesFbRule)
 }
 
 // ---------------------------------------------------------------------
-// 契约 5：坐标参数全部可缺省（房间脚本 self:add_npc("name") 的常见写法）
+// 契约 5：摆放表可整体缺省（房间脚本 self:add_object("npc", "name") 的
+// 常见写法）
 // ---------------------------------------------------------------------
 TEST_F(RoomAddNpcBindTest, BindAddNpc_OptionalArgsDefaultToZero)
 {
     lua_bind_push_object(L, &room);
+    lua_pushstring(L, "npc");
     lua_pushstring(L, "bind_npc_bare");
 
-    int k = call(l_add_npc, 2);
+    int k = call(l_add_object, 3);
     ASSERT_EQ(1, k);
     ASSERT_EQ(LUA_TUSERDATA, lua_type(L, -1));
     CNpc* npc = static_cast<CNpc*>(lua_bind_check_object(L, -1));

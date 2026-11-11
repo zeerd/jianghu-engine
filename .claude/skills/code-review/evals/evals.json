@@ -1,0 +1,132 @@
+{
+  "skill_name": "wise-code-review",
+  "evals": [
+    {
+      "id": 0,
+      "name": "cpp-dangling-reference",
+      "prompt": "评审这个 C++17 diff。基线：`std::string_view name(const User& u) { return u.name(); }`。改动后：`std::string_view name(const User& u) { std::string normalized = normalize(u.name()); return normalized; }`。`User::name()` 返回成员的 const std::string&，User 在调用方使用期间存活且未变；`normalize` 返回 std::string；调用方会把结果存下来在函数返回后继续使用。只报可行动的发现。",
+      "expected_output": "一条 P1 或 P2 发现：返回的 view 指向已析构的局部 string，调用方后续使用是悬垂访问，引用 return 行。不得只建议改风格，也不得声称 string_view 总是持有数据。",
+      "files": [],
+      "assertions": [
+        "指出返回的视图引用已销毁的局部字符串",
+        "说明调用方后续使用会访问无效存储",
+        "精确定位改动的 return 行或局部生命周期",
+        "不添加无证据的 ABI、编译器或 sanitizer 说法"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "lua-false-default-regression",
+      "prompt": "评审这个 Lua 5.5 diff（本工程运行时为嵌入式 Lua 5.5）。选项 `enabled` 显式接受 false 以关闭功能。基线：`local enabled = opts.enabled; if enabled == nil then enabled = true end`。改动后：`local enabled = opts.enabled or true`。只报可行动的发现。",
+      "expected_output": "一条 P2 发现：`or true` 把调用方显式传入的 false 替换成 true，启用了被调用方关闭的功能；引用改动表达式。不得建议使用目标运行时不存在的 API。",
+      "files": [],
+      "assertions": [
+        "指出 false 被替换成 true",
+        "用正确的 Lua 真值语义解释（0/空串为真，与本用例无关的 0 不必展开）",
+        "说明可观察的功能开关回归",
+        "引用改动表达式且不依赖 Lua 5.4/5.1 特有 API"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cpp-naming-repo-rule-over-google",
+      "prompt": "评审这个 C++17 diff。本工程 .claude/rules/naming.instructions.md 规定：方法/自由函数一律 snake_case，类 PascalCase 带 C 前缀，成员 m_ + snake_case。改动把 `void ParseConfig()` 改名为 `void parse_config()` 并调整了所有调用点，仓库没有其他风格政策，逻辑无变化。只报可行动的发现。",
+      "expected_output": "无发现。仓库规则要求 snake_case 函数名，改动正是从（与仓库冲突的）PascalCase 改到合规写法；不得按 Google 指南报「函数应为 PascalCase」。",
+      "files": [],
+      "assertions": [
+        "报告无发现",
+        "不引用 Google 指南的 PascalCase 函数名规则作为违规",
+        "不虚构行为缺陷或调用点遗漏（证据说明调用点已全部调整）"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "lua-naming-repo-rule-over-roblox",
+      "prompt": "评审这个 Lua 5.5 diff。本工程 naming.instructions.md §3 规定 Lua 文件、函数、局部变量统一 snake_case。改动在 config.lua:10 新增局部变量 `local scale_value = enabled and 1 or 2`，enabled 为布尔值，true 时结果为 1、否则为 2，其余格式符合 .stylua.toml。只报可行动的发现。",
+      "expected_output": "无发现。仓库规则要求 snake_case，`scale_value` 合规；不得按 Roblox 指南报「应改 camelCase/scaleValue」，也不得把 and/or 真值性报成 bug（两分支都为真值数字，契约满足）。",
+      "files": [],
+      "assertions": [
+        "报告无发现",
+        "不引用 Roblox camelCase 命名规则",
+        "不虚构 and/or 真值性缺陷"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "cpp-test-plan-comment",
+      "prompt": "评审这个 diff：src/util/StringUtil.cpp 中一个辅助函数的注释被改为 `// P4 要求：为覆盖 split_tokens 函数的空串分支而加的早返回`，随后是 `if (s.empty()) return {};`。功能上早返回与原逻辑等价，单测已覆盖。本工程 AGENTS.md 铁律：生产代码注释禁止出现测试计划、覆盖率、验收清单、文档编号作为改动依据。只报可行动的发现。",
+      "expected_output": "一条 P3 发现：注释违反注释铁律（以测试计划/文档编号为改动依据），应改写为解释机制本身（如空串的契约边界），代码逻辑无需改动。不得把等价的早返回报成行为缺陷。",
+      "files": [],
+      "assertions": [
+        "识别注释违反仓库注释铁律",
+        "引用铁律的具体条目（测试计划/文档编号不得作为注释依据）",
+        "给出改写方向（解释机制而非测试动机）",
+        "不把功能等价的早返回报成 bug"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "cpp-change-without-test",
+      "prompt": "评审这个 diff：src/db/ 的 `CUserData::load_profile` 新增一条失败分支（DB 读失败时返回空档案并记日志），改了 .cpp 和 .h，但 tests/unit/ 下没有任何对应新增或更新的测试。本工程 unit-test 技能规定：每次修改 .cpp/.h 必须同时提交对应测试，验证唯一途径是仓库根 .\\run-coverage.ps1。只报可行动的发现。",
+      "expected_output": "一条发现（通常 P2 或 P3）：改动缺少配套测试，引用 unit-test 规则并点名新增分支应有覆盖（失败分支是可达负例）。不得虚构 load_profile 本身的行为缺陷；缺测试本身不是 bug。",
+      "files": [],
+      "assertions": [
+        "报告缺失的配套测试并引用仓库测试规则",
+        "指向新增失败分支应被覆盖",
+        "不虚构数据库层面的行为 bug",
+        "不声称已运行过任何测试"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "cpp-migration-comment",
+      "prompt": "评审这个 diff：src/net/Connection.cpp 中新增注释 `// 迁移自旧 CNetMgr：此处保留原 uv_close 调用顺序，迁移批次 2024-06`，其余改动为等价的格式调整。本工程 AGENTS.md 铁律：禁止在源码中通过注释保留迁移痕迹/迁移记录，注释只能解释功能与接口。只报可行动的发现。",
+      "expected_output": "一条 P3 发现：注释保留了迁移记录，违反注释铁律，应删除迁移部分或改写为解释关闭顺序的机制原因。不得把等价的格式调整报成行为缺陷。",
+      "files": [],
+      "assertions": [
+        "识别迁移记录注释违规并引用铁律",
+        "给出删除或改写为机制说明的方向",
+        "不把等价改动报成 bug",
+        "不附带虚构的生命周期缺陷"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "lua-sample-test-scaffolding",
+      "prompt": "评审这个 diff：lua-sample/item/sample_heal.lua 中新增 `if me:query_temp(\"e2e_probe\") then extra = 99 end` 分支，注释写「E2E 剧本等待此值以同步」。本工程铁律：lua-sample 是教材不是测试夹具，禁止为测试目的在 sample 中添加异常逻辑；生产代码注释禁止出现 E2E 剧本。只报可行动的发现。",
+      "expected_output": "一条 P2 或 P3 发现：为测试目的向教材脚本注入探针分支，违反样本教材铁律（且注释引用 E2E 剧本违反注释铁律）；应在测试侧（剧本/配置）解决同步问题。不得把 query_temp 的用法本身报成 Lua 语义错误。",
+      "files": [],
+      "assertions": [
+        "识别为测试目的修改教材脚本的违规",
+        "引用样本教材铁律（sample 非测试夹具）",
+        "建议在测试侧解决而非保留分支",
+        "不虚构 query_temp 调用的语义缺陷"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "lua-zero-truthiness",
+      "prompt": "评审这个 Lua 5.5 diff（嵌入式宿主，标志字段以数值 0/1 表示，0 表示否）。基线：`if obj:query(\"sealed\") == 1 then deny() end`。改动后：`if obj:query(\"sealed\") then deny() end`。query 在未设置时返回 0。只报可行动的发现。",
+      "expected_output": "一条 P1 或 P2 发现：Lua 中 0 为真，改动使未 sealed（返回 0）的对象也走 deny()，分支恒执行；须显式 `== 1`/`~= 0` 判定。引用改动的条件表达式。",
+      "files": [],
+      "assertions": [
+        "指出 0 在 Lua 中为真导致条件恒成立",
+        "说明 deny 分支对返回 0 的对象也会执行",
+        "引用改动后的条件表达式",
+        "不要求 C++ 风格的隐式布尔转换"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "clean-comment-mechanism",
+      "prompt": "评审这个 diff：src/room/RoomManager.cpp 中 get_room 返回值从裸指针改为 `std::optional<std::reference_wrapper<CRoom>>`，注释为 `// 未注册房间以空 optional 表达，调用方须显式处理`，全部调用点已同步更新并有配套测试，无其他改动。本工程 C++17。只报可行动的发现。",
+      "expected_output": "无发现。契约变化（显式空值）、调用点同步、测试齐备、注释解释机制；不得为凑数报风格偏好或推测性并发警告。",
+      "files": [],
+      "assertions": [
+        "报告无发现",
+        "不报纯风格或个人偏好类问题",
+        "不虚构未有证据的调用方或并发缺陷"
+      ]
+    }
+  ]
+}

@@ -19,10 +19,6 @@ CContainer* find_object(int32_t id, int flag = 0);
 void destruct(PCContainer me);
 void destruct_with_logs(PCContainer me, const char* function = "");
 
-// --- 物品操作 ---
-CContainer* random_get_item(CContainer* me, int type,
-                            CContainer* exclude = NULL);
-
 // --- 角色查询 ---
 int is_living(CContainer* me);
 int wiz_level(CChar* me);

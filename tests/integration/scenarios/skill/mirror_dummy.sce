@@ -5,7 +5,7 @@
 #   · 对练问话 → mirror_base.make_mirror(self, me, 8) 照挑战者抄一遍（脚本中途报错会被
 #     CLuaNpcT::do_talk 回退给 base_do_talk，本步那句私发应答就不会出现）；
 #   · 其余问话 → base_do_talk → 本脚本未注册询问 → notify_fail 私发。
-#   以及 room/sample_mountain_mid.lua 的 add_npc("sample_wooden_dummy")。
+#   以及 room/sample_mountain_mid.lua 的 add_object("npc", "sample_wooden_dummy")。
 #
 # 并行说明：
 #   · 应答走 say(msg, me) 私发、失败回执走 notify_fail，都只有本账号收得到；

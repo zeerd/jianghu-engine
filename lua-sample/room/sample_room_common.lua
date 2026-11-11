@@ -13,7 +13,7 @@ end
 -- 通用的 do_look 实现：显示房间描述并弹出菜单
 function M.do_look(self, me)
     M.say_long(self, me)
-    self:SendMenu(me)
+    self:send_menu(me)
     return 1
 end
 

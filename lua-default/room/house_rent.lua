@@ -21,7 +21,7 @@ end
 
 -- 物件是否为起租物
 function M.is_rented(obj)
-    return obj:query_temp(RENT_FLAG) ~= 0
+    return obj:query(RENT_FLAG, "T") ~= 0
 end
 
 -- 遍历角色身上的物件，fn 命中即返回其结果（列表为空时安全跳过）
@@ -65,7 +65,12 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
         local base_name = obj:querystr("base_name")
         if base_name == "transfer_tie" or base_name == "huicheng_juanzhou" then
             if M.check_rent(self, me) then
-                message_vision("$N偷偷拿出$n，结果被仆人拦住：“请把借的东西留下！”", me, obj)
+                message(
+                    "vision",
+                    "$N偷偷拿出$n，结果被仆人拦住：“请把借的东西留下！”",
+                    me,
+                    obj
+                )
                 return 1
             end
         end
@@ -80,7 +85,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
         end
 
         if M.check_rent(self, me) or M.check_rent(self, obj) then
-            message_vision("$N拦住$n道：“不行，想搞什么出去搞！”", yongren, me)
+            message("vision", "$N拦住$n道：“不行，想搞什么出去搞！”", yongren, me)
             return 1
         end
         return nil
@@ -94,8 +99,8 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
         end
 
         if M.is_rented(obj) then
-            message_vision("$N偷偷摸摸的拿出$n，想丢在地上。", me, obj)
-            message_vision("$N见状喝道：想干什么！不想要的话还给我！", yongren, me)
+            message("vision", "$N偷偷摸摸的拿出$n，想丢在地上。", me, obj)
+            message("vision", "$N见状喝道：想干什么！不想要的话还给我！", yongren, me)
             return 1
         end
         return nil
@@ -118,8 +123,8 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
         end
 
         if M.is_rented(obj) then
-            message_vision("$N偷偷摸摸的拿出$n，想转手给人。", me, obj)
-            message_vision("$N见状喝道：想干什么！不想要的话还给我！", yongren, me)
+            message("vision", "$N偷偷摸摸的拿出$n，想转手给人。", me, obj)
+            message("vision", "$N见状喝道：想干什么！不想要的话还给我！", yongren, me)
             return 1
         end
         return nil
@@ -133,7 +138,8 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
         end
 
         if M.is_rented(obj) then
-            message_vision(
+            message(
+                "vision",
                 string.format("$N弯腰去拣%s，结果被$n一脚踩到了手指上！", obj:name()),
                 me,
                 yongren
@@ -142,12 +148,12 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
         end
 
         if obj:is_character() and M.check_rent(self, obj) then
-            message_vision("$N忽然拦住$n，笑道：还是算了吧！", yongren, me)
+            message("vision", "$N忽然拦住$n，笑道：还是算了吧！", yongren, me)
             return 1
         end
 
         if is_user(obj) then
-            message_vision("$N疑惑的问着$n：你想拣什么？", yongren, me)
+            message("vision", "$N疑惑的问着$n：你想拣什么？", yongren, me)
             return 1
         end
         return nil
@@ -161,7 +167,8 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
         end
 
         if M.is_rented(obj) then
-            message_vision(
+            message(
+                "vision",
                 string.format("$N想卖掉%s，结果被$n伸手拦住：借的东西快还！", obj:name()),
                 me,
                 yongren

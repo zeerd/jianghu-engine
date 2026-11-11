@@ -117,7 +117,7 @@ int l_set_weight(lua_State* L)
     return 0;
 }
 
-// self:Query_Amount() -> number
+// self:query_amount() -> number
 int l_query_amount(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -128,7 +128,7 @@ int l_query_amount(lua_State* L)
     return 1;
 }
 
-// self:Query_Weight() -> number
+// self:query_weight() -> number
 int l_query_weight(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -150,7 +150,7 @@ int l_can_equipped(lua_State* L)
     return 1;
 }
 
-// self:UpdateMe() - 刷新玩家属性（力量/攻击等重新计算后调用）
+// self:update_me() - 刷新玩家属性（力量/攻击等重新计算后调用）
 int l_update_me(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

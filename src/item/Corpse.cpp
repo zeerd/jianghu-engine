@@ -137,7 +137,7 @@ CCorpse* CCorpse::make_corpse(CChar* victim, CChar* killer)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// MakeCorpse(victim, killer) -> corpse|nil - 制造尸体（CCorpse::MakeCorpse）
+// make_corpse(victim, killer) -> corpse|nil - 制造尸体（CCorpse::make_corpse）
 int l_make_corpse(lua_State* L)
 {
     CChar* victim = NULL;

@@ -29,8 +29,8 @@ return {
         local hp = me:query("hp")
         local heal_amount = math.min(100, eff_hp - hp)
         me:receive_healing("hp", heal_amount)
-        me:FlushMyInfo()
-        message_vision("$N吃下一粒回春丹，精神立刻好了许多。", me)
+        me:flush_my_info()
+        message("vision", "$N吃下一粒回春丹，精神立刻好了许多。", me)
         -- 正式的游戏数据集通常会使用一个1~3的随机数来决定忙碌时间，
         -- 避免玩家在战斗中连续使用药品
         me:start_busy(1)

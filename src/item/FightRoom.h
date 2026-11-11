@@ -40,7 +40,7 @@ public:
     bool is_threshold_match();
 
     //---------- 队伍管理 ----------
-    int join_team(CChar* ob, int Team);  // Join_Team(me, FIGHT_TEAM_A);
+    int join_team(CChar* ob, int Team);  // join_team(me, FIGHT_TEAM_A);
     void leave_team(CChar* obj);
     void do_leave_team(CChar* obj);
     int can_join(int team, CChar* me = NULL);
@@ -58,7 +58,7 @@ public:
     //---------- 对外可观测状态 ----------
     int turn;       // 当前回合号：奇数 team0 行动，偶数 team1 行动
     int tick;       // 心跳分频计数：每 2 次心跳推进一个回合
-    bool m_single;  // 单人作战（Do_BiShi 与 Lua 绑定直接读写）
+    bool m_single;  // 单人作战（do_bishi 与 Lua 绑定直接读写）
 
     // 两队名册：战斗逻辑与测试直接读写
     struct TeamSlot {
