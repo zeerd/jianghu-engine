@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Char.cpp
  * @brief CChar core lifecycle, heartbeat and basic queries.
  */
@@ -89,7 +89,7 @@ int32_t CChar::query_equip(int pos)
 // 心跳
 void CChar::heart_beat()
 {
-    int wimpy_ratio;
+    mapping_value_t wimpy_ratio;
     int32_t object_id = m_object_id;
     if (!this) return;
 
@@ -193,8 +193,8 @@ void CChar::heart_beat()
     {
         if (g_current_time - offtime > 600  // 离线超过10分钟，将退出游戏。
         ) {
-            LOG_INFO("掉线超时退出: %s(id:%s) 掉线%ld秒", name(1), id(1),
-                     g_current_time - offtime);
+            LOG_INFO("掉线超时退出: %s(id:%s) 掉线%lld秒", name(1), id(1),
+                     (long long)(g_current_time - offtime));
             command("quit");
             return;
         }
@@ -254,9 +254,9 @@ void CChar::reset_level()
 // 心跳时恢复
 int CChar::heal_up()
 {
-    int update_flag = 0;
-    int32_t addhp   = 0;
-    int32_t m_hp, m_hp_eff, m_hp_max;
+    int update_flag       = 0;
+    mapping_value_t addhp = 0;
+    mapping_value_t m_hp, m_hp_eff, m_hp_max;
 
     m_hp     = query("hp");
     m_hp_eff = query("eff_hp");
@@ -296,7 +296,7 @@ int CChar::is_fighting(CContainer* enemy)
     return 1;
 }
 
-int32_t CChar::query_condition(const char* cnd)
+mapping_value_t CChar::query_condition(const char* cnd)
 {
     char key[40];
 
@@ -316,7 +316,12 @@ void CChar::remove_faint(CContainer* me, int32_t param1, int32_t param2)
     me->delete_temp("last_fainted_from");
 }
 
-int CChar::query_team() { return query_temp("fight/fight_team"); }
+// 队伍序号是 0/1 的枚举下标（CFightRoom::FIGHT_TEAM_A/B），属有界域：
+// 在读取点收窄，调用方拿到的就是下标域。
+team_index_t CChar::query_team()
+{
+    return static_cast<team_index_t>(query_temp("fight/fight_team"));
+}
 
 //---------------------------------------------------------
 // [LuaBind] auto-managed bindings
@@ -345,8 +350,8 @@ int l_query_condition(lua_State* L)
     CChar* ch = dynamic_cast<CChar*>(obj);
     if (!ch) return 0;
 
-    const char* cnd = luaL_checkstring(L, 2);
-    int32_t dur     = ch->query_condition(cnd);
+    const char* cnd     = luaL_checkstring(L, 2);
+    mapping_value_t dur = ch->query_condition(cnd);
     lua_pushinteger(L, dur);
     return 1;
 }

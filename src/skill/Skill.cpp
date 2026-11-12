@@ -228,7 +228,7 @@ void CSkill::remove_powerup(CContainer* ob, int32_t silence, int32_t param2)
     me->delete_temp("powerup");
 }
 
-char* CSkill::hit_ob(CChar* me, CChar* victim, int32_t& damage) { return 0; }
+char* CSkill::hit_ob(CChar* me, CChar* victim, damage_t& damage) { return 0; }
 
 //---------------------------------------------------------
 // [LuaBind] auto-managed bindings

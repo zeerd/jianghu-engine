@@ -6,7 +6,7 @@
 // 这里在真实后端上断言可观察结果（建表成功、写入能读回、字节保真）。
 //
 // Build+Run: .\run-coverage.ps1
-//   Release\tests.exe --gtest_filter=SqliteIntegrationTest.*
+//   x64\Release\tests.exe --gtest_filter=SqliteIntegrationTest.*
 #include "pch.h"
 
 #include <cstdio>
@@ -74,7 +74,7 @@ TEST_F(SqliteIntegrationTest, PrepareTables_CreatesEveryTable)
     ASSERT_TRUE(prepare_tables()) << db->error();
 
     for (const char* t : {"jianghudb", "recruit_exp", "t_item", "t_npc",
-                          "t_room", "t_box", "t_saveobj", "user", "relative"}) {
+                          "t_room", "t_box", "relative"}) {
         EXPECT_TRUE(TableExists(t)) << "missing table " << t;
     }
 }
@@ -86,7 +86,7 @@ TEST_F(SqliteIntegrationTest, PrepareTables_IsIdempotent)
 }
 
 // ====================================================================
-// 容器 / 存档 / 箱子 / 锁
+// 容器 / 箱子 / 锁
 // ====================================================================
 
 TEST_F(SqliteIntegrationTest, ContainerCrudRoundTrip)
@@ -122,24 +122,6 @@ TEST_F(SqliteIntegrationTest, ContainerBlobPreservesSpecialBytes)
     std::string data;
     ASSERT_TRUE(db_load_container("t_box", "blob_1", data));
     EXPECT_EQ(data, payload);
-}
-
-TEST_F(SqliteIntegrationTest, SaveObjectRoundTrip)
-{
-    ASSERT_TRUE(prepare_tables());
-
-    // 使用通用容器接口操作 t_saveobj 表
-    // obj_id 格式: owner_grid
-    ASSERT_TRUE(db_save_container("t_saveobj", "1001_0", "sword", "json1",
-                                  false));  // insert
-    std::string data;
-    ASSERT_TRUE(db_load_container("t_saveobj", "1001_0", data));
-    EXPECT_EQ(data, "json1");
-
-    ASSERT_TRUE(db_save_container("t_saveobj", "1001_0", "sword2", "json2",
-                                  true));  // update
-    ASSERT_TRUE(db_load_container("t_saveobj", "1001_0", data));
-    EXPECT_EQ(data, "json2");
 }
 
 TEST_F(SqliteIntegrationTest, RoomBoxesLoadByPrefix)
@@ -237,6 +219,23 @@ TEST_F(SqliteIntegrationTest, PrepareTables_FloorCoexistsWithWizardAccounts)
     long id = db_register_account("张三", "pass1234", "zhangsan@example.com",
                                   "男性", 21, 21, 21, 21, err, sizeof(err));
     EXPECT_EQ(id, 1000) << err;  // 显式插入 1/2 不下压 seq，玩家仍是 1000
+}
+
+// 起点丢失（历史库本就没播、或计数器回落）时下一次开机自愈：把 seq 压回
+// 2 复现丢失态，重跑 prepare_tables 必须把起点抬回 1000
+TEST_F(SqliteIntegrationTest, PrepareTables_RepairsLostIdFloor)
+{
+    ASSERT_TRUE(prepare_tables()) << db->error();
+    ASSERT_EQ(0, db->execute("UPDATE sqlite_sequence SET seq = 2 "
+                             "WHERE name='jianghudb'"))
+        << db->error();
+
+    ASSERT_TRUE(prepare_tables()) << db->error();  // 模拟下一次开机
+
+    char err[256] = "";
+    long id = db_register_account("张三", "pass1234", "zhangsan@example.com",
+                                  "男性", 21, 21, 21, 21, err, sizeof(err));
+    EXPECT_EQ(id, 1000) << err;
 }
 
 // ====================================================================

@@ -13,7 +13,7 @@
 
 double CCombatCalc::skill_power(CChar* ob, const char* skill, int usage)
 {
-    int level;
+    mapping_value_t level;
     double p, power;
 
     if (!ob->query_attr(CChar::IS_LIVING)) return 0;
@@ -33,11 +33,11 @@ double CCombatCalc::skill_power(CChar* ob, const char* skill, int usage)
     if (is_user(ob) && combat_exp > 10000)
         combat_exp = 6000 + combat_exp / 2;  // 玩家的经验值只有1/2是有效的。
 
-    if (!level) return combat_exp / 2;
+    if (!level) return static_cast<double>(combat_exp / 2);
 
     power = (double)level * (double)level * (double)level / 3.0;
 
-    int32_t abi;
+    mapping_value_t abi;
     if (usage == SKILL_USAGE_ATTACK) {
         abi = 10 + (ob->query("str") - 11) + (ob->query("dex") - 11)
               + ob->query_temp("apply/str") + ob->query_unarmed() / 10;
@@ -49,8 +49,10 @@ double CCombatCalc::skill_power(CChar* ob, const char* skill, int usage)
     if (is_wizard(ob) && EQUALSTR(ob->querystr("env/combat"), "verbose")) {
         char msg[255];
         _snprintf(msg, 255,
-                  "p:%.2f, skill：%s, level=%d, power=%.2f, exp=%ld, abi=%ld",
-                  p, skill, level, power, combat_exp, abi);
+                  "p:%.2f, skill：%s, level=%lld, power=%.2f, exp=%lld, "
+                  "abi=%lld",
+                  p, skill, (long long)level, power, (long long)combat_exp,
+                  (long long)abi);
         message_vision_room(ob, "tell", msg);
     }
 

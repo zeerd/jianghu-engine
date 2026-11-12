@@ -15,6 +15,8 @@
 #include "Container.h"
 #include <windows.h>  // LuaItem.inl 需 UUID（rpc 链经 windows.h）
 #include "LuaItem.h"
+#include "LuaBind.h"              // lua_bind_push_object
+#include "LuaBindDecls.h"         // l_script_table
 #include "LuaInstanceRegistry.h"  // lua_item_notify_reload
 #include "test_lua_env.h"
 
@@ -102,6 +104,31 @@ TEST_F(LuaItemTest, DoActionBaseDerivesMeFromEnvironment)
     EXPECT_EQ(0, item.lua_do_action_base(0, nullptr))
         << "me=null 时从环境角色推导(524-528)";
 }
+// ---- 0 返回值 pcall 的栈平衡 ----
+// pcall 吃掉「函数 + 实参」后，栈里只剩脚本表；成功路径多弹一个就会把
+// 栈底之下的位置收掉（栈下溢），随后任何 Lua API 调用都可能直接崩。
+// 这里以 lua_gettop 前后相等钉住两个钩子的清理语义。
+TEST_F(LuaItemTest, HookPcallKeepsStackBalanced)
+{
+    CLuaItem item("fixture_hook_item");
+    item.set_name("钩子物品", "li_hook");
+    item.create(0);
+    ASSERT_EQ(1, item.query("li_created")) << "create 钩子已执行";
+
+    lua_State* L        = ensure_lua_env();
+    const int stack_top = lua_gettop(L);
+
+    item.on_moved(nullptr);  // 走 0 结果 pcall 的成功路径
+    EXPECT_EQ(stack_top, lua_gettop(L)) << "on_moved 收尾多弹了栈";
+
+    CChar killer;
+    killer.set_name("击杀者", "li_killer");
+    item.owner_is_killed(&killer);  // 同一口径
+    EXPECT_EQ(stack_top, lua_gettop(L)) << "owner_is_killed 收尾多弹了栈";
+
+    EXPECT_EQ(1, item.query("moved_count")) << "on_moved 钩子执行";
+    EXPECT_EQ(1, item.query("killed")) << "owner_is_killed 钩子执行";
+}
 // ---- instance reload bridge / query_attr 脚本支 / blank 逐成员兜底 ----
 
 TEST_F(LuaItemTest, NotifyReloadRunsInstanceBridge)
@@ -150,4 +177,49 @@ TEST_F(LuaItemTest, BlankScriptCppFallbackPerMember)
     blank.move(&me);  // 环境是角色 → do_action 可推导 me
     EXPECT_EQ(0, blank.do_action(0, nullptr))
         << "me=null 从环境推导 + C++ 兜底(415)";
+}
+
+// ---- script_table：对象回到自己的脚本表 ----
+// self 是引擎压入的 userdata，脚本表字段在它上面取不到；基类模块要按名派发
+// 子类覆盖项（food_base 的 finish_eat 钩子），只能由引擎按 registry
+// 引用还原表。
+
+TEST_F(LuaItemTest, ScriptTableReturnsOwnScriptTable)
+{
+    CLuaItem item("fixture_lua_item");
+    item.set_name("脚本表", "li_script_table");
+    item.create(0);
+    ASSERT_NE(item.get_script_ref(), LUA_NOREF);
+
+    lua_State* L = ensure_lua_env();
+    lua_bind_push_object(L, &item);
+    lua_pushcfunction(L, l_script_table);
+    lua_insert(L, -2);  // script_table(self)
+    if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
+        ADD_FAILURE() << "script_table 抛错: " << lua_tostring(L, -1);
+        lua_pop(L, 1);
+        return;
+    }
+
+    ASSERT_TRUE(lua_istable(L, -1)) << "有脚本 → 返回该脚本自己的表";
+    lua_getfield(L, -1, "create");
+    EXPECT_TRUE(lua_isfunction(L, -1)) << "表里是该脚本的字段";
+    lua_pop(L, 2);
+}
+
+TEST_F(LuaItemTest, ScriptTableNilWithoutScript)
+{
+    CChar carrier;  // 非脚本对象：registry 里没有它的表
+    lua_State* L = ensure_lua_env();
+    lua_bind_push_object(L, &carrier);
+    lua_pushcfunction(L, l_script_table);
+    lua_insert(L, -2);
+    if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
+        ADD_FAILURE() << "script_table 抛错: " << lua_tostring(L, -1);
+        lua_pop(L, 1);
+        return;
+    }
+
+    EXPECT_TRUE(lua_isnil(L, -1)) << "无脚本 → nil，调用方据此回退默认实现";
+    lua_pop(L, 1);
 }

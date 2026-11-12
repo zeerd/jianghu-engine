@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file GateClient.cpp
  * @brief 客户端网关通信  */
 
@@ -44,7 +44,8 @@ int send_to_client(int object_id, CConnectionHandleManager::Handle handle,
     return 1;
 }
 
-int send_to_client_direct(int sockfd, CConnectionHandleManager::Handle handle,
+int send_to_client_direct(uintptr_t sockfd,
+                          CConnectionHandleManager::Handle handle,
                           const char* msg)
 {
     CGateInfo* gate_info = CConnectionHandleManager::lookup(handle);

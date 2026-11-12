@@ -223,7 +223,7 @@ void CFB::end_fb()
 void CFB::heart_beat()
 {
     // 首先判断该副本是不是有时间限制，且到时间了
-    int limit_time = query("limit_time");
+    count_t limit_time = query("limit_time");
     CContainer* env;
     DTItemList search;
     char msg[255];
@@ -257,10 +257,11 @@ void CFB::heart_beat()
     }
 
     if ((limit_time && ((g_current_time - limit_time) % 60) == 0)) {
-        int32_t t = (query("begin_time") + limit_time - g_current_time) / 60;
+        count_t t = (query("begin_time") + limit_time - g_current_time) / 60;
         for (auto room : m_room_list) {
-            tell_room(room, snprintf(msg, 255,
-                                     "$HIR任务副本距离关闭还有%d分钟。", t));
+            tell_room(room,
+                      snprintf(msg, 255, "$HIR任务副本距离关闭还有%lld分钟。",
+                               (long long)t));
         }
     }
 

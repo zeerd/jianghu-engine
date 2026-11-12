@@ -38,10 +38,10 @@ int CChar::save_to_server()
     if (query("guest")) return 1;
 
     // 掌门经验的存盘
-    int32_t combat_exp = attr("combat_exp");
+    exp_t combat_exp = attr("combat_exp");
     if (combat_exp < 50000)  // 50000以下才能给师父掌门经验
     {
-        int32_t addexp = attr("combat_exp") - query("family/last_exp");
+        exp_t addexp = attr("combat_exp") - query("family/last_exp");
         if (query("family/user")) {
             // 每100点，10000以下2点，50000以下1点
             if (combat_exp < 10000) addexp *= 2;
@@ -68,7 +68,7 @@ int CChar::save_to_server()
 
     const char* save_blob = savedata.get_buffer();
     CContainer* coin      = present_name("coin", IS_ITEM);
-    int32_t money         = query("balance");
+    money_t money         = query("balance");
     if (coin) money += coin->query_amount();
 
     char logintime[80], savetime[80];
@@ -185,7 +185,8 @@ int CChar::get_save_data(CMapping* save)
             // 非可自动装载物件不予存盘
             auto_load.set(
                 snprintf(msg, 80, "%s,%d:%d,%s", obj->querystr("base_name"),
-                         obj->query("index"), i++, obj->querystr("unique_id")),
+                         static_cast<int>(obj->query("index")), i++,
+                         obj->querystr("unique_id")),
                 obj->query_amount());
 
             obj->save();

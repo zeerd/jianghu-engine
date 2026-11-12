@@ -38,9 +38,9 @@ int CEquip::do_wield()
     // If already worn, just recognize it.
     if (query("equipped")) return 0;  // 已经装备了
 
-    // 装备位置
-    pos  = query("wield_position");
-    pos3 = query("wield_secondary_position");
+    // 装备位置（穿戴位是小范围枚举域，槽位读出后在此收窄）
+    pos  = static_cast<int32_t>(query("wield_position"));
+    pos3 = static_cast<int32_t>(query("wield_secondary_position"));
     if (pos3 == 0) {
         pos3 = -1;
     }
@@ -188,8 +188,8 @@ int CEquip::do_action(int act, CChar* me)
     // 判断有否主人
     if (!environment()) {
         char tmp[255];
-        snprintf(tmp, 255, "%s执行装备失败。重量：%ld，无环境。\n", name(),
-                 query_weight());
+        snprintf(tmp, 255, "%s执行装备失败。重量：%lld，无环境。\n", name(),
+                 (long long)query_weight());
         LOG_ERROR("%s", tmp);
         return 0;
     }

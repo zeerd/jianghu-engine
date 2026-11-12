@@ -19,9 +19,9 @@ extern int g_current_time;
 CReward::CReward() {}
 
 // 计算受害者损失的经验
-int CReward::victim_lose(CChar* killer, CChar* victim)
+exp_t CReward::victim_lose(CChar* killer, CChar* victim)
 {
-    int32_t lose, exp_k, exp_v;
+    exp_t lose, exp_k, exp_v;
 
     if ((is_wizard(victim) && !is_wizard(killer))
         || (!is_wizard(victim) && is_wizard(killer)))
@@ -44,7 +44,7 @@ int CReward::victim_lose(CChar* killer, CChar* victim)
 // 受害者死亡惩罚
 void CReward::victim_penalty(CChar* victim)
 {
-    int combat_exp_loss
+    exp_t combat_exp_loss
         = (victim->query("combat_exp") - victim->query("sk_exp")) / 40;
     combat_exp_loss /= 4;
 
@@ -55,13 +55,14 @@ void CReward::victim_penalty(CChar* victim)
     victim->reset_level();
     victim->add("mds", 1);
 
-    LOG_INFO("%s死了，损失%ld点经验。", victim->name(), combat_exp_loss);
+    LOG_INFO("%s死了，损失%lld点经验。", victim->name(),
+             (long long)combat_exp_loss);
     victim->set("death/skill_loss", 1);
     victim->skill_death_penalty();
 }
 
 // 计算NK基础经验值
-int CReward::calc_nkgain_base(CChar* victim)
+exp_t CReward::calc_nkgain_base(CChar* victim)
 {
     mapping_value_t eff_dx = victim->query("combat_exp");
     mapping_value_t nkgain = victim->query("nkgain");
@@ -88,24 +89,24 @@ int CReward::calc_nkgain_base(CChar* victim)
 }
 
 // 计算组队经验分配
-int CReward::calc_party_exp(CChar* killer, int32_t nkgain, int32_t cx,
-                            CUser*& player1, CUser*& player2, CUser*& player3)
+exp_t CReward::calc_party_exp(CChar* killer, exp_t nkgain, exp_t cx,
+                              CUser*& player1, CUser*& player2, CUser*& player3)
 {
-    int32_t eff_dx = nkgain;
-    int32_t dx     = cx * 2 / 3 * 2 / 3;
-    double times   = (double)(eff_dx - dx / 2) / (double)(dx + 1);
+    exp_t eff_dx = nkgain;
+    exp_t dx     = cx * 2 / 3 * 2 / 3;
+    double times = (double)(eff_dx - dx / 2) / (double)(dx + 1);
     if (times > 2) times = 2;
     if (times < 0) times = 0;
-    return (int32_t)(nkgain * times);
+    return static_cast<exp_t>(nkgain * times);
 }
 
 // 分配组队经验给队员
-void CReward::distribute_party_exp(CChar* killer, CChar* victim, int32_t reward,
-                                   int32_t cx, CUser* player1, CUser* player2,
+void CReward::distribute_party_exp(CChar* killer, CChar* victim, exp_t reward,
+                                   exp_t cx, CUser* player1, CUser* player2,
                                    CUser* player3)
 {
     char msg[255];
-    int32_t exp, nk_limit;
+    exp_t exp, nk_limit;
     double bili;
     mapping_value_t count = killer->query_temp("party/battle_count");
 
@@ -159,9 +160,9 @@ void CReward::distribute_party_exp(CChar* killer, CChar* victim, int32_t reward,
 }
 
 // NPC击杀经验奖励
-int CReward::nk_gain(CChar* killer, CChar* victim)
+exp_t CReward::nk_gain(CChar* killer, CChar* victim)
 {
-    int32_t reward, nkgain;
+    exp_t reward, nkgain;
     char msg[255];
     CUser* player1 = nullptr;
     CUser* player2 = nullptr;
@@ -281,13 +282,14 @@ int CReward::nk_gain(CChar* killer, CChar* victim)
 void CReward::pk_reward(CChar* killer, CChar* victim)
 {
     char msg[255];
-    int32_t ki, vi;
+    count_t ki, vi;
     time_t t;
     time(&t);
 
-    if (static_cast<int32_t>(t) > killer->query("kill/free"))
-        killer->del("kill/guilt");
-    killer->set("kill/free", static_cast<int32_t>(t + 86400));
+    // 时间戳按 timestamp_t 存取：槽位是 64 位，不再截回 32 位
+    const timestamp_t now = static_cast<timestamp_t>(t);
+    if (now > killer->query("kill/free")) killer->del("kill/guilt");
+    killer->set("kill/free", static_cast<timestamp_t>(t + 86400));
 
     ki = killer->query("kill/guilt");
     vi = killer->query("kill/guilt");
@@ -310,16 +312,17 @@ void CReward::pk_reward(CChar* killer, CChar* victim)
     if (victim->query("kill/guilt") < 0) victim->del("kill/guilt");
 
     killer->add("repute", (vi - ki) * 10);
-    tell_object(killer, snprintf(msg, 255,
-                                 "$HIY你PK玩家%s，获得了%d点声望。当前罪行%d。",
-                                 victim->name(1), (int)((vi - ki) * 10),
-                                 (int)killer->query("kill/guilt")));
+    tell_object(
+        killer,
+        snprintf(msg, 255, "$HIY你PK玩家%s，获得了%lld点声望。当前罪行%lld。",
+                 victim->name(1), (long long)((vi - ki) * 10),
+                 (long long)killer->query("kill/guilt")));
 
     g_channel.do_channel(
         &g_channel, NULL, "sys",
-        snprintf(msg, 255, "%s在%s行凶杀死%s。罪行：%ld。", killer->name(1),
+        snprintf(msg, 255, "%s在%s行凶杀死%s。罪行：%lld。", killer->name(1),
                  city[0] ? city : "野外", victim->name(1),
-                 killer->query("kill/guilt")));
+                 (long long)killer->query("kill/guilt")));
 
     // PK 结算落地（罪行档位、悬捕条件等数据集规则）：guilt/repute 已更新、
     // 播报已发；返回值不消费，nil = 数据集不处理。
@@ -328,7 +331,7 @@ void CReward::pk_reward(CChar* killer, CChar* victim)
 
 // 处理PK奖励逻辑
 void CReward::handle_pk_reward(CChar* killer, CChar* victim, int pkreward,
-                               int pk_chang, int32_t lose, const char* killerid,
+                               int pk_chang, exp_t lose, const char* killerid,
                                CContainer* env)
 {
     char msg[255];
@@ -336,7 +339,7 @@ void CReward::handle_pk_reward(CChar* killer, CChar* victim, int pkreward,
 
     // PK 击杀者经验收益恒为 0（作者裁定的设计：PK 动机是仇杀与声望，非刷级），
     // 击杀者侧无经验入账；受害方损失由 lose 单独结算。
-    const int32_t gain = 0;
+    const exp_t gain = 0;
 
     victim->set("kill/kill_time", g_current_time);
     victim->set("kill/last_killer", killerid);
@@ -348,12 +351,12 @@ void CReward::handle_pk_reward(CChar* killer, CChar* victim, int pkreward,
     victim->skill_death_penalty();
     victim->add("pds", 1);
 
-    snprintf(msg, 255, "%s(%s)被%s(%s)杀了，损失%d点经验。", victim->name(1),
-             victim->id(1), killer->name(1), killer->id(1), (int)lose);
+    snprintf(msg, 255, "%s(%s)被%s(%s)杀了，损失%lld点经验。", victim->name(1),
+             victim->id(1), killer->name(1), killer->id(1), (long long)lose);
     g_channel.do_channel(&g_channel, NULL, "sys", msg);
     LOG_INFO("%s", msg);
 
-    int32_t ki, vi;
+    count_t ki, vi;
     int pk = 1;
     if (!(ki = killer->query_temp("pending/PK")))
         pk = 0;
@@ -377,11 +380,13 @@ void CReward::handle_pk_reward(CChar* killer, CChar* victim, int pkreward,
         strncpy(ti2, "百姓", 20);
 
     if (pkreward)
-        snprintf(msg, 255, "%s%s在%s杀死仇敌%s%s，得经验%d点。", ti1,
-                 killer->name(), env->name(), ti2, victim->name(), (int)gain);
+        snprintf(msg, 255, "%s%s在%s杀死仇敌%s%s，得经验%lld点。", ti1,
+                 killer->name(), env->name(), ti2, victim->name(),
+                 (long long)gain);
     else
-        snprintf(msg, 255, "%s%s在%s杀死%s%s，得经验%d点。", ti1,
-                 killer->name(), env->name(), ti2, victim->name(), (int)gain);
+        snprintf(msg, 255, "%s%s在%s杀死%s%s，得经验%lld点。", ti1,
+                 killer->name(), env->name(), ti2, victim->name(),
+                 (long long)gain);
 
     if (!pk_chang)
         g_channel.do_channel(&g_channel, 0, "rumor", msg);
@@ -390,8 +395,7 @@ void CReward::handle_pk_reward(CChar* killer, CChar* victim, int pkreward,
 }
 
 // 处理NPC击杀奖励
-void CReward::handle_npc_kill_reward(CChar* killer, CChar* victim,
-                                     int32_t reward)
+void CReward::handle_npc_kill_reward(CChar* killer, CChar* victim, exp_t reward)
 {
     char msg[255];
     mapping_value_t nk_limit = killer->query("level") * 4 + 100;
@@ -424,7 +428,7 @@ void CReward::handle_npc_kill_reward(CChar* killer, CChar* victim,
 // 杀手奖励主函数
 void CReward::killer_reward(CChar* killer, CChar* victim)
 {
-    int32_t lose;
+    exp_t lose;
     char msg[255];
 
     if (victim->query_attr(CChar::IS_USER)) {
@@ -455,7 +459,7 @@ void CReward::killer_reward(CChar* killer, CChar* victim)
     }
     else {  // NPC is the victim
         if (killer->query_attr(CChar::IS_USER)) {
-            int reward;
+            exp_t reward;
             if (killer->querystr_temp("party/master")[0]) {
                 CUser* pary_master
                     = find_online(killer->querystr_temp("party/master"));

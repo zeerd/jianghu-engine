@@ -50,10 +50,10 @@ int CCmdWizard::whois(CChar* me, int32_t target, char* arg)
     tell_object(
         me,
         snprintf(cmd, 255,
-                 "【系统】%s(%s)：位于%s，在线%ld秒，发呆%ld秒。客户端：%s版",
+                 "【系统】%s(%s)：位于%s，在线%lld秒，发呆%ld秒。客户端：%s版",
                  who->name(1), get_ip(static_cast<CChar*>(who)), msg,
-                 g_current_time - who->query("login/time"), who->query_idle(),
-                 who->querystr_temp("client/version")));
+                 (long long)(g_current_time - who->query("login/time")),
+                 who->query_idle(), who->querystr_temp("client/version")));
 
     return 1;
 }
@@ -296,7 +296,7 @@ int CCmdWizard::recover(CChar* me, int32_t target, char* arg)
     mapping_value_t exp = who->query("death/combat_exp_loss");
     who->add("combat_exp", exp);
 
-    LOG_INFO("%s恢复了%ld点死亡经验！", who->name(1), exp);
+    LOG_INFO("%s恢复了%lld点死亡经验！", who->name(1), (long long)exp);
 
     if (who->query("death/skill_loss")) {
         who->skill_death_recover();

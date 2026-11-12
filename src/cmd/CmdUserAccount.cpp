@@ -124,7 +124,8 @@ int CCmdUser::unset(CChar* me, int32_t target, char* arg)
 
 int CCmdUser::mudage(CChar* me, int32_t target, char* arg)
 {
-    int sec, min, hrs, day, mon, age;
+    count_t sec, min, hrs, day, mon;
+    timestamp_t age;
     char msg[160], tmp[255], str[255];
 
     if (me->query("hp") < 10)
@@ -246,9 +247,9 @@ int CCmdUser::verify_pass(CChar* me, int32_t target, char* arg)
 // 升级系统
 int CCmdUser::upgrade(CChar* me, int32_t target, char* arg)
 {
-    mapping_value_t level = me->query("level");
-    int32_t valid_exp     = me->query_valid_exp();  // 可用来升级的经验
-    int32_t need_exp = CChar::level2_exp(level + 1) - CChar::level2_exp(level);
+    level_t level   = static_cast<level_t>(me->query("level"));
+    exp_t valid_exp = me->query_valid_exp();  // 可用来升级的经验
+    exp_t need_exp  = CChar::level2_exp(level + 1) - CChar::level2_exp(level);
 
     if (valid_exp < need_exp) return notify_fail("你当前的经验不够升一级！");
 

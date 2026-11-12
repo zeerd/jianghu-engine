@@ -39,8 +39,8 @@ void CChar::flush_my_info()
     // 整个函数体（含 3 次 skill_power）都不必执行。
     if (!has_client()) return;
 
-    int32_t sk_exp    = _M.query("combat_exp") / 3 - _M.query("sk_exp");
-    int32_t valid_exp = query_valid_exp();
+    exp_t sk_exp    = _M.query("combat_exp") / 3 - _M.query("sk_exp");
+    exp_t valid_exp = query_valid_exp();
 
     snprintf(msg, 255,
              "&C=%d&T=%d&o=%s&p=%s&P=%d&q=%s&r=%s&s=%s&t=%s&u=%d&v=%d&exp=%"
@@ -126,7 +126,8 @@ void CChar::flush_my_equip()
 
         if (t->query("equipped"))  // 装备了要发个装备标志
         {
-            snprintf(str, 40, "E%d=%d&", i, t->query("equipped"));
+            snprintf(str, 40, "E%d=%d&", i,
+                     static_cast<flag_t>(t->query("equipped")));
             strcat(msg, str);
         }
         i++;
@@ -150,14 +151,14 @@ void CChar::flush_my_skill(CChar* me)
     int cnt = v.count();
     for (int i = 0; i < cnt; i++) {
         const char* skl     = v[i];
-        int32_t need_points = me->skill_need_points(skl);
+        count_t need_points = me->skill_need_points(skl);
 
         snprintf(msg, 512, "&C=%d&T=%d&S=%s&L=%d&", RTNSKILL, object_id(), skl,
-                 skills[skl]);
+                 static_cast<skill_level_t>(skills[skl]));
 
         if (this == me)  // 当who == me时才传升级所需之点数
         {
-            snprintf(str, 40, "P=%d&", need_points / pt + 1);
+            snprintf(str, 40, "P=%lld&", (long long)(need_points / pt + 1));
             strcat(msg, str);
         }
 

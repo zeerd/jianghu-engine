@@ -8,6 +8,8 @@
 
 #include <cstdint>
 
+#include "../config/MainConfig.h"
+
 class CChar;
 class CContainer;
 
@@ -18,11 +20,11 @@ class CWeaponEffect {
 public:
     // Weapon collision on parry (may disarm or break victim's weapon)
     static void bash_weapon(CChar* me, CChar* victim, CContainer* weapon,
-                            int32_t damage);
+                            damage_t damage);
 
     // Consumable weapon decay (e.g. throwing weapons)
     static void throw_weapon(CChar* me, CChar* victim, CContainer* weapon,
-                             int32_t damage);
+                             damage_t damage);
 };
 
 // 取角色身上第一件暗器（skill_type == "throwing"）：

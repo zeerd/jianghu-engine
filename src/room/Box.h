@@ -23,10 +23,10 @@ public:
     virtual void download(CChar* me);
     virtual void on_leave(CContainer* me);
     virtual void on_enter(CContainer* me);
-    void locked(char* season, int32_t duration, CChar* me = NULL);
-    int un_locked(int32_t resume = 0)
+    void locked(char* season, count_t duration, CChar* me = NULL);
+    count_t un_locked(count_t resume = 0)
     {
-        int dur = 0;
+        count_t dur = 0;
 
         if (!resume)
             del("duration");

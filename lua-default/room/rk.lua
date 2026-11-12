@@ -6,6 +6,7 @@
 -- 注册专员的命令白名单：talk 是与专员交谈，regxxx 是注册流程
 -- （菜单项回灌的命令也会先经过房间拦截，必须放行）。
 local allow = {
+    ask = true,
     talk = true,
     regchar = true,
     regname = true,
@@ -33,7 +34,7 @@ return {
             return 0
         end
 
-        if comm ~= "quit" and comm ~= "mudage" and comm ~= "password" and comm ~= "validate" then
+        if not is_wizard(me) and comm ~= "quit" and comm ~= "mudage" and comm ~= "password" and comm ~= "validate" then
             tell_object(me, "你尝试了一下，但是发现这里似乎没有信号。")
             return 1
         end

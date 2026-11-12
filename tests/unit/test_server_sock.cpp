@@ -7,19 +7,24 @@
 
 #include <cstring>
 #include <functional>
+#include <future>
 #include <list>
 #include <mutex>
 #include <string>
+#include <thread>
 
 #include "Container.h"
 #include "GameSvr.h"
 #include "HeartBeat.h"
 #include "ServerSockHandler.h"
+#include "test_login_frame.h"
 #include "test_lua_env.h"
 
 extern SOCKADDR_IN g_saddr;
 extern std::list<CGateInfo*> g_gate_list;
 extern std::mutex g_gate_list_mutex;
+extern bool g_mock_db_succeed;
+extern std::function<void()> g_mock_on_verify_user;
 void process_user_message();
 
 namespace {
@@ -53,6 +58,16 @@ void PushRecv(CGateInfo* gate, int type, const char* data)
     msg->len         = data ? static_cast<int>(strlen(data)) + 1 : 0;
     msg->szData[0]   = 0;
     if (data) strcpy(msg->szData, data);
+    gate->m_recv_buff_q.push_q(reinterpret_cast<uint8_t*>(msg));
+}
+
+// 压登录消息：与 dispatch_gate_recv 一致整帧 512 字节（对端 IP 段在 255 处）
+void PushLoginFrame(CGateInfo* gate, const char* frame)
+{
+    _LPTRECVBUFF msg = new _TRECVBUFF;
+    msg->type        = RECV_MSG_LOGIN;
+    msg->len         = 512;
+    memcpy(msg->szData, frame, 512);
     gate->m_recv_buff_q.push_q(reinterpret_cast<uint8_t*>(msg));
 }
 
@@ -140,6 +155,65 @@ TEST_F(ServerSockTest, DispatchesCommandThenRemovesGateOnExit)
     // EXIT 让 gate 出列表并释放最后一个引用（析构发生在这里）
     std::lock_guard<std::mutex> lock(g_gate_list_mutex);
     EXPECT_TRUE(g_gate_list.empty());
+}
+
+// 登录的 DB 往返不持有 g_gate_list_mutex 与该 gate 的 m_cs：慢 DB 经这两把
+// 锁会冻结 worker 的 accept 与该连接收包。mock verify_user 入口处由探测线程
+// 对两把锁 try_lock——try_lock 不阻塞，若登录路径仍持锁，结果确定为 false，
+// 用例据此判红。
+TEST_F(ServerSockTest, LoginDbWorkRunsWithoutHoldingGateLocks)
+{
+    CGateInfo* gate = new CGateInfo();
+    gate->m_login   = GATE_LOGIN_LOGGING_IN;
+    char frame[512] = {};
+    ASSERT_TRUE(BuildLoginFrame(frame, sizeof(frame), kLoginCmd, kIpPair));
+    PushLoginFrame(gate, frame);
+    {
+        std::lock_guard<std::mutex> lock(g_gate_list_mutex);
+        g_gate_list.push_back(gate);
+    }
+
+    // verify_user 失败让 on_login 停在拒绝分支：观测点位于锁内/锁外的分界
+    // 上，不深入建号流程
+    const bool saved_succeed = g_mock_db_succeed;
+    g_mock_db_succeed        = false;
+
+    bool hook_fired     = false;
+    bool list_locked    = false;
+    bool gate_cs_locked = false;
+    std::promise<void> go, done;
+    std::future<void> go_f   = go.get_future();
+    std::future<void> done_f = done.get_future();
+
+    std::thread probe([&] {
+        go_f.wait();
+        list_locked = g_gate_list_mutex.try_lock();
+        if (list_locked) g_gate_list_mutex.unlock();
+        gate_cs_locked = gate->m_cs.try_lock();
+        if (gate_cs_locked) gate->m_cs.unlock();
+        done.set_value();
+    });
+
+    g_mock_on_verify_user = [&] {
+        if (!hook_fired) {
+            hook_fired = true;
+            go.set_value();
+        }
+        done_f.wait();
+    };
+
+    process_user_message();
+
+    g_mock_on_verify_user = nullptr;
+    g_mock_db_succeed     = saved_succeed;
+    if (!hook_fired) go.set_value();  // 未走到 verify_user：放行探测线程收尾
+    probe.join();
+
+    EXPECT_TRUE(hook_fired) << "on_login 未到达 verify_user";
+    EXPECT_TRUE(list_locked) << "on_login 执行期间持有 g_gate_list_mutex";
+    EXPECT_TRUE(gate_cs_locked) << "on_login 执行期间持有 gate->m_cs";
+    // 登录被拒但 handle=0 查不到连接，gate 留在列表由收尾回收
+    EXPECT_EQ(GateCount(), 1u);
 }
 
 // ---------------------------------------------------------------- loopback

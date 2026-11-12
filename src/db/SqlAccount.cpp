@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file SqlAccount.cpp
  * @brief 用户账号管理 + 频道/社交操作  */
 
@@ -492,7 +492,7 @@ bool db_query_recruit(const char* master_id, DbResultSet& result)
 }
 
 bool db_update_recruit(const char* master, const char* id, const char* name,
-                       long exp, int apprentice)
+                       exp_t exp, int apprentice)
 {
     if (!g_db) return false;
 
@@ -513,15 +513,15 @@ bool db_update_recruit(const char* master, const char* id, const char* name,
         int n = result.size();
         if (n) {
             snprintf(msg, sizeof(msg),
-                     "update recruit_exp set re_name='%s', re_exp=%ld, "
+                     "update recruit_exp set re_name='%s', re_exp=%lld, "
                      "re_apprentice=%d where re_master=%s and re_id=%s",
-                     name, exp, apprentice, master, id);
+                     name, (long long)exp, apprentice, master, id);
         }
         else {
             snprintf(msg, sizeof(msg),
                      "insert into recruit_exp(re_master, re_id, re_name, "
-                     "re_exp, re_apprentice) values(%s, %s, '%s', %ld, %d)",
-                     master, id, name, exp, apprentice);
+                     "re_exp, re_apprentice) values(%s, %s, '%s', %lld, %d)",
+                     master, id, name, (long long)exp, apprentice);
         }
 
         ret_code = g_db->execute(msg);

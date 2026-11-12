@@ -2,6 +2,7 @@
 //
 // Tests apprenticeship and teaching game state.
 //
+// Build+Run: .\run-coverage.ps1
 #include "pch.h"
 
 #include "Char.h"
@@ -13,6 +14,7 @@
 #include "mock/mock_database.h"
 #include "test_lua_env.h"
 #include "test_state_recorder.h"
+#include "../config/MainConfig.h"
 
 extern char g_notify_fail_msg[512];
 
@@ -1032,11 +1034,11 @@ CContainer* MakeStudyBook(CChar* who, const char* skill_name,
     book->set_name("无名剑谱", "study_book");
     CMapping sk;
     sk.set("name", skill_name);
-    sk.set("exp_required", 0L);
-    sk.set("difficulty", 0L);
+    sk.set("exp_required", MAPPING_VALUE_ZERO);
+    sk.set("difficulty", MAPPING_VALUE_ZERO);
     sk.set("jing_cost", 10L);
     sk.set("max_skill", max_skill);
-    sk.set("min_skill", 0L);
+    sk.set("min_skill", MAPPING_VALUE_ZERO);
     book->set("skill", sk);
     book->move(who);
     return book;

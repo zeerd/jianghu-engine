@@ -16,7 +16,9 @@
 
 extern char g_notify_fail_msg[512];
 
-#include "Message.h"  // chinese_number 直驱
+#include "Message.h"        // chinese_number 直驱
+#include "Attack.h"         // CAttack::damge_to_string（下放对拍基准）
+#include "LoginRegister.h"  // check_legal_name（下放对拍基准）
 
 #include "ServerConfig.h"
 
@@ -82,15 +84,15 @@ TEST_F(BindGlobalTest, RandomAndXrandom)
 TEST_F(BindGlobalTest, ValidString)
 
 {
-    // 契约：合法文本返回 1；含引号文本经 notify_fail 返回 0
+    // 契约：合法文本返回 1；含引号文本经 notify_fail 写入失败缓冲并返回 0。
+    // 下放后由内容层前导实现，行为与原 C++ 绑定逐字一致。
+    ASSERT_NE(ensure_lua_env(), nullptr);
+    lua_State* E = ensure_lua_env();
 
-    lua_pushstring(L, "hello");
-
-    EXPECT_EQ(1, CallInt(l_valid_string, 1));
-
-    lua_pushstring(L, "a\"b");
-
-    EXPECT_EQ(0, CallInt(l_valid_string, 1));
+    EXPECT_EQ(1, lua_int_expr(E, "valid_string('hello')"));
+    EXPECT_EQ(1, lua_int_expr(E, "valid_string('')"));
+    EXPECT_EQ(0, lua_int_expr(E, "valid_string('a\"b')"));
+    EXPECT_STREQ("不能含有引号!", g_notify_fail_msg);
 }
 
 // ---------------- util/Logger.cpp ----------------
@@ -149,15 +151,20 @@ TEST_F(BindGlobalTest, LogLevelBindings)
 TEST_F(BindGlobalTest, CheckLegalName)
 
 {
-    // 契约：合法名字返回 ""（绑定头注释），返回值是字符串而非 nil
+    // 契约：合法名字返回 ""（绑定头注释），返回值是字符串而非 nil。
+    // 下放后由内容层前导实现，与 C++ check_legal_name（长度检查 + 回环
+    // login.check_name）同式同源。
+    ASSERT_NE(ensure_lua_env(), nullptr);
+    lua_State* E = ensure_lua_env();
 
-    std::string s;
+    for (const char* name : {"zhangsan", "ab", "abcdefghijkl"}) {
+        const std::string cpp = check_legal_name(name);
+        const std::string lua = lua_str_expr(
+            E, ("check_legal_name('" + std::string(name) + "')").c_str());
+        EXPECT_EQ(cpp, lua) << name;
+    }
 
-    lua_pushstring(L, "zhangsan");
-
-    EXPECT_TRUE(CallStr(l_check_legal_name, 1, s));
-
-    EXPECT_TRUE(s.empty());
+    EXPECT_TRUE(lua_str_expr(E, "check_legal_name('zhangsan')").empty());
 }
 
 // ---------------- net/Message.cpp ----------------
@@ -165,13 +172,25 @@ TEST_F(BindGlobalTest, CheckLegalName)
 TEST_F(BindGlobalTest, ChineseNumber)
 
 {
-    lua_pushinteger(L, 123);
+    // 下放后由内容层前导实现，与 C++ chinese_number（全分支树）逐值对拍
+    ASSERT_NE(ensure_lua_env(), nullptr);
+    lua_State* E = ensure_lua_env();
 
-    std::string s;
+    const signed long vals[]
+        = {-5,   15,    45,    105,    115,       4000,      4050,
+           4500, 40000, 40500, 450000, 400000000, 405000000, 450000000};
 
-    CallStr(l_chinese_number, 1, s);
+    for (signed long v : vals) {
+        char buf[256] = {0};
+        chinese_number(v, buf);
 
-    EXPECT_FALSE(s.empty());
+        EXPECT_EQ(std::string(buf),
+                  lua_str_expr(
+                      E, ("chinese_number(" + std::to_string(v) + ")").c_str()))
+            << "v=" << v;
+    }
+
+    EXPECT_FALSE(lua_str_expr(E, "chinese_number(123)").empty());
 }
 
 TEST_F(BindGlobalTest, TellAndVisionGuards)
@@ -726,15 +745,25 @@ TEST_F(BindGlobalTest, CombatAttackGuards)
 TEST_F(BindGlobalTest, DamgeToString)
 
 {
+    // 下放后由内容层前导实现，与 CAttack::damge_to_string（伤害分档 + real
+    // 占位）逐值对拍
+    ASSERT_NE(ensure_lua_env(), nullptr);
+    lua_State* E = ensure_lua_env();
+
+    for (long long d :
+         {0LL, 1LL, 1000LL, 1001LL, 5000LL, 5001LL, 10000LL, 10001LL, 1234LL}) {
+        for (int real = 0; real <= 1; ++real) {
+            const std::string cpp = CAttack::damge_to_string(d, real != 0);
+            const std::string lua
+                = lua_str_expr(E, ("damge_to_string(" + std::to_string(d) + ","
+                                   + (real ? "true" : "false") + ")")
+                                      .c_str());
+            EXPECT_EQ(cpp, lua) << "d=" << d << " real=" << real;
+        }
+    }
+
     // 契约：伤害值 → 非空描述串
-
-    lua_pushinteger(L, 1234);
-
-    std::string s;
-
-    EXPECT_TRUE(CallStr(l_damge_to_string, 1, s));
-
-    EXPECT_FALSE(s.empty());
+    EXPECT_FALSE(lua_str_expr(E, "damge_to_string(1234)").empty());
 }
 
 TEST_F(BindGlobalTest, CombatdQuery)
@@ -773,6 +802,31 @@ TEST_F(BindGlobalTest, DbQueryExecute)
     lua_pop(L, k);
 
     g_db = nullptr;
+}
+
+// 无库态契约：校验器这类无头进程没有 g_db，db_* 必须降级成脚本已有的失败
+// 形态（false / nil + 错误串），不能空指针解引用。
+TEST_F(BindGlobalTest, DbBindsDegradeWithoutDatabase)
+{
+    g_db = nullptr;
+
+    lua_pushstring(L, "insert into t values(1)");
+    int k = call(l_db_execute, 1);
+    EXPECT_EQ(2, k) << "无库态 execute 返回 false + 错误串";
+    if (k >= 2) {
+        EXPECT_FALSE(lua_toboolean(L, -2));
+        EXPECT_TRUE(lua_isstring(L, -1));
+    }
+    if (k > 0) lua_pop(L, k);
+
+    lua_pushstring(L, "select 1");
+    k = call(l_db_query, 1);
+    EXPECT_EQ(2, k) << "无库态 query 返回 nil + 错误串";
+    if (k >= 2) {
+        EXPECT_TRUE(lua_isnil(L, -2));
+        EXPECT_TRUE(lua_isstring(L, -1));
+    }
+    if (k > 0) lua_pop(L, k);
 }
 
 TEST_F(BindGlobalTest, SqlRankAndCharge)

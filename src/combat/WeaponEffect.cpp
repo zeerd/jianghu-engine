@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file WeaponEffect.cpp
  * @brief Weapon interaction effects during combat */
 
@@ -11,11 +11,12 @@
 #include "Item.h"
 #include "Channel.h"
 #include "Message.h"
+#include "../config/MainConfig.h"
 
 void CWeaponEffect::bash_weapon(CChar* me, CChar* victim, CContainer* weapon,
-                                int32_t damage)
+                                damage_t damage)
 {
-    int32_t wap, wdp;
+    mapping_value_t wap, wdp;
     char msg[255];
     CContainer* ob = victim->query_weapon();
 
@@ -44,14 +45,14 @@ void CWeaponEffect::bash_weapon(CChar* me, CChar* victim, CContainer* weapon,
                 victim);
             ob->move(victim->environment());
             ob->set_name(snprintf(msg, 255, "断掉的%s", ob->name(1)));
-            ob->set("value", 0l);
+            ob->set("value", MAPPING_VALUE_ZERO);
             ob->del("apply");
         }
     }
 }
 
 void CWeaponEffect::throw_weapon(CChar* me, CChar* victim, CContainer* weapon,
-                                 int32_t damage)
+                                 damage_t damage)
 {
     char msg[255];
 

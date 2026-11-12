@@ -35,6 +35,7 @@
 #include "lua/LuaEngine.h"
 #include "mock/mock_database.h"
 #include "mock/mock_itemmgr.h"  // RegisterFbItemMgr：真实副本链路
+#include "test_login_frame.h"   // 登录帧构造（共享给网络层锁契约用例）
 #include "test_lua_env.h"
 #include "test_register_fb.h"  // recycle_fbs：副本收尾
 #include "test_state_recorder.h"
@@ -50,49 +51,6 @@ namespace {
 
 constexpr int kNow      = 1700000000;
 constexpr int kBootTime = kNow - 3600;
-
-// 镜像 decode_str 的 XOR 编码器：空格/换行/制表符原样保留且同样推进
-// 密钥游标。编码后经 decode_str 还原自检（BuildLoginFrame 内做）。
-void encode_str(char* msg)
-{
-    int p = 0, t = 0;
-    const char* key = "\15L\26A\18N\12W\25O\33O\6D";
-    int len         = (int)strlen(key);
-    while (msg[p]) {
-        if (msg[p] != ' ' && msg[p] != '\n' && msg[p] != '\t') {
-            msg[p] ^= key[t];
-        }
-        p++;
-        t++;
-        if (t >= len) t = 0;
-    }
-}
-
-// 构造 on_login 帧：登录串编码进 [0..254]，IP 串放 [255..]。
-// 返回 false 表示明文 XOR 后撞上保留字节（空格/制表符/换行/NUL），
-// 需换用例参数——调用方须 ASSERT_TRUE。
-bool BuildLoginFrame(char* buf, size_t cap, const char* plaintext,
-                     const char* ip)
-{
-    memset(buf, 0, cap);
-    if (strlen(plaintext) >= 254) return false;
-
-    strcpy(buf, plaintext);
-    char check[256];
-    strcpy(check, buf);
-    encode_str(check);
-    decode_str(check);
-    if (strcmp(check, plaintext) != 0) return false;  // 编码碰撞
-
-    encode_str(buf);
-    strncpy(&buf[255], ip, 79);
-    return true;
-}
-
-// 明文格式：login <本地IP> <版本> <帐号> <密码> <卡号> <卡密>
-const char* kLoginCmd = "login 8.8.8.8 1.0 10001 test1234 c1 p1";
-// get_ip 的拼装结果：M:<对端IP> L:<本地IP>（各截 19 字符）
-const char* kIpPair = "M:9.9.9.9 L:8.8.8.8";
 
 }  // namespace
 
@@ -459,10 +417,10 @@ TEST_F(LoginFlowTest, SetupGuestUser_FillsMinimalProfileInRk)
     EXPECT_EQ(1, user.query("guest")) << "游客标记";
     EXPECT_STREQ(REGISTER_HALL_NAME, user.querystr("start_city"))
         << "起始地为游戏大厅";
-    EXPECT_EQ(10, user.query("str"));
-    EXPECT_EQ(10, user.query("int"));
-    EXPECT_EQ(10, user.query("con"));
-    EXPECT_EQ(10, user.query("dex"));
+    EXPECT_EQ(21, user.query("str"));
+    EXPECT_EQ(21, user.query("int"));
+    EXPECT_EQ(21, user.query("con"));
+    EXPECT_EQ(21, user.query("dex"));
     EXPECT_EQ(14, user.query("age"));
     EXPECT_EQ(1, user.query("level"));
     EXPECT_STREQ("游客", user.name(1)) << "临时角色名";

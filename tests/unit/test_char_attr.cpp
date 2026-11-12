@@ -9,6 +9,7 @@
 #include "ItemMgr.h"
 #include "mock/mock_itemmgr.h"
 #include "test_lua_env.h"
+#include "../config/MainConfig.h"
 
 class CharAttrTest : public ::testing::Test {
 protected:
@@ -106,9 +107,9 @@ TEST_F(CharAttrTest, QueryMagicSkill_Delegates)
 
 TEST_F(CharAttrTest, QueryValidExp)
 {
-    ch->set("level", (long)1);
-    ch->set("combat_exp", (long)1000);
-    ch->set("sk_exp", (long)0);
+    ch->set("level", 1);
+    ch->set("combat_exp", 1000);
+    ch->set("sk_exp", MAPPING_VALUE_ZERO);
     // level2exp(1) == 0, so valid = 1000 - 0 - 0
     EXPECT_EQ(ch->query_valid_exp(), 1000);
 }
@@ -116,36 +117,36 @@ TEST_F(CharAttrTest, QueryValidExp)
 // ---------------- per / grant / kar / loading ----------------
 TEST_F(CharAttrTest, QueryPer_WithApply)
 {
-    ch->set("per", (long)10);
-    ch->set_temp("apply/per", (long)3);
+    ch->set("per", 10);
+    ch->set_temp("apply/per", 3);
     EXPECT_EQ(ch->attr("per"), 13);
 }
 
 TEST_F(CharAttrTest, QueryGrant)
 {
-    ch->set("grant", (long)30);
+    ch->set("grant", 30);
     EXPECT_EQ(ch->query_grant(), 30);
 }
 
 TEST_F(CharAttrTest, IsLoading_Flag)
 {
     EXPECT_EQ(ch->is_loading(), 0);
-    ch->set_temp("client/loading", (long)1);
+    ch->set_temp("client/loading", 1);
     EXPECT_EQ(ch->is_loading(), 1);
 }
 
 TEST_F(CharAttrTest, RefuseChannel)
 {
     EXPECT_EQ(ch->refuse_channel("rumor"), 0);
-    ch->set_temp("refuse/rumor", (long)1);
+    ch->set_temp("refuse/rumor", 1);
     EXPECT_EQ(ch->refuse_channel("rumor"), 1);
 }
 
 // ---------------- learn_bonus branches ----------------
 TEST_F(CharAttrTest, LearnBonus_Zero)
 {
-    ch->set("level", (long)0);
-    ch->set("int", (long)0);
+    ch->set("level", 0);
+    ch->set("int", 0);
     EXPECT_EQ(ch->learn_bonus(), 1);
 }
 
@@ -182,25 +183,64 @@ TEST_F(CharAttrTest, LearnBonus_VeryHigh)
     EXPECT_EQ(ch->learn_bonus(), 63);
 }
 
-// ---------------- is_invalid ----------------
+// ---------------- is_invalid（前导 index.is_invalid，含超限播报副作用）
+// ----------------
 TEST_F(CharAttrTest, IsInvalid_False)
 {
     ch->set("mp", (long)1000);
-    EXPECT_FALSE(ch->is_invalid());
+    lua_State* L = ensure_lua_env();
+    lua_bind_push_object(L, ch);
+    int k = call_method(L, "is_invalid", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 }
 
 TEST_F(CharAttrTest, IsInvalid_True)
 {
-    ensure_lua_env();
+    lua_State* L = ensure_lua_env();
     ch->set("mp", (long)70000);
-    EXPECT_TRUE(ch->is_invalid());
+    lua_bind_push_object(L, ch);
+    int k = call_method(L, "is_invalid", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, k);
+}
+
+// 钩子表 {limit=N} 覆盖默认上限
+TEST_F(CharAttrTest, IsInvalid_HookLimitOverrides)
+{
+    lua_State* L = ensure_lua_env();
+    ASSERT_EQ(luaL_dostring(L,
+                            "__orig_char_rule = hooks.char_rule;"
+                            "hooks.char_rule = function(phase, actor, target) "
+                            "return {limit = 42} end"),
+              LUA_OK);
+
+    ch->set("mp", (long)41);
+    lua_bind_push_object(L, ch);
+    int k = call_method(L, "is_invalid", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1)) << "41 ≤ 42 未超限";
+    lua_pop(L, k);
+
+    ch->set("mp", (long)43);
+    lua_bind_push_object(L, ch);
+    k = call_method(L, "is_invalid", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_TRUE(lua_toboolean(L, -1)) << "钩子表值 42 覆盖默认 60000";
+    lua_pop(L, k);
+
+    EXPECT_EQ(
+        luaL_dostring(
+            L, "hooks.char_rule = __orig_char_rule; __orig_char_rule = nil"),
+        LUA_OK);
 }
 
 // 钩子缺席时回退到引擎默认基准：门派豁免不再生效
 TEST_F(CharAttrTest, IsInvalid_FallbackWithoutHook)
 {
-    ensure_lua_env();
-    lua_State* L = CLuaEngine::instance()->get_state();
+    lua_State* L = ensure_lua_env();
     ASSERT_EQ(
         luaL_dostring(
             L, "__orig_char_rule = hooks.char_rule; hooks.char_rule = nil"),
@@ -208,7 +248,11 @@ TEST_F(CharAttrTest, IsInvalid_FallbackWithoutHook)
 
     ch->set("family/family_name", "星宿派");
     ch->set("mp", (long)70000);  // 缺席 → 基准 60000
-    EXPECT_TRUE(ch->is_invalid());
+    lua_bind_push_object(L, ch);
+    int k = call_method(L, "is_invalid", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 
     EXPECT_EQ(
         luaL_dostring(

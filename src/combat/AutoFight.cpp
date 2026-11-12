@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file AutoFight.cpp
  * @brief NPC aggression AI / auto-fight triggers */
 
@@ -13,6 +13,7 @@
 #include "Rank.h"
 #include "Login.h"
 #include "Message.h"
+#include "../config/MainConfig.h"
 
 CAutoFight g_auto_fight;
 
@@ -44,11 +45,11 @@ void CAutoFight::start_berserk(CContainer* ob, int32_t target, int32_t param2)
     char msg[255];
     CChar* me  = static_cast<CChar*>(ob);
     CChar* obj = static_cast<CChar*>((me->environment())->present(target));
-    int shen;
+    count_t shen;
 
     if (!obj) return;
 
-    me->set_temp("looking_for_trouble", 0l);
+    me->set_temp("looking_for_trouble", MAPPING_VALUE_ZERO);
 
     if (me->is_fighting(obj) || !me->query_attr(CChar::IS_LIVING)
         || (me->environment())->query("no_fight")  // Are we in a peace room?
@@ -107,7 +108,7 @@ void CAutoFight::start_hatred(CContainer* ob, int32_t target, int32_t param2)
     CChar* obj = static_cast<CChar*>((me->environment())->present(target));
     if (!obj) return;  // Are we still exist( not becoming a corpse )?
 
-    me->set_temp("looking_for_trouble", 0l);
+    me->set_temp("looking_for_trouble", MAPPING_VALUE_ZERO);
 
     if (me->is_fighting(obj)
         || !me->query_attr(CChar::IS_LIVING)  // Are we capable for a fight?
@@ -127,7 +128,7 @@ void CAutoFight::start_vendetta(CContainer* ob, int32_t target, int32_t param2)
 
     if (!obj) return;  // Are we still exist( not becoming a corpse )?
 
-    me->set_temp("looking_for_trouble", 0l);
+    me->set_temp("looking_for_trouble", MAPPING_VALUE_ZERO);
 
     if (me->is_fighting(obj)                  // Are we busy fighting?
         || !me->query_attr(CChar::IS_LIVING)  // Are we capable for a fight?
@@ -147,7 +148,7 @@ void CAutoFight::start_aggressive(CContainer* ob, int32_t target,
 
     if (!obj) return;  // Are we still exist( not becoming a corpse )?
 
-    me->set_temp("looking_for_trouble", 0l);
+    me->set_temp("looking_for_trouble", MAPPING_VALUE_ZERO);
 
     if (me->is_fighting(obj)                  // Are we busy fighting?
         || !me->query_attr(CChar::IS_LIVING)  // Are we capable for a fight?

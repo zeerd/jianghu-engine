@@ -48,7 +48,7 @@ applyTo: '**'
 
 - 单个文件不超过 500 行，单个函数不超过 50 行。
 
-禁止编译x64版本！编译win32版本，x64版本无法使用，不要去浪费时间！
+编译与测试默认走 x64 版本（生产同构平台）；Win32 版本仍可编译，但只在显式指定时构建。
 
 不要给脚本加BOM！
 
@@ -97,7 +97,7 @@ jianghu.exe --check-lua [--config <ini>] [--dir <path>] [--baseline <file>] [--w
 校验用的可执行文件是 **`bin\e2e\jianghu.exe`**（`bin\jianghu.exe` 是功能测试留下的过期版本，不作校验依据）。改过 `src` 后重建它，或直接跑 `.\run-integration-tests.ps1`（每轮都会重建）：
 
 ```cmd
-msbuild jianghu.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:OutDir=C:\jianghu-engine\bin\e2e\ /nologo /verbosity:minimal
+msbuild jianghu.vcxproj /p:Configuration=Release /p:Platform=x64 /p:OutDir=C:\jianghu-engine\bin\e2e\ /nologo /verbosity:minimal
 ```
 
 ### ⚠️ 正确的调用方法
@@ -106,7 +106,7 @@ msbuild jianghu.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:OutDir=C:\
 
 ```powershell
 $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
-cmd /c "call ""$vs\VC\Auxiliary\Build\vcvars32.bat"" >nul 2>&1 && cd C:\jianghu-engine && bin\e2e\jianghu.exe --check-lua --config tests\integration\config.ini --dir lua-sample > bin\check_lua_output.txt 2>&1"
+cmd /c "call ""$vs\VC\Auxiliary\Build\vcvars64.bat"" >nul 2>&1 && cd C:\jianghu-engine && bin\e2e\jianghu.exe --check-lua --config tests\integration\config.ini --dir lua-sample > bin\check_lua_output.txt 2>&1"
 Get-Content C:\jianghu-engine\bin\check_lua_output.txt
 ```
 

@@ -11,6 +11,7 @@
 #include "Sql.h"
 #include "IniParser.h"
 #include "Crypto.h"
+#include "../config/MainConfig.h"
 
 bool prepare_tables(void);
 char* check_legal_name(const char* name);
@@ -309,7 +310,7 @@ bool verify_user(const char* userid, char* passwd)
             // 上限之上。
             init_new_char(me, row[1].c_str(), userid, row[10].c_str(), str, con,
                           intel, dex);
-            me.set("combat_exp", 0);
+            me.set("combat_exp", MAPPING_VALUE_ZERO);
 
             CVector v;
             v.append("chat");

@@ -18,6 +18,8 @@
 bin
 jianghu.suo
 jianghu.ncb
+libmysql.dll
+libmysql.dll.zip
 /.vs
 /.codebuddy
 /.vscode
@@ -26,7 +28,6 @@ jianghu.ncb
 /data/config.ini
 /log
 /x64
-/libmySQL.dll
 /build_tmp
 /lua/LuaTest.*
 /test/build

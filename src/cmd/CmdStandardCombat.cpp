@@ -193,15 +193,16 @@ int CCmdStandard::join_battle(CChar* me, int32_t target, char* arg)
         if (!obj->query("smash")) return notify_fail("此战斗不能加入!");
     }
     // 禁止加入NPC一方进行战斗：数据集规则可声明豁免对象
-    int team_obj     = 100;
-    DTItemList* list = obj->get_item_list();
+    team_index_t team_obj = 100;
+    DTItemList* list      = obj->get_item_list();
     for (auto val : *list) {
         CContainer* obj1 = val;
         if (!obj1->is_character()) continue;
         CChar* target = static_cast<CChar*>(obj1);
         if (!is_user(target) && !target->query("help")
             && !combat_rule_yes("join_battle", me, target)) {
-            team_obj = target->query_temp("fight/fight_team");
+            team_obj = static_cast<team_index_t>(
+                target->query_temp("fight/fight_team"));
             break;
         }
     }

@@ -100,7 +100,7 @@ CMapping* CChannel::query_relative(const char* me, const char* target)
 }
 
 void CChannel::update_recruit(const char* master, const char* id,
-                              const char* name, int32_t exp, int apprentice)
+                              const char* name, exp_t exp, int apprentice)
 {
     m_relationship.update_recruit(master, id, name, exp, apprentice);
 }

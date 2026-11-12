@@ -32,7 +32,7 @@ public:
 
     /** @brief 更新 recruit_exp 表，玩家存盘时呼叫。 */
     void update_recruit(const char* master, const char* id, const char* name,
-                        int32_t exp, int apprentice);
+                        exp_t exp, int apprentice);
 
     /** @brief 返回两个人的关系表：友好度、关系类型。 */
     CMapping* query_relative(const char* me, const char* target);

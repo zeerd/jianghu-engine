@@ -1,7 +1,7 @@
 // test_combatcalc.cpp - Unit tests for CCombatCalc::Skill_Power.
 //
-// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=Win32
-// Run:    tests\Debug\tests.exe --gtest_filter=CombatCalc*
+// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=x64
+// Run:    x64\Debug\tests.exe --gtest_filter=CombatCalc*
 //
 // This test compiles the real CombatCalc.cpp. External dependencies
 // (is_user, is_wizard, MessageVision) are stubbed in test_stubs.cpp.

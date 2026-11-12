@@ -1,6 +1,6 @@
 # CI workflow：
 #   build-and-test ——  1. NuGet 还原（gtest 包还原到仓库根 packages\，与本机构建路径一致）
-#                    2. MSBuild 构建整个解决方案（Release|Win32 —— 生产同构配置，
+#                    2. MSBuild 构建整个解决方案（Release|x64 —— 生产同构配置，
 #                       一次兜住服务器 / CLI / 测试三个方向的编译错误）
 #                    3. run-coverage.ps1 运行引擎测试 + CLI 测试并采集覆盖率
 #                       （仓库铁律：run-coverage.ps1 是唯一认可的测试运行方式；
@@ -49,18 +49,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # libmySQL.dll（MySQL Connector/C）不入库（.gitignore /libmySQL.dll），
-      # 从仓库 Release asset 直链下载到仓库根：单测（OpenCppCoverage
-      # --working_dir 仓库根）与 e2e 服务器（WorkingDirectory 仓库根）的
-      # DLL 搜索路径都覆盖工作目录，与本机开发布局一致。
-      # TODO 占位 URL：asset 上传后替换为真实地址。
-      - name: Download libmySQL.dll (Release asset)
+      # libmysql.dll（MySQL Connector/C）不入库（.gitignore /libmysql.dll）：
+      # Release asset 是双位宽 zip（x64/lib + x86/lib），下载后解出 x64 那份
+      # 放到仓库根——本 workflow 全 x64 构建，位宽必须与被测平台一致，
+      # 且单测（OpenCppCoverage --working_dir 仓库根）与 e2e 服务器
+      # （WorkingDirectory 仓库根）的 DLL 搜索路径都覆盖工作目录，
+      # 与本机开发布局一致。
+      - name: Download libmysql.dll (Release asset, x64)
         run: |
-          curl -fsSL -o libmySQL.dll https://github.com/zeerd/jianghu-engine/releases/download/mysql-lib-5.5.13/libmySQL.dll
-          if ((Get-Item libmySQL.dll).Length -lt 1MB) {
-            Write-Error "libmySQL.dll download failed (file too small, likely an error page)"
+          curl -fsSL -o libmysql.dll.zip https://github.com/zeerd/jianghu-engine/releases/download/libmysql-6.1.11/libmysql.dll.zip
+          if ((Get-Item libmysql.dll.zip).Length -lt 1MB) {
+            Write-Error "libmysql.dll.zip download failed (file too small, likely an error page)"
             exit 1
           }
+          Expand-Archive -Path libmysql.dll.zip -DestinationPath "$env:RUNNER_TEMP\libmysql" -Force
+          Copy-Item "$env:RUNNER_TEMP\libmysql\x64\lib\libmysql.dll" libmysql.dll -Force
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
@@ -74,8 +77,8 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore jianghu.sln
 
-      - name: Build (Release|Win32)
-        run: msbuild jianghu.sln /m /p:Configuration=Release /p:Platform=Win32 /v:minimal /nologo
+      - name: Build (Release|x64)
+        run: msbuild jianghu.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo
 
       - name: Install OpenCppCoverage
         run: choco install opencppcoverage -y
@@ -118,16 +121,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 同 build-and-test：libmySQL.dll 不入库，从 Release asset 下载到仓库根
-      # （e2e 服务器 WorkingDirectory = 仓库根，DLL 搜索路径覆盖工作目录）。
-      # TODO 占位 URL：asset 上传后替换为真实地址。
-      - name: Download libmySQL.dll (Release asset)
+      # 同 build-and-test：libmysql.dll 不入库，从 Release asset 的 zip 解出
+      # x64 那份放到仓库根（e2e 服务器 WorkingDirectory = 仓库根，
+      # DLL 搜索路径覆盖工作目录；服务器与 CLI 由脚本按 x64 构建）。
+      - name: Download libmysql.dll (Release asset, x64)
         run: |
-          curl -fsSL -o libmySQL.dll https://github.com/zeerd/jianghu-engine/releases/download/mysql-lib-5.5.13/libmySQL.dll
-          if ((Get-Item libmySQL.dll).Length -lt 1MB) {
-            Write-Error "libmySQL.dll download failed (file too small, likely an error page)"
+          curl -fsSL -o libmysql.dll.zip https://github.com/zeerd/jianghu-engine/releases/download/libmysql-6.1.11/libmysql.dll.zip
+          if ((Get-Item libmysql.dll.zip).Length -lt 1MB) {
+            Write-Error "libmysql.dll.zip download failed (file too small, likely an error page)"
             exit 1
           }
+          Expand-Archive -Path libmysql.dll.zip -DestinationPath "$env:RUNNER_TEMP\libmysql" -Force
+          Copy-Item "$env:RUNNER_TEMP\libmysql\x64\lib\libmysql.dll" libmysql.dll -Force
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
@@ -148,7 +153,7 @@ jobs:
         run: echo "C:\Program Files\OpenCppCoverage" >> $env:GITHUB_PATH
 
       # 数据库为 SQLite（tests\integration\e2e.db）：服务端启动自动建库建表，
-      # runner 无需任何外部数据库服务。脚本自建 Release|Win32 的服务器与 CLI
+      # runner 无需任何外部数据库服务。脚本自建 Release|x64 的服务器与 CLI
       # （服务器输出到 bin\e2e\，不与产物冲突）。
       # -ResetDb：保证每轮从空库起跑，不受工作区残留影响。
       - name: Run E2E lanes (run-integration-tests.ps1)

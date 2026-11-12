@@ -46,7 +46,7 @@ public:
 // ----------------------------------------------------------------
 // 验收门禁：Debug 构建的测试程序本身非法，直接按宏定义报错
 //
-// 生产服务器以 Release|Win32（/MT, NDEBUG, /O2）构建；Debug 的栈填充区/
+// 生产服务器以 Release|x64（/MT, NDEBUG, /O2）构建；Debug 的栈填充区/
 // 调试堆会暂时掩盖越界写与未初始化内存，优化开关又改变 UB 的表现——
 // Debug 全绿不代表生产可用（实例：dump_caller_info 的 SYMBOL_INFO 柔性
 // 数组栈溢出，Debug 1216 全绿，Release 下 98 个用例 SEH 0xc0000005）。
@@ -59,7 +59,7 @@ public:
 TEST(TestConfigGate, DebugBuildIsNotAcceptance)
 {
     FAIL() << "This is a Debug-built tests.exe: no result from it counts "
-              "as acceptance. Production is built Release|Win32 (/MT, NDEBUG, "
+              "as acceptance. Production is built Release|x64 (/MT, NDEBUG, "
               "/O2) where stack padding / debug heap hide out-of-bounds writes "
               "and UB. Use .\\run-coverage.ps1 (builds Release and collects "
               "coverage).";

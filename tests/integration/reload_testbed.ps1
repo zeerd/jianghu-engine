@@ -23,7 +23,7 @@
 #   · 直接前台跑（调试入口，快速迭代剧本）：
 #       powershell -NoProfile -ExecutionPolicy Bypass -File `
 #         tests\integration\reload_testbed.ps1 -NoCoverage
-#     （需先有 bin\e2e\jianghu.exe 与 bin\cli\jianghu_cli.exe）
+#     （需先有 bin\e2e\jianghu.exe 与 bin\cli\x64\jianghu_cli.exe）
 param(
     # Start-Job 以位置参数传入：switch 默认不吃位置槽，必须显式声明 Position
     [Parameter(Position = 0)][string]$ServerExe = "",
@@ -58,7 +58,7 @@ $DbPath       = Join-Path $ReloadRoot "e2e.db"
 $LogDir       = Join-Path $IntDir "log"
 $CovBin       = Join-Path $RepoRoot "coverage_history\e2e_reload.cov"
 if (-not $ServerExe) { $ServerExe = Join-Path $RepoRoot "bin\e2e\jianghu.exe" }
-if (-not $CliExe)    { $CliExe    = Join-Path $RepoRoot "bin\cli\jianghu_cli.exe" }
+if (-not $CliExe)    { $CliExe    = Join-Path $RepoRoot "bin\cli\x64\jianghu_cli.exe" }
 if (-not $ResultFile) {
     $ResultFile = Join-Path $WorkDir "reload_testbed.result.json"
 }

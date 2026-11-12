@@ -240,7 +240,8 @@ int CLuaItemT<T>::can_equip(CChar* me)
 
 // 调用 Lua 脚本的 hit_ob 函数
 template <typename T>
-const char* CLuaItemT<T>::hit_ob(CChar* me, CChar* victim, int32_t damage_bonus)
+const char* CLuaItemT<T>::hit_ob(CChar* me, CChar* victim,
+                                 damage_t damage_bonus)
 {
     if (m_script_ref == LUA_NOREF) return T::hit_ob(me, victim, damage_bonus);
 
@@ -399,11 +400,13 @@ void CLuaItemT<T>::owner_is_killed(CChar* killer)
     if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
         LOG_ERROR("Lua item owner_is_killed failed [%s]: %s",
                   m_script_name.c_str(), lua_tostring(L, -1));
-        lua_pop(L, 2);
+        lua_pop(L, 2);  // 栈里是 脚本表 + 错误信息
         call_base_owner_is_killed(has_owner_is_killed<T>(), killer);
         return;
     }
-    lua_pop(L, 2);
+    // pcall 已吃掉函数与两个实参，栈里只剩脚本表：只弹一个，多弹会把栈底
+    // 之下的位置一起收掉（栈下溢，后续 API 调用即崩）
+    lua_pop(L, 1);
 }
 
 // 调用 Lua 脚本的 do_action 函数（若存在）
@@ -469,11 +472,13 @@ void CLuaItemT<T>::on_moved(CContainer* me)
     if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
         LOG_ERROR("Lua item on_moved failed [%s]: %s", m_script_name.c_str(),
                   lua_tostring(L, -1));
-        lua_pop(L, 2);
+        lua_pop(L, 2);  // 栈里是 脚本表 + 错误信息
         T::on_moved(me);
         return;
     }
-    lua_pop(L, 2);
+    // pcall 已吃掉函数与两个实参，栈里只剩脚本表：只弹一个，多弹会把栈底
+    // 之下的位置一起收掉（栈下溢，后续 API 调用即崩）
+    lua_pop(L, 1);
 }
 
 // 调用 Lua 脚本的 init 函数
@@ -522,7 +527,7 @@ template <typename T>
 int32_t CLuaItemT<T>::query_attr(int attr)
 {
     if (attr == CAN_SAVE) {
-        return query("can_save");
+        return static_cast<int32_t>(query("can_save"));
     }
 
     if (attr == IS_FOOD && m_script_ref != LUA_NOREF) {

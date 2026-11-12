@@ -10,7 +10,6 @@
 #include "ServerSockHandler.h"
 
 bool g_terminated = false;
-HANDLE g_event;
 
 SOCKET g_ssock = INVALID_SOCKET;
 SOCKADDR_IN g_saddr;
@@ -41,7 +40,7 @@ DWORD WINAPI server_worker_thread(LPVOID CompletionPortID)
             (HANDLE)CompletionPortID, &dwBytesTransferred, &ulCompletionKey,
             &lpOverlapped, INFINITE);
 
-        if (g_terminated) return 0L;
+        if (g_terminated) return 0;
 
         const bool hasOverlapped = lpOverlapped != NULL;
         const int ovFlag
@@ -53,7 +52,7 @@ DWORD WINAPI server_worker_thread(LPVOID CompletionPortID)
                                     ulCompletionKey, ovFlag)) {
             // 关停信号
             case WorkerAction::Exit:
-                return 0L;
+                return 0;
 
             // 无效或未知完成包，跳过
             case WorkerAction::Skip:
@@ -135,89 +134,113 @@ void process_user_message()
 {
     int dcount = 0;
 
-    if (!g_gate_list.empty()) {
-        memset(OnDeleteGate, 0x0, sizeof(CGateInfo*) * 1024);
+    {
+        // 遍历与状态改写持列表锁，避免与 worker 线程的增删冲突
+        std::unique_lock<std::mutex> list_lock(g_gate_list_mutex);
+        if (!g_gate_list.empty()) {
+            memset(OnDeleteGate, 0x0, sizeof(CGateInfo*) * 1024);
 
-        // 遍历时加锁，避免与 worker 线程的增删冲突
-        std::lock_guard<std::mutex> lock(g_gate_list_mutex);
+            for (auto* gate_info : g_gate_list) {
+                if (gate_info) {  // 处理每个客户端的消息
+                    _LPTRECVBUFF lpRecvBuff
+                        = (_LPTRECVBUFF)gate_info->m_recv_buff_q.pop_q();
 
-        for (auto* gate_info : g_gate_list) {
-            if (gate_info) {  // 处理每个客户端的消息
-                _LPTRECVBUFF lpRecvBuff
-                    = (_LPTRECVBUFF)gate_info->m_recv_buff_q.pop_q();
-
-                while (lpRecvBuff)  // 存在消息
-                {
-                    switch (lpRecvBuff->type) {
-                        case RECV_MSG_LOGIN: {
-                            std::lock_guard<std::recursive_mutex> lock(
-                                gate_info->m_cs);
-                            if (gate_info->m_login == GATE_LOGIN_LOGGING_IN) {
-                                if (!on_login(gate_info->m_handle,
-                                              gate_info->m_sock,
-                                              lpRecvBuff->szData)) {
-                                    close_client(gate_info->m_handle);
+                    while (lpRecvBuff)  // 存在消息
+                    {
+                        switch (lpRecvBuff->type) {
+                            case RECV_MSG_LOGIN: {
+                                bool logging_in = false;
+                                {
+                                    std::lock_guard<std::recursive_mutex> lock(
+                                        gate_info->m_cs);
+                                    logging_in = gate_info->m_login
+                                                 == GATE_LOGIN_LOGGING_IN;
                                 }
-                            }
-                        } break;
-                        case RECV_MSG_COMMAND: {
-                            std::lock_guard<std::recursive_mutex> lock(
-                                gate_info->m_cs);
-                            if (gate_info->m_login == GATE_LOGIN_NORMAL) {
-                                int32_t player = gate_info->m_player;
-                                splite_command_parse(player, lpRecvBuff->szData,
-                                                     lpRecvBuff->len);
-                            }
-                        } break;
-                        case RECV_MSG_EXIT: {
-                            std::lock_guard<std::recursive_mutex> lock(
-                                gate_info->m_cs);
-                            if (gate_info->m_login
-                                > GATE_LOGIN_PENDING_DELETE) {
-                                int32_t player     = gate_info->m_player;
-                                gate_info->m_login = GATE_LOGIN_PENDING_DELETE;
-
-                                if (player) on_offline(player);
-
-                                if (dcount < 1024) {
-                                    OnDeleteGate[dcount] = gate_info;
+                                if (logging_in) {
+                                    // 登录含 verify_user/load_from_server/save
+                                    // 的 DB 往返：移出列表锁与 m_cs——慢 DB
+                                    // 不得冻结 worker 的 accept 与该连接收包。
+                                    // 期间 gate 仍留在列表（列表引用保活），
+                                    // 摘除只发生在本函数收尾段，迭代不受影响
+                                    list_lock.unlock();
+                                    bool ok = on_login(gate_info->m_handle,
+                                                       gate_info->m_sock,
+                                                       lpRecvBuff->szData);
+                                    if (!ok) close_client(gate_info->m_handle);
+                                    list_lock.lock();
+                                }
+                            } break;
+                            case RECV_MSG_COMMAND: {
+                                std::lock_guard<std::recursive_mutex> lock(
+                                    gate_info->m_cs);
+                                if (gate_info->m_login == GATE_LOGIN_NORMAL) {
+                                    int32_t player = gate_info->m_player;
+                                    splite_command_parse(player,
+                                                         lpRecvBuff->szData,
+                                                         lpRecvBuff->len);
+                                }
+                            } break;
+                            case RECV_MSG_EXIT: {
+                                std::lock_guard<std::recursive_mutex> lock(
+                                    gate_info->m_cs);
+                                if (gate_info->m_login
+                                    > GATE_LOGIN_PENDING_DELETE) {
+                                    int32_t player = gate_info->m_player;
                                     gate_info->m_login
-                                        = GATE_LOGIN_SCHEDULED_DELETE;
-                                    dcount++;
-                                }
-                            }
-                        } break;
-                    }
-                    delete lpRecvBuff;
-                    lpRecvBuff = NULL;
-                    lpRecvBuff = (_LPTRECVBUFF)gate_info->m_recv_buff_q.pop_q();
-                }
+                                        = GATE_LOGIN_PENDING_DELETE;
 
-                {
-                    std::lock_guard<std::recursive_mutex> lock(gate_info->m_cs);
-                    if (gate_info->m_login == GATE_LOGIN_PENDING_DELETE
-                        && dcount < 1024) {
-                        gate_info->m_login   = GATE_LOGIN_SCHEDULED_DELETE;
-                        OnDeleteGate[dcount] = gate_info;
-                        dcount++;
+                                    if (player) on_offline(player);
+
+                                    if (dcount < 1024) {
+                                        OnDeleteGate[dcount] = gate_info;
+                                        gate_info->m_login
+                                            = GATE_LOGIN_SCHEDULED_DELETE;
+                                        dcount++;
+                                    }
+                                }
+                            } break;
+                        }
+                        delete lpRecvBuff;
+                        lpRecvBuff = NULL;
+                        lpRecvBuff
+                            = (_LPTRECVBUFF)gate_info->m_recv_buff_q.pop_q();
+                    }
+
+                    {
+                        std::lock_guard<std::recursive_mutex> lock(
+                            gate_info->m_cs);
+                        if (gate_info->m_login == GATE_LOGIN_PENDING_DELETE
+                            && dcount < 1024) {
+                            gate_info->m_login   = GATE_LOGIN_SCHEDULED_DELETE;
+                            OnDeleteGate[dcount] = gate_info;
+                            dcount++;
+                        }
                     }
                 }
-            }
-        }  // for
-    }  // lock_guard scope ends here, mutex automatically released
+            }  // for
+        }
+    }  // 列表锁释放
 
     // 删除所有待删除的对象
     flush_destruct_list();
 
-    // 释放待删除连接：从列表移除并释放列表引用（IO 引用归零后才真正 delete）
-    for (int i = 0; i < dcount; i++) {
-        auto it = std::find(g_gate_list.begin(), g_gate_list.end(),
-                            OnDeleteGate[i]);
-        if (it != g_gate_list.end()) {
-            g_gate_list.erase(it);
+    // 释放待删除连接：持锁从列表摘除，锁外释放列表引用
+    // （IO 引用归零后才真正 delete）
+    if (dcount > 0) {
+        {
+            std::lock_guard<std::mutex> lock(g_gate_list_mutex);
+            for (int i = 0; i < dcount; i++) {
+                auto it = std::find(g_gate_list.begin(), g_gate_list.end(),
+                                    OnDeleteGate[i]);
+                if (it != g_gate_list.end()) {
+                    g_gate_list.erase(it);
+                }
+            }
         }
-        OnDeleteGate[i]->release();
-        OnDeleteGate[i] = NULL;
+        for (int i = 0; i < dcount; i++) {
+            OnDeleteGate[i]->release();
+            OnDeleteGate[i] = NULL;
+        }
     }
 }
 
@@ -230,8 +253,7 @@ DWORD WINAPI main_worker_thread(LPVOID lpParameter)
         if (g_terminated) {
             exit_game();
             dis_connect_database();
-            SetEvent(g_event);
-            return 0L;
+            return 0;
         }
         process_user_message();
         user_command_loop();

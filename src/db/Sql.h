@@ -7,6 +7,7 @@
 
 #include <string>
 #include "IDatabase.h"
+#include "../config/MainConfig.h"
 
 // 前向声明
 class CChar;
@@ -23,7 +24,6 @@ class CContainer;
 const char* get_db_type();
 
 // 基础数据库操作
-bool select_game_database();  // 选择游戏数据库
 bool init_sql_server(const char* ipaddress, const char* name,
                      const char* password);
 
@@ -49,14 +49,6 @@ bool db_lock_container(const char* table, const char* obj_id, int locked,
                        int& out_current_lock);
 
 // ------------------------------------------------------------
-// 箱子存储操作 (对应 Box.cpp - t_box)
-// ------------------------------------------------------------
-bool db_save_box(const char* obj_id, const char* obj_name, const char* obj_data,
-                 const char* room_id, int grid);
-bool db_load_box(const char* obj_id, std::string& out_data);
-bool db_delete_box(const char* obj_id);
-
-// ------------------------------------------------------------
 // 用户/账号操作 (对应 Login.cpp, User.cpp, Char.cpp)
 // ------------------------------------------------------------
 // 主密码校验（哈希优先，旧明文行校验通过后原地迁移）；暗码校验见下。
@@ -77,7 +69,7 @@ bool db_set_freeze(const char* id, int freeze);
 // ------------------------------------------------------------
 bool db_query_recruit(const char* master_id, DbResultSet& result);
 bool db_update_recruit(const char* master, const char* id, const char* name,
-                       long exp, int apprentice);
+                       exp_t exp, int apprentice);
 bool db_query_relative(const char* me, const char* target, long& out_point,
                        int& out_relative);
 bool db_update_relative(const char* me, const char* target, long pt, int flag);

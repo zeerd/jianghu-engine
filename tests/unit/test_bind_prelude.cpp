@@ -65,9 +65,10 @@ protected:
     }
 
     // 前导执行失败后状态仍然可用：绑定照常注册
+    // （探针取仍留在 C++ 绑定表的全局，不依赖前导定义）
     void ExpectBindingsIntact()
     {
-        lua_getglobal(L, "valid_string");
+        lua_getglobal(L, "notify_fail");
         EXPECT_TRUE(lua_isfunction(L, -1)) << "绑定表不受前导失败影响";
         lua_settop(L, 0);
     }

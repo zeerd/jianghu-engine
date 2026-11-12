@@ -12,6 +12,7 @@
 #include "Channel.h"
 #include "FightRoom.h"
 #include "../util/Logger.h"
+#include "../config/MainConfig.h"
 
 //---------------------------------------------------------
 // 随机取物品栏某物
@@ -22,21 +23,24 @@
 //---------------------------------------------------------
 int is_living(CContainer* me) { return me->query_attr(CChar::IS_LIVING); }
 
-int wiz_level(CChar* me) { return me->query("grant"); }
+wizard_level_t wiz_level(CChar* me)
+{
+    return static_cast<wizard_level_t>(me->query("grant"));
+}
 
 //---------------------------------------------------------
 // 地图实时位置
 //---------------------------------------------------------
-void set_live_point(CContainer* obj, int32_t x, int32_t y)
+void set_live_point(CContainer* obj, mapping_value_t x, mapping_value_t y)
 {
     obj->set_temp("map/bx", x);
     obj->set_temp("map/by", y);
     obj->set_temp("map/ex", x);
     obj->set_temp("map/ey", y);
-    obj->set_temp("map/ac", 0);
+    obj->set_temp("map/ac", MAPPING_VALUE_ZERO);
 }
 
-void set_live_dest(CContainer* obj, int32_t x, int32_t y)
+void set_live_dest(CContainer* obj, mapping_value_t x, mapping_value_t y)
 {
     obj->set_temp("map/ex", x);
     obj->set_temp("map/ey", y);
@@ -68,14 +72,15 @@ CFightRoom* do_bishi(CChar* me, CChar* victim, char* name, int check)
 //---------------------------------------------------------
 // 通用查找
 //---------------------------------------------------------
-CContainer* find_object(int32_t id, int flag)
+CContainer* find_object(mapping_value_t id, int flag)
 {
-    CContainer* it = 0;
+    const object_id_t key = static_cast<object_id_t>(id);
+    CContainer* it        = 0;
 
-    it = find_npc(id);
-    if (!it) it = find_player(id);
+    it = find_npc(key);
+    if (!it) it = find_player(key);
     if (!flag)
-        if (!it) it = g_item_mgr->find_item(id);
+        if (!it) it = g_item_mgr->find_item(key);
 
     return it;
 }

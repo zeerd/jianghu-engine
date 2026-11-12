@@ -45,28 +45,37 @@
 
 ## 批次 D：`engine-core-architecture.md` Known Issues / Open Questions 复核
 
-- [ ] **D1 逐条复核结论（已核查，全部仍有效——文档无需改动，实施时只需确认）**
-  - `SetEvent(g_event)` 指向从未 `CreateEvent` 的句柄：仍成立（ServerSockWorker.cpp:233，全仓无 CreateEvent）。
-  - `db_save_box` 族 + `select_game_database` 仅测试 stub：仍成立（Sql.h:26,54-57 声明，仅 mock_db.cpp:44-61 实现）。
-  - `t_saveobj`、`user` 表 DDL 无调用方：仍成立（DbTables.cpp:233-243，src 无查询）。
-  - `g_command_handler` 疑似死代码：**确认为死**——仅定义（Global.cpp:20）与 extern（Global.h:156），
-    实际使用的是 `Char.cpp:32` 的 `CommandHandle`。可从「疑似」改为「确认」，并入死代码清理。
-  - `g_gate_list` 数据竞争：仍成立——`push_back`（ServerSockHandler.cpp:243）与 erase 循环
-    （ServerSockWorker.cpp:213-221，锁作用域 207 行已结束）仍未加锁；Follow-Up「Immediate」勾选框仍 open。
-  - `on_login` 持 `g_gate_list_mutex`+`m_cs` 做 DB：仍成立（锁 142 行持有，on_login 于 156 行调用）。
-  - `load_script()` 缓存查找前整文件哈希：仍成立（LuaEngine.cpp:646-647 先 `get_file_hash` 后 `m_scripts.find`）；
-    Follow-Up「Short-Term」勾选框仍 open。
-  - x64 风险（3rd/lib 仅 x86 库、bin 输出目录共用）：仍成立（README:33 仍明示仅 Win32）。
-- [ ] **D2 Open Question 1「安全姿态」事实过时（部分过时）**
+- [x] **D1 逐条复核与修订（除 x64 外全部落地；x64 项有意保留不动）**
+  - `SetEvent(g_event)` 指向从未 `CreateEvent` 的句柄：**已修**——`g_event` 定义、
+    `SetEvent` 调用与 extern 声明一并删除（无人等待该事件，关服握手走 worker 线程句柄）。
+  - `db_save_box` 族 + `select_game_database` 仅测试 stub：**已修**——Sql.h 声明与
+    mock 实现删除，`unit-test.md` mock 表同步。
+  - `t_saveobj`、`user` 表 DDL 无调用方：**已修**——DbTables DDL 删除（`AutoPkColumn`
+    仍服务于 jianghudb），测试侧表清单同步、6 条 t_saveobj 重复测试删除/改定向。
+  - `g_command_handler` 疑似死代码：**确认为死并已清理**——定义与 extern 删除，
+    实际使用的 `Char.cpp` 的 `CommandHandle` 不动；文档 Known Issues/Open Q3 随之移除。
+  - `g_gate_list` 数据竞争：**已修**——`push_back` 与 erase 循环补 `g_gate_list_mutex`，
+    `empty()` 检查移入锁内；Follow-Up「Immediate」已勾。
+  - `on_login` 持 `g_gate_list_mutex`+`m_cs` 做 DB：**已修**——LOGIN 分支先在 `m_cs`
+    内核状态、再把两把锁都释放后调 `on_login`（gate 由列表引用保活，摘除只在收尾段）；
+    Follow-Up 对应项已勾（MySQL 语句超时仍 open，单独成条）。
+  - `load_script()` 缓存查找前整文件哈希：**已修**——命中先比文件指纹
+    （mtime+字节数）不读盘，指纹变化才读盘算哈希确认（与 `check_for_reload`
+    两段快筛同口径），未命中才读盘；Follow-Up 已勾。
+  - x64 风险（3rd/lib 仅 x86 库、bin 输出目录共用）：仍成立（README:33 仍明示仅 Win32），
+    **有意保留**——属 D1 排除项，不随本批次处理。
+- [x] **D2 Open Question 1「安全姿态」事实过时（部分过时，已由 A1/A2 落地）**
   - 核查：「玩家密码明文存于 `cc_passwd`」已过时——口令已改 PBKDF2 加盐哈希 + 读时迁移
     （encryption.md §2，`make_password_credential`，SqlAccount.cpp:111 等）；仍成立的子项：
     DB 口令明文在 config.ini（root/root）、默认巫师密码 12345678（Sql.cpp:101）、
     暗码旧路径 `OLD_PASSWORD`（SqlAccount.cpp:99）。
   - 动作：改写该 Open Question 的「代码事实」段（密码部分指向 encryption.md），其余子项保留；
-    「是否接受」的裁定仍留待作者，不代答。
-- [ ] **D3 ADR 其余 Open Questions（仍有效，不动）**
-  - Q2（Alternatives 未确认）、Q3（gen_apply.py 去向）、Q4（g_command_handler）——Q4 随 D1 升级措辞，
-    Q2/Q3 保持原状待作者答复。
+    「是否接受」的裁定仍留待作者，不代答。**文档已改写，本批次复核通过。**
+- [x] **D3 ADR 其余 Open Questions（文档已调整，随 D1 收口）**
+  - Q2（Alternatives 未确认）保持原状待作者答复。
+  - 原 Q3（gen_apply.py 去向）：文档条目已移除（`LuaBindDecls.h` 注释仍称由该脚本生成，
+    注释失实随 bind 精简轮处置，不在本批次）。
+  - 原 Q4（g_command_handler）：随 D1 确认为死码并清理，已从 Open Questions 移除。
 
 ## 批次 E：概念文档与 GDD 的待打磨项复核
 
@@ -122,3 +131,14 @@
   `concepts/jianghu-engine.md` §5 `gain = 0` 条目同步销账；E1 第三条随之完成。
   注：期间工作区有并行会话在做 bind 精简（Door/bind 等），曾致一次构建失败与一次
   覆盖率采集污染（summary.csv 中 3367 行数的失真行），重跑后读数干净。
+- 2026-11-13：批次 D 落地——D1 除 x64 外全改（删 `g_event`/`SetEvent`、`db_save_box` 族、
+  `select_game_database`、`g_command_handler`、`t_saveobj`+`user` DDL；`g_gate_list` 补锁、
+  `on_login` DB 移出列表锁与 `m_cs`、`load_script` 命中改文件指纹快筛）；D2/D3 勾销
+  （安全姿态段 A1/A2 已改写、gen_apply 与 g_command_handler 条目文档已调整）。文档同步：
+  Known Issues 整节移除、Consequences 两条重写、热点改指纹口径、Follow-Up 四项勾选、
+  Open Q3 移除、unit-test.md mock 行同步。测试：新增锁契约（mock verify_user 观测点 +
+  探测线程 try_lock）与快筛契约 3 例，先红后绿；纯 mtime 快筛首跑被 `ReloadFailures`
+  同刻度写入判红，升级为 mtime+字节数指纹后收敛；删 6 条 t_saveobj 重复测试、表清单减 2，
+  登录帧构造抽 `test_login_frame.h` 共享。验收：单测 2247+288 全绿、覆盖率 94.7%
+  delta +0.0%、cppcheck 零问题、style 已跑；E2E 10 道+persist+reload 全 PASS
+  （ERROR 14 全登记、224s/预算 420s、Δ+0s）。

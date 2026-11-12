@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CmdStandard.h
  * @brief 标准玩家命令处理（物品/战斗/师徒/社交等）。
  */
@@ -40,8 +40,8 @@ private:
     static int un_wield(CChar* me, int32_t target, char* arg);
     static int drop(CChar* me, int32_t target, char* arg);
     static int give(CChar* me, int32_t target, char* arg);
-    static int do_drop(CChar* me, CContainer* obj, CContainer* env, int32_t x,
-                       int32_t y);
+    static int do_drop(CChar* me, CContainer* obj, CContainer* env,
+                       mapping_value_t x, mapping_value_t y);
     static int do_give(CChar* me, CContainer* obj, CChar* who);
 
     // ---- 战斗系统 ----

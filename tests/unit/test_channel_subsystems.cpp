@@ -12,6 +12,7 @@
 #include "Channel.h"
 #include "Char.h"
 #include "Container.h"
+#include "../config/MainConfig.h"
 
 // ====================================================================
 // BanlistManager — pure data container
@@ -262,7 +263,8 @@ TEST(ChannelFacade, VotingAliasPointsToSubsystem)
     EXPECT_EQ(ch.voting().voted_players.query("opt1"), 42L);
 
     ch.voting().voted_players.set("opt2", 7L);
-    EXPECT_EQ(ch.votes_casted.query("opt2"), 0L);  // different mapping
+    EXPECT_EQ(ch.votes_casted.query("opt2"),
+              MAPPING_VALUE_ZERO);  // different mapping
     EXPECT_EQ(ch.voting().voted_players.query("opt2"), 7L);
 }
 

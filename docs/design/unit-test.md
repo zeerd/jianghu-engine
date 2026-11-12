@@ -36,7 +36,7 @@ jianghu_core.lib (静态库)
 | Mock 文件 | 替代的服务器文件 | 主要 mock 函数 |
 |---|---|---|
 | `mock_net.cpp` | 无（`net/Message.cpp` 直接编译进库，不 mock） | `g_test_suppress_output`（抑制测试输出） |
-| `mock_db.cpp` | `db/Sql.cpp` + `main.cpp`（`g_ini_data` 定义处） | `get_db_type`, `init_sql_server`, `restore_data_table`, `verify_user`, `ensure_wizard_accounts`, `disconnect_sql_server`, `g_ini_data`；另为 `Sql.h` 中仅有声明、`src/` 无实现的 `select_game_database`, `db_save_box`/`db_load_box`/`db_delete_box` 提供实现 |
+| `mock_db.cpp` | `db/Sql.cpp` + `main.cpp`（`g_ini_data` 定义处） | `get_db_type`, `init_sql_server`, `restore_data_table`, `verify_user`, `ensure_wizard_accounts`, `disconnect_sql_server`, `g_ini_data` |
 | `mock_game.cpp` | 无（空壳占位） | — |
 | `mock_itemmgr.cpp` | 物品管理器 | `load_item`, `load_fb`, `find_item`, `item_release`, `remove_item`, `random_vendor` |
 | `mock_database.h` | `IDatabase` | `MockDatabase`, `ThrowingDatabase` |
@@ -48,7 +48,7 @@ jianghu_core.lib (静态库)
 ```
 tests/
 ├── integration/                 # 集成测试（E2E，见 integration-test.md §1.2）
-├── Debug/ / Release/ / x64/     # 构建输出（Debug 为手动 Debug 构建的产物目录）
+├── Debug/                       # 手动 Debug|Win32 构建的产物目录
 ├── test_tmp_dir.h               # 测试临时目录路径（经 JIANGHU_TEST_TMP 消费）
 └── unit/                        # 单元测试工程根
     ├── tests.vcxproj            # 引擎测试工程（唯一引擎测试入口）
@@ -67,6 +67,10 @@ tests/
 
 cli/tests/                       # CLI 测试工程（jianghu_cli_tests.vcxproj）
 ```
+
+构建输出按平台分家、互不覆盖：x64 落仓库根 `x64\<配置>\`（`run-coverage.ps1` 默认取
+`x64\Release\tests.exe`）与 `bin\cli\x64\`；Win32 落 `Release\` / `tests\Debug\` 与 `bin\cli\`。
+两架构的同名 `.lib`/`.exe` 不共址，交替构建时后建者不会覆盖先建者的产物。
 
 ---
 
@@ -103,7 +107,7 @@ Debug 与 Release 不是同一个被测对象。Debug 的栈填充区与调试�
 因此 Debug 版测试程序被硬门禁封死：`TestConfigGate.DebugBuildIsNotAcceptance` 无条件
 失败，Debug 版无论怎么跑都在结果里报红——本节即该门禁的理由。
 
-**Release-only 的依据**：生产服务器以 `Release|Win32`（`/MT`、`NDEBUG`、`/O2`）构建，
+**Release-only 的依据**：生产服务器以 `Release|x64`（`/MT`、`NDEBUG`、`/O2`）构建，
 覆盖率也直接在 Release 上采集（Release 带 PDB，OpenCppCoverage 行映射正常）——
 `run-coverage.ps1` 从头到尾只有 Release 一个配置，测试与生产跑的是同一套构建口径。
 
@@ -119,7 +123,7 @@ Debug 与 Release 不是同一个被测对象。Debug 的栈填充区与调试�
 
 **为什么按构造隔离，而不是靠「哪些套件有冲突」的名单**：测试对仓库的一切读写都相对 CWD 解析——配置加载、脚本根夹具的改写/改名（`ScopedSampleScript`、条件与数据脚本测试）、`map.txt`、日志目录。这些共享可变面是跨套件的（同一文件被不同套件读写），按套件切分不会让冲突边消失，两个套件落到不同分片就互踩。因此每个分片拿到一棵**私有的完整工作目录树**（拷贝配置、脚本根、教材目录 + 独立 `JIANGHU_TEST_TMP`），跨进程互踩在结构上不存在，也无需维护冲突名单。代价：拷贝清单成为「测试可触碰的仓库面」的登记——测试新增仓库相对路径的读写时，须同步进脚本的分片拷贝清单。
 
-**DLL 依赖**：`tests.exe` 静态导入 MySQL 客户端库，而 Windows 的 DLL 搜索序把 CWD 排在 PATH 之前——换工作目录后私有树里若没有该 DLL，进程直接 `0xC0000135` 起不来。这是分片工作目录必须拷入 DLL 的机制依据。
+**DLL 依赖**：`tests.exe` 静态导入 MySQL 客户端库，而 Windows 的 DLL 搜索序把 CWD 排在 PATH 之前——换工作目录后私有树里若没有该 DLL，进程直接 `0xC0000135` 起不来；拷进去的 DLL 架构还必须与被测平台一致，x86 版 DLL 装进 x64 进程是 `193`（不是有效的 Win32 应用程序）。这是分片工作目录必须按平台拷入对应 DLL 的机制依据。
 
 **结果契约**：各分片的 gtest XML 是事实源，逐片三重校验——退出码、XML 失败数、执行数 == 发现数（filter 拼错、漏套件、进程崩溃都在此暴露）。任一片不过即整轮失败、不进合并，并保留分片工作目录与逐片 stdout/stderr 日志供排查。
 

@@ -77,12 +77,12 @@ function food_base.do_use(self, me, target)
         eat_msg = eat_msg .. hpstr .. mpstr
         message("vision", eat_msg, me, self)
 
-        -- 调用 finish_eat 钩子
-        -- 优先调用脚本自定义的 finish_eat（通过 Lua 方法查找链）
-        -- 若脚本未定义则回退到 food_base.finish_eat（默认返回 0 = 销毁）
-        local ok, result = pcall(function()
-            return self:finish_eat()
-        end)
+        -- 调用 finish_eat 钩子：先在对象自己的脚本表里找子类覆盖项
+        -- （self 是引擎对象，表字段经 self 取不到，须由引擎还原脚本表），
+        -- 没有覆盖则用本模块的默认实现（返回 0 = 销毁）
+        local own = self:script_table()
+        local finish = (own and own.finish_eat) or food_base.finish_eat
+        local ok, result = pcall(finish, self)
         if ok and result and result ~= 0 then
             -- finish_eat 返回非 0：保留物品（如 backleg 变成骨头）
             me:send_state()

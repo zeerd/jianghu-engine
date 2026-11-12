@@ -315,10 +315,14 @@ TEST_F(BankOwnerTest, Do_Loan_ExceedsStanding_GateRejects)
 
 TEST_F(BankOwnerTest, Do_Loan_WithExistingDebt_OverflowGuardRejects)
 {
+    // 贷额按槽位域上限构造：守卫判的是「欠款 + 贷额 越过 mapping_value_t
+    // 上限」， 位宽随平台走（Win32 = 32 位、x64 = 64 位），写死 2147483647 在
+    // 64 位域里 根本不越界，会掉进后面的偿还力检查、换一个拒绝理由。
+    const money_t amount = (money_t)(MAPPING_VALUE_MAX - 5);
     player->set("balance", (long)-10);  // 既有欠款 → hamount<0
     g_notify_fail_msg[0] = '\0';
-    EXPECT_EQ(0, bank->do_loan(player, 2147483647))
-        << "欠款叠加将溢出 long → 拒(83-84)";
+    EXPECT_EQ(0, bank->do_loan(player, amount))
+        << "欠款叠加将溢出槽位域上限 → 拒(83-84)";
     EXPECT_EQ(-10, player->query("balance")) << "被拒不动账";
     EXPECT_NE(std::string::npos,
               std::string(g_notify_fail_msg).find("别想刷钱"));

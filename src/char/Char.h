@@ -58,7 +58,8 @@ public:
     };
 
     // === IHittable ===
-    const char* hit_ob(CChar* me, CChar* victim, int32_t damage_bonus) override;
+    const char* hit_ob(CChar* me, CChar* victim,
+                       damage_t damage_bonus) override;
     void owner_is_killed(CChar* killer) override;
 
     // === IEquippable ===
@@ -81,7 +82,7 @@ public:
     int do_look(CChar* me) override;
     void send_command(const char* msg, int wait = SEND_WAIT_NONE) override;
 
-    static const char* eff_status_msg(int ratio);
+    static const char* eff_status_msg(ratio_t ratio);
 
     virtual void attack(CChar* opponent);
 
@@ -96,21 +97,23 @@ public:
     virtual void is_defeated(CChar* winnder, CChar* failer);
     CMapping* query_action();
 
-    unsigned long query_magic_exp();
+    exp_t query_magic_exp();
 
     int query_magic_skill(const char* skill, int raw = 0);
 
-    void add_balance(int32_t val);
+    void add_balance(money_t val);
 
     void remove_all_killer();
     void set_killer(CChar* ob);
-    int32_t query_valid_exp();
-    int32_t skill_need_points(const char* skill);
+    exp_t query_valid_exp();
+    count_t skill_need_points(const char* skill);
     virtual int recognize_apprentice(CChar* me);
 
-    static int exp2level(int32_t exp);
-    static int level2skill(int lv);
-    static int skill2level(int sk);
+    // 等级/经验换算：入参一律收槽位宽（调用方读出来的就是槽位值），
+    // 出参按数据域——等级是 bounded 的 level_t，经验是 exp_t。
+    static level_t exp2level(exp_t exp);
+    static skill_level_t level2skill(mapping_value_t lv);
+    static skill_level_t skill2level(mapping_value_t sk);
     static void reset_level_exp_cache();  // 重置 level_exp 缓存（供测试使用）
 
     // 将状态标志（战斗/中毒/发呆/disabled/忙碌 等）追加到 msg。
@@ -124,13 +127,14 @@ public:
     void kill_ob(CChar* ob);
     int is_killing(CChar* ob);
 
-    int32_t query_condition(const char* cnd);
+    mapping_value_t query_condition(const char* cnd);
 
     int is_fighting(CContainer* enemy = NULL);
     int is_busy();
 
-    void improve_skill(const char* skill, int amount, int weak_mode = 0);
-    void improve_skill(const std::string& skill, int amount, int weak_mode = 0)
+    void improve_skill(const char* skill, count_t amount, flag_t weak_mode = 0);
+    void improve_skill(const std::string& skill, count_t amount,
+                       flag_t weak_mode = 0)
     {
         return improve_skill(skill.c_str(), amount, weak_mode);
     }
@@ -144,8 +148,8 @@ public:
     void clear_skill_prepare();
     void clear_skill_map();
     void clear_skill();
-    int query_skill(const char* skill, int raw = 0);
-    int query_skill(const std::string& skill, int raw = 0)
+    skill_level_t query_skill(const char* skill, int raw = 0);
+    skill_level_t query_skill(const std::string& skill, int raw = 0)
     {
         return query_skill(skill.c_str(), raw);
     }
@@ -172,7 +176,7 @@ public:
     typedef map<int32_t, int32_t, less<int32_t> > DTEquipList;
     typedef DTEquipList::iterator iterator_equip;
 
-    static int32_t level2_exp(int lv);
+    static exp_t level2_exp(mapping_value_t lv);
     virtual void send_off();
 
     void assign_apprentice(const char* title, int privs);
@@ -186,7 +190,7 @@ public:
     // 数值属性统查，name 取 str/int/con/per/dex/combat_exp（可取键只此一
     // 处）。前五项含 apply/ 装备修正与对应技能加成，combat_exp 为原始历练
     // 值。未知名是调用方写错键：传 ok 时交回调用方处置，否则记错误日志。
-    int32_t attr(const char* name, bool* ok = nullptr);
+    mapping_value_t attr(const char* name, bool* ok = nullptr);
 
     void unconcious();
     virtual void die();
@@ -195,17 +199,19 @@ public:
     virtual int save();
     virtual int load();
 
-    void start_busy(int start, INTERRUPTFUNCTION* new_interrupt = NULL,
+    void start_busy(count_t start, INTERRUPTFUNCTION* new_interrupt = NULL,
                     CChar* src = NULL);
     void interrupt_me(CChar* who, char* how);
     void start_busy(BUSYFUNCTION* new_busy,
                     INTERRUPTFUNCTION* new_interrupt = NULL);
 
-    int32_t receive_healing(const char* type, int32_t heal);
-    int32_t receive_curing(const char* type, int32_t heal);
-    int32_t receive_damage(const char* type, int32_t damage, CChar* who = NULL);
-    int32_t receive_wound(const char* type, int32_t damage, CChar* me = NULL);
-    int32_t receive_poison(const char* type, int32_t damage, const char* condi);
+    damage_t receive_healing(const char* type, damage_t heal);
+    damage_t receive_curing(const char* type, damage_t heal);
+    damage_t receive_damage(const char* type, damage_t damage,
+                            CChar* who = NULL);
+    damage_t receive_wound(const char* type, damage_t damage, CChar* me = NULL);
+    damage_t receive_poison(const char* type, damage_t damage,
+                            const char* condi);
 
     int disable_player(const char* szType);
     int enable_player();
@@ -219,7 +225,7 @@ public:
     virtual ~CChar();
 
 public:
-    int query_team();
+    team_index_t query_team();
     void revive(int quiet);
 
     int load_from_server();
@@ -234,13 +240,11 @@ public:
     int query_unarmed();
     virtual void finish_kill(CChar* me);
     int learn_bonus();
-    int refuse_channel(const char* channel);
+    flag_t refuse_channel(const char* channel);
 
-    bool is_invalid();
-
-    int is_loading();
-    int query_grant();
-    int recruit_num();
+    flag_t is_loading();
+    wizard_level_t query_grant();
+    count_t recruit_num();
     void release_master();
     void remove_killer(CChar* ob);
     virtual void relay_say(CChar* me, char* msg);
@@ -259,16 +263,16 @@ protected:
     // 装备位置
     DTEquipList m_equip_list;  // 装备位置
 
-    int m_tick;
-    int m_tick_cnd;
-    int m_tick_two;
+    count_t m_tick;
+    count_t m_tick_cnd;
+    count_t m_tick_two;
     int m_wait_loading;  // 切换地图等待
 
-    int m_busy_count;
+    count_t m_busy_count;
     BUSYFUNCTION* m_busy_func;
     INTERRUPTFUNCTION* m_interrupt;
 
-    int m_revive;  // 苏醒秒数
+    count_t m_revive;  // 苏醒秒数
 
     CMapping skills;
     CMapping learned;
@@ -279,7 +283,7 @@ protected:
 
     CChar* m_leader;
 
-    int m_save_count;
+    count_t m_save_count;
 
     int m_begin_menu = 1;  // 菜单状态（原 CContainer 成员）
 };
@@ -287,9 +291,9 @@ protected:
 void setup_char(CChar* me);
 void setup_human(CChar* me);
 void setup_human_base_attrs(CChar* me);
-void setup_human_max_hp(CChar* me, int age);
+void setup_human_max_hp(CChar* me, mapping_value_t age);
 void setup_human_npc(CChar* me);
 void drop_all(CChar* me);
 
-const char* query_waimao(string gender, int per);
+const char* query_waimao(string gender, mapping_value_t per);
 const char* query_rank(CChar* ob);

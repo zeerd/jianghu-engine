@@ -1,7 +1,6 @@
 # third party packages
 
 ## lua
-
 https://www.lua.org/download.html
 
 ### Version
@@ -11,9 +10,10 @@ https://www.lua.org/download.html
 [MIT](https://www.lua.org/license.html)
 
 ## mysql
+https://downloads.mysql.com/archives/c-c/
 
 ### Version
-5.6.10
+6.1.11 [x64](https://downloads.mysql.com/archives/get/p/19/file/mysql-connector-c-6.1.11-winx64.zip)/[x86](https://downloads.mysql.com/archives/get/p/19/file/mysql-connector-c-6.1.11-win32.zip)
 
 ### License
 [GPLv2](https://docs.oracle.com/cd/E17952_01/mysqld-8.4-license-gpl-en/licensing-information.html)

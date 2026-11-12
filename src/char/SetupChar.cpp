@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file SetupChar.cpp */
 #include <windows.h>
 
@@ -21,7 +21,7 @@ void setup_human_base_attrs(CChar* me)
 }
 
 // 最大气血：年龄阶梯公式、珍果、下限与 temp 同步
-void setup_human_max_hp(CChar* me, int age)
+void setup_human_max_hp(CChar* me, mapping_value_t age)
 {
     CMapping* m = me->query_entire_dbase();
 

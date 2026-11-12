@@ -63,7 +63,7 @@ design §1.7**，再需要时核对脚本。
 
 # 手动跑单个片段：先看 lane_*.sce 里要哪些前置，再复用注册阶段生成的 vars
 # （每道一份，在仓库根 test_tmp\e2e_lanes\lane<N>.vars，含 acct/pass）
-bin\cli\jianghu_cli.exe --config tests\integration\cli.conf `
+bin\cli\x64\jianghu_cli.exe --config tests\integration\cli.conf `
   --script tests\integration\scenarios\skill\learn_force.sce `
   --vars test_tmp\e2e_lanes\lane2.vars --report report.txt
 ```

@@ -7,6 +7,8 @@
 
 #include <cstdint>
 
+#include "../config/MainConfig.h"
+
 class CChar;
 
 /**
@@ -26,7 +28,7 @@ public:
      * @param damage_bonus  伤害加成
      * @return 描述文字，nullptr 或空串表示无特效
      */
-    virtual const char* hit_ob(CChar* me, CChar* victim, int32_t damage_bonus)
+    virtual const char* hit_ob(CChar* me, CChar* victim, damage_t damage_bonus)
         = 0;
 
     /**

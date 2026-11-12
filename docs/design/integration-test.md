@@ -488,7 +488,7 @@ SnoopSystem/AutoFight）与 E2E 差异是**有意的**：被测对象不同—�
 | **接口/机制占位与基类缺省回退**（IActionHandler/IEquippable/IHittable 纯虚占位、CFB/CRoom 空占位、模板分派编译期占位支、无脚本或缺字段时的 C++ 基类默认实现） | 占位体由接口契约/模板机制必须存在，运行期无分发入口，或仅在「脚本缺席」时可达而 E2E 世界脚本齐备——保留不测；重开条件：分发器新增对该签名/缺省支的调用路径；逐函数登记见 `docs/design/integration-test-adjudications.md` §9 |
 | **死代码与零调用方** | 全库无调用方/无生产者的函数（含触发即 ERROR 的兜底路径）没有入口，E2E 无从可达——**禁止为覆盖触发**；逐条登记在认领清单（阶段工具），不进本表 |
 | **基础设施与外部依赖**（CreateDump / Logger / HeartBeat alarm / db 断连 / LuaSyntaxChecker / MySQL 方言 / 托盘 `tray_icon_*`） | 生命周期与方言路径单测兜底；E2E 用 SQLite（CI/CD 零外部服务依赖），`--check-lua` 是独立命令行模式；托盘仅桌面会话触发，E2E 无头运行不进 |
-| **热重载不覆盖的脚本域**（`lua-default` 实例脚本不参与自动重载与 `reload all`；`data/hooks.lua`、`constants.lua`、根脚本 `damage_msg.lua` 任何 reload 都不覆盖） | 前者是生产脚本保护（`fromDefault` 跳过，改动靠手动 `reload <名>` 或重启；其 require 类共享模块仍随 `reload all` 清 require 缓存换新）；后者开机直载不进 `m_scripts`——**改这些文件需重启是设计边界**，E2E 不为触发而重启服务器 |
+| **热重载不覆盖的脚本域**（`lua-default` 实例脚本不参与自动重载与 `reload all`，除非显式 `reload all force`；`data/hooks.lua`、`constants.lua`、根脚本 `damage_msg.lua` 任何 reload 都不覆盖） | 前者是生产脚本保护（`fromDefault` 跳过：自动重载与 `reload all` 都不碰随引擎发行的基线，改动靠手动 `reload <名>`、`reload all force` 或重启；其 require 类共享模块仍随 `reload all` 清 require 缓存换新）；后者开机直载不进 `m_scripts`——**改这些文件需重启是设计边界**，E2E 不为触发而重启服务器 |
 
 ---
 

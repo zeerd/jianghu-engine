@@ -34,7 +34,7 @@ verified-by: pending（待作者确认 Open Questions）
 
 **Problem Statement**:
 
-`jianghu-engine` 是一个 Win32 文字 MUD 服务端。它必须同时满足四件事：
+`jianghu-engine` 是一个 Windows 文字 MUD 服务端。它必须同时满足四件事：
 
 1. 大量 TCP 连接的异步 I/O；
 2. 一个**共享可变**的世界状态（房间 / NPC / 物品 / 玩家），且所有连接都能改它；
@@ -46,8 +46,8 @@ verified-by: pending（待作者确认 Open Questions）
 
 **Background**（inferred from code）:
 
-- 平台是 Win32 / Winsock，IOCP 是该平台原生的高并发 I/O 模型；构建固定为 `Release|Win32`
-  （生产与覆盖率均为 32 位，见 `run-coverage.ps1`、`docs/design/unit-test.md` §3）。
+- 平台是 Windows / Winsock，IOCP 是该平台原生的高并发 I/O 模型；构建固定为 `Release|x64`
+  （生产与覆盖率同构，见 `run-coverage.ps1`、`docs/design/unit-test.md` §3）。
 - 内容（房间 / NPC / 物品 / 技能 / 任务）的变更频率远高于引擎本身的变更频率，
   内容必须外置，否则每次调数值都要重发布。
 - 世界规模小而状态复杂：单进程、单房间数以百计、在线玩家以千计的量级，
@@ -315,15 +315,10 @@ MySQL/SQLite 切换点，测试据此注入 `MockDatabase`/`ThrowingDatabase`
 ### Negative Consequences（Trade-offs Accepted）
 
 ⚠️ **游戏线程上的阻塞 SQL 是全局停摆点**。
-更糟的具体形态：`on_login` 中的 `verify_user` / `load_from_server` / `save`
-在**同时持有 `g_gate_list_mutex` 与该 gate 的 `m_cs`** 状态下执行
-（`src/net/ServerSockWorker.cpp:142,153`），而 worker 侧 `dispatch_gate_recv`
-需要同一把 `m_cs`（`GateRecvDispatch.cpp:19-27`）—— 慢 DB 不只冻结世界，
-还会冻结**该连接的收包**。MySQL 连接超时 5 s，但语句**没有超时**。
-
-⚠️ **`g_gate_list` 存在数据竞争**：`push_back`（`ServerSockHandler.cpp:243`）与
-erase 循环（`ServerSockWorker.cpp:213-221`）**未加锁**，与已加锁的迭代
-（`ServerSockWorker.cpp:142`）并发 —— 锁存在但未覆盖全部访问点。
+`on_login` 中的 `verify_user` / `load_from_server` / `save` 仍在游戏线程上
+同步执行，但不持有 `g_gate_list_mutex` 与该 gate 的 `m_cs`——慢 DB 只冻结
+登录本身，不再冻结 worker 的 accept 与其他连接的收包。MySQL 连接超时 5 s，
+但语句**没有超时**：无超时即无从快速失败，停摆时长 = 语句挂起时长。
 
 ⚠️ **完成键仍是裸指针（刻意保留）**：连接标识已改为句柄表（`CConnectionHandleManager`：
 64 位不透明序号、0=无连接，accept 分配、`close_connection` 即刻归还，指针只存在于表内），
@@ -387,7 +382,7 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 
 **Dependencies Introduced**:
 
-- Win32 / Winsock2（`winsock2.h`、`AcceptEx`、`WSASend`、IOCP）—— 平台锁定
+- Windows / Winsock2（`winsock2.h`、`AcceptEx`、`WSASend`、IOCP）—— 平台锁定
 - `libmysql.lib` + `libmySQL.dll`（`3rd/include/mysql`、`3rd/lib`）
 - Lua 5.5（`lua55.lib`，真实链接进测试）
 - SQLite（`3rd/sqlite/sqlite3.c`，编进 `jianghu_core.lib`）
@@ -401,9 +396,9 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
   每次 C++→Lua 调用 = `lua_rawgeti` + `lua_getfield` + `lua_pcall`，**函数 ref 不缓存**。
 - 空间复杂度：整套结果集物化进内存（`mysql_store_result`，`MySqlDb.cpp:40-88`）；
   两套 dbase 映射常驻；每连接 16 KB recv 缓冲（可用 8 KB）。
-- **已知热点**：`load_script()` **在缓存查找之前整文件读盘算 djb2 哈希**
-  （`LuaEngine.cpp:666-667`），而 `load_script` 被 `create_*`、
-  `get_script_bool_field` 等热路径调用 —— 每次派发的 I/O 放大是脚本层主要开销来源。
+- **脚本加载快筛**：`load_script()` 命中缓存先比文件指纹（mtime+字节数，
+  不读盘），指纹变化才整文件读盘算 djb2 哈希确认——`create_*`、
+  `get_script_bool_field` 等热路径的稳态命中是一次属性查询，无文件读。
 - **真正瓶颈**：同步 DB I/O 与字符串处理，不是 CPU。
 
 **Thread Safety**:
@@ -413,7 +408,6 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
   `g_destruct_list_mutex`、句柄表锁（`CConnectionHandleManager` 的 allocate/lookup/release）；
   另有 `Interlocked*` 用于 gate 引用计数与 `m_do_sending`。
 - **世界状态：无锁，且这是设计而非疏漏。**
-- 未加锁的访问点见 Consequences 的 `g_gate_list` 条目。
 
 **Testing Strategy**:
 
@@ -425,7 +419,7 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
   `include` 串起各自的剧本片段；L5/L6 配对互动、L7 观战依附 L5、L8 山贼试炼依附 L3、
   L9 巫师服务道、L10 练功道）。
   道模型、隔离原则与覆盖率口径的设计见 `docs/design/integration-test.md`。
-- **唯一认可的验证入口**：仓库根 `.\run-coverage.ps1`（`Release|Win32`，
+- **唯一认可的验证入口**：仓库根 `.\run-coverage.ps1`（`Release|x64`，
   绝对禁止 Debug —— Debug 与 Release 不是同一个被测对象）。
 - Coverage：门槛 75% 及格 / 90% 良好；E2E 行覆盖无数字门槛（参考手段，
   缺口是系统性的，由单测兜底——口径见 `docs/design/integration-test.md` §5）。
@@ -444,19 +438,12 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
   `test_smoke` 等），说明 seam 是真实可用的，不是纸面设计。
 - ⚠️ **生产运行时长 / 在线规模：unknown —— 本仓库内无数据，无法据此验证"当前规模下单线程够用"。**
 
-**Known Issues**（discovered during analysis）:
-
-- ⚠️ **死代码 / 死配置**：`SetEvent(g_event)` 指向从未 `CreateEvent` 的句柄；`db_save_box/db_load_box/db_delete_box`
-  与 `select_game_database` 只有测试 stub；`t_saveobj`、`user` 表有 DDL 无调用方。
-- ⚠️ **`CCmdHandle` 双全局**：`CommandHandle`（`src/char/Char.cpp:32`，实际被用）
-  与 `g_command_handler`（`Global.cpp:20`，疑似未使用）。
-
 **Risks**:
 
 - 慢 DB / DB 断连 → 全服冻结（无语句超时、无重连：`m_mysql` 保持非空、后续调用全部失败）。
-- 迁 x64：连接句柄已不承载指针（截断缺陷消除，编译可过），但 `3rd/lib` 只有 x86 版
-  `lua55.lib`/`libmysql.lib`，且 `Release|x64` 与 `Release|Win32` 共用 `bin\` 输出目录
-  —— x64 链接与产物隔离尚未打通。
+- 运行时 `libmysql.dll` 不入库（`.gitignore` 忽略所有 `libmysql.dll`）：`PostBuildEvent`
+  从 `3rd\<平台>\` 取对应位宽的 DLL，取不到就跳过拷贝（构建照常成功，缺 DLL 延后到
+  运行期暴露）；位宽不对则进程起不来（`193`）。
 - 增加任何第二模拟线程 → 世界态免锁前提瓦解，且已存在 `static` 返回值等隐性依赖。
 - 脚本包若为第三方来源 → 无沙箱 + `db_execute` 构成全域读写面。
 - `jianghudb` 列顺序一旦变更 → `verify_user` 下标映射静默错位。
@@ -482,23 +469,21 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
    已确认的是属性袋为有意设计、阻塞 DB 在当前规模被接受；
    但"是否评估过"未获回答。影响：本文的 Alternatives 段落只能标 `inferred`。
 
-3. **`g_command_handler` 是否死代码**：仅 `Char.cpp` 的 `CommandHandle` 有调用点；
-   未做链接级全量审计。影响：可能误导后续重构。
-
 ---
 
 ## Follow-Up Work
 
 **Immediate**:
 
-- [ ] 给 `g_gate_list` 的 `push_back` 与 erase 循环补上已有的 `g_gate_list_mutex`
+- [x] 给 `g_gate_list` 的 `push_back` 与 erase 循环补上已有的 `g_gate_list_mutex`
 
 **Short-Term**:
 
-- [ ] 为 MySQL 语句设置超时，并把 `on_login` 中的 DB 调用移出 `g_gate_list_mutex` / `m_cs` 临界区
-- [ ] `load_script()` 把整文件哈希移到缓存未命中之后（热路径 I/O 放大）
+- [ ] 为 MySQL 语句设置超时（无超时时慢 DB 仍冻结游戏线程）
+- [x] 把 `on_login` 中的 DB 调用移出 `g_gate_list_mutex` / `m_cs` 临界区
+- [x] `load_script()` 命中走文件指纹快筛（mtime+大小），整文件哈希只在指纹变化或缓存未命中时执行
 - [ ] 回答 Open Questions 的安全姿态，据此决定是否立项
-- [ ] 清理已知死代码（`SetEvent(g_event)`、`db_save_box` 族、`t_saveobj`/`user` 表）
+- [x] 清理已知死代码（`SetEvent(g_event)`、`db_save_box` 族、`t_saveobj`/`user` 表、`g_command_handler`）
 
 **Long-Term**:
 

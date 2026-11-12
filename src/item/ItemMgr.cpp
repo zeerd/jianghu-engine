@@ -98,7 +98,7 @@ public:
         MAP2VENDOR::iterator p2;
         int i = 0;
 
-        int index = g_utils.random(g_vendor_list.size());
+        int index = static_cast<int>(g_utils.random(g_vendor_list.size()));
 
         for (p2 = g_vendor_list.begin(); p2 != g_vendor_list.end(); p2++) {
             CVendor* npc = p2->second;

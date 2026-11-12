@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Item.cpp
  * @brief implementation of the CItem class. */
 
@@ -10,6 +10,7 @@
 #include "Room.h"
 #include "Channel.h"
 #include "StackingLogic.h"
+#include "../config/MainConfig.h"
 
 //---------------------------------------------------------
 // Construction/Destruction
@@ -37,7 +38,7 @@ void CItem::check_auto_combine()
     CContainer* env;
     DTItemList search;
     CContainer* t;
-    int32_t total;
+    amount_t total;
     const char* id;
     int index;
 
@@ -45,8 +46,8 @@ void CItem::check_auto_combine()
     if (!(env = environment())) return;    // 无环境(销毁中)不合并
     if (env->query_attr(IS_ROOM)) return;  // 房间内(地面)不自动合并
 
-    // yaopin 模式：跳过箱子检查和 equipped/owner 检查（复刻原 CIyaopin::move）
-    int yaopin = query("yaopin_combine");
+    // yaopin 模式：跳过箱子检查和 equipped/owner 检查（复刻 CIyaopin::move）
+    flag_t yaopin = static_cast<flag_t>(query("yaopin_combine"));
 
     if (!yaopin && env->query_attr(IS_BOX) && !can_combine_in_box())
         return;  // 箱子内:按子类策略
@@ -57,7 +58,7 @@ void CItem::check_auto_combine()
 
     copy_list(&search, env->get_item_list());
     id    = querystr("base_name");
-    index = query("index");
+    index = static_cast<int>(query("index"));
     total = query_amount();
     for (auto val : search) {
         t = val;
@@ -77,10 +78,10 @@ void CItem::check_auto_combine()
 }
 
 // 分开成两份
-CItem* CItem::split(int32_t amount)
+CItem* CItem::split(amount_t amount)
 {
     CItem* t;
-    int32_t left = m_amount - amount;
+    amount_t left = m_amount - amount;
 
     if (amount <= 0 || left < 0) return 0;  // 分不出来
     if (left == 0) return this;
@@ -88,7 +89,7 @@ CItem* CItem::split(int32_t amount)
     set_amount(left);
     t = static_cast<CItem*>(g_item_mgr->load_item(querystr("base_name")));
     if (t) {
-        if (query("index")) t->create(query("index"));
+        if (query("index")) t->create(static_cast<int>(query("index")));
         t->set_amount(amount);
     }
 
@@ -118,14 +119,14 @@ int CItem::do_use(CChar* me, CContainer* target) { return 0; }
 // 行为
 int CItem::do_action(int act, CChar* me) { return 0; }
 
-int32_t CItem::query_amount() { return m_amount; }
+amount_t CItem::query_amount() { return m_amount; }
 
-int32_t CItem::query_max_amount()
+amount_t CItem::query_max_amount()
 {
     return (m_max_amount == 0) ? 1 : m_max_amount;
 }
 
-void CItem::set_amount(int32_t amount)
+void CItem::set_amount(amount_t amount)
 {
     if (amount < 0) amount = 0;  // 非法数量归零
 
@@ -135,7 +136,7 @@ void CItem::set_amount(int32_t amount)
 
     if (amount == 0) {
         m_amount = 0;
-        set("amount", 0l);  // 数量同步到_M，防止_M残留旧数量
+        set("amount", MAPPING_VALUE_ZERO);  // 数量同步到_M，防止_M残留旧数量
         // 毁灭自身
         DESTRUCT_OB(this, "CItem::set_amount");
         return;
@@ -161,7 +162,7 @@ void CItem::set_amount(int32_t amount)
     update_me();
 }
 
-int32_t CItem::add_amount(int32_t val)
+amount_t CItem::add_amount(amount_t val)
 {
     set_amount(m_amount + val);
 
@@ -205,8 +206,9 @@ void CItem::init()
                     snprintf(msg, 255,
                              "$HIR%s(%s)因涉嫌复制而被捕入狱，判处监禁一周。",
                              environment()->name(1), environment()->id(1)));
-                LOG_ERROR("%s(%s)拥有复制道具%s%d个.", environment()->name(1),
-                          environment()->id(1), name(1), query_amount());
+                LOG_ERROR("%s(%s)拥有复制道具%s%lld个.", environment()->name(1),
+                          environment()->id(1), name(1),
+                          (long long)query_amount());
             }
 
             set("数目", query_amount());

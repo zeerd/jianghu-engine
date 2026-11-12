@@ -306,10 +306,12 @@ int CLuaSkill::cast(string magic, CChar* me, CContainer* target)
     if (!check_cast_force(me)) return 0;
 
     // AP 前置：施法消耗行动点，耗费随技能等级与角色等级递减
-    int32_t ap = entry->ap
-                 * (120 - me->query_skill(querystr("base_name"), 1) / 4
-                    - me->query("level") / 2)
-                 / 100;
+    // 等级是 level_t 有界域：读点收窄后整条算式留在 int32 内
+    level_t level = static_cast<level_t>(me->query("level"));
+    int32_t ap
+        = entry->ap
+          * (120 - me->query_skill(querystr("base_name"), 1) / 4 - level / 2)
+          / 100;
     if (ap < 0) ap = 1;
     if (!check_ap(ap, me)) return 0;
 
@@ -577,7 +579,7 @@ const char* CLuaSkill::query_parry_msg(CContainer* weapon)
 
 // 重写 hit_ob：调用 Lua 脚本的 hit_ob 函数（若存在），
 // 否则回落到基础技能（同族默认实现，如基本内功的内功反震）
-char* CLuaSkill::hit_ob(CChar* me, CChar* victim, int32_t& damage)
+char* CLuaSkill::hit_ob(CChar* me, CChar* victim, damage_t& damage)
 {
     // 脚本加载失败：与其他回调一致，回落基础技能（同族默认实现）
     if (m_script_ref == LUA_NOREF) return base_hit_ob(me, victim, damage);
@@ -619,7 +621,7 @@ char* CLuaSkill::hit_ob(CChar* me, CChar* victim, int32_t& damage)
 // 高级内功（force_adv）自己没有 hit_ob → 用基本内功的内功反震；
 // 与法术继承同构：高级技能顶替基础技能时，基础技能的能力仍然在。
 // 只回落到"脚本里确实实现了 hit_ob"的基础技能，避免继承链成环时递归不止。
-char* CLuaSkill::base_hit_ob(CChar* me, CChar* victim, int32_t& damage)
+char* CLuaSkill::base_hit_ob(CChar* me, CChar* victim, damage_t& damage)
 {
     for (const std::string& usage : m_base_usages) {
         if (usage == m_script_name) continue;

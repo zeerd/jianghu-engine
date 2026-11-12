@@ -4,13 +4,13 @@
 //---------------------------------------------------------
 // 随机数
 //---------------------------------------------------------
-int32_t CUtils::random(int32_t seed)
+mapping_value_t CUtils::random(mapping_value_t seed)
 {
     if (seed <= 0) return 0;
     static double fRandMax = (double)RAND_MAX + 1.0;
     double f               = (double)rand() / fRandMax;
-    f *= seed;
-    return (int32_t)f;
+    f *= (double)seed;
+    return static_cast<mapping_value_t>(f);
 }
 
 double CUtils::urandom(double seed)
@@ -40,7 +40,7 @@ int l_xrandom(lua_State* L)
 {
     int v = (int)luaL_checkinteger(L, 1);
     // 纯数学实现，不依赖任何 C++ 类
-    int c   = g_utils.random(20);
+    int c   = static_cast<int>(g_utils.random(20));
     float b = (float)(g_utils.random(v)) / 5.0f;
     int result;
     if (c < 1)

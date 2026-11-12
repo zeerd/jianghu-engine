@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Vendor.cpp
  * @brief implementation of the CVendor class. */
 #include <windows.h>
@@ -50,7 +50,7 @@ int CVendor::do_list(CChar* me, int page)
     int i = 0, begin = page * 10, end = page * 10 + 10;
     CMapping m, line;
 
-    int total = m_good_list.size() / 10;
+    int total = static_cast<int>(m_good_list.size()) / 10;
     for (auto& val : m_good_list) {
         good = val.get();
         if (i >= begin) {
@@ -58,8 +58,10 @@ int CVendor::do_list(CChar* me, int page)
 
             line.set("good", snprintf(cmd, 20, "%d", good->m_code));
             line.set("name", good->m_name);
-            line.set("value", snprintf(cmd, 20, "%d", good->m_value * 6 / 5));
-            line.set("amount", snprintf(cmd, 20, "%d", good->m_amount));
+            line.set("value", snprintf(cmd, 20, "%lld",
+                                       (long long)(good->m_value * 6 / 5)));
+            line.set("amount",
+                     snprintf(cmd, 20, "%lld", (long long)good->m_amount));
 
             sprintf(cmd, "%03d", i);
             m.set(cmd, line);
@@ -123,7 +125,7 @@ int CVendor::do_buy(CChar* me, int32_t good_id)
     DTGood* good;
     char msg[255];
     int val_factor = 12;
-    int32_t money;
+    money_t money;
 
     if (!good_id) return 0;
     if (!(good = get_good(good_id))) return 0;
@@ -133,10 +135,10 @@ int CVendor::do_buy(CChar* me, int32_t good_id)
     std::string basename = good->m_basename;
     std::string good_name
         = good->m_name;  // char[40]，此处收拢为 string 供脚本引用
-    int index      = good->m_index;
-    int32_t code   = good->m_code;
-    int32_t value  = good->m_value;
-    int32_t amount = good->m_amount;  // 成交前库存
+    int index       = good->m_index;
+    int32_t code    = good->m_code;
+    money_t value   = good->m_value;
+    amount_t amount = good->m_amount;  // 成交前库存
 
     money = good->m_value * val_factor / 10;
 
@@ -163,7 +165,8 @@ int CVendor::do_buy(CChar* me, int32_t good_id)
             if (hook.table_field_str("reason", reason))
                 return notify_fail("%s", reason.c_str());
             int64_t price;
-            if (hook.table_field_int("price", price)) money = (int32_t)price;
+            if (hook.table_field_int("price", price))
+                money = static_cast<money_t>(price);
         }
     }
 
@@ -217,14 +220,14 @@ int CVendor::do_buy(CChar* me, int32_t good_id)
 }
 
 // 增加一个商品
-void CVendor::add_good(CContainer* item, int32_t amount)
+void CVendor::add_good(CContainer* item, amount_t amount)
 {
     DTGood* good;
     int32_t index;
     string basename;
 
     basename = item->querystr("base_name");
-    index    = item->query("index");
+    index    = static_cast<int32_t>(item->query("index"));
     if (!(good = find_good(basename, index))) {
         auto ng = std::make_unique<DTGood>();
         good    = ng.get();

@@ -69,7 +69,7 @@ public:
 
 protected:
     //---------- 内部辅助 ----------
-    int32_t query_turn_ap(CChar* me);
+    mapping_value_t query_turn_ap(CChar* me);
     void clear_team_slot(int team, int idx, CChar* obj);
     void advance_ap();
     bool run_team_turn(int myTeam);

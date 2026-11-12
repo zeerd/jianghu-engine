@@ -305,13 +305,13 @@ TEST_F(ForceAdvRecoverTest, HitOb_UserAttacker_DeductsMpAndAccruesBonus)
     vic->set_skill("force", 0);
 
     CLuaSkill* skill = MakeBasicForce();
-    int32_t bonus    = 0;
+    damage_t bonus   = 0;
     EXPECT_STREQ("", skill->hit_ob(me, vic, bonus));
     EXPECT_EQ(870, me->query("mp")) << "出手先扣 mp_factor";
     EXPECT_EQ(59, bonus) << "870/30+30-0=59 累加进 damage_bonus";
 
     // 负 bonus 输入：bonus+damage<0 → 归零
-    int32_t bonus2 = -100;
+    damage_t bonus2 = -100;
     EXPECT_STREQ("", skill->hit_ob(me, vic, bonus2));
     EXPECT_EQ(0, bonus2) << "负和归零";
 
@@ -337,7 +337,7 @@ TEST_F(ForceAdvRecoverTest, HitOb_NpcClampAndNegativeNoReversal)
     vic->set_skill("force", 0);  // random(1) 恒 0 → 0 > 0 恒假，不反震
 
     CLuaSkill* skill = MakeBasicForce();
-    int32_t bonus    = 0;
+    damage_t bonus   = 0;
     EXPECT_STREQ("", skill->hit_ob(me, vic, bonus));
     EXPECT_EQ(0, bonus) << "负伤害进 bonus 后归零";
     EXPECT_EQ(300, me->query("mp")) << "非玩家不扣蓝";
@@ -369,8 +369,8 @@ TEST_F(ForceAdvRecoverTest, HitOb_ReversalChatTiers)
         me->set("mp", (long)300);
         me->set("mp_factor", c.factor);
         me->set_skill("force", 0);
-        int32_t bonus = 0;
-        char* r       = nullptr;
+        damage_t bonus = 0;
+        char* r        = nullptr;
         for (int i = 0; i < 30 && !(r && r[0]); i++) {  // 随机反震：有限次收敛
             r = skill->hit_ob(me, vic, bonus);
         }
@@ -406,7 +406,7 @@ TEST_F(ForceAdvRecoverTest, HitOb_AdvancedForceInheritsBasicReversal)
     vic->set("mp", (long)0);
     vic->set_skill("force", 0);
 
-    int32_t bonus = 0;
+    damage_t bonus = 0;
     EXPECT_STREQ("", adv->hit_ob(me, vic, bonus));
     EXPECT_EQ(59, bonus) << "高级内功应继承基本内功的反震伤害加成";
     EXPECT_EQ(870, me->query("mp")) << "出手先扣 mp_factor";

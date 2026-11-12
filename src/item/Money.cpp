@@ -1,10 +1,11 @@
-﻿/**
+/**
  * @file Money.cpp
  * @brief implementation of the CMoney class. */
 #include <windows.h>
 
 #include "Char.h"
 #include "Money.h"
+#include "../config/MainConfig.h"
 
 //---------------------------------------------------------
 // Construction/Destruction
@@ -19,7 +20,7 @@ int CMoney::move(CContainer* me)
 {
     DTItemList search;
     CContainer *env, *t;
-    int32_t total;
+    amount_t total;
     const char* id;
 
     if (!CItem::move(me)) return 0;  // 未移动成功。
@@ -53,7 +54,7 @@ int32_t CMoney::query_attr(int attr)
     return CItem::query_attr(attr);
 }
 
-int CMoney::pay_player(CChar* me, int32_t amount)
+int CMoney::pay_player(CChar* me, money_t amount)
 {
     CContainer* gold;
 
@@ -67,10 +68,10 @@ int CMoney::pay_player(CChar* me, int32_t amount)
     return 1;
 }
 
-int CMoney::player_pay(CChar* me, int32_t amount)
+int CMoney::player_pay(CChar* me, money_t amount)
 {
     CContainer* money;
-    int32_t gc;
+    money_t gc;
 
     if (amount <= 0) return 0;
 
@@ -82,10 +83,10 @@ int CMoney::player_pay(CChar* me, int32_t amount)
     return 1;
 }
 
-char* CMoney::money_str(int32_t amount)
+char* CMoney::money_str(money_t amount)
 {
     static char output[255];
-    snprintf(output, 255, "%d金币", amount);
+    snprintf(output, 255, "%lld金币", (long long)amount);
     return output;
 }
 
@@ -93,7 +94,7 @@ void CMCoin::create(int flag)
 {
     set_name("金币", "coin");
     set("base_value", 1);
-    set("base_weight", 0l);
+    set("base_weight", MAPPING_VALUE_ZERO);
     set_amount(1);
 }
 
@@ -110,7 +111,7 @@ int l_pay_money(lua_State* L)
     const char* kind = luaL_checkstring(L, 1);
     CChar* me        = dynamic_cast<CChar*>(get_object(L, 2));
     if (!me) return 0;
-    int32_t value = (int32_t)luaL_checkinteger(L, 3);
+    money_t value = static_cast<money_t>(luaL_checkinteger(L, 3));
     int ok;
     if (strcmp(kind, "give") == 0)
         ok = CMoney::pay_player(me, value);

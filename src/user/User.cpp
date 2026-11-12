@@ -246,10 +246,14 @@ void CUser::location_object(CContainer* obj)
     // 非房间，无坐标。不用定位
     if (!(obj->environment())->query_attr(IS_ROOM)) return;
 
-    snprintf(msg, 512, "&C=%ld&T=%ld&bx=%ld&by=%ld&ex=%ld&ey=%ld&ac=%ld&",
-             LOCATION, obj->object_id(), obj->query_temp("map/bx"),
-             obj->query_temp("map/by"), obj->query_temp("map/ex"),
-             obj->query_temp("map/ey"), obj->query_temp("map/ac"));
+    snprintf(msg, 512,
+             "&C=%lld&T=%lld&bx=%lld&by=%lld&ex=%lld&ey=%lld&ac=%lld&",
+             (long long)LOCATION, (long long)obj->object_id(),
+             (long long)obj->query_temp("map/bx"),
+             (long long)obj->query_temp("map/by"),
+             (long long)obj->query_temp("map/ex"),
+             (long long)obj->query_temp("map/ey"),
+             (long long)obj->query_temp("map/ac"));
 
     send_command(msg, SEND_WAIT_BUFFERED);
 }
@@ -295,7 +299,7 @@ void CUser::send_user_online(int begin, int end, int type)
     MAP2USER* userlist = users();
     iterator_user p;
     CUser* obj;
-    int i = 0, count = userlist->size();
+    int i = 0, count = static_cast<int>(userlist->size());
 
     if (!count) return;
 

@@ -129,7 +129,7 @@ public:
     virtual int do_look(CChar* me);
 
     // 重写 hit_ob：调用 Lua 脚本的 hit_ob 函数（若存在）
-    virtual const char* hit_ob(CChar* me, CChar* victim, int32_t damage_bonus);
+    virtual const char* hit_ob(CChar* me, CChar* victim, damage_t damage_bonus);
 
     // 重写 chat_msg_combat：调用 Lua 脚本的 chat_msg_combat 函数（若存在）
     virtual char* chat_msg_combat();

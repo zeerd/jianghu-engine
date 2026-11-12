@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#include <stdlib.h>
+
 #include <set>
 #include <string>
 #include <vector>
@@ -125,36 +127,51 @@ bool ensure_credential_columns()
     return true;
 }
 
-// jianghudb 是否已存在——账号 ID 起点只在首建时播种，重跑
-// prepare_tables 绝不能重置自增计数器（否则新号撞已发的 cc_id）。
-bool game_table_exists()
+// 账号 ID 起点：1~999 预留给巫师/系统账号，首个玩家账号从 1000 起发。
+constexpr long ACCOUNT_ID_FLOOR = 1000;
+
+// 已发的最大账号 ID；查询失败返回 -1，调用方按「需要播种」处理。
+long max_account_id()
 {
-    DbResultSet result;
-    const char* sql
-        = backend_is_sqlite()
-              ? "SELECT name FROM sqlite_master WHERE type='table' "
-                "AND name='jianghudb'"
-              : "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema=DATABASE() AND table_name='jianghudb'";
-    if (g_db->query(sql, result) != 0) {
-        LOG_ERROR("Prepare_tables: query jianghudb existence fail! %s",
-                  g_db->error());
-        return true;  // 探测失败按已存在处理：宁可不播种，不可错播种
+    DbResultSet rs;
+    if (g_db->query("SELECT MAX(cc_id) FROM jianghudb", rs) != 0) {
+        LOG_ERROR("Prepare_tables: read max cc_id fail! %s", g_db->error());
+        return -1;
     }
-    return !result.empty();
+    if (rs.empty() || rs.rows[0].columns.empty() || rs.rows[0][0].empty()) {
+        return -1;  // 空表（MAX 为 NULL）同样走播种
+    }
+    return atol(rs.rows[0][0].c_str());
 }
 
-// 把 jianghudb 的自增起点抬到 1000（1~999 预留给巫师/系统账号）。
-// 仅在 game_table_exists() 为假（首建）时调用。
-bool seed_first_id()
+// 起点播种语句（按执行顺序），方言差异只在这一个函数里：
+//   MySQL  —— 低于当前值的 AUTO_INCREMENT 被服务端忽略，天然只抬不降；
+//   SQLite —— 起点存 sqlite_sequence，首建时该行尚不存在，先补行，
+//             再按 MAX(seq, 999) 抬高（行不存在时 UPDATE 为空操作）。
+std::vector<const char*> id_floor_seed_sqls()
 {
-    const char* sql = backend_is_sqlite()
-                          ? "INSERT INTO sqlite_sequence (name, seq) VALUES "
-                            "('jianghudb', 999)"
-                          : "ALTER TABLE jianghudb AUTO_INCREMENT = 1000";
-    if (g_db->execute(sql) != 0) {
-        LOG_ERROR("Prepare_tables: seed id floor fail! %s", g_db->error());
-        return false;
+    if (!backend_is_sqlite()) {
+        return {"ALTER TABLE jianghudb AUTO_INCREMENT = 1000"};
+    }
+    return {
+        "INSERT INTO sqlite_sequence (name, seq) SELECT 'jianghudb', 999 "
+        "WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE "
+        "name='jianghudb')",
+        "UPDATE sqlite_sequence SET seq = MAX(seq, 999) WHERE "
+        "name='jianghudb'",
+    };
+}
+
+// 把自增起点抬到 ACCOUNT_ID_FLOOR。调用前提：已发号不足起点。
+// 逐条执行方言播种语句，任一失败即中止启动——起点没播下去就建号，
+// 新号会落进巫师/系统预留段。
+bool raise_id_floor()
+{
+    for (const char* sql : id_floor_seed_sqls()) {
+        if (g_db->execute(sql) != 0) {
+            LOG_ERROR("Prepare_tables: seed id floor fail! %s", g_db->error());
+            return false;
+        }
     }
     return true;
 }
@@ -229,30 +246,13 @@ bool prepare_tables(void)
                              "PRIMARY KEY (`re_master`,`re_id`)",
                              "KEY `re_master` (`re_master`,`re_id`)"));
 
-        // 容器/物品/房间/箱子/玩家存档：统一容器表结构，
-        // t_saveobj 的 obj_id 为 owner_grid 复合键（通用容器接口访问）
-        for (const char* name :
-             {"t_item", "t_npc", "t_room", "t_box", "t_saveobj"}) {
+        // 容器/物品/房间/箱子：统一容器表结构，经通用容器接口按对象
+        // 类型选表访问（obj_id 主键）
+        for (const char* name : {"t_item", "t_npc", "t_room", "t_box"}) {
             tables.push_back(BuildCreateTable(name, container_cols,
                                               "PRIMARY KEY (`obj_id`)",
                                               "KEY `obj_id` (`obj_id`)"));
         }
-
-        // 旧式注册表
-        tables.push_back(BuildCreateTable(
-            "user",
-            AutoPkColumn("`id` int(16) NOT NULL AUTO_INCREMENT,",
-                         "`id` INTEGER PRIMARY KEY,")
-                + "`name` varchar(40) NOT NULL DEFAULT '',"
-                  "`passwd` varchar(10) NOT NULL DEFAULT '0',"
-                  "`email` varchar(64) NOT NULL DEFAULT '',"
-                  "`icqnumber` int(16) DEFAULT NULL,"
-                  "`phone` varchar(32) DEFAULT NULL,"
-                  "`handset` varchar(32) DEFAULT NULL,"
-                  "`bb` varchar(32) DEFAULT NULL,"
-                  "`homepage` varchar(128) DEFAULT NULL,"
-                  "`casehistory` varchar(255) DEFAULT NULL",
-            sqlite ? "" : "PRIMARY KEY (`id`)", "KEY `id` (`id`)"));
 
         // 社交关系（db_query_relative / db_update_relative 使用）
         tables.push_back(BuildCreateTable(
@@ -263,9 +263,6 @@ bool prepare_tables(void)
             "`cc_relative` int(16) NOT NULL DEFAULT '0'",
             "PRIMARY KEY (`cc_id`,`cc_other`)", "KEY `cc_id` (`cc_id`)"));
 
-        // 首建探测必须先于建表执行
-        const bool first_creation = !game_table_exists();
-
         for (const std::string& ddl : tables) {
             if (g_db->execute(ddl.c_str()) != 0) {
                 LOG_ERROR("Prepare_tables: fail! %s", ddl.c_str());
@@ -273,8 +270,11 @@ bool prepare_tables(void)
             }
         }
 
-        // 首次建表时播种账号 ID 起点；已有库跳过，避免重置计数器
-        if (first_creation && !seed_first_id()) {
+        // 账号 ID 起点：1~999 预留段是每次开机都要满足的不变量，不是建表
+        // 那一刻的一次性动作——只播一次的话，起点一旦回落（服务端重载后按
+        // MAX(cc_id)+1 重建计数器）或历史库本就没播，新号就落进巫师/系统
+        // 预留段。播种只抬不降：误播种不伤害已发的 cc_id，漏播种才会出事。
+        if (max_account_id() < ACCOUNT_ID_FLOOR && !raise_id_floor()) {
             return false;
         }
 

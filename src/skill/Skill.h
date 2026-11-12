@@ -64,7 +64,7 @@ public:
     virtual void skill_improved(CChar* me);
     virtual void create();
     virtual void reset(CChar* me);
-    virtual char* hit_ob(CChar* me, CChar* victim, int32_t& damage);
+    virtual char* hit_ob(CChar* me, CChar* victim, damage_t& damage);
     // 本技能是否提供 hit_ob 实现（Lua 技能看脚本里有没有同名函数）
     virtual bool has_hit_ob() { return false; }
     // 本技能是否提供 query_action 实现（Lua 技能看脚本里有没有同名函数）

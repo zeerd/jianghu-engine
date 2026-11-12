@@ -7,6 +7,7 @@
 #include "User.h"
 #include "Room.h"
 #include "test_lua_env.h"
+#include "../config/MainConfig.h"
 
 class CharCoreTest : public ::testing::Test {
 protected:
@@ -18,14 +19,14 @@ protected:
         ch = new CChar();
         ch->set("name", "core");
         ch->set("id", "core1");
-        ch->set("hp", (long)100);
-        ch->set("eff_hp", (long)100);
-        ch->set("max_hp", (long)100);
-        ch->set("mp", (long)50);
-        ch->set("max_mp", (long)50);
-        ch->set("con", (long)20);
-        ch->set("combat_exp", (long)1000);
-        ch->set("level", (long)10);
+        ch->set("hp", 100);
+        ch->set("eff_hp", 100);
+        ch->set("max_hp", 100);
+        ch->set("mp", 50);
+        ch->set("max_mp", 50);
+        ch->set("con", 20);
+        ch->set("combat_exp", 1000);
+        ch->set("level", 10);
     }
     void TearDown() override { delete ch; }
 };

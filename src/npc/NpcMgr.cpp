@@ -86,7 +86,7 @@ CNpc* random_npc()
     MAP2NPC::iterator p2;
     int i = 0;
 
-    int index = g_utils.random(g_npc_list.size());
+    int index = static_cast<int>(g_utils.random(g_npc_list.size()));
 
     for (p2 = g_npc_list.begin(); p2 != g_npc_list.end(); p2++) {
         CNpc* npc = p2->second;

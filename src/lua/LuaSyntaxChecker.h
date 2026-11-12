@@ -22,6 +22,11 @@ struct CheckLuaOptions {
     // 的全局函数等）不在待检集内时，单文件模式会把它们误报成"未绑定全局"。
     // 这里列出的目录只收集定义、不产违规；已扫描过的文件自动跳过。
     std::vector<std::string> definition_roots;
+    // 钩子冒烟：在校验进程里真跑 item 的 create/do_use，把运行期错误
+    // （钩子抛出的、被脚本自己 pcall 吞掉的、模块体的）记为违规。
+    // **默认开**（`--no-smoke` 关）：检查的目的就是不让运行期错误出门。
+    // 传入的 L 必须是引擎自己的状态，否则无从驱动对象（冒烟自行跳过）。
+    bool smoke = true;
     // true = 把本次发现的全部违规写入基线文件（存量清理的引导手段）。
     // 该模式下违规本身不判失败；但语法错误、文件读不到、require 解析失败
     // 仍照常报 FAIL 并计入返回值——写基线不能把一棵语法写坏的树洗绿。
@@ -31,7 +36,8 @@ struct CheckLuaOptions {
 // Lua 语法校验主函数
 // cmdLine: 原始命令行，格式:
 //   --check-lua [--config <ini>] [--dir <path>]
-//               [--baseline <file>] [--write-baseline] <file.lua> ...
+//               [--baseline <file>] [--write-baseline] [--smoke]
+//               <file.lua> ...
 //
 // 未指定 --config 时使用默认路径：
 //   data/config.ini（服务器配置）
@@ -42,13 +48,18 @@ struct CheckLuaOptions {
 // --write-baseline   : 把发现的违规写入基线（违规不判失败；语法/require
 // 错误仍失败）
 //
-// 校验内容（五道防线，详见 LuaSyntaxChecker.cpp 文件头）：
+// 校验内容（六道防线，详见 LuaSyntaxChecker.cpp 文件头）：
 //   1. 语法          luaL_loadbuffer
 //   2. require 闭包  字面量 require("...") 须能被 package.searchers[2] 解析
 //   3. 未绑定全局    脚本读到的全局必须在 _G 或由某个脚本定义
-//   4. 未绑定方法    x:foo() 的 foo 必须在对象元表、标准库，或由某个脚本定义
+//   4. 未绑定方法    x:foo() 的 foo 必须在对象元表、标准库，或由某个脚本定义；
+//                    接收者是 self 时只认对象元表（self 是引擎压入的对象
+//                    userdata，脚本表字段经 self:foo() 不可达）
 //   5. call_out 目标 延迟函数须是发起脚本返回表的字段（docs/guide/call_out.md
 //                    规则1），否则注册期按名查不到、回调挂不上
+//   6. 钩子冒烟      （默认开，`--no-smoke` 关）真跑 item 的 create/do_use：
+//                    钩子抛错、被脚本自己 pcall 吞掉的错、模块体执行期错，
+//                    一律记为违规
 //
 // 返回: 0=全部通过, 1=有失败
 int run_lua_checker(const char* cmdLine);

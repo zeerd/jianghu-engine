@@ -38,7 +38,7 @@ protected:
 // ---------------- receive_damage ----------------
 TEST_F(CharCombatTest, ReceiveDamage_ReducesHp)
 {
-    int32_t d = ch->receive_damage("hp", 30, foe);
+    damage_t d = ch->receive_damage("hp", 30, foe);
     EXPECT_EQ(d, 30);
     EXPECT_EQ(ch->query("hp"), 70);
 }
@@ -58,7 +58,7 @@ TEST_F(CharCombatTest, ReceiveDamage_ZeroesHp)
 // ---------------- receive_wound ----------------
 TEST_F(CharCombatTest, ReceiveWound_ReducesEffHp)
 {
-    int32_t d = ch->receive_wound("hp", 40, foe);
+    damage_t d = ch->receive_wound("hp", 40, foe);
     EXPECT_EQ(d, 40);
     EXPECT_EQ(ch->query("eff_hp"), 60);
     // hp follows down to eff if hp > eff
@@ -75,7 +75,7 @@ TEST_F(CharCombatTest, ReceiveWound_NegativeIgnored)
 TEST_F(CharCombatTest, ReceiveCuring_RaisesEffHp)
 {
     ch->set("eff_hp", (long)50);
-    int32_t h = ch->receive_curing("hp", 30);
+    damage_t h = ch->receive_curing("hp", 30);
     EXPECT_EQ(h, 30);
     EXPECT_EQ(ch->query("eff_hp"), 80);
 }
@@ -83,7 +83,7 @@ TEST_F(CharCombatTest, ReceiveCuring_RaisesEffHp)
 TEST_F(CharCombatTest, ReceiveCuring_ClampsToMax)
 {
     ch->set("eff_hp", (long)90);
-    int32_t h = ch->receive_curing("hp", 100);
+    damage_t h = ch->receive_curing("hp", 100);
     EXPECT_EQ(h, 10);  // only up to max 100
     EXPECT_EQ(ch->query("eff_hp"), 100);
 }
@@ -99,7 +99,7 @@ TEST_F(CharCombatTest, ReceiveHealing_RaisesHp)
 {
     ch->set("hp", (long)40);
     ch->set("eff_hp", (long)100);
-    int32_t h = ch->receive_healing("hp", 30);
+    damage_t h = ch->receive_healing("hp", 30);
     EXPECT_EQ(h, 30);
     EXPECT_EQ(ch->query("hp"), 70);
 }
@@ -116,7 +116,7 @@ TEST_F(CharCombatTest, ReceiveHealing_Clamps)
 {
     ch->set("hp", (long)90);
     ch->set("eff_hp", (long)100);
-    int32_t h = ch->receive_healing("hp", 50);
+    damage_t h = ch->receive_healing("hp", 50);
     EXPECT_EQ(h, 10);
     EXPECT_EQ(ch->query("hp"), 100);
 }
@@ -126,7 +126,7 @@ TEST_F(CharCombatTest, ReceivePoison)
 {
     ch->set("hp", (long)100);
     ch->set("eff_hp", (long)100);
-    int32_t d = ch->receive_poison("hp", 20, "poison");
+    damage_t d = ch->receive_poison("hp", 20, "poison");
     EXPECT_GE(d, 0);
 }
 

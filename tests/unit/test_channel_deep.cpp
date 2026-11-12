@@ -21,6 +21,7 @@
 #include "RoomMgr.h"
 #include "User.h"
 #include "mock/mock_itemmgr.h"
+#include "../config/MainConfig.h"
 
 extern int g_current_time;
 extern char g_notify_fail_msg[512];
@@ -547,10 +548,10 @@ TEST_F(ChatChannelDeepTest, Answer_Wrong_NoReward)
     CContainer* pk = load_room("pk");
     ASSERT_NE(pk, nullptr);
     SetQuestion(pk, "少室山");
-    u->set("combat_exp", (long)0);
+    u->set("combat_exp", MAPPING_VALUE_ZERO);
 
     EXPECT_EQ(cc.do_channel(u, nullptr, "answer", "华山"), 1);
-    EXPECT_EQ(u->query("combat_exp"), 0) << "答错无奖励";
+    EXPECT_EQ(u->query("combat_exp"), MAPPING_VALUE_ZERO) << "答错无奖励";
     EXPECT_NE(pk->querystr("question/答案")[0], '\0') << "答案保留";
     EXPECT_EQ(item_mgr.load_item_call_count, 0);
 
@@ -563,7 +564,7 @@ TEST_F(ChatChannelDeepTest, Answer_NoExam_ReturnsWithoutReward)
     CUser* u = MakeAnswerUser("ans4");
     u->move(&env);
     g_user_list[u->object_id()] = u;
-    u->set("combat_exp", (long)0);
+    u->set("combat_exp", MAPPING_VALUE_ZERO);
 
     // TearDown 会复位考场；此处确认无考试时钩子静默
     EXPECT_EQ(cc.do_channel(u, nullptr, "answer", "少室山"), 1);

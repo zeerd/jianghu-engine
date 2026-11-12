@@ -1,8 +1,8 @@
 // test_carry_object.cpp - Unit tests for CNpc::carry_object with CAN_COMBINE
 // logic.
 //
-// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=Win32
-// Run:    .\tests\Debug\tests.exe
+// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=x64
+// Run:    .\x64\Debug\tests.exe
 //
 #include "pch.h"
 #include <string>
@@ -18,7 +18,7 @@ class MockItem : public CContainer {
 public:
     bool m_can_combine;
     int m_set_amount_calls;
-    int32_t m_last_set_amount;
+    amount_t m_last_set_amount;
     int m_move_calls;
     CContainer* m_move_target;
     int m_create_calls;
@@ -40,7 +40,7 @@ public:
         return CContainer::query_attr(attr);
     }
 
-    void set_amount(int32_t amount) override
+    void set_amount(amount_t amount) override
     {
         m_set_amount_calls++;
         m_last_set_amount = amount;

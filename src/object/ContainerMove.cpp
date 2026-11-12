@@ -49,8 +49,8 @@ int CContainer::move(CContainer* me)
 
         g_channel.do_channel(
             &g_channel, 0, "sys",
-            snprintf(msg, 255, "%s价值%ld的%s从%s移动到%s。", color,
-                     query("value"), name(1), env_old, env_new));
+            snprintf(msg, 255, "%s价值%lld的%s从%s移动到%s。", color,
+                     (long long)query("value"), name(1), env_old, env_new));
         LOG_WARN("%s", msg);
     }
 
@@ -76,9 +76,11 @@ int CContainer::move(CContainer* me)
             if (!me->query("infinity")
                 && me->query_encumb() + weight()
                        > me->query_max_encumbrance()) {
-                LOG_DEBUG("物件%s移入%s失败：太重了。重：%ld 负重: %ld / %ld",
-                          name(), me->name(), weight(), me->query_encumb(),
-                          me->query_max_encumbrance());
+                LOG_DEBUG(
+                    "物件%s移入%s失败：太重了。重：%lld 负重: %lld / %lld",
+                    name(), me->name(), (long long)weight(),
+                    (long long)me->query_encumb(),
+                    (long long)me->query_max_encumbrance());
                 // 为了预防玩家不停的移动造成复制，在移动失败后强制忙乱
                 if (is_user(me)) ((CChar*)me)->start_busy(4);
                 return 0;  // 太重了。

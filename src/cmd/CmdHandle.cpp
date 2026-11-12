@@ -113,12 +113,13 @@ void drop_all(CChar* me)
     char cmd[255];
     CContainer *item, *env;
     CMapping* m;
-    int count = 0;
+    mapping_value_t count = 0;
 
     if ((env = me->environment())) {
         // 判断房间里是否还能容纳
         DTItemList* list = env->get_item_list();
-        count            = env->query("max_items") - list->size();
+        count            = env->query("max_items")
+                           - static_cast<mapping_value_t>(list->size());
     }
 
     copy_list(&search, me->get_item_list());
@@ -136,14 +137,14 @@ void drop_all(CChar* me)
                 item->set("owner", me->querystr("id"));
         }
 
-        if (count-- <= 0 || !m->undefinedp("no_drop")) {
+        if (count-- <= MAPPING_VALUE_ZERO || !m->undefinedp("no_drop")) {
             item->move(load_room("room_void"));
         }
         else {
             item->move(env);
-            message_vision(
-                snprintf(cmd, 255, "$N丢下数量%ld的$n。", item->query_amount()),
-                me, item);
+            message_vision(snprintf(cmd, 255, "$N丢下数量%lld的$n。",
+                                    (long long)item->query_amount()),
+                           me, item);
         }
     }
 }

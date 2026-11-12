@@ -30,7 +30,7 @@
 // 值、apply/ 装备修正与对应技能加成，combat_exp 为原始历练值。可取键只此
 // 一处。未知名说明调用方写错了键：传入 ok 时交回调用方处置，否则记错误
 // 日志（C++ 调用点只写常量键，走到这里即缺陷）。
-int32_t CChar::attr(const char* name, bool* ok)
+mapping_value_t CChar::attr(const char* name, bool* ok)
 {
     if (ok) *ok = true;
 
@@ -57,36 +57,43 @@ int32_t CChar::attr(const char* name, bool* ok)
 }
 
 // 返回可用经验点
-int32_t CChar::query_valid_exp()
+exp_t CChar::query_valid_exp()
 {
-    int32_t exp      = CChar::level2_exp(query("level"));
-    int32_t need_exp = attr("combat_exp") - exp - query("sk_exp");
+    exp_t exp      = CChar::level2_exp(query("level"));
+    exp_t need_exp = attr("combat_exp") - exp - query("sk_exp");
 
     return need_exp;
 }
 
-unsigned long CChar::query_magic_exp() { return attr("combat_exp"); }
+exp_t CChar::query_magic_exp() { return attr("combat_exp"); }
 
 int CChar::query_magic_skill(const char* skill, int raw)
 {
     return query_skill(skill, raw);
 }
 
-int CChar::query_grant() { return query("grant"); }
+wizard_level_t CChar::query_grant()
+{
+    return static_cast<wizard_level_t>(query("grant"));
+}
 
-int CChar::is_loading() { return query_temp("client/loading"); }
+flag_t CChar::is_loading()
+{
+    return static_cast<flag_t>(query_temp("client/loading"));
+}
 
 // 检查用户是否拒绝收听该频道信息
-int CChar::refuse_channel(const char* channel)
+flag_t CChar::refuse_channel(const char* channel)
 {
     char msg[80];
-    return query_temp(snprintf(msg, 80, "refuse/%s", channel));
+    return static_cast<flag_t>(
+        query_temp(snprintf(msg, 80, "refuse/%s", channel)));
 }
 
 // 学习系数。用于learn的计算
 int CChar::learn_bonus()
 {
-    int32_t pt = query("level") * attr("int") / 50;
+    int32_t pt = static_cast<int32_t>(query("level") * attr("int") / 50);
     if (pt <= 0) return 1;
     if (pt <= 30) return pt;
     if (pt <= 50) return 30 + (pt - 30) / 2;
@@ -94,21 +101,7 @@ int CChar::learn_bonus()
     return 55 + (pt - 80) / 5;
 }
 
-bool CChar::is_invalid()
-{
-    int64_t max_mp = char_rule_limit("max_mp_limit", this, 60000);
-    if (query("mp") > max_mp) {
-        LOG_ERROR("%s(%s) MP invalid: %ld / %ld。", name(1), id(1), query("mp"),
-                  query("max_mp"));
-        tell_object(this,
-                    "\n$HIY您的内力超过了合理范围，请您及时联络巫师查处原因。");
-        return true;
-    }
-
-    return false;
-}
-
-void CChar::add_balance(int32_t val)
+void CChar::add_balance(money_t val)
 {
     if (val < 0) {
         add("balance", val);
@@ -152,20 +145,10 @@ int l_attr(lua_State* L)
     if (!ch) return 0;
 
     bool ok;
-    int32_t v = ch->attr(name, &ok);
+    mapping_value_t v = ch->attr(name, &ok);
     if (!ok) return luaL_error(L, "unknown attr: %s", name);
 
     lua_pushinteger(L, v);
-    return 1;
-}
-
-// self:is_invalid() -> boolean - 是否为异常人物（CChar）；非角色对象回 false
-int l_is_invalid(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    CChar* ch        = obj ? dynamic_cast<CChar*>(obj) : NULL;
-
-    lua_pushboolean(L, ch ? ch->is_invalid() : false);
     return 1;
 }
 

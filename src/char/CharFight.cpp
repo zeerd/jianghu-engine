@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharFight.cpp
  * @brief implementation of CChar (CharFight). */
 
@@ -23,8 +23,8 @@
 #include "Money.h"
 #include "FightRoom.h"
 #include "Corpse.h"
-
 #include "Sql.h"
+#include "../config/MainConfig.h"
 
 // 返回武器
 CContainer* CChar::query_weapon()
@@ -123,7 +123,7 @@ CMapping* CChar::query_action()
 
     if (EQUALSTR(querystr("race"), "人类")) {
         m_action.set("action", human_combat_action[g_utils.random(5)]);
-        m_action.set("damage", 0l);
+        m_action.set("damage", MAPPING_VALUE_ZERO);
         return &m_action;
     }
 
@@ -133,11 +133,11 @@ CMapping* CChar::query_action()
     if (EQUALSTR(querystr("race"), "野兽")) {
         if (!(v = queryvec("verbs"))) {
             m_action.set("action", "$N攻击$n的$l。");
-            m_action.set("damage", 0l);
+            m_action.set("damage", MAPPING_VALUE_ZERO);
             return &m_action;
         }
 
-        verb = (*v)[g_utils.random(v->count())];
+        verb = (*v)[static_cast<unsigned int>(g_utils.random(v->count()))];
         for (int i = 0; i < 5; i++)
             if (verb == beast_combat_action[i].verb) {
                 m_action.set("action", beast_combat_action[i].action);
@@ -147,7 +147,7 @@ CMapping* CChar::query_action()
     };
 
     m_action.set("action", "$N攻击$n的$l。");
-    m_action.set("damage", 0l);
+    m_action.set("damage", MAPPING_VALUE_ZERO);
     // 缺省action
     return &m_action;
 }
@@ -192,7 +192,7 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
     CContainer* env;
     CFightRoom* room;
     char namestr[21], msg[255];
-    int protect;
+    level_t protect;
 
     env = environment();
     if (!env || env->query("no_fight")) return notify_fail("此地禁止战斗!");
@@ -242,7 +242,7 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
 
     if (is_busy()) return notify_fail("你现在正忙着。");
 
-    protect = env->query("pk_protect");
+    protect = static_cast<level_t>(env->query("pk_protect"));
     if (protect && who->query_attr(CChar::IS_USER) && query("level") > protect
         && who->query("level") <= protect)
 
@@ -260,8 +260,8 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
     room->set_name(namestr);
 
     //----------------------------------------
-    // 坐标信息
-    int32_t x = 0, y = 0;
+    // 坐标信息（存取都走槽位，按槽位宽承载）
+    mapping_value_t x = 0, y = 0;
     if (strlen(arg)) {
         char szY[40];
         analyse_string(arg, szY, 40);
@@ -291,14 +291,14 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
         who->set_temp("fight/owner", object_id());
     }
 
-    // 环境内其他本帮派的加入战斗。
+    // 环境内与受害者同门派的 NPC 加入战斗：只认门派非空且与受害者同门派者，
+    // 由它站进受害者一队（join <房> 1）；攻方门派不参与此判定。
     if (!is_user(who)) {
         DTItemList search;
-        const char *bangpai, *mbang, *ebang;
+        const char *bangpai, *ebang;
 
         copy_list(&search, env->get_item_list());
 
-        mbang = querystr("family/family_name");
         ebang = who->querystr("family/family_name");
 
         for (auto val : search) {
@@ -313,6 +313,7 @@ int CChar::cmd_hit_ob(CChar* who, char* arg)
                 }
             }
 
+            // 杀意名单：不看门派、不分玩家与 NPC，有账的一方站敌对的一队
             if (static_cast<CChar*>(msprite)->is_killing(this))
                 static_cast<CChar*>(msprite)->command(
                     snprintf(msg, 255, "join %d 1", room->object_id()));

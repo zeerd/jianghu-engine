@@ -7,12 +7,23 @@
 #include <algorithm>
 #include <string>
 
+// 无库态契约：校验器这类无头进程没有 g_db（服务器态恒有）。此时 db_* 必须
+// 降级成脚本本来就按其分支处理的失败形态（false / nil + 错误串），而不是
+// 解引用空指针——「没有数据库」是合法状态，不是异常。
+static const char* kNoDatabase = "no database";
+
 // 全局：db_execute(sql) -> boolean - 执行 DDL/DML 语句
 
 int l_db_execute(lua_State* L)
 
 {
     const char* sql = luaL_checkstring(L, 1);
+
+    if (!g_db) {
+        lua_pushboolean(L, 0);
+        lua_pushstring(L, kNoDatabase);
+        return 2;
+    }
 
     int ret_code = g_db->execute(sql);
 
@@ -65,6 +76,12 @@ int l_db_query(lua_State* L)
 {
     const char* sql = luaL_checkstring(L, 1);
 
+    if (!g_db) {
+        lua_pushnil(L);
+        lua_pushstring(L, kNoDatabase);
+        return 2;
+    }
+
     DbResultSet result;
 
     int ret_code = g_db->query(sql, result);
@@ -87,9 +104,9 @@ int l_db_query(lua_State* L)
         lua_newtable(L);
 
         for (size_t j = 0; j < row.columns.size(); j++) {
-            lua_pushlstring(L, row[j].c_str(), row[j].size());
+            lua_pushlstring(L, row[j].c_str(), static_cast<int>(row[j].size()));
 
-            lua_rawseti(L, -2, j + 1);
+            lua_rawseti(L, -2, static_cast<int>(j) + 1);
         }
 
         lua_rawseti(L, -2, i + 1);

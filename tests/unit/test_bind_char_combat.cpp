@@ -1,5 +1,4 @@
 // test_bind_char_combat.cpp — binds in CharCombat.cpp + CharState.cpp +
-
 // CharFight.cpp + Char.cpp + CharFlush.cpp + CharSave.cpp
 
 #include "test_bind_common.h"
@@ -21,6 +20,8 @@
 #include "test_state_recorder.h"
 
 #include "test_state_recorder.h"
+
+#include "../config/MainConfig.h"
 
 class BindCharCombatTest : public BindTest {
 protected:

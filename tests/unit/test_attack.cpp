@@ -89,14 +89,14 @@ struct AttackTestPeer {
 //  生产实现 CLuaNpcT 从脚本读取消息，虚接口签名与此一致。
 // ====================================================================
 struct HitMsgChar : public CChar {
-    const char* hit_ob(CChar*, CChar*, int32_t) override
+    const char* hit_ob(CChar*, CChar*, damage_t) override
     {
         return "自身特殊命中消息。";
     }
 };
 
 struct HitMsgItem : public CItem {
-    const char* hit_ob(CChar*, CChar*, int32_t) override
+    const char* hit_ob(CChar*, CChar*, damage_t) override
     {
         return "武器特殊命中消息。";
     }
@@ -599,9 +599,9 @@ TEST_F(FamilySetTest, CalculateDamage_GainsCombatExpForBothSides)
     victim.set("max_hp",
                (long)0);  // RANDOM(max_hp+hp)=0 < damage → 受伤方经验恒触发
 
-    bool meGained   = false;
-    int meExpGained = 0;
-    int attempts    = 0;
+    bool meGained     = false;
+    exp_t meExpGained = 0;
+    int attempts      = 0;
     for (int i = 0; i < 1000 && !meGained; ++i) {
         ++attempts;
         AttackContext ctx;

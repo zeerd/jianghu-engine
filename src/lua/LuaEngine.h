@@ -41,6 +41,9 @@ struct LuaScript {
     long long mtime;            // 最近一次观测到的文件最后写时间（FILETIME，
                                 // 100ns 粒度，快速过滤用——秒级比较会漏掉
                                 // 同秒内的二次编辑；读不到记 0）
+    long long file_size;        // 最近一次观测到的文件字节数（与 mtime 同为
+                                // 快筛指纹：连续写入可能落在同一时钟刻度，
+                                // 大小不同仍可判变；读不到记 0）
     bool loaded;                // 是否已成功加载
     bool hasError;              // 是否有语法/加载错误
     bool fromDefault;           // 是否来自默认脚本目录（不参与热重载）
@@ -52,6 +55,7 @@ struct LuaScript {
           ref(LUA_NOREF),
           contentHash(0),
           mtime(0),
+          file_size(0),
           loaded(false),
           hasError(false),
           fromDefault(false),
@@ -124,7 +128,10 @@ public:
 
     // 重载所有已加载脚本。返回重载失败的条目数（0 = 全部成功），
     // 供「reload all」回执如实上报部分失败。
-    int reload_all_scripts();
+    // force 放开默认根保护：默认目录脚本（fromDefault）是随引擎发行的
+    // 生产基线，自动重载与普通 reload all 都跳过它；force 供调试默认根
+    // 内容时显式越权，改完即整树换新、无需重启。
+    int reload_all_scripts(bool force = false);
 
     // 检查所有已加载脚本是否有变化，自动重载（供心跳调用）
     // 失败尝试会落观测态：已缺失/损坏的文件在再次变化前不重试、不刷屏

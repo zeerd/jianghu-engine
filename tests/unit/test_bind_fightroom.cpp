@@ -4,6 +4,7 @@
 #include "User.h"
 #include "HeartBeat.h"  // set_heart_beat_obj 收尾
 #include "Room.h"
+#include "../config/MainConfig.h"
 
 class BindFightRoomTest : public BindTest {
 protected:
@@ -14,8 +15,6 @@ protected:
         fr.set_name("fight", "fr1");
     }
 };
-
-extern int l_get_fight_team_num(lua_State* L);  // decl name differs from source
 
 // observer user: counts client pushes (broadcast witness)
 class BindCountingUser : public CUser {

@@ -80,9 +80,9 @@ void CRoom::get_info(char* str, CChar* me)
 {
     char tmp[512], msg[255];
 
-    snprintf(tmp, 255, "N=%s&I=%s&P=%d&a=%d&U=%d&W=%d&", name(), id(),
-             query("icon"), query_amount(), query_attr(CChar::UPDATE),
-             weight());
+    snprintf(tmp, 255, "N=%s&I=%s&P=%lld&a=%lld&U=%d&W=%lld&", name(), id(),
+             (long long)query("icon"), (long long)query_amount(),
+             query_attr(CChar::UPDATE), (long long)weight());
 
     if (EQUALSTR(querystr("status"), "locked")) {
         strcat(tmp, snprintf(msg, 40, "l=%s&", querystr("reason")));

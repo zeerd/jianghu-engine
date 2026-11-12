@@ -1,4 +1,4 @@
-﻿/** @file StringUtil.cpp @brief 通用字符串工具函数  */
+/** @file StringUtil.cpp @brief 通用字符串工具函数  */
 
 #include "StringUtil.h"
 #include "../object/Global.h"
@@ -66,7 +66,7 @@ char* get_value(const char* cmd_str, const char* keyword, char* pValue,
 
     pKey += strlen(szKeyWord);
 
-    nCopyLen = strchr(pKey, '&') - pKey;
+    nCopyLen = static_cast<int>(strchr(pKey, '&') - pKey);
 
     if (nCopyLen <= 0) return pValue;
 
@@ -97,7 +97,7 @@ char* decode_str(char* msg)
     int p = 0, t = 0;
     const char* decode = comm_key();
 
-    int len = strlen(decode);
+    int len = static_cast<int>(strlen(decode));
     while (msg[p]) {
         if (msg[p] != ' ' && msg[p] != '\n' && msg[p] != '\t') {
             msg[p] ^= decode[t];
@@ -112,20 +112,6 @@ char* decode_str(char* msg)
         if (t >= len) t = 0;
     }
     return msg;
-}
-
-//---------------------------------------------------------
-// 校验字符串合法性
-//---------------------------------------------------------
-int valid_string(const char* msg)
-{
-    int p = 0;
-    while (msg[p]) {
-        if (msg[p] == '\"') return notify_fail("不能含有引号!");
-        p++;
-    }
-
-    return 1;
 }
 
 void normalize_password(char* pass)
@@ -149,18 +135,4 @@ int cc_strcmp(const char* str1, const char* str2)
     else {
         return strcmp(str1, str2);
     }
-}
-
-//---------------------------------------------------------
-// [LuaBind] auto-managed bindings
-//---------------------------------------------------------
-#include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// valid_string(msg) -> number - 校验文本不含引号，合法返回1，否则 notify_fail
-// 返回0
-int l_valid_string(lua_State* L)
-{
-    const char* msg = luaL_checkstring(L, 1);
-    lua_pushinteger(L, valid_string(msg));
-    return 1;
 }

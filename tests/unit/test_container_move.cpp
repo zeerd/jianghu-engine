@@ -8,9 +8,9 @@
 
 //
 
-// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=Win32
+// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=x64
 
-// Run:    tests\Debug\tests.exe --gtest_filter=ContainerMove*
+// Run:    x64\Debug\tests.exe --gtest_filter=ContainerMove*
 
 //
 

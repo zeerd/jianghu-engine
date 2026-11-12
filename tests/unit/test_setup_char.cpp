@@ -40,7 +40,7 @@ protected:
         return me;
     }
 
-    static long MaxHpWith(bool force_add_hp)
+    static mapping_value_t MaxHpWith(bool force_add_hp)
     {
         ApplyConfig(force_add_hp);
         CChar* me = MakeHuman();
@@ -55,7 +55,7 @@ protected:
 
 TEST_F(SetupCharTest, ForceAddHpOff_UsesBaseFormulaOnly)
 {
-    long off = MaxHpWith(false);
+    mapping_value_t off = MaxHpWith(false);
 
     // hp = con(20)，level=10，age=30 -> 300 + 10*20*3 + (30-14)*20
     EXPECT_EQ(off, 1220);
@@ -63,8 +63,8 @@ TEST_F(SetupCharTest, ForceAddHpOff_UsesBaseFormulaOnly)
 
 TEST_F(SetupCharTest, ForceAddHpOn_BoostsMaxHpByForceSkill)
 {
-    long off = MaxHpWith(false);
-    long on  = MaxHpWith(true);
+    mapping_value_t off = MaxHpWith(false);
+    mapping_value_t on  = MaxHpWith(true);
 
     EXPECT_GT(on, off) << "force_add_hp 打开时内功等级应计入最大气血";
 }
@@ -92,7 +92,7 @@ TEST_F(SetupCharTest, Beast_RaceDispatch_FillsUnitAttrsAndAgeLadder)
     }
 
     // 年龄三段阶梯：<=5 / <=20 / 其余（level=10）
-    long expected;
+    mapping_value_t expected;
     if (age <= 5)
         expected = 150;
     else if (age <= 20)

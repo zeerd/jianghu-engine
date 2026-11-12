@@ -275,7 +275,7 @@ int CCmdUser::counting(CMapping* players, const char* myvariable)
         CMapping* m = players->querymap(v[i]);
         if (!m) continue;
 
-        CUser* obj = find_player(m->query("obj"));
+        CUser* obj = find_player(static_cast<object_id_t>(m->query("obj")));
 
         if (!obj)  // this player has logged out.
         {
@@ -319,7 +319,7 @@ void CCmdUser::nullify_vote(CContainer* ob, int32_t vote_id, int32_t param2)
 int CCmdUser::nick_name(CChar* me, int32_t target, char* arg)
 {
     char msg[80];
-    int len = strlen(arg);
+    int len = static_cast<int>(strlen(arg));
     if (len < 1 || len > 20) return notify_fail("起个响亮点的绰号！");
 
     const char* ptr;
@@ -398,7 +398,7 @@ int CCmdUser::accept(CChar* me, int32_t target, char* arg)
 // 刷新玩家收徒经验
 int CCmdUser::recruit_exp(CChar* me, int32_t target, char* arg)
 {
-    int32_t recruit_exp = 0;
+    exp_t recruit_exp = 0;
     char msg[255];
 
     const char* master = me->id(1);
@@ -428,10 +428,10 @@ int CCmdUser::recruit_exp(CChar* me, int32_t target, char* arg)
 
     for (int i = 0; i < v.count(); i++) {
         CMapping* p = ptr->querymap(v[i]);
-        tell_object(me,
-                    snprintf(msg, 255, "徒弟%s(%s)贡献经验：%ld。(%s)",
-                             p->querystr("name"), v[i], p->query("exp") / 100,
-                             p->query("apprentice") ? "弟子" : "----"));
+        tell_object(me, snprintf(msg, 255, "徒弟%s(%s)贡献经验：%lld。(%s)",
+                                 p->querystr("name"), v[i],
+                                 (long long)(p->query("exp") / 100),
+                                 p->query("apprentice") ? "弟子" : "----"));
 
         recruit_exp += (p->query("exp") / 100);
     }
@@ -443,7 +443,8 @@ int CCmdUser::recruit_exp(CChar* me, int32_t target, char* arg)
 
     me->flush_my_info();
 
-    tell_object(me, snprintf(msg, 255, "你的收徒经验共计%d。", recruit_exp));
+    tell_object(me, snprintf(msg, 255, "你的收徒经验共计%lld。",
+                             (long long)recruit_exp));
     return 1;
 }
 

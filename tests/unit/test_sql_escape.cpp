@@ -14,6 +14,7 @@
 #include "Sql.h"
 #include "SqlEscape.h"
 #include "mock/mock_database.h"
+#include "../config/MainConfig.h"
 
 extern IDatabase* g_db;
 
@@ -98,7 +99,7 @@ TEST_F(DbEscapeTest, SaveContainer_DoublesQuoteInData)
 TEST_F(DbEscapeTest, SaveContainer_DoublesQuoteInData_2)
 {
     ASSERT_TRUE(
-        db_save_container("t_saveobj", "1001_0", "sw'ord", "s'a\"b", false));
+        db_save_container("t_item", "1001_0", "sw'ord", "s'a\"b", false));
     std::string sql = db->GetLastSql();
     EXPECT_NE(sql.find("'sw''ord'"), std::string::npos) << sql;
     EXPECT_NE(sql.find("'s''a\"b'"), std::string::npos) << sql;
@@ -151,7 +152,8 @@ TEST_F(DbEscapeTest, EndToEnd_JsonWithSpecialCharsSurvivesDb)
 
     // 读回的字节再 load_buffer，特殊字符无损。
     CMapping back;
-    ASSERT_GT(back.load_buffer(extract_obj_data(sql).c_str()), 0L);
+    ASSERT_GT(back.load_buffer(extract_obj_data(sql).c_str()),
+              MAPPING_VALUE_ZERO);
     EXPECT_STREQ(back.querystr("name"), "zhang\"san");
     EXPECT_EQ(back.query("path/a"), 42);
     EXPECT_STREQ(back.querystr("note"), "it's a \\ test");

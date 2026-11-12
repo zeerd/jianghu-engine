@@ -21,7 +21,8 @@ void rank_fill(const char* phase, CChar* a, CChar* b, std::string& out)
 }
 
 // 外貌询问：a 为性别字符串、b 为容貌值。
-void waimao_fill(const std::string& gender, int per, std::string& out)
+void waimao_fill(const std::string& gender, mapping_value_t per,
+                 std::string& out)
 {
     out.clear();
     CLuaHookCall hook("rank_rule");
@@ -82,7 +83,7 @@ const char* query_self_close(CChar* me, CChar* ob)
     return buf.c_str();
 }
 
-const char* query_waimao(string gender, int per)
+const char* query_waimao(string gender, mapping_value_t per)
 {
     static std::string buf;
     waimao_fill(gender, per, buf);

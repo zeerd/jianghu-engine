@@ -9,6 +9,8 @@
 
 #include "Mapping.h"
 
+#include <type_traits>
+
 /**
  * @brief 游戏对象基类，封装名称、属性映射（CMapping）与基础 CRUD。
  */
@@ -68,6 +70,13 @@ public:
     {
         if (!this) return;
         _M.set(key, value);
+    }
+
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    void set(const char* key, T value)
+    {
+        if (!this) return;
+        _M.set(key, static_cast<mapping_value_t>(value));
     }
 
     void set(const char* key, const char* value)
@@ -134,6 +143,13 @@ public:
     {
         if (!this) return;
         _T.set(key, value);
+    }
+
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    void set_temp(const char* key, T value)
+    {
+        if (!this) return;
+        _T.set(key, static_cast<mapping_value_t>(value));
     }
 
     void set_temp(const char* key, mapping_value_t value)

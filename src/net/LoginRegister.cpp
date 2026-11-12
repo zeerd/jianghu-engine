@@ -112,18 +112,3 @@ int check_valid_char(char* arg)
     }
     return 1;
 }
-
-//---------------------------------------------------------
-// [LuaBind] auto-managed bindings
-//---------------------------------------------------------
-#include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// check_legal_name(name) -> string - 校验名字，非法返回错误信息，合法返回 ""
-// C++ check_legal_name 内部已优先调用 Lua（login.check_name），此处直接转发
-int l_check_legal_name(lua_State* L)
-{
-    const char* name = luaL_checkstring(L, 1);
-    const char* s    = check_legal_name(name);
-    lua_pushstring(L, s ? s : "");
-    return 1;
-}

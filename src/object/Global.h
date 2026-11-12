@@ -42,7 +42,6 @@
 
 using namespace std;
 
-class CCmdHandle;
 class CContainer;
 class CItem;
 class CNpc;
@@ -153,7 +152,6 @@ extern CAutoFight g_auto_fight;            // NPC Auto-Fight AI
 extern CCombatAnnounce g_combat_announce;  // Combat Announcements
 extern CCombatConfig g_combat_config;      // Combat System Config
 extern const char* g_color[13];
-extern CCmdHandle g_command_handler;
 
 extern int32_t g_last_destruct_object;  // 上次被销毁的物件。
 

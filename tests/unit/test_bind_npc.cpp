@@ -61,7 +61,7 @@ TEST_F(BindNpcTest, WieldOwneredItem)
     ItemFactory f(&mgr);
     lua_bind_push_object(L, &npc);
     lua_pushstring(L, "sword");
-    EXPECT_EQ(0, CallRetCount(l_wield_ownered_item, 2));
+    EXPECT_EQ(0, call_method(L, "wield_ownered_item", 2));
     // 契约：携带的物品确实进入背包（工厂 id="item"）
     EXPECT_NE(npc.present("item"), nullptr);
 }

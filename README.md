@@ -30,28 +30,29 @@ C++ 实现核心驱动（网络、战斗、属性、持久化等），具体游�
 
 ## 构建
 
-仅支持 **Win32**（x64 版本暂不可用）。使用 Visual Studio 2026 打开
+支持 **Win32** 与 **x64**，默认（生产同构）的是 **x64**。使用 Visual Studio 2026 打开
 `jianghu.sln`，或命令行：
 
 ```cmd
-msbuild jianghu.sln /p:Configuration=Release /p:Platform=Win32
+msbuild jianghu.sln /p:Configuration=Release /p:Platform=x64
 ```
 
 解决方案包含六个工程：
 
 引擎：
 
-- `jianghu` — 服务端可执行程序，输出到 `bin\jianghu.exe`
+- `jianghu` — 服务端可执行程序，x64 输出到 `x64\Release\jianghu.exe`（Win32 输出到 `bin\jianghu.exe`）
 - `jianghu_core` — 核心静态库（服务器与测试共用）
 - `tests` — 引擎单元测试程序
 
 CLI 客户端（详见 [CLI 客户端](#cli-客户端)）：
 
-- `jianghu_cli` — 客户端可执行程序，输出到 `bin\cli\jianghu_cli.exe`
+- `jianghu_cli` — 客户端可执行程序，x64 输出到 `bin\cli\x64\jianghu_cli.exe`（Win32 输出到 `bin\cli\jianghu_cli.exe`）
 - `jianghu_cli_lib` — 客户端核心静态库
 - `jianghu_cli_tests` — 客户端单元测试程序
 
-运行需要 `bin\libmySQL.dll`（MySQL 客户端运行库）。
+运行需要 `libmySQL.dll`（MySQL 客户端运行库）：构建时随 PostBuildEvent 复制到
+输出目录；单元测试另需仓库根的 `libmySQL.dll`，其架构必须与被测平台一致。
 
 ## 运行
 
@@ -95,7 +96,7 @@ jianghu.exe --check-lua [--config <ini>] [--dir <path>] <file.lua> ...
 ### 构建
 
 Windows 并入本解决方案（`jianghu_cli_lib` / `jianghu_cli` /
-`jianghu_cli_tests`，产物在 `bin\cli\`）。
+`jianghu_cli_tests`，产物在 `bin\cli\`（Win32）与 `bin\cli\x64\`（x64））。
 
 Linux（POSIX）下是独立的 CMake 工程：
 
@@ -115,7 +116,7 @@ API，无需 iconv。
 ### 运行
 
 ```
-jianghu_cli.exe [-h] [--dbg] [--config file]   # Windows，bin\cli\
+jianghu_cli.exe [-h] [--dbg] [--config file]   # Windows，bin\cli\x64\
 ./jianghu       [-h] [--dbg] [--config file]   # Linux
 ```
 
@@ -163,9 +164,9 @@ CLI 测试源码放在 `cli/tests/`（`<功能>_test.cc`）。
 `run-integration-tests.ps1`，剧本与专用配置在 `tests/integration/`。
 
 `run-coverage.ps1` 是唯一认可的单元测试编译与运行方式：它分别构建并运行
-引擎测试（`Release\tests.exe`）与 CLI 测试
-（`bin\cli\jianghu_cli_tests.exe`），再以 `--input_coverage` 合并两套
-覆盖率，生成统一的报告与增量（Release|Win32 生产同构配置 +
+引擎测试（`x64\Release\tests.exe`）与 CLI 测试
+（`bin\cli\x64\jianghu_cli_tests.exe`），再以 `--input_coverage` 合并两套
+覆盖率，生成统一的报告与增量（Release|x64 生产同构配置 +
 OpenCppCoverage）。Debug 构建的引擎测试内置 `TestConfigGate`，运行
 即报错——Debug 结果不作验收依据。
 

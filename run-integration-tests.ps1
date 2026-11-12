@@ -1,7 +1,7 @@
 ﻿# run-integration-tests.ps1 — 集成测试入口（lua-sample 多账号并行 E2E）
 #
 # 与单元测试入口 run-coverage.ps1 并列。作用：
-#   1. 构建 Release|Win32 的服务器 bin\e2e\jianghu.exe 与 CLI bin\cli\jianghu_cli.exe；
+#   1. 构建 Release|x64 的服务器 bin\e2e\jianghu.exe 与 CLI bin\cli\x64\jianghu_cli.exe；
 #   2. 用 tests\integration\config.ini 启动真实服务器（服务端命令行 --config 指定配置，
 #      不再临时改写 data\config.ini），独立测试库 + 独立端口；
 #   3. **一次性注册 $Workers 个账号**（并行），再**同时开跑各道剧本**
@@ -85,7 +85,7 @@
 #     但也因此不要把功能测试服务器开在测试端口（tests\integration\config.ini 的 port）上。
 
 param(
-    # CLI 可执行文件；默认 bin\cli\jianghu_cli.exe
+    # CLI 可执行文件；默认 bin\cli\x64\jianghu_cli.exe
     [string]$CliExe = "",
     # 跳过 MSBuild 构建（直接使用现有 bin\e2e\jianghu.exe / CLI）
     [switch]$SkipBuild,
@@ -764,7 +764,7 @@ if (-not [System.IO.Path]::IsPathRooted($DbPath)) { $DbPath = Join-Path $RepoRoo
 $SideDbPath = Get-IniValue $SideConfPath "database" "path"
 if ($SideDbPath -eq "") { throw "无法从 $SideConfPath 解析 [database] path" }
 if (-not [System.IO.Path]::IsPathRooted($SideDbPath)) { $SideDbPath = Join-Path $RepoRoot ($SideDbPath -replace "/", "\") }
-if ($CliExe -eq "") { $CliExe = Join-Path $RepoRoot "bin\cli\jianghu_cli.exe" }
+if ($CliExe -eq "") { $CliExe = Join-Path $RepoRoot "bin\cli\x64\jianghu_cli.exe" }
 
 if ($Simple) {
     Write-Host "== lua-sample 集成测试 · 简单模式（冒烟：网络联通 / 行走 / look）=="
@@ -780,27 +780,29 @@ Write-Host "port     : $Port   db: sqlite $DbPath"
 # --- 构建 -------------------------------------------------------------------
 if (-not $SkipBuild) {
     $msb = Get-MSBuildPath
-    Write-Host "-- 构建服务器与 CLI（Release|Win32）"
+    Write-Host "-- 构建服务器与 CLI（Release|x64）"
     $t0 = Get-Date
-    # CLI 正常输出到 bin\cli\；服务器单独输出到 bin\e2e\（见上 $E2EDir 注释），
+    # CLI 正常输出到 bin\cli\x64\；服务器单独输出到 bin\e2e\（见上 $E2EDir 注释），
     # 使集成测试写自己的 exe，不与正在运行的 bin\jianghu.exe 抢文件锁（LNK1104）。
     # 注意用双写结尾反斜杠：既满足 OutDir 必须以 \ 结尾，又避开 PowerShell 向
     # 原生命令传「单个结尾反斜杠」被吃掉的坑。
-    & $msb $CliProj /p:Configuration=Release /p:Platform=Win32 /m /nologo /verbosity:minimal
+    & $msb $CliProj /p:Configuration=Release /p:Platform=x64 /m /nologo /verbosity:minimal
     if ($LASTEXITCODE -ne 0) { throw "构建失败：$CliProj" }
     New-Item -ItemType Directory -Force -Path $E2EDir | Out-Null
-    & $msb $ServerProj /p:Configuration=Release /p:Platform=Win32 /m "/p:OutDir=$E2EDir\\" /nologo /verbosity:minimal
+    & $msb $ServerProj /p:Configuration=Release /p:Platform=x64 /m "/p:OutDir=$E2EDir\\" /nologo /verbosity:minimal
     if ($LASTEXITCODE -ne 0) { throw "构建失败：$ServerProj" }
     # 虽然 E2E 数据库走 SQLite（sqlite3 静态编入），但 jianghu.exe 仍隐式链接
     # libmysql.lib（非 delay-load），进程启动时加载器就要求 libmySQL.dll 在场——
-    # 故 bin\*.dll 仍随 exe 带到 bin\e2e\。只在目标缺失时复制：bin\e2e\ 可能残留
-    # 上一次未退净的服务器（占着 DLL，脚本稍后在服务启动阶段按测试端口定向回收），
-    # 此时 DLL 已在、无需强写。
-    foreach ($dll in Get-ChildItem (Join-Path $RepoRoot "bin\*.dll") -ErrorAction SilentlyContinue) {
-        $dst = Join-Path $E2EDir $dll.Name
-        if (-not (Test-Path $dst)) {
-            Copy-Item -Path $dll.FullName -Destination $dst -ErrorAction SilentlyContinue
-        }
+    # 正常由 PostBuildEvent 把本平台 3rd 下的 DLL 复制进 $(OutDir)（= bin\e2e\）。
+    # 这里只在它缺席时兜底补一份，兜底源与 PostBuildEvent 同一份 3rd DLL：
+    # 架构正确的唯一判据就是「取本平台那一份」，拿别的目录里的旧副本兜底只会
+    # 让 x64 的 exe 拿到 x86 DLL（193）。
+    # 只在缺失时复制：bin\e2e\ 可能残留上一次未退净的服务器（占着 DLL，脚本稍后
+    # 在服务启动阶段按测试端口定向回收），此时 DLL 已在、无需强写。
+    $MysqlDll = Join-Path $RepoRoot "3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll"
+    $MysqlDllDst = Join-Path $E2EDir "libmysql.dll"
+    if ((Test-Path -LiteralPath $MysqlDll) -and -not (Test-Path -LiteralPath $MysqlDllDst)) {
+        Copy-Item -LiteralPath $MysqlDll -Destination $MysqlDllDst -ErrorAction SilentlyContinue
     }
     $tBuildSec = [int]((Get-Date) - $t0).TotalSeconds
 }

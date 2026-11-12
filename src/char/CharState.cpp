@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharState.cpp
  * @brief implementation of CChar (CharState). */
 
@@ -23,8 +23,8 @@
 #include "Money.h"
 #include "FightRoom.h"
 #include "Corpse.h"
-
 #include "Sql.h"
+#include "../config/MainConfig.h"
 
 // 死了
 void CChar::die()
@@ -44,7 +44,7 @@ void CChar::die()
 
         set("hp", 1);
         set("eff_hp", query("max_hp") / 2);
-        set("mp", 0l);
+        set("mp", MAPPING_VALUE_ZERO);
         message_vision("$N身负重伤，无法再继续战斗，只能回家休养了。", this);
         delete_temp("team/dungeon");
 
@@ -53,7 +53,8 @@ void CChar::die()
             move(room);
         }
         else {
-            LOG_ERROR("用户%s没有环境%ld", name(1), query("start_city"));
+            LOG_ERROR("用户%s没有环境%lld", name(1),
+                      (long long)query("start_city"));
             move(load_room(g_start_room));
         }
 
@@ -70,7 +71,7 @@ void CChar::die()
 
         set("hp", 1);
         set("eff_hp", query("max_hp") / 2);
-        set("mp", 0l);
+        set("mp", MAPPING_VALUE_ZERO);
 
         drop_all(this);
         message_vision(
@@ -122,14 +123,15 @@ void CChar::die()
 
         set("hp", 1);
         set("eff_hp", query("max_hp") / 2);
-        set("mp", 0l);
+        set("mp", MAPPING_VALUE_ZERO);
 
         CRoom* room = load_room(querystr("start_city"));
         if (room) {
             move(room);
         }
         else {
-            LOG_ERROR("用户%s没有环境%ld", name(1), query("start_city"));
+            LOG_ERROR("用户%s没有环境%lld", name(1),
+                      (long long)query("start_city"));
         }
 
         flush_my_info();
@@ -146,8 +148,8 @@ void CChar::unconcious()
 
     message_vision_room(this, "tell", "你的眼前一黑，接着什么也不知道了．．．");
     disable_player("昏迷不醒");
-    set("hp", 0L);
-    set("mp", 0L);
+    set("hp", MAPPING_VALUE_ZERO);
+    set("mp", MAPPING_VALUE_ZERO);
     set_temp("block_msg/all", 1);
     g_combat_announce.announce(this, "unconcious");
     m_revive = g_utils.random(100 - query("con")) + 30;  // 30多心跳后苏醒
@@ -193,8 +195,9 @@ void CChar::send_state(bool broadcast)
     if (!has_client()) return;
 
     msg += snprintf(tmp, static_cast<int>(sizeof(tmp)),
-                    "hp=%ld&mp=%ld&eh=%ld&mm=%ld&", query("hp"), query("mp"),
-                    query("eff_hp"), query("max_mp"));
+                    "hp=%lld&mp=%lld&eh=%lld&mm=%lld&", (long long)query("hp"),
+                    (long long)query("mp"), (long long)query("eff_hp"),
+                    (long long)query("max_mp"));
 
     // 计算攻防
     const char* skill_type = "unarmed";
@@ -227,8 +230,8 @@ void CChar::send_state(bool broadcast)
 
     // 加力
     if (query("mp_factor")) {
-        msg += snprintf(tmp, static_cast<int>(sizeof(tmp)), "jl=%ld&",
-                        query("mp_factor"));
+        msg += snprintf(tmp, static_cast<int>(sizeof(tmp)), "jl=%lld&",
+                        (long long)query("mp_factor"));
     }
 
     send_command(msg.c_str(), SEND_WAIT_IMMEDIATE);
@@ -242,17 +245,17 @@ void CChar::get_state_msg(std::string& msg)
     if (is_fighting()) {
         if (query_temp("fight/fight_team")) msg += "tea=1&";
         if (query_temp("fight/ap")) {
-            msg += snprintf(tmp, static_cast<int>(sizeof(tmp)), "ap=%d&",
-                            query_temp("fight/ap"));
+            msg += snprintf(tmp, static_cast<int>(sizeof(tmp)), "ap=%lld&",
+                            (long long)query_temp("fight/ap"));
         }
     }
     else
         msg += "tea=-1&";
 
-    int max_hp = query("max_hp");
+    hp_t max_hp = query("max_hp");
     if (max_hp) {
-        msg += snprintf(tmp, static_cast<int>(sizeof(tmp)), "sta=%ld&",
-                        query("hp") * 100 / max_hp);
+        ratio_t sta = static_cast<ratio_t>(query("hp") * 100 / max_hp);
+        msg += snprintf(tmp, static_cast<int>(sizeof(tmp)), "sta=%d&", sta);
     }
 
     const char* disable = querystr_temp("disabled");

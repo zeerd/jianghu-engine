@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Message.cpp
  * @brief 信息处理 */
 
@@ -14,7 +14,7 @@
 
 extern MAP2USER g_user_list;  // User List
 
-char* chinese_number(signed long int i, char* msg)
+char* chinese_number(mapping_value_t i, char* msg)
 {
     static char c_digit[][3] = {"零", "十", "百", "千", "万", "亿", "兆"};
     static char c_num[][3]
@@ -483,14 +483,4 @@ int l_message(lua_State* L)
     if (lua_isuserdata(L, 4)) exclude = dynamic_cast<CChar*>(get_object(L, 4));
     if (room) tell_room(room, msg, exclude);
     return 0;
-}
-
-// chinese_number(i) -> string  （Global.h chinese_number：数字转中文数字）
-int l_chinese_number(lua_State* L)
-{
-    signed long int i = (signed long int)luaL_checkinteger(L, 1);
-    static char buf[255];
-    const char* s = chinese_number(i, buf);
-    lua_pushstring(L, s ? s : "");
-    return 1;
 }

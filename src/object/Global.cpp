@@ -4,7 +4,6 @@
 
 #include "Global.h"
 #include "Logger.h"
-#include "CmdHandle.h"
 #include "Channel.h"
 #include "Combatd.h"
 #include "CReward.h"
@@ -17,7 +16,6 @@
 //---------------------------------------------------------
 // 全局对象实例
 //---------------------------------------------------------
-CCmdHandle g_command_handler;
 CChannel g_channel;
 CCombatd g_combatd;
 CReward g_reward;

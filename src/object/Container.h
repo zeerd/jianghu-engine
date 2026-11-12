@@ -36,7 +36,7 @@ public:
     // ========================================================================
     //  标识与属性查询
     // ========================================================================
-    int32_t object_id();
+    object_id_t object_id();
     const char* title(int raw = 0);
     const char* short_desc(int raw = 0);
     const char* long_desc(int raw = 0);
@@ -54,15 +54,15 @@ public:
     // ========================================================================
     //  重量与容量
     // ========================================================================
-    int32_t weight();
-    int32_t query_weight();
-    void set_weight(int32_t weight);
-    int32_t query_encumb();
-    void add_encumbrance(int32_t w);
+    amount_t weight();
+    amount_t query_weight();
+    void set_weight(amount_t weight);
+    amount_t query_encumb();
+    void add_encumbrance(amount_t w);
     int over_encumbranced();
     void over_encumbrance();
-    int32_t query_max_encumbrance();
-    void set_max_encumbrance(int32_t e);
+    amount_t query_max_encumbrance();
+    void set_max_encumbrance(amount_t e);
 
     // ========================================================================
     //  容器层级 / 移动
@@ -90,10 +90,10 @@ public:
     // ========================================================================
     //  数量与叠加
     // ========================================================================
-    virtual void set_amount(int32_t amount);
-    virtual int32_t add_amount(int32_t amount);
-    virtual int32_t query_amount();
-    virtual int32_t query_max_amount();
+    virtual void set_amount(amount_t amount);
+    virtual amount_t add_amount(amount_t amount);
+    virtual amount_t query_amount();
+    virtual amount_t query_max_amount();
 
     // ========================================================================
     //  持久化
@@ -172,14 +172,14 @@ protected:
     // ========================================================================
     //  标识
     // ========================================================================
-    int32_t m_object_id;
+    object_id_t m_object_id;
 
     // ========================================================================
     //  重量与容量
     // ========================================================================
-    int32_t m_weight;
-    int32_t max_encumb;
-    int32_t encumb;
+    amount_t m_weight;
+    amount_t max_encumb;
+    amount_t encumb;
 
     // ========================================================================
     //  容器层级

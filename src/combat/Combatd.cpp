@@ -17,6 +17,7 @@
 
 #include "LuaBindEnums.h"
 #include "LuaHook.h"
+#include "../config/MainConfig.h"
 
 // 战斗之进攻
 void CCombatd::do_attack(CChar* me, CChar* victim, int flag)
@@ -65,7 +66,7 @@ void CCombatd::fight(CChar* me, CChar* victim)
     if (!weapon && prepare_count > 1) {
         me->set_temp("action_flag", 1);
         do_attack(me, victim, TYPE_QUICK);
-        me->set_temp("action_flag", 0l);
+        me->set_temp("action_flag", MAPPING_VALUE_ZERO);
     }
 
     // 追加攻击钩子（hooks.fight）

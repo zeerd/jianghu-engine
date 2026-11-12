@@ -13,11 +13,20 @@
  *  4. 未绑定方法    self:set_verbs(...) / self:Ready_PK() —— 对象元表里只有
  *                   set_beast_verbs / ready_pk，名字或大小写不符即取到 nil。
  *                   同型：Pay_Player 对 pay_player。
+ *                   接收者为 self 时口径更严：self 恒为引擎压入的对象
+ *                   userdata，能取到的只有 jianghu_object 元表的键，脚本表
+ *                   字段（function npc.foo）经 self:foo() 不可达——「某个
+ *                   脚本里定义过」放行只会放走必炸的调用。
  *  5. call_out 目标 数据集 xy_tielao 系把延迟函数写成顶层裸 function（全局）、
  *                   hangzhou_lieyandao 的 do_time 同——名字不在发起脚本的返回
  *                   表里，注册期按名两处都查不到即 LOG_ERROR 拒绝，回调根本
  *                   挂不上。规则见 docs/guide/call_out.md（规则1：写成
  *                   模块名.名字）。
+ *  6. 钩子冒烟      （默认开）静态只能证明"名字存在"，这道把引擎本来就会
+ *                   做的调用真跑一遍：item 的 create / do_use。钩子抛出的
+ *                   错误（引擎侧 pcall 吞掉只写日志）、被脚本自己的 pcall
+ *                   吞掉的错误、模块体执行期错误，一律记为违规。实现见
+ *                   LuaSmokeCheck.cpp。
  *
  *  第 3、4 道必须拿到"引擎到底绑了什么"才有判断依据，故本文件自持调用
  *  lua_bind_init()（幂等），不依赖调用方是否已初始化——历史上 check-lua 只跑
@@ -29,6 +38,8 @@
  *   1. 动态 require（require(name)、require("a" .. b)）只记 NOTE 不判失败；
  *   2. locals 是全文件平面集合：任一处声明过同名 local，这个名字在本文件内
  *      就不再检查——局部与全局同名时会漏检（宁可漏、不可误报的取舍）；
+ *      例外已补：`local X = { ... }` 构造器区间单独识别——X 当时还没有作用域，
+ *      区间内的引用必然是全局读，无条件判违规。
  *   3. 方法消解只看"全语料有没有人定义过这个名字"，不校验目标对象上真的
  *      挂得到，跨对象同名会被放行。
  *   4. 防线5 只检 call_out/call_out_combat 的**字面量**注册名（非字面量实参
@@ -40,6 +51,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <chrono>
 #include <iterator>
 #include <map>
 #include <set>
@@ -47,6 +59,7 @@
 #include <vector>
 
 #include "LuaSyntaxChecker.h"
+#include "LuaSmokeCheck.h"
 #include "LuaEngine.h"
 #include "LuaBind.h"
 #include "IniParser.h"
@@ -415,7 +428,21 @@ struct FileScan {
     std::set<std::string> locals;
     std::set<std::string> defs;
     std::set<std::string> methods;
+    // `local X = { ... }` 的构造器区间（[local 词元, 配对 } 词元)）。
+    // 局部变量的作用域从声明语句**之后**才开始，区间内的 X 解析成全局
+    // （运行期为 nil）——候选收集据此不放行。
+    std::map<std::string, std::vector<std::pair<size_t, size_t>>> init_scope;
 };
+
+// 词元 k 是否落在 `local name = { ... }` 自己的构造器里
+bool inside_own_init(const FileScan& fs, const std::string& name, size_t k)
+{
+    auto it = fs.init_scope.find(name);
+    if (it == fs.init_scope.end()) return false;
+    for (const auto& range : it->second)
+        if (range.first < k && k < range.second) return true;
+    return false;
+}
 
 void analyze_scope(const std::vector<LexTok>& toks, FileScan& fs)
 {
@@ -516,6 +543,27 @@ void analyze_scope(const std::vector<LexTok>& toks, FileScan& fs)
                 }
                 else {
                     break;
+                }
+            }
+            // local X = { ... }：登记构造器区间。区间内引用 X 拿不到局部
+            // 变量（作用域从本语句之后才开始），读到的是全局。
+            if (m + 1 < n && toks[m].kind == LT_OP && toks[m].text == "="
+                && toks[m + 1].kind == LT_OP && toks[m + 1].text == "{") {
+                size_t depth = 0;
+                size_t e     = m + 1;
+                for (; e < n; ++e) {
+                    if (toks[e].kind != LT_OP) continue;
+                    if (toks[e].text == "{")
+                        ++depth;
+                    else if (toks[e].text == "}" && --depth == 0)
+                        break;
+                }
+                if (e < n) {
+                    // 区间从 `=` 起算：声明语句里的名字 token 本身不算引用，
+                    // 否则 `local X = {` 这行会把 X 自己报出来。
+                    for (size_t d = k + 1; d <= m && d < n; ++d)
+                        if (toks[d].kind == LT_NAME)
+                            fs.init_scope[toks[d].text].push_back({m, e});
                 }
             }
             continue;
@@ -930,6 +978,12 @@ struct Cand {
     int line        = 0;
     std::string name;
     bool method = false;
+    // 接收者是 self：self 恒为引擎压入的对象 userdata，解析口径与其它
+    // 接收者（可能是脚本表）不同，见 pass 2 的分流。
+    bool self_recv = false;
+    // 引用落在 `local X = { ... }` 自己的构造器里：X 此刻还没有作用域，
+    // 读到的是全局（nil）——pass 2 直接判违规，不走 all_defs 消解。
+    bool self_init = false;
 };
 
 bool violation_less(const Violation& a, const Violation& b)
@@ -960,10 +1014,20 @@ bool load_baseline(const char* path, Budget& out)
 
 // ======================== 校验入口 ========================
 
+// 毫秒墙钟：TIME 行按阶段拆分耗时，慢在哪一段一眼可见
+static long long elapsed_ms(std::chrono::steady_clock::time_point since)
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now() - since)
+        .count();
+}
+
 int check_lua_files(lua_State* L, const std::vector<std::string>& files,
                     const CheckLuaOptions* opts)
 {
     if (!L) return 1;
+
+    const auto t_start = std::chrono::steady_clock::now();
 
     // 自持绑定：没有绑定表就无从判断"这个名字引擎绑没绑"。
     // lua_bind_init 幂等，调用方已初始化也无副作用。
@@ -979,8 +1043,11 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
     // 白名单（全部读活表）
     std::set<std::string> g_whitelist;
     std::set<std::string> m_static;  // 对象方法 + 标准库冒号方法
+    // 仅对象元表的键：self 上唯一可能存在的方法集合（见 pass 2 分流）
+    std::set<std::string> m_object;
     collect_globals(L, g_whitelist);
     collect_object_methods(L, m_static);
+    collect_object_methods(L, m_object);
     collect_stdlib_methods(L, m_static);
     collect_file_methods(L, m_static);
 
@@ -1062,15 +1129,27 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
             // A2：x:method(
             if (prev && prev->kind == LT_OP && prev->text == ":" && next
                 && next->kind == LT_OP && next->text == "(") {
-                if (fs.locals.count(t.text)) continue;
-                if (m_static.count(t.text)) continue;
-                cands.push_back({i, t.line, t.text, true});
+                // 接收者是 `:` 前的那个 token；`foo():bar()` 没有名字，
+                // 按普通接收者处理。
+                const bool self_recv = k >= 2 && toks[k - 2].kind == LT_NAME
+                                       && toks[k - 2].text == "self";
+                if (self_recv) {
+                    cands.push_back({i, t.line, t.text, true, true, false});
+                    continue;
+                }
+                const bool self_init = inside_own_init(fs, t.text, k);
+                if (!self_init) {
+                    if (fs.locals.count(t.text)) continue;
+                    if (m_static.count(t.text)) continue;
+                }
+                cands.push_back({i, t.line, t.text, true, false, self_init});
                 continue;
             }
 
             if (prev && prev->kind == LT_OP
                 && (prev->text == "." || prev->text == ":"))
-                continue;
+                continue;  // 字段名，不是变量读
+
             if (prev && prev->kind == LT_KW
                 && (prev->text == "local" || prev->text == "function"
                     || prev->text == "goto"))
@@ -1081,11 +1160,24 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
             size_t lhs_end = 0;
             if (assign_lhs(toks, k, lhs_end) > 0)
                 continue;  // 赋值目标（含 a, b = ... 多目标）是写入、不是读取
+
+            // `local X = { ... X.y ... }`：X 在自己的构造器里还没有作用域，
+            // 这里读到的是全局（运行期为 nil）。无条件上报，不看 locals /
+            // 白名单 / all_defs——同名全局存在也只是串到别人的表上。
+            // （写入形态已在上面按 assign_lhs 跳过：`local a = { a = 1 }` 里
+            //  的 `a = 1` 是表字段定义，不是变量读。）
+            if (inside_own_init(fs, t.text, k)) {
+                cands.push_back({i, t.line, t.text, false, false, true});
+                continue;
+            }
+
             if (fs.locals.count(t.text)) continue;
             if (g_whitelist.count(t.text)) continue;
-            cands.push_back({i, t.line, t.text, false});
+            cands.push_back({i, t.line, t.text, false, false, false});
         }
     }
+
+    const auto t_scan = std::chrono::steady_clock::now();
 
     // ---- 定义补充扫描：单文件模式下的跨文件定义 ----
     // 例：city_zeng.lua 用 YOUNG_WOMAN1，它定义在 data/constants.lua；
@@ -1113,14 +1205,41 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
 
     // ---- pass 2：用全量脚本定义消解候选 ----
     for (const Cand& c : cands) {
+        if (c.self_init) {
+            // 作用域规则：局部变量从声明语句之后才可见，`local X = { ... }`
+            // 构造器里的 X 必然读到全局（nil 或串台到别人的表）——不消解、
+            // 不豁免，直接判违规。
+            Violation v;
+            v.line = c.line;
+            v.key  = "I:" + c.name;
+            v.detail = "local '" + c.name
+                       + "' is used inside its own initializer (local "
+                       + c.name + " = {...}); its scope starts after the "
+                         "declaration, so this reads the global";
+            outcomes[c.file_idx].violations.push_back(v);
+            continue;
+        }
         if (c.method) {
-            if (all_methods.count(c.name)) continue;  // 任一脚本已定义
+            if (c.self_recv) {
+                // self 是引擎压入的对象 userdata（lua_bind_push_object →
+                // jianghu_object 元表），脚本表字段在它上面不可达：按名在
+                // 「某个脚本里定义过」放行只会放走必炸的调用，故只认元表键。
+                if (m_object.count(c.name)) continue;
+            }
+            else if (all_methods.count(c.name))
+                continue;  // 任一脚本已定义
             Violation v;
             v.line = c.line;
             v.key  = "M:" + c.name;
-            v.detail = "method '" + c.name
-                       + "' is not bound on the object metatable, not a stdlib "
-                         "':'-call method, and not defined by any script";
+            v.detail = c.self_recv
+                           ? "method '" + c.name
+                                 + "' is not on the object metatable; self is "
+                                   "the engine-pushed object, so script-table "
+                                   "functions cannot resolve through it"
+                           : "method '" + c.name
+                                 + "' is not bound on the object metatable, not "
+                                   "a stdlib ':'-call method, and not defined "
+                                   "by any script";
             outcomes[c.file_idx].violations.push_back(v);
         }
         else {
@@ -1151,6 +1270,29 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         outcomes[c.file_idx].violations.push_back(v);
     }
 
+    // ---- 防线 6：钩子冒烟（默认开，--no-smoke 关）----
+    // 排在基线之前：冒烟翻出的存量错误同样走基线豁免，门禁只拦新增。
+    SmokeReport smoke;
+    long long smoke_ms = 0;
+    if (!opts || opts->smoke) {
+        const auto t_smoke = std::chrono::steady_clock::now();
+        smoke              = smoke_check_items(L, files);
+        smoke_ms           = elapsed_ms(t_smoke);
+
+        std::map<std::string, size_t> by_path;
+        for (size_t i = 0; i < files.size(); ++i) by_path[files[i]] = i;
+        for (const SmokeViolation& sv : smoke.violations) {
+            std::map<std::string, size_t>::const_iterator it
+                = by_path.find(sv.file);
+            if (it == by_path.end()) continue;
+            Violation v;
+            v.line   = 0;  // 冒烟错误没有源码行号，错误信息自带现场
+            v.key    = "S:" + sv.hook;
+            v.detail = sv.hook + ": " + sv.message;
+            outcomes[it->second].violations.push_back(v);
+        }
+    }
+
     // ---- 基线 ----
     Budget budget;
     const bool writing_baseline = opts && opts->write_baseline;
@@ -1177,6 +1319,10 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         }
         o.violations.swap(fresh);
     }
+
+    // resolve = 定义补充扫描 + pass2 + 基线过滤；冒烟夹在中间，单独扣掉
+    const long long resolve_ms = elapsed_ms(t_scan) - smoke_ms;
+    const auto t_output        = std::chrono::steady_clock::now();
 
     // ---- 输出 ----
     // 语法/读取失败是基线豁免不掉的硬错误，写基线模式也必须照报：只顾落盘
@@ -1205,7 +1351,10 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
             }
             if (show_viol) {
                 for (const Violation& v : o.violations) {
-                    printf("  line %d: %s\n", v.line, v.detail.c_str());
+                    if (v.line > 0)
+                        printf("  line %d: %s\n", v.line, v.detail.c_str());
+                    else
+                        printf("  %s\n", v.detail.c_str());  // 冒烟类，无行号
                 }
             }
             if (o.dynamic_count > 0) {
@@ -1226,6 +1375,8 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
                        files[i].c_str(), o.baselined);
             }
             ++failed;
+            // 门禁可能被数据打进崩溃：逐条落盘，崩在哪个文件当场可见
+            fflush(stdout);
             continue;
         }
         if (o.dynamic_count > 0) {
@@ -1245,7 +1396,10 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         }
         printf("OK:   %s\n", files[i].c_str());
         ++success;
+        fflush(stdout);  // 同上：崩溃时能定位到最后一个完成的文件
     }
+
+    const long long output_ms = elapsed_ms(t_output);
 
     // ---- 写基线（存量清理的引导手段；违规本身不判失败）----
     if (writing_baseline) {
@@ -1281,6 +1435,21 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         }
     }
 
+    // ---- 耗时：按阶段拆开，慢在哪一段一眼可见 ----
+    const long long total_ms = elapsed_ms(t_start);
+    const long long scan_ms  = total_ms - elapsed_ms(t_scan);
+    printf(
+        "\nTIME: total %lld ms | scan %lld | resolve %lld | smoke %lld"
+        " | output %lld\n",
+        total_ms, scan_ms, resolve_ms, smoke_ms, output_ms);
+    if (!opts || opts->smoke) {
+        printf(
+            "TIME: smoke: %d script(s) drove %d hook(s), %d skipped,"
+            " slowest %lld ms (%s)\n",
+            smoke.scripts, smoke.hooks, smoke.skipped, smoke.slowest_ms,
+            smoke.slowest_script.c_str());
+    }
+
     printf("\n%d file(s) OK, %d file(s) FAILED\n", success, failed);
     return failed;
 }
@@ -1300,6 +1469,7 @@ int run_lua_checker(const char* cmdLine)
     std::string dirPath;
     std::string baselinePath;
     bool writeBaseline = false;
+    bool smoke         = true;  // 防线6 默认开
     std::vector<std::string> files;
 
     // 旗标顺序无关；其余参数视为待检文件
@@ -1319,6 +1489,13 @@ int run_lua_checker(const char* cmdLine)
             p += 16;
             writeBaseline = true;
         }
+        else if (strncmp(p, "--no-smoke", 10) == 0) {
+            p += 10;
+            smoke = false;
+        }
+        else if (strncmp(p, "--smoke", 7) == 0) {
+            p += 7;  // 兼容写法：冒烟本就是默认开
+        }
         else {
             files.push_back(extract_arg(p));
         }
@@ -1328,7 +1505,11 @@ int run_lua_checker(const char* cmdLine)
         printf(
             "usage: jianghu.exe --check-lua [--config <ini>] [--dir <path>]\n"
             "                    [--baseline <file>] [--write-baseline]\n"
-            "                    <file.lua> ...\n");
+            "                    [--no-smoke]\n"
+            "                    <file.lua> ...\n"
+            "  hook smoke (create/do_use) is ON by default; --no-smoke\n"
+            "  turns it off. Hook errors, errors swallowed by script pcall,\n"
+            "  and module-body errors become violations.\n");
         return 1;
     }
     // 写基线必须知道往哪写：既无 --dir（提供缺省位置）也无 --baseline
@@ -1376,6 +1557,7 @@ int run_lua_checker(const char* cmdLine)
     opts.path_prefix    = dirPath.empty() ? nullptr : dirPath.c_str();
     opts.baseline_path  = baselinePath.empty() ? nullptr : baselinePath.c_str();
     opts.write_baseline = writeBaseline;
+    opts.smoke          = smoke;
     // 跨文件定义的来源：两个脚本根都扫，单文件模式才不会把脚本自定义全局
     // （constants.lua 的图标常量、damage_msg.lua 的全局函数）误报成未绑定
     {

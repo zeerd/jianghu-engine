@@ -19,6 +19,9 @@
 #include "util/IniParser.h"
 #include "resource.h"
 
+// MySQL 版本宏（LIBMYSQL_VERSION）
+#include "mysql_version.h"
+
 // Lua syntax checker mode
 #include "LuaSyntaxChecker.h"
 
@@ -42,8 +45,9 @@ static char g_config_path[1024] = "data/config.ini";
 #define IDC_INFO_VERSION 1001
 #define IDC_INFO_CONFIG  1002
 #define IDC_INFO_PORT    1003
+#define IDC_INFO_MYSQL   1004
 
-// 创建并排版「版本号 / 配置文件 / 端口号」信息面板
+// 创建并排版「版本号 / 配置文件 / 端口号 / MySQL客户端版本」信息面板
 static void create_info_panel(HWND hWnd, HINSTANCE hInstance)
 {
     char buf[1200];
@@ -72,6 +76,15 @@ static void create_info_panel(HWND hWnd, HINSTANCE hInstance)
                           y, w, h, hWnd, (HMENU)(UINT_PTR)IDC_INFO_PORT,
                           hInstance, NULL);
     snprintf(buf, sizeof(buf), "端口号:   %d", g_server_port);
+    SendMessage(item, WM_SETFONT, (WPARAM)font, TRUE);
+    SetWindowText(item, buf);
+    y += h + gap;
+
+    // MySQL 客户端库版本（编译时从 mysql_version.h 获取）
+    item = CreateWindowEx(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_LEFT, x,
+                          y, w, h, hWnd, (HMENU)(UINT_PTR)IDC_INFO_MYSQL,
+                          hInstance, NULL);
+    snprintf(buf, sizeof(buf), "MySQL客户端: %s", LIBMYSQL_VERSION);
     SendMessage(item, WM_SETFONT, (WPARAM)font, TRUE);
     SetWindowText(item, buf);
     y += h + gap;

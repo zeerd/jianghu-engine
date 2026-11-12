@@ -2,8 +2,8 @@
 // rewrite).
 //
 // Migrated from test/test_mapping.cpp to Google Test.
-// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=Win32
-// Run:    tests\Debug\tests.exe
+// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=x64
+// Run:    x64\Debug\tests.exe
 //
 // Notes:
 //   - Uses forward-declared stubs; real implementation compiled as Mapping.cpp
@@ -18,6 +18,7 @@
 #include "gtest/gtest.h"
 #include "CObject.h"
 #include "Mapping.h"
+#include "../config/MainConfig.h"
 
 // ---------------------------------------------------------------------------
 // CVector basics

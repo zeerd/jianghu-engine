@@ -238,7 +238,8 @@ int CCmdWizard::skill_param(CChar* me, int32_t target, char* arg)
     }
 
     if (strcmp(arg0, "query") == 0) {
-        snprintf(arg0, 255, "技能%s参数：%s=%ld", arg, arg1, sk->query(arg1));
+        snprintf(arg0, 255, "技能%s参数：%s=%lld", arg, arg1,
+                 (long long)sk->query(arg1));
         tell_object(me, arg0);
         return 1;
     }
@@ -308,7 +309,7 @@ int CCmdWizard::call(CChar* me, int32_t target, char* arg)
     }
 
     if (strcmp(arg, "query") == 0) {
-        snprintf(arg, 255, "%s=%ld", arg1, who->query(arg1));
+        snprintf(arg, 255, "%s=%lld", arg1, (long long)who->query(arg1));
         tell_object(me, arg);
         return 1;
     }
@@ -339,7 +340,8 @@ int CCmdWizard::call(CChar* me, int32_t target, char* arg)
     }
 
     if (strcmp(arg, "query_temp") == 0) {
-        snprintf(arg, 255, "临时%s=%ld", arg1, who->query_temp(arg1));
+        snprintf(arg, 255, "临时%s=%lld", arg1,
+                 (long long)who->query_temp(arg1));
         tell_object(me, arg);
         return 1;
     }
@@ -383,14 +385,14 @@ int CCmdWizard::restore_exp(CChar* me, int32_t target, char* arg)
     if (!(who = find_player(target))) return notify_fail("没有这个人。");
 
     mapping_value_t exp = who->query("sk_exp");
-    int32_t combat_exp  = who->attr("combat_exp");
+    exp_t combat_exp    = who->attr("combat_exp");
 
     if (exp * 3 < combat_exp)
-        return notify_fail("此人经验%ld，技能经验%ld，不能恢复。", combat_exp,
-                           exp);
+        return notify_fail("此人经验%lld，技能经验%lld，不能恢复。",
+                           (long long)combat_exp, (long long)exp);
 
-    LOG_INFO("恢复%s(%s)的技能经验：%ld -> %ld", who->name(1),
-             who->querystr("id"), exp, exp * 2 / 3);
+    LOG_INFO("恢复%s(%s)的技能经验：%lld -> %lld", who->name(1),
+             who->querystr("id"), (long long)exp, (long long)(exp * 2 / 3));
     who->set("sk_exp", exp * 2 / 3);
     who->flush_my_info();
     tell_object(me, "OK!");
@@ -454,7 +456,8 @@ int CCmdWizard::recruit_exp(CChar* me, int32_t target, char* arg)
     }
 
     if (strcmp(arg, "query") == 0) {
-        snprintf(arg, 255, "玩家%s徒弟：%s=%ld", arg1, arg2, ptr->query(arg2));
+        snprintf(arg, 255, "玩家%s徒弟：%s=%lld", arg1, arg2,
+                 (long long)ptr->query(arg2));
         tell_object(me, arg);
         return 1;
     }
@@ -489,18 +492,19 @@ int CCmdWizard::reward_exp(CChar* me, int32_t target, char* arg)
 
     if (!(who = find_player(target))) return notify_fail("没有这个人。");
 
-    mapping_value_t level = who->query("level");
-    int32_t exp = CChar::level2_exp(level + 1) - CChar::level2_exp(level);
+    level_t level = static_cast<level_t>(who->query("level"));
+    exp_t exp     = CChar::level2_exp(level + 1) - CChar::level2_exp(level);
 
     who->add("combat_exp", exp);
     who->flush_my_info();
     who->save();
 
-    tell_object(who,
-                snprintf(msg, 255, "$HIY你被系统奖励一级经验了！+%d EXP", exp));
-    tell_object(
-        me, snprintf(msg, 255, "%s(%s)被%s(%s)奖励了一级经验。(+%d EXP)",
-                     who->name(1), who->id(1), me->name(1), me->id(1), exp));
+    tell_object(who, snprintf(msg, 255, "$HIY你被系统奖励一级经验了！+%lld EXP",
+                              (long long)exp));
+    tell_object(me,
+                snprintf(msg, 255, "%s(%s)被%s(%s)奖励了一级经验。(+%lld EXP)",
+                         who->name(1), who->id(1), me->name(1), me->id(1),
+                         (long long)exp));
 
     LOG_INFO("%s", msg);
     return 1;
@@ -513,8 +517,8 @@ int CCmdWizard::sub_exp(CChar* me, int32_t target, char* arg)
     CChar* who;
     if (!(who = find_player(target))) return notify_fail("没有这个人。");
 
-    mapping_value_t level = who->query("level");
-    int32_t exp = CChar::level2_exp(level) - CChar::level2_exp(level - 1);
+    level_t level = static_cast<level_t>(who->query("level"));
+    exp_t exp     = CChar::level2_exp(level) - CChar::level2_exp(level - 1);
 
     who->add("combat_exp", -exp);
     who->add("level", -1);
@@ -559,23 +563,39 @@ int CCmdWizard::update(CChar* me, int32_t target, char* arg)
 }
 
 // 热重载 Lua 脚本
-// 用法: reload <脚本名>  或  reload all
+// 用法: reload <脚本名>  或  reload all [force]
+// force 连默认目录（lua-default）脚本一并重载——默认根是随引擎发行的生产
+// 基线，自动热重载与普通 reload all 都跳过它，改它原本要重启；调试默认根
+// 内容时用 force 显式越权。单发 reload <名> 本就不查默认根标志。
 int CCmdWizard::reload_lua(CChar* me, int32_t target, char* arg)
 {
     if (!arg || !arg[0])
-        return notify_fail("用法: reload <脚本名> 或 reload all");
+        return notify_fail("用法: reload <脚本名> 或 reload all [force]");
 
-    if (cc_strcmp(arg, "all") == 0) {
+    // 首词 all → 全量重载；第二词 force → 放开默认根保护；
+    // 第二词非 force 或还有第三词都回用法（静默吞掉会掩盖拼写错误）
+    char verb[32] = "";
+    char opt[32]  = "";
+    char extra[4] = "";
+    int tokens    = sscanf(arg, "%31s %31s %3s", verb, opt, extra);
+    if (cc_strcmp(verb, "all") == 0) {
+        if (tokens != (opt[0] ? 2 : 1)
+            || (opt[0] && cc_strcmp(opt, "force") != 0))
+            return notify_fail("用法: reload <脚本名> 或 reload all [force]");
+        bool force = cc_strcmp(opt, "force") == 0;
         // 重载所有已加载脚本；部分失败必须在回执里点出来（失败条目保留旧版本）
-        extern int lua_reload_all();
-        int failed = lua_reload_all();
+        extern int lua_reload_all(bool force);
+        int failed        = lua_reload_all(force);
+        const char* scope = force ? "（含默认目录）" : "";
         if (failed > 0)
-            tell_object(me, snprintf(arg, 255,
-                                     "所有 Lua 脚本已重载，%d 个失败（保留旧版"
-                                     "本）。",
-                                     failed));
+            tell_object(me,
+                        snprintf(arg, 255,
+                                 "所有 Lua 脚本已重载%s，%d 个失败（保留旧版"
+                                 "本）。",
+                                 scope, failed));
         else
-            tell_object(me, "所有 Lua 脚本已重载。");
+            tell_object(me,
+                        snprintf(arg, 255, "所有 Lua 脚本已重载%s。", scope));
         return 1;
     }
 

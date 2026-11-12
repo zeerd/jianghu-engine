@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharCombat.cpp
  * @brief implementation of CChar (CharCombat). */
 
@@ -37,9 +37,9 @@ static void notify_receive(CChar* me, const char* kind, CChar* who,
     hook.call();
 }
 
-int32_t CChar::receive_damage(const char* szType, int32_t damage, CChar* who)
+damage_t CChar::receive_damage(const char* szType, damage_t damage, CChar* who)
 {
-    int val;
+    damage_t val;
 
     if (damage <= 0) return 0;
     if (DIFFERSTR(szType, "hp") && DIFFERSTR(szType, "mp")) return 0;
@@ -87,9 +87,9 @@ int32_t CChar::receive_damage(const char* szType, int32_t damage, CChar* who)
     return damage;
 }
 
-int32_t CChar::receive_wound(const char* type, int32_t damage, CChar* who)
+damage_t CChar::receive_wound(const char* type, damage_t damage, CChar* who)
 {
-    int32_t val;
+    damage_t val;
     char eff_key[20];
 
     if (damage <= 0) return 0;
@@ -138,9 +138,9 @@ int32_t CChar::receive_wound(const char* type, int32_t damage, CChar* who)
     return damage;
 }
 
-int32_t CChar::receive_curing(const char* szType, int32_t heal)
+damage_t CChar::receive_curing(const char* szType, damage_t heal)
 {
-    int max, val;
+    damage_t max, val;
     char max_key[20], eff_key[20];
 
     if (heal < 0) return 0;
@@ -152,17 +152,17 @@ int32_t CChar::receive_curing(const char* szType, int32_t heal)
     val = query(eff_key);
     max = query(max_key);
 
-    int applied = val + heal > max ? max - val : heal;
+    damage_t applied = val + heal > max ? max - val : heal;
     set(eff_key, val + applied);
 
     if (applied > 0) notify_receive(this, "curing", NULL, szType, applied);
     return applied;
 }
 
-int32_t CChar::receive_healing(const char* szType, int32_t heal)
+damage_t CChar::receive_healing(const char* szType, damage_t heal)
 {
-    int val;
-    int eff;
+    damage_t val;
+    damage_t eff;
     const char* eff_key;
 
     if (heal < 0) return 0;
@@ -179,7 +179,7 @@ int32_t CChar::receive_healing(const char* szType, int32_t heal)
     // 如果val > nEff，不补。
     if (val >= eff) return 0;
 
-    int applied = val + heal > eff ? eff - val : heal;
+    damage_t applied = val + heal > eff ? eff - val : heal;
     set(szType, val + applied);
 
     if (applied > 0) notify_receive(this, "healing", NULL, szType, applied);
@@ -201,7 +201,8 @@ void CChar::start_busy(BUSYFUNCTION* new_busy, INTERRUPTFUNCTION* new_interrupt)
     send_state(false);
 }
 
-void CChar::start_busy(int start, INTERRUPTFUNCTION* new_interrupt, CChar* src)
+void CChar::start_busy(count_t start, INTERRUPTFUNCTION* new_interrupt,
+                       CChar* src)
 {
     if (!start || !this) return;
 
@@ -283,8 +284,8 @@ void CChar::remove_all_killer()
 
 void CChar::attack(CChar* opponent) { g_combatd.fight(this, opponent); }
 
-int32_t CChar::receive_poison(const char* type, int32_t damage,
-                              const char* condi)
+damage_t CChar::receive_poison(const char* type, damage_t damage,
+                               const char* condi)
 {
     char key2[255];
     snprintf(key2, 255, "condition/who_%s", condi);

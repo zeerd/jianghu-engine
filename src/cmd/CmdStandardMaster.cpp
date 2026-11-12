@@ -2,6 +2,7 @@
 #include "../skill/Skill.h"
 #include "../npc/Npc.h"
 #include "LuaHook.h"
+#include "../config/MainConfig.h"
 
 int CCmdStandard::apprentice(CChar* me, int32_t target, char* arg)
 {
@@ -44,7 +45,7 @@ int CCmdStandard::apprentice(CChar* me, int32_t target, char* arg)
                 "$N决定投入$n门下！！$N跪了下来向$"
                 "n恭恭敬敬地磕了四个响头，叫道：「师父！」",
                 me, who);
-            me->set("score", 0L);
+            me->set("score", MAPPING_VALUE_ZERO);
         }
         else
             message_vision(
@@ -56,9 +57,9 @@ int CCmdStandard::apprentice(CChar* me, int32_t target, char* arg)
         who->delete_temp("pending/recruit");
 
         tell_object(who, "恭喜你新收了一名弟子！");
-        tell_object(me, snprintf(msg, 255, "恭喜您成为%s的第%ld代弟子。",
+        tell_object(me, snprintf(msg, 255, "恭喜您成为%s的第%lld代弟子。",
                                  me->querystr("family/family_name"),
-                                 me->query("family/generation")));
+                                 (long long)me->query("family/generation")));
         return 1;
     }
 
@@ -133,7 +134,7 @@ int CCmdStandard::recruit(CChar* me, int32_t target, char* arg)
                 "$N决定投入$n门下！！\n$N跪了下来向$"
                 "n恭恭敬敬地磕了四个响头，叫道：「师父！」",
                 me, who);
-            who->set("score", 0L);
+            who->set("score", MAPPING_VALUE_ZERO);
         }
         else {
             message_vision(
@@ -146,9 +147,9 @@ int CCmdStandard::recruit(CChar* me, int32_t target, char* arg)
         who->delete_temp("pending/apprentice");
 
         tell_object(me, "恭喜你新收了一名弟子！");
-        tell_object(who, snprintf(msg, 255, "恭喜您成为%s的第%ld代弟子。",
+        tell_object(who, snprintf(msg, 255, "恭喜您成为%s的第%lld代弟子。",
                                   who->querystr("family/family_name"),
-                                  who->query("family/generation")));
+                                  (long long)who->query("family/generation")));
         return 1;
     }
 
@@ -266,11 +267,12 @@ int CCmdStandard::teach(CChar* me, int32_t target, char* arg)
 
         skills->keys(v);
         for (int i = 0; i < v.count(); i++) {
-            int32_t need_points = who->skill_need_points(v[i]);
+            count_t need_points = who->skill_need_points(v[i]);
 
             sk = load_skill(v[i]);
 
-            sprintf(skill_name, "%-20s %d", sk->name(1), need_points / pt + 1);
+            sprintf(skill_name, "%-20s %lld", sk->name(1),
+                    (long long)(need_points / pt + 1));
             who->add_menu_item(skill_name,
                                snprintf(cmd, 80, "$0teach $1 %s", v[i]), me);
         }
@@ -318,16 +320,16 @@ int CCmdStandard::teach(CChar* me, int32_t target, char* arg)
             "你的爱侣学习潜力已经发挥到头了。还是帮助对方再历练历练吧。");
 
     // 现在计算所需的经验
-    int32_t need_points = who->skill_need_points(arg);
-    int32_t need_exp    = need_points / who->learn_bonus() + 1;
+    count_t need_points = who->skill_need_points(arg);
+    exp_t need_exp      = need_points / who->learn_bonus() + 1;
 
     // 计算玩家的经验够不够
     if (who->query_valid_exp() < need_exp)
-        return notify_fail("学习%s还需%ld点经验，%s需要再历练历练。",
-                           sk->name(1), need_exp, who->name());
+        return notify_fail("学习%s还需%lld点经验，%s需要再历练历练。",
+                           sk->name(1), (long long)need_exp, who->name());
     if (me->query_valid_exp() < need_exp)
-        return notify_fail("教会%s还需%ld点经验，你需要再历练历练。",
-                           sk->name(1), need_exp);
+        return notify_fail("教会%s还需%lld点经验，你需要再历练历练。",
+                           sk->name(1), (long long)need_exp);
 
     char msg[255];
 
@@ -453,8 +455,9 @@ int CCmdStandard::learn(CChar* me, int32_t target, char* arg)
         return 0;
     }
     if (is_user(who)) {
-        int max_leran = 400;
-        if (sk->query("max_learan")) max_leran = sk->query("max_learan");
+        skill_level_t max_leran = 400;
+        if (sk->query("max_learan"))
+            max_leran = static_cast<skill_level_t>(sk->query("max_learan"));
 
         if (my_skill > max_leran) {
             who->say(
@@ -486,13 +489,13 @@ int CCmdStandard::learn(CChar* me, int32_t target, char* arg)
     }
 
     // 现在计算所需的经验
-    int32_t need_points = me->skill_need_points(arg);
-    int32_t need_exp    = need_points / me->learn_bonus() + 1;
+    count_t need_points = me->skill_need_points(arg);
+    exp_t need_exp      = need_points / me->learn_bonus() + 1;
 
     // 计算玩家的经验够不够
     if (me->query_valid_exp() < need_exp) {
-        who->say(snprintf(msg, 255, "学习%s还需%d点经验，你再去历练历练吧。",
-                          sk->name(1), need_exp),
+        who->say(snprintf(msg, 255, "学习%s还需%lld点经验，你再去历练历练吧。",
+                          sk->name(1), (long long)need_exp),
                  me);
         who->send_menu(me);
         return 1;
@@ -576,7 +579,7 @@ int CCmdStandard::enforce(CChar* me, int32_t target, char* arg)
         if (pts < 0 || pts > me->query_skill("force") / 2)
             return notify_fail(
                 "你只能用0表示不运内力，或数字表示每一击用几点内力。");
-        me->set("mp_factor", pts);
+        me->set("mp_factor", static_cast<mapping_value_t>(pts));
     }
 
     tell_object(me, "Ok.");
@@ -659,9 +662,9 @@ int CCmdStandard::enable(CChar* me, int32_t target, char* arg)
 
     if (strcmp(base_skill, "force") == 0) {
         tell_object(me, "你改用另一种内功，内力必须重新修炼。");
-        me->set("mp", 0l);
-        me->set("mp_factor", 0l);
-        me->receive_damage("hp", 0l);
+        me->set("mp", MAPPING_VALUE_ZERO);
+        me->set("mp_factor", MAPPING_VALUE_ZERO);
+        me->receive_damage("hp", MAPPING_VALUE_ZERO);
         me->flush_my_info();
     }
 

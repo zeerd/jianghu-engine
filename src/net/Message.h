@@ -11,7 +11,7 @@
 
 // --- 字符串工具 ---
 void replace_string(char* msg, const char* oldstr, const char* newstr, int len);
-char* chinese_number(signed long int i, char* msg);
+char* chinese_number(mapping_value_t i, char* msg);
 
 // --- 称谓 ---
 const char* gender_self(string sex);

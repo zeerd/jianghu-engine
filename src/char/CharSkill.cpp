@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file CharSkill.cpp
  * @brief implementation of CChar (CharSkill). */
 
@@ -22,8 +22,8 @@
 #include "Money.h"
 #include "FightRoom.h"
 #include "Corpse.h"
-
 #include "Sql.h"
+#include "../config/MainConfig.h"
 
 // 设置技能
 int CChar::set_skill(const char* skill, int level)
@@ -166,10 +166,10 @@ const char* CChar::query_skill_prepared(const char* skill)
     return skill_prepare.querystr(skill);
 }
 
-int CChar::query_skill(const char* skill, int raw)
+skill_level_t CChar::query_skill(const char* skill, int raw)
 {
     if (!raw) {
-        int s;
+        mapping_value_t s;
         char key[80];
 
         snprintf(key, 80, "apply/%s", skill);
@@ -180,10 +180,11 @@ int CChar::query_skill(const char* skill, int raw)
         const char* key2 = skill_map.querystr(skill);
         if (key2[0]) s += skills.query(key2);
 
-        return s;
+        // 技能等级域是 skill_level_t（对照表按 int 级数推导）：此处收窄一次
+        return static_cast<skill_level_t>(s);
     }
 
-    return skills.query(skill);
+    return static_cast<skill_level_t>(skills.query(skill));
 }
 
 CMapping* CChar::query_skill_map() { return &skill_map; }
@@ -200,7 +201,7 @@ void CChar::clear_skill()
     learned.clear();
 }
 
-void CChar::improve_skill(const char* skill, int amount, int weak_mode)
+void CChar::improve_skill(const char* skill, count_t amount, flag_t weak_mode)
 {
     CSkill* sk;
     char msg[255];
@@ -211,7 +212,7 @@ void CChar::improve_skill(const char* skill, int amount, int weak_mode)
     if (sk->query("fail_ob")) return;
 
     if (!weak_mode || !is_user(this)) {
-        if (skills.undefinedp(skill)) skills.set(skill, 0l);
+        if (skills.undefinedp(skill)) skills.set(skill, MAPPING_VALUE_ZERO);
     }
 
     learned.add(skill, amount);
@@ -220,7 +221,7 @@ void CChar::improve_skill(const char* skill, int amount, int weak_mode)
         && learned.query(skill)
                > (skills.query(skill) + 1) * (skills.query(skill) + 1)) {
         skills.add(skill, 1);
-        learned.set(skill, 0l);
+        learned.set(skill, MAPPING_VALUE_ZERO);
         tell_object(this,
                     snprintf(msg, 255, "$YEL你的「%s」进步了！", sk->name(1)));
 
@@ -241,9 +242,9 @@ CMapping* CChar::query_skills() { return &skills; }
 CMapping* CChar::query_learned() { return &learned; }
 
 // 查询该技能升级所需要的点数
-int32_t CChar::skill_need_points(const char* skill)
+count_t CChar::skill_need_points(const char* skill)
 {
-    int32_t need_pt = (skills.query(skill) + 1) * (skills.query(skill) + 1)
+    count_t need_pt = (skills.query(skill) + 1) * (skills.query(skill) + 1)
                       - learned.query(skill);
 
     // 再附加上技能数量的因素

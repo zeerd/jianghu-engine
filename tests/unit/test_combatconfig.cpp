@@ -1,7 +1,7 @@
 // test_combatconfig.cpp - Unit tests for CombatConfig.
 //
-// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=Win32
-// Run:    tests\Debug\tests.exe --gtest_filter=CombatConfig*
+// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=x64
+// Run:    x64\Debug\tests.exe --gtest_filter=CombatConfig*
 //
 #include "pch.h"
 #include "CombatConfig.h"

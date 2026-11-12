@@ -258,13 +258,13 @@ TEST_F(LuaErrorPathTest, NpcCallbackErrors_LogAndFallBackToBase)
     gift->set_name("供品", "lua_error_gift");
     gift->move(&room);
 
-    char ask[32]   = "天气如何";
-    char comm[32]  = "bow";
-    char arg[32]   = "";
-    char tar[32]   = "";
-    char skill[32] = "unarmed";
-    char msg[32]   = "掌柜的，来一壶酒";
-    int32_t damage = 7;
+    char ask[32]    = "天气如何";
+    char comm[32]   = "bow";
+    char arg[32]    = "";
+    char tar[32]    = "";
+    char skill[32]  = "unarmed";
+    char msg[32]    = "掌柜的，来一壶酒";
+    damage_t damage = 7;
 
     {
         ErrorLogProbe probe("Lua do_talk failed [t_error_npc]");
@@ -432,10 +432,10 @@ TEST_F(LuaErrorPathTest, ItemCallbacks_LogAndFallBackToBase)
     victim->set_name("挨打的", "lua_err_item_victim");
     victim->move(&room);
 
-    char comm[32]  = "wield";
-    char arg[32]   = "";
-    char tar[32]   = "";
-    int32_t damage = 3;
+    char comm[32]   = "wield";
+    char arg[32]    = "";
+    char tar[32]    = "";
+    damage_t damage = 3;
 
     {
         ErrorLogProbe probe("Lua item do_use failed [t_error_item]");
@@ -610,7 +610,7 @@ TEST_F(LuaErrorPathTest, SkillCallbacks_LogAndFallBackToBase)
     std::string usage = "unarmed";
     std::string combo = "unarmed+unarmed";
     std::string magic = "boom";
-    int32_t damage    = 5;
+    damage_t damage   = 5;
 
     {
         // create 报错前法术表已登记，cast 因此能走到自己的报错分支
@@ -1000,6 +1000,71 @@ TEST_F(LuaErrorPathTest, CheckForReload_SameSecondEditStillReloads)
     engine->check_for_reload();
     EXPECT_TRUE(engine->get_script_bool_field(name, LUA_SCRIPT_ITEM, "second"))
         << "同一秒内的第二次编辑被 mtime 快筛漏掉：新内容未生效";
+
+    std::remove(path.c_str());
+}
+
+// load_script 命中走文件指纹快筛（mtime+大小）：指纹未变即内容未变、不读盘
+// ——同长度改写但 mtime 被还原时旧内容仍在（整文件哈希才会发现内容变化）。
+// 这是热路径零读盘的契约面：create_*/get_script_* 每次派发都经过这里。
+TEST_F(LuaErrorPathTest, LoadScript_FingerprintUnchangedSkipsFileRead)
+{
+    const char* name       = "t_mtime_fast_item";
+    const std::string path = "tests/unit/lua-tests/item/t_mtime_fast_item.lua";
+    write_file(path, "return { create = function(self) end, first = 1 }\n");
+
+    CLuaEngine* engine = CLuaEngine::instance();
+    ASSERT_NE(engine->load_script(name, LUA_SCRIPT_ITEM), LUA_NOREF);
+    const auto saved_mtime = std::filesystem::last_write_time(path);
+
+    // 同长度改写（大小不变）但 mtime 还原成记录值：指纹判「未变」→ 不读盘
+    write_file(path, "return { create = function(self) end, frist = 1 }\n");
+    set_file_mtime(path, saved_mtime);
+    engine->load_script(name, LUA_SCRIPT_ITEM);
+    EXPECT_TRUE(engine->get_script_bool_field(name, LUA_SCRIPT_ITEM, "first"))
+        << "指纹未变却重读文件热重载：热路径仍在整文件读盘";
+
+    std::remove(path.c_str());
+}
+
+// mtime 变了但内容没变（同内容改写）：哈希确认后不重载，并把记录的 mtime
+// 刷新为新值——既不误重载，也让下一次命中回到不读盘的快筛（与
+// check_for_reload 的两段快筛同口径）。
+TEST_F(LuaErrorPathTest, LoadScript_SameContentRewriteKeepsRefAndRefreshesMtime)
+{
+    const char* name       = "t_samemtime_item";
+    const std::string path = "tests/unit/lua-tests/item/t_samemtime_item.lua";
+    // 计数器随 chunk 执行递增：重载与否在 Lua 侧可观测
+    const std::string content_a
+        = "g_samemtime_hits = (g_samemtime_hits or 0) + 1\n"
+          "return { create = function(self) end, first = 1 }\n";
+    write_file(path, content_a);
+
+    CLuaEngine* engine = CLuaEngine::instance();
+    ASSERT_NE(engine->load_script(name, LUA_SCRIPT_ITEM), LUA_NOREF);
+
+    // 同内容改写：mtime 前移、内容哈希不变 → chunk 不得重跑
+    write_file(path, content_a);
+    ASSERT_NE(engine->load_script(name, LUA_SCRIPT_ITEM), LUA_NOREF);
+    {
+        lua_State* L = engine->get_state();
+        ASSERT_NE(L, nullptr);
+        lua_getglobal(L, "g_samemtime_hits");
+        EXPECT_EQ(static_cast<int>(lua_tointeger(L, -1)), 1)
+            << "同内容改写触发了重载：哈希确认失效";
+        lua_pop(L, 1);
+    }
+
+    // 上一步应已把记录指纹刷新为改写后的值：再做同长度改写但把 mtime 钉回
+    // 该值，快筛仍判「未变」→ 旧内容仍在（若未刷新，哈希确认会重载出新内容）
+    const auto refreshed = std::filesystem::last_write_time(path);
+    write_file(path,
+               "g_samemtime_hits = (g_samemtime_hits or 0) + 1\n"
+               "return { create = function(self) end, frist = 1 }\n");
+    set_file_mtime(path, refreshed);
+    engine->load_script(name, LUA_SCRIPT_ITEM);
+    EXPECT_TRUE(engine->get_script_bool_field(name, LUA_SCRIPT_ITEM, "first"))
+        << "记录指纹未随同内容改写刷新：命中快筛退化成每次整文件读盘";
 
     std::remove(path.c_str());
 }

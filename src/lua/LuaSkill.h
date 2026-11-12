@@ -61,7 +61,7 @@ public:
 
     // 重写 hit_ob：调用 Lua 脚本的 hit_ob 函数（若存在），
     // 否则回落到基础技能（同族默认实现，如基本内功的内功反震）
-    virtual char* hit_ob(CChar* me, CChar* victim, int32_t& damage);
+    virtual char* hit_ob(CChar* me, CChar* victim, damage_t& damage);
 
     // 本技能是否提供 hit_ob 实现（脚本里有同名函数）
     virtual bool has_hit_ob();
@@ -97,7 +97,7 @@ public:
 
 private:
     // 脚本未实现 hit_ob 时回落到基础技能的同名实现
-    char* base_hit_ob(CChar* me, CChar* victim, int32_t& damage);
+    char* base_hit_ob(CChar* me, CChar* victim, damage_t& damage);
 
     // 脚本未实现 query_action 时回落到基础技能的同名实现
     CMapping* base_query_action(CChar* me);

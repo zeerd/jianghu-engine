@@ -41,7 +41,7 @@ void CGateInfo::close_connection()
     _LPTRECVBUFF lpRecvBuff = new _TRECVBUFF;
     lpRecvBuff->len         = 0;
     lpRecvBuff->type        = RECV_MSG_EXIT;
-    lpRecvBuff->szData[0]   = 0L;
+    lpRecvBuff->szData[0]   = 0;
     m_recv_buff_q.push_q(reinterpret_cast<uint8_t*>(lpRecvBuff));
 
     // 清空发送队列，释放未发送的缓冲

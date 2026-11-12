@@ -19,6 +19,7 @@
 #include "LoginRegister.h"
 #include "RegisterHall.h"
 #include "../lua/LuaEngine.h"
+#include "../config/MainConfig.h"
 
 #include "Sql.h"
 
@@ -93,12 +94,12 @@ void setup_guest_user(CUser* me)
     me->set_name("游客", gid);
     me->set("gender", "男性");
     me->set("age", g_start_age);
-    me->set("str", 10);
-    me->set("int", 10);
-    me->set("con", 10);
-    me->set("dex", 10);
+    me->set("str", 21);
+    me->set("int", 21);
+    me->set("con", 21);
+    me->set("dex", 21);
     me->set("level", 1);
-    me->set("combat_exp", 0);
+    me->set("combat_exp", MAPPING_VALUE_ZERO);
     me->set("title", "初来乍到");
     me->set("guest", 1);
     me->set("start_city", REGISTER_HALL_NAME);
@@ -155,7 +156,8 @@ void down_bullet_info(CChar* me)
     }
 }
 
-int on_login(CConnectionHandleManager::Handle handle, int sockfd, char* arg)
+int on_login(CConnectionHandleManager::Handle handle, uintptr_t sockfd,
+             char* arg)
 {
     CUser* me;
     char passwd[255];
@@ -259,14 +261,14 @@ int on_login(CConnectionHandleManager::Handle handle, int sockfd, char* arg)
         g_channel.loginlist.add(myip, 1);
 
         // 检查IP地址
-        int loginlimit = g_channel.loginlimit.query(myip);
+        count_t loginlimit = g_channel.loginlimit.query(myip);
         if (!loginlimit) loginlimit = g_combat_config.ip_limit();
 
         if (g_channel.loginlist.query(myip) > loginlimit) {
             snprintf(msg, 255,
                      "&C=%d&F=%d&M=对不起，该地址被限制为不得登陆超过%"
-                     "d个帐号！&\t",
-                     LOGINUSER, PROTO_FIELD_ERROR, loginlimit);
+                     "lld个帐号！&\t",
+                     LOGINUSER, PROTO_FIELD_ERROR, (long long)loginlimit);
 
             send_to_client_direct(sockfd, handle, decode_str(msg));
             return false;
@@ -304,7 +306,7 @@ int on_login(CConnectionHandleManager::Handle handle, int sockfd, char* arg)
     else  // 未在线则登录
     {
         MAP2USER* ulist = users();
-        int32_t count   = ulist->size();
+        int32_t count   = static_cast<int32_t>(ulist->size());
         if (count >= g_combat_config.login_limit()) {
             snprintf(
                 msg, 255, "&C=%d&F=%d&M=对不起，游戏限制为%ld，请稍候再连。&\t",
@@ -343,14 +345,14 @@ int on_login(CConnectionHandleManager::Handle handle, int sockfd, char* arg)
         }
 
         // 检查IP地址
-        int loginlimit = g_channel.loginlimit.query(myip);
+        count_t loginlimit = g_channel.loginlimit.query(myip);
         if (!loginlimit) loginlimit = g_combat_config.ip_limit();
 
         if (g_channel.loginlist.query(myip) > loginlimit) {
             snprintf(msg, 255,
                      "&C=%d&F=%d&M=对不起，该地址被限制为不得登陆超过%"
-                     "d个帐号！&\t",
-                     LOGINUSER, PROTO_FIELD_ERROR, loginlimit);
+                     "lld个帐号！&\t",
+                     LOGINUSER, PROTO_FIELD_ERROR, (long long)loginlimit);
 
             send_to_client_direct(sockfd, handle, decode_str(msg));
             DESTRUCT_OB(me, "Login");

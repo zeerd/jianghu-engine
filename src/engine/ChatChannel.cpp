@@ -419,7 +419,7 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     }
 
     // 2, 分离动词，如果是带*的，将*去掉，标记其为一个表情。
-    int len = strlen(verb) - 1;
+    int len = static_cast<int>(strlen(verb)) - 1;
     if (len < 0) return 0;
     if (verb[len] == '*' && len > 0) {
         emote     = 1;
@@ -437,10 +437,10 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     }
 
     // 5, 去掉右空格，如无说话内容，不理睬。
-    len = strlen(chat) - 1;
-    if (len < 0) return 1;
+    int chat_len = static_cast<int>(strlen(chat)) - 1;
+    if (chat_len < 0) return 1;
 
-    while (len && chat[len] == ' ') chat[len--] = 0;
+    while (chat_len && chat[chat_len] == ' ') chat[chat_len--] = 0;
 
     if (!chat[0]) strcpy(chat, "...");
 

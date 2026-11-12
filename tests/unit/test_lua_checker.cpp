@@ -50,6 +50,11 @@ const char* kHexLiteralOk
 const char* kUnknownMeth
     = "tests/unit/lua-tests/check_fixture/unknown_method.lua";
 const char* kMethodOk = "tests/unit/lua-tests/check_fixture/method_ok.lua";
+// self 接收者的严格口径：脚本表字段 / 标准库方法名都到不了 self 上
+const char* kSelfScriptMeth
+    = "tests/unit/lua-tests/check_fixture/self_script_method_bad.lua";
+const char* kSelfStdlibMeth
+    = "tests/unit/lua-tests/check_fixture/self_stdlib_method_bad.lua";
 
 // 作用域/定义收集的回归夹具
 const char* kForinDef = "tests/unit/lua-tests/check_fixture/forin_def.lua";
@@ -215,6 +220,16 @@ TEST_F(LuaCheckerRequireTest, BoundGlobalPasses)
     EXPECT_EQ(check(kBoundGlobOk), 0) << "已绑定的全局不得被误报";
 }
 
+// 局部变量作用域：`local X = {...}` 构造器内部的 X 还没进作用域，读到的是
+// 全局（nil）。数据集曾因 `return {` → `local X = {` 的改写静默引入这一类
+// 运行期错误——静态必须报，否则同一个坑能再溜进来。
+TEST_F(LuaCheckerRequireTest, LocalUsedInsideOwnInitializerFails)
+{
+    EXPECT_EQ(1, check("tests/unit/lua-tests/check_fixture/"
+                       "local_init_scope_bad.lua"))
+        << "构造器内的局部引用必须判违规";
+}
+
 // goto <label> 与 ::label:: 是跳转目标，不是全局读取。
 // 回归：曾把数据集里 78 处 goto 的标签名当成未绑定全局。
 TEST_F(LuaCheckerRequireTest, GotoLabelNotFlagged)
@@ -237,10 +252,47 @@ TEST_F(LuaCheckerRequireTest, UnknownMethodFails)
         << "对象元表里没有、脚本也没定义的 ':' 方法应判失败";
 }
 
+// self 恒为引擎压入的对象 userdata（lua_bind_push_object → jianghu_object
+// 元表），脚本表字段经 self:foo() 不可达：调用必然抛 nil value。
+// 「某个脚本里定义过」就放行的旧口径，会把这类必炸调用整片放走。
+TEST_F(LuaCheckerRequireTest, SelfScriptMethodFails)
+{
+    EXPECT_EQ(check(kSelfScriptMeth), 1)
+        << "self 接收者只认对象元表，脚本表里定义过的函数不得放行";
+}
+
+// 标准库冒号白名单按名字给（math.random / string.format），不看接收者；
+// self 是对象 userdata，上面同样没有这些字段。
+TEST_F(LuaCheckerRequireTest, SelfStdlibMethodFails)
+{
+    EXPECT_EQ(check(kSelfStdlibMeth), 1)
+        << "标准库方法名对 self 接收者不成立，不得被白名单放走";
+}
+
+// 上一条的反面：非 self 接收者可能是脚本表，仍按「任一脚本已定义」放行；
+// 引擎对象方法对 self 照常通过。
 TEST_F(LuaCheckerRequireTest, DefinedAndBoundMethodPass)
 {
     EXPECT_EQ(check(kMethodOk), 0)
-        << "脚本自定义方法与引擎对象方法都不得被误报";
+        << "脚本表接收者的方法与 self 上的引擎对象方法都不得被误报";
+}
+
+// ---------------- 防线 6：钩子冒烟（默认开） ----------------
+
+// 默认必须是开的：检查的目的就是不让运行期错误出门，靠调用方记得加旗标
+// 等于没有。
+TEST(LuaCheckerOptions, SmokeOnByDefault)
+{
+    const CheckLuaOptions opts;
+    EXPECT_TRUE(opts.smoke) << "防线6 必须默认开";
+}
+
+// 且 opts 为空（不传选项）时也照跑：传 nullptr 不能成为绕过冒烟的后门。
+// 夹具 create 里直接抛错，静态三道防线都查不出，只有冒烟能把它翻成违规。
+TEST_F(LuaCheckerRequireTest, SmokeRunsWithoutOptions)
+{
+    EXPECT_EQ(1, check("tests/unit/lua-tests/item/fixture_smoke_boom.lua"))
+        << "默认开启的冒烟应把钩子抛错记成违规";
 }
 
 // ---------------- 基线豁免（存量只清不增）----------------

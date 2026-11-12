@@ -1,10 +1,10 @@
 // test_char_rules.cpp - CharRules.cpp 的数据集规则取值契约
 //
-// 两个查询点共用 hooks.char_rule：
-//   - char_rule_limit：钩子返回 {limit=N} 则覆盖调用方默认上限；
-//   - char_rule_yes  ：钩子返回 {yes=true} 则放行，默认 false。
+// 查询点 char_rule_yes 共用 hooks.char_rule：
+//   - char_rule_yes：钩子返回 {yes=true} 则放行，默认 false。
 // 缺席/nil 走默认支，已由 test_char_attr / test_cmd_standard_life 覆盖；
-// 此处补"表字段取值"支。
+// 数值覆盖型（{limit=N}）支改由前导 index.is_invalid 承载，
+// 见 test_char_attr 的 IsInvalid_* 三例。
 //
 // Build+Run: .\run-coverage.ps1
 #include "pch.h"
@@ -25,24 +25,6 @@ protected:
         ch.set("id", "rules1");
     }
 };
-
-TEST_F(CharRulesTest, Limit_HookTableOverridesDefault)
-{
-    lua_State* L = CLuaEngine::instance()->get_state();
-    EXPECT_EQ(luaL_dostring(L,
-                            "__orig_char_rule = hooks.char_rule;"
-                            "hooks.char_rule = function(phase, actor, target) "
-                            "return {limit = 42} end"),
-              LUA_OK);
-
-    EXPECT_EQ(42, char_rule_limit("max_mp_limit", &ch, 60000))
-        << "钩子表值覆盖默认上限(17-19)";
-
-    EXPECT_EQ(
-        luaL_dostring(
-            L, "hooks.char_rule = __orig_char_rule; __orig_char_rule = nil"),
-        LUA_OK);
-}
 
 TEST_F(CharRulesTest, Yes_HookTableDrivesDecision)
 {

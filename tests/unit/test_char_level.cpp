@@ -62,10 +62,12 @@ TEST_F(CharLevelTest, Level2Exp_Table)
 TEST_F(CharLevelTest, Level2Exp_AboveTable)
 {
     // lv >= 176 uses the linear extrapolation branch.
-    int32_t v = CChar::level2_exp(176);
+    exp_t v = CChar::level2_exp(176);
     EXPECT_NE(v, CChar::level2_exp(175));
     // Verify the extrapolation formula: 1917735009 + lv * 100000000
-    EXPECT_EQ(v, (int32_t)(1917735009 + (int64_t)176 * 100000000));
+    // 按 exp_t 断言：槽位域跟随 mapping_value_t（Win32 = 32 位、x64 = 64 位），
+    // 把位宽写死会让同一公式在换平台后假失败。
+    EXPECT_EQ(v, (exp_t)(1917735009 + (int64_t)176 * 100000000));
 }
 TEST_F(CharLevelTest, Level2Exp_HighLevels)
 {
@@ -144,7 +146,7 @@ TEST_F(CharLevelTest, Level2Exp_FallbackNoOverflow)
 
     // 旧指数公式在 lv=158 即溢出 int32（转换结果为负垃圾值）
     EXPECT_GE(CChar::level2_exp(158), 1000000);  // 真值 22215798，同量级
-    int32_t v175 = CChar::level2_exp(175);
+    exp_t v175 = CChar::level2_exp(175);
     EXPECT_GT(v175, 1917735009 / 2);            // 不低于真值一半
     EXPECT_LT((double)v175, 1917735009 * 1.5);  // 不高于真值 1.5 倍
     EXPECT_LT(CChar::level2_exp(158), v175);    // 随等级单调增

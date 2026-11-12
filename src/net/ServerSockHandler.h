@@ -67,7 +67,6 @@ extern HANDLE g_iocp;
 extern bool g_terminated;
 extern SOCKET g_ssock;
 extern SOCKADDR_IN g_saddr;
-extern HANDLE g_event;
 
 // Thread tracking for proper shutdown
 extern std::vector<HANDLE> g_worker_threads;

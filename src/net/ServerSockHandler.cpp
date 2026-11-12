@@ -216,6 +216,7 @@ INT create_iocp_worker_thread(int thread)
 
 // g_xGateList 定义于 ServerSockWorker.cpp
 extern std::list<CGateInfo*> g_gate_list;
+extern std::mutex g_gate_list_mutex;
 
 void handle_accept_completion(LPACCEPTOVERLAPPED lpAcceptOv)
 {
@@ -240,7 +241,11 @@ void handle_accept_completion(LPACCEPTOVERLAPPED lpAcceptOv)
         CreateIoCompletionPort((HANDLE)gate_info->m_sock, g_iocp,
                                reinterpret_cast<ULONG_PTR>(gate_info), 0);
 
-        g_gate_list.push_back(gate_info);
+        // 对外可见即入列表：与游戏线程的遍历/摘除共用列表锁
+        {
+            std::lock_guard<std::mutex> lock(g_gate_list_mutex);
+            g_gate_list.push_back(gate_info);
+        }
 
         {
             int zero = 0;

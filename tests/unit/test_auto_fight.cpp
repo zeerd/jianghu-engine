@@ -28,6 +28,7 @@
 #include "mock/mock_itemmgr.h"
 #include "test_lua_env.h"
 #include "test_state_recorder.h"
+#include "../config/MainConfig.h"
 
 namespace {
 
@@ -332,9 +333,9 @@ TEST_F(AutoFightTest, StartBerserk_UserWithRepute_KillsTarget)
         MakeVictim("狂徒", "af_berserk_kill_me", 75));
     // 受害者必须录制：set_killer 的"想杀死你"通知发给目标本人
     auto* obj = MakeVictim("路人", "af_berserk_kill_obj");
-    me->set("mp", 0L);
-    me->set("repute", -100L);  // shen = 100：杀气外露
-    me->set("score", 0L);      // shen > score → 杀戮分支
+    me->set("mp", MAPPING_VALUE_ZERO);
+    me->set("repute", -100L);              // shen = 100：杀气外露
+    me->set("score", MAPPING_VALUE_ZERO);  // shen > score → 杀戮分支
 
     CAutoFight::start_berserk(me, obj->object_id(), 0);
     EXPECT_TRUE(obj->has("想杀死你")) << "杀气压过评分：直接下杀手";
@@ -349,7 +350,7 @@ TEST_F(AutoFightTest, StartBerserk_UserCalm_FightsTarget)
     auto* me = static_cast<StateRecordingUser*>(
         MakeVictim("狂徒", "af_berserk_fight_me", 75));
     auto* obj = MakeVictim("路人", "af_berserk_fight_obj", 75);
-    me->set("mp", 0L);
+    me->set("mp", MAPPING_VALUE_ZERO);
     me->set("repute", -1L);  // shen = 1
     me->set("score", 10L);   // shen <= score → 切磋分支
 
@@ -375,7 +376,7 @@ TEST_F(AutoFightTest, StartBerserk_UserMpHigh_Suppresses)
     CAutoFight::start_berserk(me, obj->object_id(), 0);
     EXPECT_FALSE(obj->has("想杀死你")) << "内力压制杀气：不触发杀戮";
     EXPECT_FALSE(obj->has("陪我玩两手")) << "被压制时也不开口切磋";
-    EXPECT_EQ(0, me->query_temp("looking_for_trouble"));
+    EXPECT_EQ(MAPPING_VALUE_ZERO, me->query_temp("looking_for_trouble"));
 
     DiscardUser(me);
     DiscardUser(obj);

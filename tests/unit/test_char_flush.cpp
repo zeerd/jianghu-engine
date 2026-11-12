@@ -32,6 +32,7 @@
 #include "CombatCalc.h"  // skill_power（I=/K= 期望值 oracle）
 #include "test_state_recorder.h"
 #include "test_lua_env.h"
+#include "../config/MainConfig.h"
 
 namespace {
 
@@ -237,7 +238,7 @@ TEST_F(CharFlushTest, FlushMyInfo_PacketContract)
 // ASSERT 守护分支条件成立（防止 fixture 漂移后用例假绿）。
 TEST_F(CharFlushTest, FlushMyInfo_SkExpCap)
 {
-    int32_t level10_exp = CChar::level2_exp(10);
+    exp_t level10_exp = CChar::level2_exp(10);
     ASSERT_GT(level10_exp, 0);
 
     // 分支A 不截断：sk_raw < valid_exp → 显示 sk_raw
@@ -245,8 +246,8 @@ TEST_F(CharFlushTest, FlushMyInfo_SkExpCap)
     u->set("sk_exp", (long)100);
     u->flush_my_info();
     ASSERT_EQ(u->sent, 1);
-    int32_t sk_raw = (3 * level10_exp + 3000) / 3 - 100;  // = level10_exp + 900
-    int32_t valid_a = (3 * level10_exp + 3000) - level10_exp - 100;
+    exp_t sk_raw  = (3 * level10_exp + 3000) / 3 - 100;  // = level10_exp + 900
+    exp_t valid_a = (3 * level10_exp + 3000) - level10_exp - 100;
     ASSERT_LT(sk_raw, valid_a) << "分支A守护：fixture 必须走未截断分支";
     EXPECT_NE(u->msgs[0].find("&sk=" + std::to_string(sk_raw) + "&"),
               std::string::npos)
@@ -261,7 +262,7 @@ TEST_F(CharFlushTest, FlushMyInfo_SkExpCap)
     u->clear();
     u->flush_my_info();
     ASSERT_EQ(u->sent, 1);
-    int32_t sk_b = level10_exp / 3;
+    exp_t sk_b = level10_exp / 3;
     ASSERT_GT(sk_b, 0) << "分支B守护：fixture 必须走截断分支";
     EXPECT_NE(u->msgs[0].find("&sk=0&"), std::string::npos) << u->msgs[0];
     EXPECT_NE(u->msgs[0].find("&exp=0&"), std::string::npos) << u->msgs[0];
@@ -419,7 +420,7 @@ TEST_F(CharFlushTest, FlushMySkill_RecipientAndFrames)
     ASSERT_EQ(u->sent, 3);
     // P= 值 oracle：skill_need_points / learn_bonus + 1
     int32_t pt        = u->learn_bonus();
-    int32_t p_unarmed = u->skill_need_points("unarmed") / pt + 1;
+    count_t p_unarmed = u->skill_need_points("unarmed") / pt + 1;
     bool has_p        = false;
     bool has_m        = false;
     bool has_k        = false;

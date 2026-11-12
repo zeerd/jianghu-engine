@@ -42,7 +42,7 @@ CMapping* CRelationshipTracker::query_recruit(const char* id)
 
 // 更新 recruit_exp 表，玩家存盘时呼叫
 void CRelationshipTracker::update_recruit(const char* master, const char* id,
-                                          const char* name, int32_t exp,
+                                          const char* name, exp_t exp,
                                           int apprentice)
 {
     if (!db_update_recruit(master, id, name, exp, apprentice)) {

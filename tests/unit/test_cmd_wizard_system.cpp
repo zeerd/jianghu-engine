@@ -736,8 +736,8 @@ TEST_F(CmdWizardSystemTest, ReloadAll_RequireCacheGetsFreshTable)
         LUA_OK)
         << "前置：首次 require 必须成功";
 
-    extern int lua_reload_all();
-    lua_reload_all();
+    extern int lua_reload_all(bool force);
+    lua_reload_all(false);
 
     ASSERT_EQ(
         luaL_dostring(L, "e2e_second = require('room.fixture_blank_room')"),
@@ -746,6 +746,68 @@ TEST_F(CmdWizardSystemTest, ReloadAll_RequireCacheGetsFreshTable)
     EXPECT_TRUE(lua_toboolean(L, -1))
         << "reload all 未清 require 缓存：二次 require 拿到的还是启动时那张表";
     lua_pop(L, 1);
+}
+
+// 默认目录（fromDefault）脚本的生产保护与 force 越权入口：普通 reload all
+// 跳过默认根脚本，reload all force 必须一并重载。判据用脚本表对象身份——
+// 重载必然重新执行文件产出新表（旧表在新表分配时仍在 registry 占位，地址
+// 不可能复用），跳过则原表纹丝不动。
+TEST_F(CmdWizardSystemTest, ReloadAll_ForceCoversDefaultScript)
+{
+    CLuaEngine* engine = CLuaEngine::instance();
+    lua_State* L       = engine->get_state();
+    ASSERT_NE(L, nullptr);
+
+    // 前置：level_exp 只存在于 lua-default，装入后必带默认标记
+    ASSERT_NE(engine->load_script("level_exp", LUA_SCRIPT_DATA), LUA_NOREF)
+        << "先装入默认根脚本，才有可判定的条目";
+    LuaScript* def_script = engine->get_script("level_exp", LUA_SCRIPT_DATA);
+    ASSERT_NE(def_script, nullptr);
+    ASSERT_TRUE(def_script->fromDefault)
+        << "前置：level_exp 只在 lua-default，必须带 fromDefault 标记";
+
+    auto table_ptr = [&]() -> const void* {
+        lua_rawgeti(L, LUA_REGISTRYINDEX,
+                    engine->get_script("level_exp", LUA_SCRIPT_DATA)->ref);
+        const void* p = lua_topointer(L, -1);
+        lua_pop(L, 1);
+        return p;
+    };
+
+    const void* before = table_ptr();
+
+    char plain[256] = "all";
+    EXPECT_EQ(call_reload_lua(me, 0, plain), 1);
+    EXPECT_EQ(table_ptr(), before) << "普通 reload all 必须跳过默认目录脚本";
+
+    char force[256] = "all force";
+    EXPECT_EQ(call_reload_lua(me, 0, force), 1);
+    EXPECT_NE(table_ptr(), before)
+        << "reload all force 必须连默认目录脚本一并重载";
+}
+
+// 空参数走用法回执（notify_fail → 0），文案含 force 形式
+TEST_F(CmdWizardSystemTest, ReloadLua_EmptyArgReportsUsage)
+{
+    g_notify_fail_msg[0] = 0;
+    char empty[8]        = "";
+    EXPECT_EQ(call_reload_lua(me, 0, empty), 0);
+    EXPECT_STRNE(g_notify_fail_msg, "");
+}
+
+// all 之后的非法词（拼写错的 force / 多余第三词）必须回用法，
+// 静默当成普通 reload all 会让「我明明敲了 force」的调试落空
+TEST_F(CmdWizardSystemTest, ReloadLua_AllWithBadTokenReportsUsage)
+{
+    g_notify_fail_msg[0] = 0;
+    char typo[64]        = "all froce";
+    EXPECT_EQ(call_reload_lua(me, 0, typo), 0) << "拼错的 force 必须被拦下";
+    EXPECT_STRNE(g_notify_fail_msg, "");
+
+    g_notify_fail_msg[0] = 0;
+    char extra[64]       = "all force extra";
+    EXPECT_EQ(call_reload_lua(me, 0, extra), 0) << "第三词必须被拦下";
+    EXPECT_STRNE(g_notify_fail_msg, "");
 }
 
 // ====================================================================

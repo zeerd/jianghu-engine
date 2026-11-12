@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugSeason|Win32">
@@ -101,34 +101,53 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <!-- Platform-specific 3rd party paths -->
+    <LuaIncludeDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)3rd\x86\lua-5.5.0_Win32_vc17_lib\include</LuaIncludeDir>
+    <LuaIncludeDir Condition="'$(Platform)'=='x64'">$(SolutionDir)3rd\x64\lua-5.5.0_Win64_vc17_lib\include</LuaIncludeDir>
+    <LuaLibDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)3rd\x86\lua-5.5.0_Win32_vc17_lib</LuaLibDir>
+    <LuaLibDir Condition="'$(Platform)'=='x64'">$(SolutionDir)3rd\x64\lua-5.5.0_Win64_vc17_lib</LuaLibDir>
+    <MySQLIncludeDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\include</MySQLIncludeDir>
+    <MySQLIncludeDir Condition="'$(Platform)'=='x64'">$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\include</MySQLIncludeDir>
+    <MySQLLibDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib</MySQLLibDir>
+    <MySQLLibDir Condition="'$(Platform)'=='x64'">$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib</MySQLLibDir>
+    <ThirdPartyIncludeDir>$(SolutionDir)3rd\include</ThirdPartyIncludeDir>
+  </PropertyGroup>
   <PropertyGroup>
     <_ProjectFileVersion>17.0.37516.0</_ProjectFileVersion>
   </PropertyGroup>
+  <!-- 产物与 jianghu_core 同布局：Win32 落 bin\，x64 落 x64\$(Configuration)\；
+       IntDir 带 $(Platform) 段，两架构交替构建互不污染中间目录。 -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)\bin\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)\bin\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
     <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
+    <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -143,7 +162,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -168,7 +187,7 @@
       <!-- 库搜索目录：核心库的唯一副本在 $(SolutionDir)\bin\（ProjectReference 上已
          剔除 OutDir 传播，e2e 构建不再往 $(OutDir) 里复制第二份），且同一轮构建内
          先建库后链接，此处解析到的必是新鲜产物，不存在陈旧副本。 -->
-      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AssemblyDebug />
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -180,6 +199,9 @@
       <DataExecutionPrevention />
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -193,8 +215,8 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -215,10 +237,10 @@
     <Link>
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <!-- 库搜索目录：核心库的唯一副本在 $(SolutionDir)\bin\（ProjectReference 上已
-         剔除 OutDir 传播，e2e 构建不再往 $(OutDir) 里复制第二份），且同一轮构建内
-         先建库后链接，此处解析到的必是新鲜产物，不存在陈旧副本。 -->
-      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- 库搜索目录：x64 的核心库与本 exe 同落 x64\$(Configuration)\，e2e 构建
+         用 /p:OutDir 换掉 $(OutDir) 后仍靠它索到同轮新建的库；bin\ 是 Win32
+         核心库的家，不进本架构的搜索路径——两架构的同名 .lib 不得互串。 -->
+      <AdditionalLibraryDirectories>$(OutDir).;$(SolutionDir)x64\$(Configuration)\;$(LuaLibDir);$(MySQLLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AssemblyDebug>
       </AssemblyDebug>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -230,7 +252,11 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
+      <TargetMachine>MachineX64</TargetMachine>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Midl>
@@ -242,7 +268,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -265,7 +291,7 @@
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -278,6 +304,9 @@
       <TargetMachine>MachineX86</TargetMachine>
       <LinkErrorReporting>QueueForNextLogin</LinkErrorReporting>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Midl>
@@ -289,7 +318,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -312,7 +341,9 @@
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- 库搜索目录：x64 核心库与本 exe 同落 x64\$(Configuration)\；bin\ 是
+         Win32 核心库的家，不进本架构的搜索路径——同名 .lib 不得互串。 -->
+      <AdditionalLibraryDirectories>$(OutDir).;$(SolutionDir)x64\$(Configuration)\;$(LuaLibDir);$(MySQLLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -323,8 +354,12 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
+      <TargetMachine>MachineX64</TargetMachine>
       <LinkErrorReporting>QueueForNextLogin</LinkErrorReporting>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
     <Midl>
@@ -336,7 +371,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_SEASON_01;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -359,7 +394,7 @@
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_01.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -372,6 +407,9 @@
       <TargetMachine>MachineX86</TargetMachine>
       <LinkErrorReporting>QueueForNextLogin</LinkErrorReporting>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
     <Midl>
@@ -383,7 +421,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_SEASON_01;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -406,7 +444,9 @@
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_01.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>$(OutDir).;./3rd/lib;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- 库搜索目录：x64 核心库与本 exe 同落 x64\$(Configuration)\；bin\ 是
+         Win32 核心库的家，不进本架构的搜索路径——同名 .lib 不得互串。 -->
+      <AdditionalLibraryDirectories>$(OutDir).;$(SolutionDir)x64\$(Configuration)\;$(LuaLibDir);$(MySQLLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -417,8 +457,12 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
+      <TargetMachine>MachineX64</TargetMachine>
       <LinkErrorReporting>QueueForNextLogin</LinkErrorReporting>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- Core logic is in jianghu_core.lib; only these files compile directly -->

@@ -15,5 +15,6 @@ void close_client(CConnectionHandleManager::Handle handle);
 void open_client(CConnectionHandleManager::Handle handle, int32_t user);
 int send_to_client(int object_id, CConnectionHandleManager::Handle handle,
                    const char* msg);
-int send_to_client_direct(int sockfd, CConnectionHandleManager::Handle handle,
+int send_to_client_direct(uintptr_t sockfd,
+                          CConnectionHandleManager::Handle handle,
                           const char* msg);

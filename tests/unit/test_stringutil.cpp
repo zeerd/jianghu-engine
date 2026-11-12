@@ -12,7 +12,6 @@
 void analyse_string(char* Comm, char* arg, int len);
 char* get_value(const char* cmd_str, const char* keyword, char* pValue,
                 int nValueLen);
-int valid_string(const char* msg);
 void normalize_password(char* pass);
 char* decode_str(char* msg);
 
@@ -136,21 +135,6 @@ TEST(StringUtil, GetValue_Truncated)
     const char* cmd = "&M=longvalue&";
     get_value(cmd, "M", val, sizeof(val));
     EXPECT_STREQ(val, "lon");  // truncated to nValueLen-1
-}
-
-// ====================================================================
-// valid_string: check for illegal characters (double quotes)
-// ====================================================================
-TEST(StringUtil, ValidString_Normal)
-{
-    EXPECT_EQ(valid_string("hello world"), 1);
-}
-
-TEST(StringUtil, ValidString_Empty) { EXPECT_EQ(valid_string(""), 1); }
-
-TEST(StringUtil, ValidString_WithQuote)
-{
-    EXPECT_NE(valid_string("say \"hello\""), 1);
 }
 
 // ====================================================================

@@ -2,8 +2,8 @@
 //
 // Build+Run（仓库根目录）：
 //   msbuild cli\tests\jianghu_cli_tests.vcxproj /p:Configuration=Release
-//     /p:Platform=Win32
-//   bin\cli\jianghu_cli_tests.exe --gtest_filter=Connection*
+//     /p:Platform=x64
+//   bin\cli\x64\jianghu_cli_tests.exe --gtest_filter=Connection*
 
 #include "connection.h"
 

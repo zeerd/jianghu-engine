@@ -25,6 +25,7 @@
 #include "User.h"
 #include "LuaEngine.h"
 #include "test_lua_env.h"
+#include "../config/MainConfig.h"
 
 extern char g_notify_fail_msg[512];
 extern MAP2USER g_user_list;
@@ -288,7 +289,8 @@ TEST_F(LuaQuestHookTest, KillBonus_Absent_KeepsReward)
 
     g_reward.killer_reward(killer, npc);
     EXPECT_EQ(0, hook_counter("kill_count"));
-    EXPECT_GT(killer->query("kill/nkgain"), 0L) << "经验照常入账";
+    EXPECT_GT(killer->query("kill/nkgain"), MAPPING_VALUE_ZERO)
+        << "经验照常入账";
 
     killer->move(nullptr);
     delete killer;

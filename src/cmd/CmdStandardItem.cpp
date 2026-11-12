@@ -7,8 +7,8 @@ int CCmdStandard::get(CChar* me, int32_t target, char* arg)
 {
     char cmd[255], szEnv[40], szNum[40];
     CContainer *who, *env, *obj = NULL;
-    int32_t num = 0;
-    int ap      = 30;
+    amount_t num = 0;
+    int ap       = 30;
     CMapping* m;
 
     if (me->is_busy()) return notify_fail("你上一个动作还没有完成！");
@@ -67,7 +67,8 @@ int CCmdStandard::get(CChar* me, int32_t target, char* arg)
         num = who->query_amount();
     }
 
-    snprintf(cmd, 255, "%s拾起数量%d的%s。", me->name(), num, obj->name());
+    snprintf(cmd, 255, "%s拾起数量%lld的%s。", me->name(), (long long)num,
+             obj->name());
 
     if (obj->move(me))
         message_vision_room(me, "chat", cmd);
@@ -113,7 +114,7 @@ int CCmdStandard::use(CChar* me, int32_t target, char* arg)
 
     if (who->query_attr(CChar::CAN_USE) && check_ap(ap, me)) {
         CContainer* item = who;
-        int32_t amount   = who->query_amount();
+        amount_t amount  = who->query_amount();
         if (amount > 1) item = static_cast<CItem*>(who)->split(1);
 
         int32_t objectid = item->object_id();
@@ -233,14 +234,14 @@ int CCmdStandard::un_wield(CChar* me, int32_t target, char* arg)
 }
 
 int CCmdStandard::do_drop(CChar* me, CContainer* obj, CContainer* env,
-                          int32_t x, int32_t y)
+                          mapping_value_t x, mapping_value_t y)
 {
     char msg[255];
 
     // 定位
     set_live_point(obj, x, y);
 
-    int32_t amount = obj->query_amount();
+    amount_t amount = obj->query_amount();
     if (obj->move(env)) {
         if (obj->is_character()) {
             message_vision(
@@ -249,8 +250,8 @@ int CCmdStandard::do_drop(CChar* me, CContainer* obj, CContainer* env,
                 me, obj);
         }
         else {
-            message_vision(snprintf(msg, 255, "$N向%s里丢下数量%d的$n。",
-                                    env->name(), amount),
+            message_vision(snprintf(msg, 255, "$N向%s里丢下数量%lld的$n。",
+                                    env->name(), (long long)amount),
                            me, obj);
             if (!obj->query("value")) {
                 tell_object(
@@ -267,9 +268,9 @@ int CCmdStandard::drop(CChar* me, int32_t target, char* arg)
 {
     CContainer *env, *who;
     char szTo[80], szY[80], szEnv[40], szNum[20];
-    int ap      = 30;
-    int32_t num = 0;
-    int32_t x = 0, y = 0;
+    int ap            = 30;
+    amount_t num      = 0;
+    mapping_value_t x = 0, y = 0;
     CContainer* obj = 0;
     CMapping* m;
 
@@ -350,7 +351,8 @@ int CCmdStandard::do_give(CChar* me, CContainer* obj, CChar* who)
         return notify_fail("对方好象不愿意收下你的东西。");
 
     int32_t objid = obj->object_id();
-    snprintf(cmd, 255, "$N给$n数量%ld的%s。", obj->query_amount(), obj->name());
+    snprintf(cmd, 255, "$N给$n数量%lld的%s。", (long long)obj->query_amount(),
+             obj->name());
 
     if (who->query_attr(CChar::IS_NPC)) {
         if (!static_cast<CNpc*>(who)->accept_object(me, obj)) {
@@ -380,7 +382,7 @@ int CCmdStandard::give(CChar* me, int32_t target, char* arg)
     CChar* Target;
     char szTarget[40], szNum[20];
     int ap          = 30;
-    int32_t num     = 0;
+    amount_t num    = 0;
     CContainer* obj = 0;
 
     if (!(env = me->environment())) return 0;

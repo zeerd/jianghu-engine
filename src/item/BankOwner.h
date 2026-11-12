@@ -17,9 +17,9 @@ class CBankOwner : public CNpc {
 public:
     virtual int32_t query_attr(int attr);
     virtual int handle_action(char* comm, CChar* me, char* arg);
-    int do_loan(CChar* me, int32_t amount);
-    int do_withdraw(CChar* me, int32_t amount);
-    int do_deposit(CChar* me, int32_t amount);
+    int do_loan(CChar* me, money_t amount);
+    int do_withdraw(CChar* me, money_t amount);
+    int do_deposit(CChar* me, money_t amount);
     CBankOwner();
     virtual ~CBankOwner();
 

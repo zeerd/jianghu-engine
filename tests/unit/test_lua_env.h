@@ -56,6 +56,36 @@ inline int call_global(lua_State* L, const char* name, int nargs)
     return lua_gettop(L) - base;
 }
 
+// 求值 Lua 表达式并取回整数结果（失败记 ADD_FAILURE 并回 0）。
+// 用于内容层前导定义的全局函数与引擎侧同式函数的对拍。
+inline int64_t lua_int_expr(lua_State* L, const char* expr)
+{
+    const std::string code = std::string("return ") + expr;
+    if (luaL_dostring(L, code.c_str()) != LUA_OK) {
+        ADD_FAILURE() << expr << ": " << lua_tostring(L, -1);
+        lua_pop(L, 1);
+        return 0;
+    }
+    int64_t v = (int64_t)lua_tointeger(L, -1);
+    lua_pop(L, 1);
+    return v;
+}
+
+// 求值 Lua 表达式并取回字符串结果（非字符串回空串，失败记 ADD_FAILURE）
+inline std::string lua_str_expr(lua_State* L, const char* expr)
+{
+    const std::string code = std::string("return ") + expr;
+    if (luaL_dostring(L, code.c_str()) != LUA_OK) {
+        ADD_FAILURE() << expr << ": " << lua_tostring(L, -1);
+        lua_pop(L, 1);
+        return std::string();
+    }
+    std::string s;
+    if (lua_isstring(L, -1)) s = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    return s;
+}
+
 // 调用对象方法（经 __index 解析，含前导定义的方法）：self + 入参已压栈，
 // 返回值个数（-1 = 调用失败，错误信息已弹出）
 inline int call_method(lua_State* L, const char* name, int nargs)

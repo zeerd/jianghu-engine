@@ -19,7 +19,7 @@
 //  IHittable
 // ========================================================================
 
-const char* CChar::hit_ob(CChar* me, CChar* victim, int32_t damage_bonus)
+const char* CChar::hit_ob(CChar* me, CChar* victim, damage_t damage_bonus)
 {
     return "";
 }
@@ -130,9 +130,9 @@ void CChar::get_info(char* str, CChar* me)
 {
     char tmp[512], msg[255];
 
-    snprintf(tmp, 255, "N=%s&I=%s&P=%d&a=%d&U=%d&W=%d&", name(), id(),
-             query("icon"), query_amount(), query_attr(CChar::UPDATE),
-             weight());
+    snprintf(tmp, 255, "N=%s&I=%s&P=%lld&a=%lld&U=%d&W=%lld&", name(), id(),
+             (long long)query("icon"), (long long)query_amount(),
+             query_attr(CChar::UPDATE), (long long)weight());
 
     // NPC角色传活动范围坐标
     if (query_attr(IS_CHAR) && !query_attr(IS_USER)) {

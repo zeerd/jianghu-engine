@@ -4,21 +4,22 @@
  */
 #pragma once
 
+#include <sal.h>
+
 // --- 字符串分析 ---
 void analyse_string(char* Comm, char* arg, int len);
 char* get_value(const char* cmd_str, const char* keyword, char* pValue,
                 int nValueLen);
 
 // --- 格式化 ---
-char* snprintf(char* buf, int len, const char* fmt, ...);
+// _Printf_format_string_ 让编译器按格式串核对实参宽度：槽位值已是 64 位，
+// 必须配 %lld；若留 %d，x64 上会静默只取低 32 位——那正是本次要消灭的收窄。
+char* snprintf(char* buf, int len, _Printf_format_string_ const char* fmt, ...);
 
 // --- 编码 ---
 // 通讯帧 XOR 自逆编解码（收发两侧同一变换、同一密钥）。密钥取
 // [security] comm_key，缺省或留空回退内置默认密钥。
 char* decode_str(char* msg);
-
-// --- 校验 ---
-int valid_string(const char* msg);
 
 // --- 密码规范化 ---
 // 密码契约：密码不含单引号。登录口把整个登录串的单引号剥除后才比对

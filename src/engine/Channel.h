@@ -64,7 +64,7 @@ public:
                          int flag = -1);
     CMapping* query_relative(const char* me, const char* target);
     void update_recruit(const char* master, const char* id, const char* name,
-                        int32_t exp, int apprentice);
+                        exp_t exp, int apprentice);
     CMapping* query_recruit(const char* id);
 
     // ========================================================================

@@ -72,10 +72,9 @@ TEST(SmokeTest, MockFunctionsLink)
     tell_object(nullptr, "test", "system");
     message_vision("test", nullptr, nullptr, false);
     // g_db is nullptr here, so real implementations return false
-    EXPECT_FALSE(
-        db_save_container("t_saveobj", "owner_1", "item", "data", false));
+    EXPECT_FALSE(db_save_container("t_item", "owner_1", "item", "data", false));
     std::string data;
-    EXPECT_FALSE(db_load_container("t_saveobj", "owner_1", data));
+    EXPECT_FALSE(db_load_container("t_item", "owner_1", data));
     EXPECT_EQ(is_user(nullptr), 0);
     EXPECT_EQ(is_wizard(nullptr), 0);
 }

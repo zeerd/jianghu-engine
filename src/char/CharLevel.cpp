@@ -26,26 +26,31 @@
 #include <cmath>
 #include <vector>
 
-int CChar::level2skill(int lv)
+int CChar::level2skill(mapping_value_t lv)
 {
+    // 等级域封顶 NORMAL_MAX_LEVEL：入口收窄一次，对照表按 int 级数推导
+    const level_t lv32 = static_cast<level_t>(lv);
+
     // 等级及技能限制对照表
     // 1,低于5级每级+4
-    if (lv < 5) return (lv + 1) * 4;
+    if (lv32 < 5) return (lv32 + 1) * 4;
     // 2,低于25级每级+3
-    if (lv < 25) return 24 + (lv - 5) * 3;
+    if (lv32 < 25) return 24 + (lv32 - 5) * 3;
     // 3,之后每级+3.5
-    return 84 + (lv - 25) * 7 / 2;
+    return 84 + (lv32 - 25) * 7 / 2;
 }
 
-int CChar::skill2level(int sk)
+skill_level_t CChar::skill2level(mapping_value_t sk)
 {
-    if (sk > 84) {
-        return (sk - 84) * 2 / 7 + 25;
+    const skill_level_t sk32 = static_cast<skill_level_t>(sk);
+
+    if (sk32 > 84) {
+        return (sk32 - 84) * 2 / 7 + 25;
     }
-    if (sk > 24) {
-        return (sk - 24) / 3 + 5;
+    if (sk32 > 24) {
+        return (sk32 - 24) / 3 + 5;
     }
-    return sk / 4 - 1;
+    return sk32 / 4 - 1;
 }
 
 // 等级、经验值、属性，技能点对照表
@@ -54,7 +59,7 @@ int CChar::skill2level(int sk)
 // C++ 首次调用 level2_exp() 时通过 require("data.level_exp") 从 Lua
 // 加载并缓存。 C++ 中不保留任何硬编码的经验值数据。
 
-static std::vector<int32_t> s_level_exp;
+static std::vector<exp_t> s_level_exp;
 static bool s_level_exp_loaded = false;
 
 // 重置 level_exp 缓存（供测试使用）。
@@ -69,28 +74,30 @@ void CChar::reset_level_exp_cache()
 // 三段式模型：Lv1-75 幂函数(lv^2.8)，Lv76-157 幂函数(lv^3.2)，Lv158-175 指数。
 // 与原始手工调数值的最大偏差约 45%（低等级与 Lv158+ 指数段），Lv76-157 偏差 <
 // 5%。
-static void generate_level_exp_approx(int32_t* out, int count)
+static void generate_level_exp_approx(exp_t* out, int count)
 {
     for (int i = 0; i < count; i++) {
         int lv = i + 1;
         if (lv <= 5) {
             // 低等级：手工调数值太小，公式偏差大，用简单二次近似
             // 实际值: 0, 100, 350, 750, 1300
-            out[i] = (int32_t)(50.0 * lv * lv - 50.0 * lv);
+            out[i] = static_cast<exp_t>(50.0 * lv * lv - 50.0 * lv);
         }
         else if (lv <= 75) {
             // 幂函数拟合: exp ≈ 8.16 * lv^2.81
-            out[i] = (int32_t)(8.16 * pow((double)lv, 2.81));
+            out[i] = static_cast<exp_t>(8.16 * pow((double)lv, 2.81));
         }
         else if (lv <= 157) {
             // 幂函数拟合: exp ≈ 1.99 * lv^3.21（最大误差 1.2%）
-            out[i] = (int32_t)(1.99 * pow((double)lv, 3.21));
+            out[i] = static_cast<exp_t>(1.99 * pow((double)lv, 3.21));
         }
         else {
             // 指数拟合（对数线性最小二乘）: exp ≈ e^(0.304593 * lv - 31.61993)
             double v = exp(0.304593 * lv - 31.61993);
-            if (v >= 2147483647.0) v = 2147483647.0;
-            out[i] = (int32_t)v;
+            const double exp_max
+                = static_cast<double>((std::numeric_limits<exp_t>::max)());
+            if (v >= exp_max) v = exp_max;
+            out[i] = static_cast<exp_t>(v);
         }
     }
 }
@@ -115,7 +122,8 @@ static void ensure_level_exp_loaded()
                     for (int i = 1; i <= NORMAL_MAX_LEVEL; i++) {
                         lua_rawgeti(L, -1, i);
                         if (lua_isnumber(L, -1)) {
-                            s_level_exp[i - 1] = (int32_t)lua_tointeger(L, -1);
+                            s_level_exp[i - 1]
+                                = static_cast<exp_t>(lua_tointeger(L, -1));
                         }
                         lua_pop(L, 1);
                     }
@@ -139,20 +147,20 @@ static void ensure_level_exp_loaded()
     }
 }
 
-int32_t CChar::level2_exp(int lv)
+exp_t CChar::level2_exp(mapping_value_t lv)
 {
     ensure_level_exp_loaded();
 
     if (lv < 1) return 0;
     if (lv >= NORMAL_MAX_LEVEL)
-        return (int32_t)(1917735009 + (int64_t)lv * 100000000);
-    return s_level_exp[lv - 1];
+        return static_cast<exp_t>(1917735009 + (int64_t)lv * 100000000);
+    return s_level_exp[static_cast<size_t>(lv - 1)];
 }
 
 // 根据经验值计算等级
-int CChar::exp2level(int32_t exp)
+level_t CChar::exp2level(exp_t exp)
 {
-    int lv = 0;
+    level_t lv = 0;
     while (level2_exp(lv) <= exp) lv++;
 
     return lv - 1;
@@ -184,8 +192,8 @@ int CChar::skill_death_recover()
         skills.keys(v);
 
         for (int i = 0; i < v.count(); i++) {
-            const char* sk = v[i];
-            int level      = skills[sk];
+            const char* sk      = v[i];
+            skill_level_t level = static_cast<skill_level_t>(skills[sk]);
             if (!learned.query(sk)) {
                 amount = (level + 1) * (level + 1) * 3 / 4;
                 learned.set(sk, amount);
@@ -229,7 +237,8 @@ void CChar::remove_betrayer(CChar* me)
 
     me->flush_my_skill(me);
 
-    LOG_INFO("%s判师，消除判师记录，全部技能降%ld级！", me->name(1), lv);
+    LOG_INFO("%s判师，消除判师记录，全部技能降%lld级！", me->name(1),
+             (long long)lv);
 }
 
 //---------------------------------------------------------

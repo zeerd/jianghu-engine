@@ -1,7 +1,7 @@
 // test_random.cpp - Unit tests for g_utils.random() and urandom().
 //
-// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=Win32
-// Run:    tests\Debug\tests.exe --gtest_filter=Random*
+// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=x64
+// Run:    x64\Debug\tests.exe --gtest_filter=Random*
 //
 #include "pch.h"
 #include <cstdlib>
@@ -11,13 +11,13 @@
 double urandom(double seed);
 
 // ====================================================================
-// g_utils.random(): returns int in [0, nSeed)
+// g_utils.random(): returns a value in [0, seed)，出参随槽位宽
 // ====================================================================
 TEST(Random, BasicRange)
 {
     srand(42);
     for (int i = 0; i < 1000; i++) {
-        int32_t r = g_utils.random(100);
+        mapping_value_t r = g_utils.random(100);
         EXPECT_GE(r, 0);
         EXPECT_LT(r, 100);
     }

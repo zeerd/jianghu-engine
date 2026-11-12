@@ -34,9 +34,9 @@ const char* CChar::inventory_look(CContainer* obj, int flag)
     if (obj->query("equipped"))
         snprintf(str, 80, "%s", obj->name());
     else if (flag) {
-        int32_t amount = obj->query_amount();
+        amount_t amount = obj->query_amount();
         if (amount > 1)
-            snprintf(str, 80, "数量%d的%s", amount, obj->name());
+            snprintf(str, 80, "数量%lld的%s", (long long)amount, obj->name());
         else
             snprintf(str, 80, "%s", obj->name());
     }
@@ -53,7 +53,7 @@ int CChar::do_look(CChar* me)
         "深不可测", "深不可测", "深不可测", "深不可测", "前无古人，后无来者",
     };
 
-    int per = attr("per");
+    mapping_value_t per = attr("per");
     if (!per) per = g_utils.random(20);
 
     char pro[5];
@@ -77,8 +77,8 @@ int CChar::do_look(CChar* me)
                      querystr("resident"));
     }
 
-    CMapping* skl = query_skills();
-    int skills    = 0;
+    CMapping* skl          = query_skills();
+    mapping_value_t skills = 0;
 
     if (skl->get_count()) {
         CVector v;
@@ -95,9 +95,10 @@ int CChar::do_look(CChar* me)
 
     char family_des[80];
 
-    family_des[0]         = 0;
-    int gen               = query("family/generation");
-    mapping_value_t mygen = me->query("family/generation");
+    family_des[0]    = 0;
+    generation_t gen = static_cast<generation_t>(query("family/generation"));
+    generation_t mygen
+        = static_cast<generation_t>(me->query("family/generation"));
 
     if (this != me && me->querymap("family")
         && EQUALSTR(querystr("family/family_name"),
@@ -160,7 +161,8 @@ int CChar::do_look(CChar* me)
     eff_msg[0] = 0;
     if (query("max_hp")) {
         snprintf(eff_msg, 80, "%s%s", pro,
-                 eff_status_msg(query("eff_hp") * 100 / query("max_hp")));
+                 eff_status_msg(static_cast<ratio_t>(query("eff_hp") * 100
+                                                     / query("max_hp"))));
     }
 
     if (DIFFERSTR(querystr("race"), "野兽")) {
@@ -171,8 +173,8 @@ int CChar::do_look(CChar* me)
                      (query("age") > 15 || is_wizard(me))
                          ? query_waimao(querystr("gender"), per)
                          : "",
-                     pro, ability_evaluate[skills], family_des[0] ? pro : "",
-                     family_des, couple_des, eff_msg),
+                     pro, ability_evaluate[static_cast<size_t>(skills)],
+                     family_des[0] ? pro : "", family_des, couple_des, eff_msg),
             me);
     }
 
@@ -196,8 +198,8 @@ int CChar::do_look(CChar* me)
         add_menu_item("结束观察", "", me);
     }
 
-    mapping_value_t me_shen = me->query("repute");
-    int32_t obj_shen        = query("repute");
+    mapping_value_t me_shen  = me->query("repute");
+    mapping_value_t obj_shen = query("repute");
 
     if (this != me && is_living(this)
         && ((me_shen < 0 && obj_shen > 0) || (me_shen > 0 && obj_shen < 0))
@@ -240,16 +242,6 @@ const char* CChar::eff_status_msg(int ratio)
 // [LuaBind] auto-managed bindings
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// eff_status_msg(ratio) -> string
-// （CCombatd::eff_status_msg：按气血比例返回状态描述）
-int l_eff_status_msg(lua_State* L)
-{
-    int ratio     = (int)luaL_optinteger(L, 1, 100);
-    const char* s = CChar::eff_status_msg(ratio);
-    lua_pushstring(L, s ? s : "");
-    return 1;
-}
 
 // do_emote(me, target, verb, channel_emote, who)
 int l_do_emote(lua_State* L)

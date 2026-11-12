@@ -39,27 +39,27 @@ struct AttackContext {
     CMapping* action;
     CMapping* prepare;
 
-    // Action ratios extracted from action mapping
-    int damage_ratio;
-    int parry_ratio;
-    int dodge_ratio;
-    int force_ratio;
+    // Action ratios extracted from action mapping（百分比比率域）
+    ratio_t damage_ratio;
+    ratio_t parry_ratio;
+    ratio_t dodge_ratio;
+    ratio_t force_ratio;
 
     // Combat values
     double ap;
     double dp;
     double pp;
-    int32_t mod_val;
-    int32_t damage;
-    int32_t damage_bonus;
-    int32_t damage_base;  // apply/damage 快照（伤害结算前）
+    ratio_t mod_val;
+    damage_t damage;
+    damage_t damage_bonus;
+    damage_t damage_base;  // apply/damage 快照（伤害结算前）
 
     // Message & experience
     std::string result;
     const char* dodge_msg;
     const char* parry_msg;
-    int add_exp_me;
-    int add_exp_victim;
+    exp_t add_exp_me;
+    exp_t add_exp_victim;
 
     AttackContext()
         : me(nullptr),
@@ -106,7 +106,7 @@ public:
     bool execute(AttackContext& ctx);
 
     // Format damage value into colored description string
-    static string damge_to_string(int32_t damage, bool real = true);
+    static string damge_to_string(damage_t damage, bool real = true);
 
 private:
     friend struct AttackTestPeer;

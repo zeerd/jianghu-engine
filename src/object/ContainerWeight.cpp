@@ -17,7 +17,7 @@
 
 //==== methods ====
 
-void CContainer::set_weight(int32_t value)
+void CContainer::set_weight(amount_t value)
 {
     if (!environment()) {
         m_weight = value;
@@ -29,21 +29,22 @@ void CContainer::set_weight(int32_t value)
     m_weight = value;
 }
 
-int32_t CContainer::query_weight() { return m_weight; }
+amount_t CContainer::query_weight() { return m_weight; }
 
-int32_t CContainer::weight() { return m_weight + encumb; }
+amount_t CContainer::weight() { return m_weight + encumb; }
 
-int32_t CContainer::query_max_encumbrance() { return max_encumb; }
+amount_t CContainer::query_max_encumbrance() { return max_encumb; }
 
-void CContainer::set_max_encumbrance(int32_t e) { max_encumb = e; }
+void CContainer::set_max_encumbrance(amount_t e) { max_encumb = e; }
 
-void CContainer::add_encumbrance(int32_t w)
+void CContainer::add_encumbrance(amount_t w)
 {
     encumb += w;
     if (encumb < 0) {
-        LOG_ERROR("Object %s(%s) encumbrance underflow. env: %s w: %ld",
+        LOG_ERROR("Object %s(%s) encumbrance underflow. env: %s w: %lld",
                   name(1), querystr("id"),
-                  (environment() ? environment()->name(1) : "NULL"), w);
+                  (environment() ? environment()->name(1) : "NULL"),
+                  (long long)w);
     }
 
     if (encumb > max_encumb) over_encumbrance();
@@ -56,15 +57,15 @@ void CContainer::over_encumbrance()
     LOG_DEBUG("Object %s(%s) over encumbrance!", name(1), querystr("id"));
 }
 
-int32_t CContainer::query_encumb() { return encumb; }
+amount_t CContainer::query_encumb() { return encumb; }
 
-int32_t CContainer::query_amount() { return 1; }
+amount_t CContainer::query_amount() { return 1; }
 
-int32_t CContainer::query_max_amount() { return 1; }
+amount_t CContainer::query_max_amount() { return 1; }
 
-void CContainer::set_amount(int32_t amount) {}
+void CContainer::set_amount(amount_t amount) {}
 
-int32_t CContainer::add_amount(int32_t amount) { return amount; }
+amount_t CContainer::add_amount(amount_t amount) { return amount; }
 
 int CContainer::over_encumbranced() { return encumb > max_encumb; }
 
@@ -112,7 +113,7 @@ int l_set_weight(lua_State* L)
     CContainer* c = dynamic_cast<CContainer*>(obj);
     if (!c) return 0;
 
-    int32_t w = (int32_t)luaL_checkinteger(L, 2);
+    amount_t w = static_cast<amount_t>(luaL_checkinteger(L, 2));
     c->set_weight(w);
     return 0;
 }

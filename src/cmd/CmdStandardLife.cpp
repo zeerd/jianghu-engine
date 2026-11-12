@@ -7,6 +7,7 @@
 #include "../interfaces/IActionHandler.h"
 #include "../interfaces/IDialogSource.h"
 #include "../interfaces/IClientObject.h"
+#include "../config/MainConfig.h"
 
 void wakeup1(CContainer* ob, int32_t param1, int32_t param2)
 {
@@ -125,7 +126,7 @@ int CCmdStandard::Sleep(CChar* me, int32_t target, char* arg)
 
     if (!target || target == me->object_id()) {
         me->disable_player("睡梦中");
-        int rnd;
+        count_t rnd;
 
         if (where->query("sleep_room")) {
             tell_object(me,
@@ -281,13 +282,13 @@ void CCmdStandard::wakeup2(CContainer* ob, int32_t param1, int32_t param2)
 
     if (EQUALSTR(me->querystr("gender"), "男性")) {
         message_vision("$HIY$N醒了过来，似乎还沉浸在幸福之中。", me);
-        me->set_temp("block_msg/all", 0l);
+        me->set_temp("block_msg/all", MAPPING_VALUE_ZERO);
         tell_object(me, "你醒了过来，似乎还沉浸在幸福之中。");
         return;
     }
 
     message_vision("$HIY$N醒了过来，脸上还挂着甜蜜的笑容。", me);
-    me->set_temp("block_msg/all", 0l);
+    me->set_temp("block_msg/all", MAPPING_VALUE_ZERO);
     tell_object(me, "你醒了过来，脸上还挂着甜蜜的笑容。");
 }
 
@@ -298,7 +299,8 @@ int CCmdStandard::exercise(CChar* me, int32_t target, char* arg)
     if ((env->query("no_exercise") || env->query("no_all")) && !is_wizard(me))
         return notify_fail("这里禁止练功。");
 
-    int hp_cost, busy_time;
+    hp_t hp_cost;
+    count_t busy_time;
 
     if ((me->environment())->query("no_fight"))
         return notify_fail("安全区内禁止练功。");
@@ -337,7 +339,7 @@ int CCmdStandard::exercise(CChar* me, int32_t target, char* arg)
 int CCmdStandard::exercising(CChar* me)
 {
     mapping_value_t exercise_cost = me->query_temp("exercise_cost");
-    int neili_gain                = 1 + me->query_skill("force") / 5;
+    hp_t neili_gain               = 1 + me->query_skill("force") / 5;
     CContainer* where             = me->environment();
 
     if (exercise_cost < neili_gain) neili_gain = exercise_cost;
@@ -368,7 +370,7 @@ int CCmdStandard::exercising(CChar* me)
 
     if (exercise_cost > 0) return 1;
 
-    me->set_temp("pending/exercising", 0l);
+    me->set_temp("pending/exercising", MAPPING_VALUE_ZERO);
     message_channel("exercise", "$N运功完毕，深深吸了口气，站了起来。", me);
     if (me->query("mp") >= me->query("max_mp") * 2) {
         if (me->query("max_mp")
@@ -392,7 +394,7 @@ int CCmdStandard::halt_exercise(CChar* me, CChar* who, char* how)
 {
     if (me->query("mp") > me->query("max_mp") * 2)
         me->set("mp", me->query("max_mp") * 2);
-    me->set_temp("pending/exercising", 0l);
+    me->set_temp("pending/exercising", MAPPING_VALUE_ZERO);
 
     // 显示中止原因信息
     if (strcmp(how, "halt") == 0)

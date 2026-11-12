@@ -13,9 +13,9 @@
 class CMoney : public CItem {
 public:
     virtual int query_autoload() { return 1; };
-    static char* money_str(int32_t amount);
-    static int player_pay(CChar* me, int32_t value);
-    static int pay_player(CChar* me, int32_t value);
+    static char* money_str(money_t amount);
+    static int player_pay(CChar* me, money_t value);
+    static int pay_player(CChar* me, money_t value);
     virtual int32_t query_attr(int attr);
     virtual int move(CContainer* me);
     CMoney();

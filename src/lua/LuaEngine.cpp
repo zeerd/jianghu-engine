@@ -1,4 +1,4 @@
-﻿/** @file LuaEngine.cpp @brief Lua 5.5 运行时封装实现 */
+/** @file LuaEngine.cpp @brief Lua 5.5 运行时封装实现 */
 
 #include <windows.h>
 
@@ -40,17 +40,26 @@ CLuaEngine::CLuaEngine()
 
 CLuaEngine::~CLuaEngine() { shutdown(); }
 
-// 获取文件最后修改时间（FILETIME，100ns 粒度）
-// 秒级 st_mtime 会让「同一秒内的第二次编辑」与上次重载记录判相等、被 mtime
-// 快筛当成没变跳过——最后一次保存恰好落在重载同秒时，改动永不生效直到再次
-// 保存。快筛两段设计（mtime 快筛 + 哈希确认）不变，只把比较精度提到文件
-// 系统原生粒度。读取失败返回 0（与任何真实 FILETIME 都不相等 → 放行哈希确认）。
-static long long get_file_m_time(const char* path)
+// 文件快筛指纹：最后写时间（FILETIME，100ns 粒度）+ 字节数，取自同一次
+// 属性查询。秒级 st_mtime 会让「同一秒内的第二次编辑」与上次重载记录判相等、
+// 被快筛当成没变跳过；连续写入也可能落在同一时钟刻度，单靠 mtime 同样会漏——
+// 两者任一不同即放行到哈希确认。读取失败返回全 0（与任何真实指纹都不相等）。
+struct FileFingerprint {
+    long long mtime;
+    long long size;
+};
+
+static FileFingerprint get_file_fingerprint(const char* path)
 {
     WIN32_FILE_ATTRIBUTE_DATA fad;
-    if (!GetFileAttributesExA(path, GetFileExInfoStandard, &fad)) return 0;
-    return (static_cast<long long>(fad.ftLastWriteTime.dwHighDateTime) << 32)
-           | static_cast<long long>(fad.ftLastWriteTime.dwLowDateTime);
+    if (!GetFileAttributesExA(path, GetFileExInfoStandard, &fad)) return {0, 0};
+    FileFingerprint fp;
+    fp.mtime
+        = (static_cast<long long>(fad.ftLastWriteTime.dwHighDateTime) << 32)
+          | static_cast<long long>(fad.ftLastWriteTime.dwLowDateTime);
+    fp.size = (static_cast<long long>(fad.nFileSizeHigh) << 32)
+              | static_cast<long long>(fad.nFileSizeLow);
+    return fp;
 }
 
 // 清空 require 的模块缓存，使重载后的脚本 require 到全新加载的版本。
@@ -419,7 +428,7 @@ void CLuaEngine::scan_dir(const char* dir, LuaScriptType type, bool fromDefault)
     // 使用 Windows 文件查找
     std::string pattern = std::string(dir) + "/*";
     struct _finddata_t c_file;
-    long hFile;
+    intptr_t hFile;
 
     if ((hFile = _findfirst(pattern.c_str(), &c_file)) == -1L) return;
 
@@ -643,27 +652,40 @@ int CLuaEngine::load_script(const char* name, LuaScriptType type)
     // 复合 key：按类型隔离同名脚本（如 item/hammer 与 skill/hammer）
     std::string compositeKey = get_script_dir(type) + "/" + name;
 
-    std::string path   = get_script_path(name, type);
-    unsigned long hash = get_file_hash(path.c_str());
+    std::string path = get_script_path(name, type);
 
     // 检查是否已加载（复合 key 确保不同类型各自独立缓存）
     std::map<std::string, LuaScript>::iterator it
         = m_scripts.find(compositeKey);
     if (it != m_scripts.end()) {
-        if (it->second.ref != LUA_NOREF) {
-            // 已加载：若文件内容已变化则热重载
-            if (it->second.contentHash != hash)
-                return reload_script(it->first.c_str());
-            return it->second.ref;
-        }
-        // 负缓存命中：内容未变只回一行短错误（避免重复 BACKTRACE 刷屏）；
-        // 内容已变化（文件从无到有 / 被修复）则抹掉条目重试首次加载
-        if (it->second.contentHash == hash) {
+        // 命中快筛：指纹未变即内容未变（与 check_for_reload 同口径），
+        // 直接回缓存不读盘——load_script 被 create_*/get_script_* 等热路径
+        // 调用，稳态命中只做一次文件属性查询
+        FileFingerprint fp = get_file_fingerprint(path.c_str());
+        if (fp.mtime == it->second.mtime && fp.size == it->second.file_size) {
+            if (it->second.ref != LUA_NOREF) return it->second.ref;
+            // 负缓存命中：内容未变只回一行短错误（避免重复 BACKTRACE 刷屏）
             LOG_ERROR("[Lua] %s: %s", name, it->second.errorMsg.c_str());
             return LUA_NOREF;
         }
+        // 指纹变了才读盘算哈希确认：同内容改写不误重载，确认后刷新指纹
+        unsigned long hash = get_file_hash(path.c_str());
+        if (hash == it->second.contentHash) {
+            it->second.mtime     = fp.mtime;
+            it->second.file_size = fp.size;
+            if (it->second.ref != LUA_NOREF) return it->second.ref;
+            LOG_ERROR("[Lua] %s: %s", name, it->second.errorMsg.c_str());
+            return LUA_NOREF;
+        }
+        // 内容已变化：已加载则热重载；负缓存条目（文件从无到有 / 被修复）
+        // 抹掉条目重试首次加载
+        if (it->second.ref != LUA_NOREF)
+            return reload_script(it->first.c_str());
         m_scripts.erase(it);
     }
+
+    // 缓存未命中：此处才整文件读盘算哈希
+    unsigned long hash = get_file_hash(path.c_str());
 
     // 首次加载：读取文件 → UTF-8 转 GBK → 加载到 Lua
     std::string gbkContent = load_file_as_gbk(path.c_str());
@@ -723,7 +745,9 @@ int CLuaEngine::load_script(const char* name, LuaScriptType type)
     script.type        = type;
     script.ref         = ref;
     script.contentHash = hash;
-    script.mtime       = get_file_m_time(path.c_str());
+    FileFingerprint fp = get_file_fingerprint(path.c_str());
+    script.mtime       = fp.mtime;
+    script.file_size   = fp.size;
     script.loaded      = true;
     // 标记来源：默认目录的脚本不参与自动热重载
     std::map<std::string, bool>::iterator dfIt
@@ -745,7 +769,9 @@ void CLuaEngine::record_script_load_failure(const std::string& compositeKey,
     script.type        = type;
     script.ref         = LUA_NOREF;
     script.contentHash = contentHash;
-    script.mtime       = get_file_m_time(path.c_str());
+    FileFingerprint fp = get_file_fingerprint(path.c_str());
+    script.mtime       = fp.mtime;
+    script.file_size   = fp.size;
     script.loaded      = false;
     script.hasError    = true;
     script.errorMsg    = errorMsg ? errorMsg : "load failed";
@@ -764,7 +790,9 @@ void CLuaEngine::record_script_load_failure(const std::string& compositeKey,
 // 自动重新触发重载。旧 ref 仍按「失败保留旧版本」原地保留。
 static void record_observed_file_state(LuaScript& script, unsigned long hash)
 {
-    script.mtime       = get_file_m_time(script.file.c_str());
+    FileFingerprint fp = get_file_fingerprint(script.file.c_str());
+    script.mtime       = fp.mtime;
+    script.file_size   = fp.size;
     script.contentHash = hash;
 }
 
@@ -860,7 +888,9 @@ int CLuaEngine::reload_script(const char* compositeKey, bool* reloaded)
 
     script.ref         = luaL_ref(m_state, LUA_REGISTRYINDEX);
     script.contentHash = hash;
-    script.mtime       = get_file_m_time(script.file.c_str());
+    FileFingerprint fp = get_file_fingerprint(script.file.c_str());
+    script.mtime       = fp.mtime;
+    script.file_size   = fp.size;
     script.loaded      = true;
     script.hasError    = false;
     script.errorMsg.clear();
@@ -901,18 +931,18 @@ LuaScript* CLuaEngine::get_script(const char* name, LuaScriptType type)
     return &it->second;
 }
 
-int CLuaEngine::reload_all_scripts()
+int CLuaEngine::reload_all_scripts(bool force)
 {
     // 全部重载前，清空 package.loaded 全部模块缓存，使重载后的脚本 require
     // 到全新版本。 仅在"全部重载"时清除，不影响单个 reload
     // 与自动热重载的原有机制。
     clear_loaded_shared_scripts(m_state);
 
-    // 遍历所有已加载脚本并重载（跳过来自默认目录的脚本）
+    // 遍历所有已加载脚本并重载；默认目录脚本是生产基线，非 force 跳过
     int failed = 0;
     std::map<std::string, LuaScript>::iterator it;
     for (it = m_scripts.begin(); it != m_scripts.end(); it++) {
-        if (it->second.fromDefault) continue;  // 默认脚本不重载
+        if (!force && it->second.fromDefault) continue;
         bool ok = false;
         reload_script(it->first.c_str(), &ok);
         // 失败条目不通知实例：旧 ref 原地保留，通知只会让实例拿旧版本
@@ -963,7 +993,7 @@ static void broadcast_auto_reload(const char* text, const char* bareName)
 
 // 检查所有已加载脚本是否有变化，自动重载（供心跳调用）
 // 返回重载的脚本数量
-// 优化：先用 mtime 快速过滤（不读文件），mtime 变化才读内容算哈希确认
+// 优化：先用文件指纹快速过滤（不读文件），指纹变化才读内容算哈希确认
 int CLuaEngine::check_for_reload()
 {
     if (!m_state) return 0;
@@ -976,11 +1006,11 @@ int CLuaEngine::check_for_reload()
         // 默认目录的脚本不参与自动热重载
         if (script.fromDefault) continue;
 
-        // 快速过滤：mtime 没变则文件肯定没变（不读文件，开销极小）
-        long long mtime = get_file_m_time(script.file.c_str());
-        if (mtime == script.mtime) continue;
+        // 快速过滤：指纹没变则文件肯定没变（不读文件，开销极小）
+        FileFingerprint fp = get_file_fingerprint(script.file.c_str());
+        if (fp.mtime == script.mtime && fp.size == script.file_size) continue;
 
-        // mtime 变化，读内容算哈希确认（避免 mtime 精度导致的误判）
+        // 指纹变化，读内容算哈希确认（避免 mtime 精度导致的误判）
         unsigned long hash = get_file_hash(script.file.c_str());
         if (hash != script.contentHash) {
             // 从复合 key 提取 bareName 用于日志和广播
@@ -1011,8 +1041,9 @@ int CLuaEngine::check_for_reload()
             }
         }
         else {
-            // mtime 变了但内容没变（mtime 精度问题），更新 mtime 避免重复检查
-            script.mtime = mtime;
+            // 指纹变了但内容没变（同内容改写/精度问题），刷新指纹避免重复检查
+            script.mtime     = fp.mtime;
+            script.file_size = fp.size;
         }
     }
 
@@ -1473,9 +1504,10 @@ bool lua_reload_script(const char* name)
 
 // 重载所有已加载脚本（供 reload all 命令调用）
 // 返回重载失败的条目数（0 = 全部成功），供回执如实上报部分失败
-int lua_reload_all()
+// force 放开默认根保护（语义见 CLuaEngine::reload_all_scripts 签名注释）
+int lua_reload_all(bool force)
 {
-    int failed = g_LuaEngine->reload_all_scripts();
+    int failed = g_LuaEngine->reload_all_scripts(force);
 
     // 重载所有技能后，清空技能缓存，下次 load_skill 会重新创建
     extern MAP2SKILL g_skill_list;

@@ -1,12 +1,15 @@
--- check-lua fixture: script-defined and engine-bound methods are both
--- legitimate ':' targets and must not be flagged.
+-- check-lua fixture: a script-defined method resolves through its own table,
+-- and an engine-bound method resolves through self — both must not be flagged.
 local M = {}
 
 function M.helper(self)
     return 1
 end
 
+local t = {}
+
 return function(self)
-    self:helper()
+    M.helper(self)
+    t:helper()
     self:set_name("a", "b")
 end

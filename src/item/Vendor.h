@@ -20,11 +20,11 @@
 
 struct DTGood {
     int32_t m_code  = 0;
-    char m_name[40] = "";  // 名称
-    string m_basename;     // 物件类
-    int m_index      = 0;  // 类内索引
-    int32_t m_amount = 0;  // 数量
-    int32_t m_value  = 0;  // 价值
+    char m_name[40] = "";   // 名称
+    string m_basename;      // 物件类
+    int m_index       = 0;  // 类内索引
+    amount_t m_amount = 0;  // 数量
+    money_t m_value   = 0;  // 价值
 };
 
 typedef std::list<std::unique_ptr<DTGood>> DTGOODLIST;
@@ -47,7 +47,7 @@ public:
 protected:  // 商人，买卖物品。
     DTGood* get_good(int32_t good);
     DTGood* find_good(string basename, int index = 0);
-    void add_good(CContainer* good, int32_t amount = 1);
+    void add_good(CContainer* good, amount_t amount = 1);
     DTGOODLIST m_good_list;  // 商品列表
     int32_t m_good_code;     // 商品编码
 

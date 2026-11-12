@@ -118,7 +118,7 @@ void CChar::set_title(const char* title)
 
 int CChar::prevent_learn(CChar* me, const char* skill)
 {
-    int betrayer;
+    count_t betrayer;
 
     if ((betrayer = me->query("betrayer"))) {
         if (CServerConfig::no_betrayer_valid()) {
@@ -202,9 +202,9 @@ void CChar::release_master()
 }
 
 // 计算当前徒弟数目
-int CChar::recruit_num()
+count_t CChar::recruit_num()
 {
-    int count     = 0;
+    count_t count = 0;
     CMapping* ptr = g_channel.query_recruit(id(1));
 
     if (ptr) {

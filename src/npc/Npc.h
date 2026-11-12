@@ -58,8 +58,6 @@ public:
     virtual char* chat_msg_combat();
     virtual char* chat_msg();
 
-    virtual void wield_ownered_item(const char* name);
-
     CNpc() { set("grant", GRANT_NPC); };
     virtual ~CNpc();
 };

@@ -3,7 +3,7 @@
 > **数据**：2026-11-09 18:19 轮 E2E（pass，src 行 71.6%），原始 281 条 = 官方清单 201 + 解析漏收 80。
 > **口径与局限**见 `docs/design/integration-test.md` §5.3；**域级不测裁定**见其 §6。
 >
-> **本清单只留未决条目**（现 118 条）：
+> **本清单只留未决条目**（现 115 条）：
 > - 已完成处置（教材落地 / 死码删除 / 转命中）的条目随收口直接删除；
 > - 已裁定「明确不测」的条目归档到三处后删除：**结论** = design §6、**证据** =
 >   `docs/design/integration-test-adjudications.md`、**清单原行** =
@@ -13,12 +13,11 @@
 > 「移入 §6 / 全仓无调用方」类断言须逐条拿 `c:\jianghu-dataset` 复核：dataset 有真实调用的
 > 不删、重新规划；dataset 也无调用的才按死码处置。
 
-## 1. Lua 绑定 l_*（脚本侧可调的引擎 API）（34 条）
+## 1. Lua 绑定 l_*（脚本侧可调的引擎 API）（33 条）
 
 - [ ] `l_reset_level` — src\char\Char.cpp:397
 - [ ] `l_disable_player` — src\char\Char.cpp:455
 - [ ] `l_enable_player` — src\char\Char.cpp:467
-- [ ] `l_is_invalid` — src\char\CharAttr.cpp:214
 - [ ] `l_learn_bonus` — src\char\CharAttr.cpp:227
 - [ ] `l_receive_wound` — src\char\CharCombat.cpp:362 | 质疑 → 方案：（参考random_npc）主动申请取消任务，发布者调用这个给玩家惩罚。
 - [ ] `l_set_leader` — src\char\CharFamily.cpp:234
@@ -55,12 +54,11 @@
 - [ ] `CCmdHandle::do_revive` — src\cmd\CmdHandle.cpp:344
 - [ ] `CCmdHandle::do_kick` — src\cmd\CmdHandle.cpp:351
 
-## 3. 角色（char）（15 条）
+## 3. 角色（char）（13 条）
 
 - [ ] `CChar::query_magic_exp` — src\char\CharAttr.cpp:61
 - [ ] `CChar::query_magic_skill` — src\char\CharAttr.cpp:64
 - [ ] `CChar::query_grant` — src\char\CharAttr.cpp:78
-- [ ] `CChar::is_invalid` — src\char\CharAttr.cpp:101
 - [ ] `CChar::attempt_apprentice` — src\char\CharFamily.cpp:73
 - [ ] `CChar::send_off` — src\char\CharFamily.cpp:87
 - [ ] `CChar::query_leader` — src\char\CharFamily.cpp:171
@@ -68,7 +66,6 @@
 - [ ] `CChar::skill2level` — src\char\CharLevel.cpp:41
 - [ ] `CChar::reset_level_exp_cache` — src\char\CharLevel.cpp:63
 - [ ] `generate_level_exp_approx` — src\char\CharLevel.cpp:73
-- [ ] `char_rule_limit` — src\char\CharRules.cpp:12
 - [ ] `CChar::clear_skill_prepare` — src\char\CharSkill.cpp:193
 - [ ] `CChar::clear_skill_map` — src\char\CharSkill.cpp:195
 - [ ] `CChar::clear_skill` — src\char\CharSkill.cpp:198

@@ -13,7 +13,7 @@
 #           installed and on PATH, or set $OpenCppCoveragePath below.
 #
 # What it does:
-#   1. Builds tests (Release|Win32 — 生产同构配置；Debug 构建的
+#   1. Builds tests (Release|x64 — 生产同构配置；Debug 构建的
 #      测试程序内含 TestConfigGate，运行即报错，故默认禁止)。
 #      引擎测试（tests）与 CLI 测试（cli\tests）分别构建。
 #   2. Discovers test suites (--gtest_list_tests), packs them into
@@ -40,12 +40,14 @@ param(
     [string]$OpenCppCoveragePath = "",
     [string]$ServerSrc = "src",
     [string]$CliSrc = "cli\src",
-    # 唯一被认可的测试配置 = 生产配置 Release|Win32（/MT, NDEBUG, /O2）。
+    # 唯一被认可的测试配置 = 生产配置 Release|x64（/MT, NDEBUG, /O2）。
     # Debug 构建的 tests.exe 含 TestConfigGate：无论以何种方式运行都会
     # 在测试结果中无条件报错（见 tests/test_env.cpp），杜绝拿 Debug
     # 假绿当验收。实例：SYMBOL_INFO 栈溢出 Debug 1216 全绿、Release 98 例崩。
     [string]$BuildConfig = "Release",
-    [string]$BuildPlatform = "Win32",
+    # x64 与 Win32 的产物各自成家（x64\、Release\、bin\cli\x64\），互不覆盖；
+    # 换平台后 delta 基线按 method 列区分，首条记 n/a。
+    [string]$BuildPlatform = "x64",
     [ValidateSet("line", "branch")]
     [string]$CoverageType = "line",
     [switch]$ListNotInstrumented,
@@ -68,16 +70,23 @@ param(
 
 $ErrorActionPreference = "Stop"
 $RootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-# 输出目录：Debug 工程显式设为 tests\Debug\；Release 用 MSBuild 默认
-# $(SolutionDir)Release\（仓库根的 Release\）
-$TestExe = if ($BuildConfig -eq "Debug") {
-    Join-Path $RootDir "tests\Debug\tests.exe"
+# 输出目录（工程里显式声明，不依赖 MSBuild 默认值）：
+#   Win32: Debug -> tests\Debug\，Release -> 仓库根 Release\
+#   x64  : Debug/Release -> 仓库根 x64\<配置>\
+$TestExe = if ($BuildPlatform -eq "Win32") {
+    if ($BuildConfig -eq "Debug") { Join-Path $RootDir "tests\Debug\tests.exe" }
+    else { Join-Path $RootDir "Release\tests.exe" }
 } else {
-    Join-Path $RootDir "Release\tests.exe"
+    Join-Path $RootDir "$BuildPlatform\$BuildConfig\tests.exe"
 }
-# CLI 测试工程独立（cli\tests\jianghu_cli_tests.vcxproj），产物固定输出到
-# bin\cli\；由本脚本分别构建与运行，覆盖率合并后统一展示。
-$CliTestExe = Join-Path $RootDir "bin\cli\jianghu_cli_tests.exe"
+# CLI 测试工程独立（cli\tests\jianghu_cli_tests.vcxproj），产物按平台分家：
+# Win32 到 bin\cli\、x64 到 bin\cli\<平台>\；由本脚本分别构建与运行，
+# 覆盖率合并后统一展示。
+$CliTestExe = if ($BuildPlatform -eq "Win32") {
+    Join-Path $RootDir "bin\cli\jianghu_cli_tests.exe"
+} else {
+    Join-Path $RootDir "bin\cli\$BuildPlatform\jianghu_cli_tests.exe"
+}
 $CoverageDir = Join-Path $RootDir "coverage_report"
 $HistoryDir = Join-Path $RootDir "coverage_history"
 $SummaryCsv = Join-Path $HistoryDir "summary.csv"
@@ -131,7 +140,7 @@ if (-not (Test-Path $msbuildExe)) {
 }
 Write-Host "Using MSBuild: $msbuildExe" -ForegroundColor DarkGray
 
-# 引擎测试与 CLI 测试分别构建，共享同一 Release|Win32 配置。
+# 引擎测试与 CLI 测试分别构建，共享同一 Configuration|Platform。
 # 工程路径拼成绝对路径：msbuild 按当前目录解析相对路径，脚本不应依赖调用方 CWD。
 $testProjects = @(
     (Join-Path $RootDir "tests\unit\tests.vcxproj"),
@@ -273,6 +282,8 @@ for ($i = 0; $i -lt $shardCount; $i++) {
 # 测试对仓库的一切相对路径读写（test_config.ini、lua-tests 夹具改写、
 # lua-default/lua-sample、map.txt、日志）都相对 CWD 解析；tests.exe 还依赖
 # CWD 命中仓库根的 libmySQL.dll（Release\ 无该 DLL，换 CWD 即 0xC0000135）。
+# 该 DLL 的架构必须与被测平台一致——x64 的 tests.exe 要 x64 的 libmySQL.dll，
+# 拿到 x86 版本是 193（%1 不是有效的 Win32 应用程序），加载不过即整片红。
 # 因此每分片拷出一棵完整私有树 + DLL，跨进程互踩在结构上不存在；
 # 每轮重建 → 夹具必然新鲜（上轮崩溃残留不会污染本轮）。
 Write-Host "`n=== Preparing shard workspaces ===" -ForegroundColor Cyan
@@ -750,10 +761,11 @@ if (-not (Test-Path $SummaryCsv)) {
     }
 }
 # delta 只与同构建配置的上一条比较：不同配置的行映射不同，跨配置比较
-# 会得到无意义的大跳水。method 列记录采集配置，切换配置后首条即新基线。
-# 本脚本现在合并引擎测试与 CLI 测试的覆盖率，故 method 标注 -merge；
-# 合并后的首条记录即新的合并基线，不会与旧引擎单测基线作差。
-$method = "xml-merge-$($BuildConfig.ToLower())"
+# 会得到无意义的大跳水。method 列记录采集配置——合并口径 + 配置 + **平台**：
+# 换平台（Win32 ↔ x64）行映射同样全变，必须各自成基线，首条记 n/a（与参数区
+# $BuildPlatform 的注释同一口径）。本脚本合并引擎测试与 CLI 测试的覆盖率，
+# 故 method 标注 -merge。
+$method = "xml-merge-$($BuildConfig.ToLower())-$($BuildPlatform.ToLower())"
 $prevLine = Get-Content $SummaryCsv |
     Where-Object { ($_ -split ",")[-1] -eq $method } |
     Select-Object -Last 1

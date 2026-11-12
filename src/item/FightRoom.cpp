@@ -58,9 +58,9 @@ void CFightRoom::get_info(char* str, CChar* me)
 {
     char tmp[512], msg[255];
     try {
-        snprintf(tmp, 255, "N=%s&I=%s&P=%ld&a=%d&U=%ld&W=%ld&", name(), id(),
-                 query("icon"), query_amount(), query_attr(CChar::UPDATE),
-                 weight());
+        snprintf(tmp, 255, "N=%s&I=%s&P=%lld&a=%lld&U=%d&W=%lld&", name(), id(),
+                 (long long)query("icon"), (long long)query_amount(),
+                 query_attr(CChar::UPDATE), (long long)weight());
 
         if (EQUALSTR(querystr("status"), "locked")) {
             strcat(tmp, snprintf(msg, 40, "l=%s&", querystr("reason")));
@@ -205,7 +205,7 @@ CChar* CFightRoom::select_member(int team)
 {
     CChar* ret = NULL;
     try {
-        int idx = g_utils.random((long)m_Team[team].fighter_num);
+        mapping_value_t idx = g_utils.random(m_Team[team].fighter_num);
         if (idx >= m_Team[team].fighter_num) idx = m_Team[team].fighter_num - 1;
         int num = 0;
         for (int i = 0; i < MAXFIGHTERS; i++) {
@@ -230,10 +230,11 @@ void CFightRoom::clear_team_slot(int team, int idx, CChar* obj)
     if (is_user(obj)) {
         char msg[512];
         tell_object(
-            obj, snprintf(msg, 255, "$YEL此次战斗耗时%d秒，获得%d点经验。",
-                          g_current_time - obj->query_temp("fight/join_time"),
-                          obj->attr("combat_exp")
-                              - obj->query_temp("fight/join_exp")));
+            obj, snprintf(msg, 255, "$YEL此次战斗耗时%lld秒，获得%lld点经验。",
+                          (long long)(g_current_time
+                                      - obj->query_temp("fight/join_time")),
+                          (long long)(obj->attr("combat_exp")
+                                      - obj->query_temp("fight/join_exp"))));
     }
     m_Team[team].obj[idx] = NULL;
     m_Team[team].fighter_num--;
@@ -326,7 +327,7 @@ void CFightRoom::advance_ap()
             CChar* c = m_Team[t].obj[i];
             if (c == NULL) continue;
             mapping_value_t ap = c->query_temp("fight/ap");
-            int tp             = query_turn_ap(c) / 2;
+            mapping_value_t tp = query_turn_ap(c) / 2;
             if (turn == 1) {
                 tp *= 2;
             }
@@ -513,9 +514,9 @@ CFightRoom::CFightRoom()
 
 CFightRoom::~CFightRoom() {}
 
-int32_t CFightRoom::query_turn_ap(CChar* me)
+mapping_value_t CFightRoom::query_turn_ap(CChar* me)
 {
-    int32_t ret = 2;
+    mapping_value_t ret = 2;
     try {
         if (!me->is_busy() && me->query_attr(IS_LIVING)) ret = me->attr("dex");
     } catch (...) {
@@ -672,7 +673,8 @@ int l_get_fight_team_num(lua_State* L)
         lua_pushinteger(L, 0);
         return 1;
     }
-    mapping_value_t team = me->query_temp("fight/fight_team");
+    team_index_t team
+        = static_cast<team_index_t>(me->query_temp("fight/fight_team"));
     lua_pushinteger(L, fr->get_team_count(team));
     return 1;
 }
@@ -690,9 +692,10 @@ int l_get_fight_team_char(lua_State* L)
         lua_pushnil(L);
         return 1;
     }
-    mapping_value_t team = me->query_temp("fight/fight_team");
-    int idx              = (int)luaL_checkinteger(L, 2);
-    auto list            = fr->get_team_list(team);
+    team_index_t team
+        = static_cast<team_index_t>(me->query_temp("fight/fight_team"));
+    int idx   = (int)luaL_checkinteger(L, 2);
+    auto list = fr->get_team_list(team);
     if (!list) {
         lua_pushnil(L);
         return 1;

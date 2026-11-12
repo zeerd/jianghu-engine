@@ -12,7 +12,7 @@ extern bool g_reboot;
 //---------------------------------------------------------
 // Construction/Destruction
 //---------------------------------------------------------
-void CBox::locked(char* reason, int32_t duration, CChar* me)
+void CBox::locked(char* reason, count_t duration, CChar* me)
 {
     set("status", "locked");
 
@@ -163,7 +163,7 @@ int CBox::save_local()
 int CBox::load_object()
 {
     CMapping m;
-    int count = 0;
+    count_t count = 0;
     char msg[20];
 
     if (!m_environment || !m_environment->query("saveobjects")) return 0;
@@ -196,7 +196,7 @@ int CBox::load_object()
                       ptr->querystr("name"));
             return 0;
         }
-        obj->create(ptr->query("index"));
+        obj->create(static_cast<int>(ptr->query("index")));
         obj->setup();
         obj->set_amount(ptr->query(
             "amount"));  // 数量无条件恢复(箱子存盘恒写amount),并重算weight/value
@@ -287,7 +287,7 @@ int l_unlocked(lua_State* L)
     CBox* box = dynamic_cast<CBox*>(obj);
     if (!box) return 0;
 
-    int32_t resume = (int32_t)luaL_optinteger(L, 2, 0);
+    count_t resume = static_cast<count_t>(luaL_optinteger(L, 2, 0));
     lua_pushinteger(L, box->un_locked(resume));
     return 1;
 }
@@ -302,7 +302,7 @@ int l_locked(lua_State* L)
     if (!box) return 0;
 
     const char* season = luaL_checkstring(L, 2);
-    int32_t duration   = (int32_t)luaL_checkinteger(L, 3);
+    count_t duration   = static_cast<count_t>(luaL_checkinteger(L, 3));
     CChar* me          = NULL;
     if (lua_isuserdata(L, 4)) {
         CMainObject* meObj = get_object(L, 4);

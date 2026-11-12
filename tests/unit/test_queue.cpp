@@ -1,8 +1,8 @@
 // test_queue.cpp - Unit tests for CWHQueue (thread-safe queue).
 //
 // Migrated from test/test_queue.cpp to Google Test.
-// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=Win32
-// Run:    tests\Debug\tests.exe
+// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=x64
+// Run:    x64\Debug\tests.exe
 //
 #include "gtest/gtest.h"
 #include "Queue.h"

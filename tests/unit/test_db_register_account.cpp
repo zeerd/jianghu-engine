@@ -4,7 +4,7 @@
 // g_db 指向 MockDatabase，通过 SQL 字符串断言业务逻辑：
 //   - 校验：四维 10~30 且总和 84、名字合法且不重复、密码 4~22、性别男/女
 //   - 落库：insert into jianghudb 一行基本资料（档案由首次登录新人分支建立）
-//   - id：select max(cc_id)+1；空表回落 1000
+//   - id：取回自增生成的 cc_id（起点由 prepare_tables 播到 1000）
 //
 // Build+Run: .\run-coverage.ps1
 #include "pch.h"

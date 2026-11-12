@@ -101,40 +101,63 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <!-- Platform-specific 3rd party paths -->
+    <LuaIncludeDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)3rd\x86\lua-5.5.0_Win32_vc17_lib\include</LuaIncludeDir>
+    <LuaIncludeDir Condition="'$(Platform)'=='x64'">$(SolutionDir)3rd\x64\lua-5.5.0_Win64_vc17_lib\include</LuaIncludeDir>
+    <LuaLibDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)3rd\x86\lua-5.5.0_Win32_vc17_lib</LuaLibDir>
+    <LuaLibDir Condition="'$(Platform)'=='x64'">$(SolutionDir)3rd\x64\lua-5.5.0_Win64_vc17_lib</LuaLibDir>
+    <MySQLIncludeDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\include</MySQLIncludeDir>
+    <MySQLIncludeDir Condition="'$(Platform)'=='x64'">$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\include</MySQLIncludeDir>
+    <MySQLLibDir Condition="'$(Platform)'=='Win32'">$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib</MySQLLibDir>
+    <MySQLLibDir Condition="'$(Platform)'=='x64'">$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib</MySQLLibDir>
+    <ThirdPartyIncludeDir>$(SolutionDir)3rd\include</ThirdPartyIncludeDir>
+  </PropertyGroup>
   <PropertyGroup>
     <_ProjectFileVersion>17.0.37516.0</_ProjectFileVersion>
   </PropertyGroup>
+  <!-- 产物按平台分家：Win32 沿用 bin\ 布局，x64 统一落 x64\$(Configuration)\
+       （与 exe、测试工程的 x64 输出同处，链接方按 $(Configuration) 一索即中）。
+       IntDir 一律带 $(Platform) 段：两架构交替构建不共享中间目录，
+       不存在「上一架构的 .obj 比源码新而被复用」的跨架构陈旧产物。 -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)\bin\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <GenerateDebugInformation>true</GenerateDebugInformation>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
     <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <GenerateDebugInformation>true</GenerateDebugInformation>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <GenerateDebugInformation>true</GenerateDebugInformation>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)\bin\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
-    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <GenerateDebugInformation>true</GenerateDebugInformation>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <!-- Release|Win32 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -145,7 +168,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CallingConvention>Cdecl</CallingConvention>
-      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 /FS %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -153,7 +176,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -163,7 +186,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <ErrorReporting>Queue</ErrorReporting>
-      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 /FS %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -171,7 +194,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_SEASON_01;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -181,7 +204,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <ErrorReporting>Queue</ErrorReporting>
-      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 /FS %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -190,7 +213,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -201,7 +224,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CallingConvention>Cdecl</CallingConvention>
-      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 /FS %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -209,7 +232,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -219,7 +242,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ErrorReporting>Queue</ErrorReporting>
-      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 /FS %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -227,7 +250,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;3rd\include;3rd\include\lua55;3rd\include\mysql;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src\object;src\char;src\user;src\npc;src\engine;src\room;src\room;src\npc\std_npc;src\item;src\skill;src\combat;src\cmd;src\net;src\lua;src\db;src\util;src\config;src\ui;src\object\list;src\interfaces;.;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_SEASON_01;%(PreprocessorDefinitions);_WIN32_WINNT=0x0A00;_HAS_STD_BYTE=0</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -237,7 +260,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ErrorReporting>Queue</ErrorReporting>
-      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/source-charset:utf-8 /execution-charset:gbk /wd4091 /FS %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -343,6 +366,7 @@
     <ClCompile Include="src\lua\LuaReload.cpp" />
     <ClCompile Include="src\lua\LuaObjects.cpp" />
     <ClCompile Include="src\lua\LuaSyntaxChecker.cpp" />
+    <ClCompile Include="src\lua\LuaSmokeCheck.cpp" />
     <!-- net -->
     <ClCompile Include="src\net\ConnectionHandleManager.cpp" />
     <ClCompile Include="src\net\GateClient.cpp" />

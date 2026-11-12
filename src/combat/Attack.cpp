@@ -90,7 +90,8 @@ void CAttack::select_skill(AttackContext& ctx)
         else if (v.count() == 1)
             ctx.attack_type = v[0];
         else if (v.count() == 2)
-            ctx.attack_type = v[ctx.me->query_temp("action_flag")];
+            ctx.attack_type = v[static_cast<unsigned int>(
+                ctx.me->query_temp("action_flag"))];
 
         const char* mapped = ctx.me->query_skill_mapped(ctx.attack_type);
         if (mapped && mapped[0])
@@ -129,10 +130,11 @@ bool CAttack::retrieve_action(AttackContext& ctx)
         return false;
     }
 
-    ctx.damage_ratio = ctx.action->query("damage");
-    ctx.parry_ratio  = ctx.action->query("parry");
-    ctx.dodge_ratio  = ctx.action->query("dodge");
-    ctx.force_ratio  = ctx.action->query("force");
+    // 招式比率是百分比域（ratio_t）：脚本槽位读出后在此收窄
+    ctx.damage_ratio = static_cast<ratio_t>(ctx.action->query("damage"));
+    ctx.parry_ratio  = static_cast<ratio_t>(ctx.action->query("parry"));
+    ctx.dodge_ratio  = static_cast<ratio_t>(ctx.action->query("dodge"));
+    ctx.force_ratio  = static_cast<ratio_t>(ctx.action->query("force"));
 
     return true;
 }
@@ -216,7 +218,8 @@ void CAttack::resolve_dodge(AttackContext& ctx)
         if (!ctx.dodge_msg || !ctx.dodge_msg[0]) {
             CMapping* victim_action = dodge_s->query_action(ctx.victim);
             if (victim_action) {
-                ctx.mod_val   = victim_action->query("dodge");
+                ctx.mod_val
+                    = static_cast<ratio_t>(victim_action->query("dodge"));
                 ctx.dodge_msg = victim_action->querystr("action");
             }
         }
@@ -417,11 +420,10 @@ void CAttack::calculate_damage(AttackContext& ctx)
     if (ctx.damage <= 0) ctx.damage = 0;
 
     // Defense factor from combat exp
-    unsigned long defense_factor
-        = CChar::level2_exp(ctx.victim->query("level")) + 1;
-    unsigned long my_exp = CChar::level2_exp(ctx.me->query("level"));
+    exp_t defense_factor = CChar::level2_exp(ctx.victim->query("level")) + 1;
+    exp_t my_exp         = CChar::level2_exp(ctx.me->query("level"));
 
-    while ((unsigned long)RANDOM(defense_factor, "combatd") > my_exp) {
+    while (RANDOM(defense_factor, "combatd") > my_exp) {
         ctx.damage -= ctx.damage / 3;
         defense_factor /= 2;
         if (defense_factor <= 0) defense_factor = 1;
@@ -530,16 +532,18 @@ void CAttack::replace_placeholders(AttackContext& ctx)
 void CAttack::dispatch_message(AttackContext& ctx)
 {
     mapping_value_t max_hp = ctx.victim->query("max_hp");
-    int hp                 = 0;
-    if (max_hp > 0) hp = ctx.victim->query("hp") * 100 / max_hp;
+    ratio_t hp             = 0;
+    if (max_hp > 0)
+        hp = static_cast<ratio_t>(ctx.victim->query("hp") * 100 / max_hp);
 
     if (ctx.flag == CCombatd::TYPE_REGULAR) {
         char msg[512];
-        snprintf(msg, 512, "&C=%d&A=%d&V=%d&S=%d&m=%d&D=%d&ap=%d&T=%s&M=%s&",
+        snprintf(msg, 512,
+                 "&C=%d&A=%d&V=%d&S=%d&m=%lld&D=%lld&ap=%lld&T=%s&M=%s&",
                  COMMON_ATTACK, ctx.me->object_id(), ctx.victim->object_id(),
-                 hp, (int)ctx.me->query("mp"), (int)ctx.damage,
-                 ctx.me->query_temp("fight/ap"), ctx.attack_type.c_str(),
-                 ctx.result.c_str());
+                 hp, (long long)ctx.me->query("mp"), (long long)ctx.damage,
+                 (long long)ctx.me->query_temp("fight/ap"),
+                 ctx.attack_type.c_str(), ctx.result.c_str());
 
         CContainer* env = ctx.me->environment();
         MAP2USER ulist;
@@ -569,10 +573,11 @@ void CAttack::dispatch_message(AttackContext& ctx)
     // Tell experience gains
     char msg[512];
     if (ctx.add_exp_me)
-        tell_object(ctx.me, snprintf(msg, 512, "(exp + %d)", ctx.add_exp_me));
+        tell_object(ctx.me, snprintf(msg, 512, "(exp + %lld)",
+                                     (long long)ctx.add_exp_me));
     if (ctx.add_exp_victim)
-        tell_object(ctx.victim,
-                    snprintf(msg, 512, "(exp + %d)", ctx.add_exp_victim));
+        tell_object(ctx.victim, snprintf(msg, 512, "(exp + %lld)",
+                                         (long long)ctx.add_exp_victim));
 }
 
 // ====================================================================
@@ -627,13 +632,13 @@ void CAttack::send_verbose_debug(AttackContext& ctx)
 // ====================================================================
 // damge_to_string - format damage into colored description
 // ====================================================================
-string CAttack::damge_to_string(int32_t damage, bool real)
+string CAttack::damge_to_string(damage_t damage, bool real)
 {
     string result = "";
 
     char d[256] = "$d";
     if (real) {
-        snprintf(d, 255, "%d", damage);
+        snprintf(d, 255, "%lld", (long long)damage);
     }
 
     if (damage > 10000) {
@@ -649,21 +654,4 @@ string CAttack::damge_to_string(int32_t damage, bool real)
         result += "结果造成了" + string(d) + "点的伤害。";
     }
     return result;
-}
-
-//---------------------------------------------------------
-// [LuaBind] auto-managed bindings
-//---------------------------------------------------------
-#include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
-
-// damge_to_string(damage[, real]) -> string  （CCombatd::damge_to_string）
-// 把伤害数值格式化为带颜色的描述字符串
-int l_damge_to_string(lua_State* L)
-{
-    int32_t damage = (int32_t)luaL_optinteger(L, 1, 0);
-    // C++ 默认 real=true（显示具体数值），Lua 不传第二参时保持一致
-    bool real = (lua_isnoneornil(L, 2)) ? true : lua_toboolean(L, 2);
-    string s  = CAttack::damge_to_string(damage, real);
-    lua_pushstring(L, s.c_str());
-    return 1;
 }

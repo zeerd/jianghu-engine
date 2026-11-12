@@ -13,7 +13,7 @@ description: "单元测试操作规程。凡涉及编写、修改、评审、运
 `.\run-coverage.ps1`是唯一认可的编译和运行测试的方案和手段。其他方式的运行结果都是不被承认的。
 
 **绝对禁止用 Debug 版运行测试用例。** `run-coverage.ps1` 从头到尾只有 Release 一个配置
-（生产同构 `Release|Win32`）；为什么 Debug 不是同一个被测对象、硬门禁怎么拦，见
+（生产同构 `Release|x64`）；为什么 Debug 不是同一个被测对象、硬门禁怎么拦，见
 `docs/design/unit-test.md` §3。
 
 ---
@@ -60,7 +60,9 @@ Google Test 按其公开惯例用（NuGet 引入；`TEST()` 自动注册、无�
 
 TEST(XxxSuite, BasicOperation)
 {
-    EXPECT_EQ(valid_string("hello world"), 1);
+    char pass[] = "p'a's's";
+    normalize_password(pass);
+    EXPECT_STREQ(pass, "pass");
 }
 ```
 
@@ -161,19 +163,19 @@ Mock 文件通过 **链接时替换** 提供外部依赖的 mock 实现。当修
 > ⚠️ **验证测试的唯一方式是运行 `.\run-coverage.ps1`（仓库根目录）。**
 > **禁止**手动 `msbuild tests/unit/tests.vcxproj` 后再直接运行 `tests.exe`：配置与
 > Lua 脚本按**相对仓库根**的路径读取（如 `ini_load("tests/unit/test_config.ini")`），
-> 只有从仓库根执行才找得到——手动进 `tests\Debug\` 跑会因工作目录错误让相对路径
-> 全部失效、测试大面积失败（布局见 `docs/design/unit-test.md` §1.3）。
-> `run-coverage.ps1` 已包办：定位 MSBuild、以生产同构的 `Release|Win32` 编译
+> 只有从仓库根执行才找得到——手动进测试输出目录（如 `x64\Debug\`）跑会因工作目录
+> 错误让相对路径全部失效、测试大面积失败（布局见 `docs/design/unit-test.md` §1.3）。
+> `run-coverage.ps1` 已包办：定位 MSBuild、以生产同构的 `Release|x64` 编译
 > `jianghu_core.lib` + 测试工程、**从仓库根执行测试**、采集覆盖率报告与 delta。
 > Debug 版另有一道硬门禁 `TestConfigGate.DebugBuildIsNotAcceptance`（无条件失败）；
 > 为什么 Debug 不是同一个被测对象，见 `docs/design/unit-test.md` §3。
-> 聚焦调试：`run-coverage.ps1` 编译完成后从仓库根直接跑 `Release\tests.exe
+> 聚焦调试：`run-coverage.ps1` 编译完成后从仓库根直接跑 `x64\Release\tests.exe
 > --gtest_filter=Suite.*`；
 > **最终验收仍必须完整跑一遍 `.\run-coverage.ps1`**。
 
 - **运行测试并收集覆盖率**：在仓库根目录执行 `.\run-coverage.ps1`（分支覆盖率：`.\run-coverage.ps1 -CoverageType branch`）。
 - 仅需要编译服务器 `jianghu.exe`（不跑测试）时，才可手动构建：
-  `& $msb jianghu.vcxproj /p:Configuration=Debug /p:Platform=Win32`。
+  `& $msb jianghu.vcxproj /p:Configuration=Debug /p:Platform=x64`。
 
 ### 覆盖度要求
 

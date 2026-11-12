@@ -5,10 +5,12 @@
 
 #pragma once
 
+#include "../config/MainConfig.h"
+
 namespace StackingLogic {
 // Total weight of a stack: unit weight * amount.
 // Returns 0 when the unit weight is unset (<= 0) or amount is invalid.
-inline int32_t total_weight(int32_t baseWeight, int32_t amount)
+inline amount_t total_weight(amount_t baseWeight, amount_t amount)
 {
     if (baseWeight <= 0 || amount <= 0) return 0;
     return baseWeight * amount;
@@ -16,7 +18,7 @@ inline int32_t total_weight(int32_t baseWeight, int32_t amount)
 
 // Total value of a stack: unit value * amount.
 // Returns 0 when the unit value is unset (<= 0) or amount is invalid.
-inline int32_t total_value(int32_t baseValue, int32_t amount)
+inline money_t total_value(money_t baseValue, amount_t amount)
 {
     if (baseValue <= 0 || amount <= 0) return 0;
     return baseValue * amount;
@@ -26,7 +28,7 @@ inline int32_t total_value(int32_t baseValue, int32_t amount)
 // carry (0 means the request is invalid). The remaining stack keeps
 // currentAmount - returnedAmount. Splitting the whole stack returns
 // currentAmount itself (no-op semantics, caller handles it).
-inline int32_t valid_split_amount(int32_t currentAmount, int32_t splitAmount)
+inline amount_t valid_split_amount(amount_t currentAmount, amount_t splitAmount)
 {
     if (splitAmount <= 0) return 0;
     if (splitAmount > currentAmount) return 0;
@@ -35,7 +37,7 @@ inline int32_t valid_split_amount(int32_t currentAmount, int32_t splitAmount)
 
 // Amount after merging two stacks (simple addition, kept here so tests
 // lock the semantics).
-inline int32_t merged_amount(int32_t amountA, int32_t amountB)
+inline amount_t merged_amount(amount_t amountA, amount_t amountB)
 {
     return amountA + amountB;
 }

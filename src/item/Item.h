@@ -35,7 +35,8 @@ class CItem : public CContainer,
               public IClientObject {
 public:
     // === IHittable ===
-    const char* hit_ob(CChar* me, CChar* victim, int32_t damage_bonus) override;
+    const char* hit_ob(CChar* me, CChar* victim,
+                       damage_t damage_bonus) override;
     void owner_is_killed(CChar* killer) override;
 
     // === IEquippable ===
@@ -63,11 +64,11 @@ public:
     // 自动合并检查(默认空实现;可堆叠物品由子类启用)
     virtual void check_auto_combine();
     virtual void init();
-    int32_t add_amount(int32_t val);
-    virtual void set_amount(int32_t amount);
-    virtual int32_t query_amount();
-    virtual int32_t query_max_amount();
-    CItem* split(int32_t amount);
+    amount_t add_amount(amount_t val) override;
+    void set_amount(amount_t amount) override;
+    amount_t query_amount() override;
+    amount_t query_max_amount() override;
+    CItem* split(amount_t amount);
     virtual int32_t query_attr(int attr);
 
     virtual int do_use(CChar* me, CContainer* target);
@@ -81,6 +82,6 @@ protected:
     virtual int can_combine_in_box() { return 1; }
 
 protected:
-    int32_t m_amount;
-    int32_t m_max_amount;
+    amount_t m_amount;
+    amount_t m_max_amount;
 };

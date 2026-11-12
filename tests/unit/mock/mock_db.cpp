@@ -5,6 +5,7 @@
 //
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <string>
 #include <vector>
 #include <map>
@@ -39,27 +40,8 @@ double g_game_count = 0.0;
 // ====================================================================
 
 // ====================================================================
-// Box storage (implemented in DbTables.cpp / other)
-// ====================================================================
-bool db_save_box(const char* obj_id, const char* obj_name, const char* obj_data,
-                 const char* room_id, int grid)
-{
-    return g_mock_db_succeed;
-}
-
-bool db_load_box(const char* obj_id, std::string& out_data)
-{
-    out_data.clear();
-    return g_mock_db_succeed;
-}
-
-bool db_delete_box(const char* obj_id) { return g_mock_db_succeed; }
-
-// ====================================================================
 // Server initialization stubs (called by Init_Game)
 // ====================================================================
-bool select_game_database() { return g_mock_db_succeed; }
-
 bool init_sql_server(const char* ipaddress, const char* name,
                      const char* password)
 {
@@ -71,8 +53,13 @@ bool restore_data_table() { return g_mock_db_succeed; }
 // 记录最近一次 verify_user 收到的密码，供命令层断言规范化是否生效
 std::string g_mock_last_verify_passwd;
 
+// verify_user 入口观测点：用例在登录深处注入瞬时回调（如断言此时不持有
+// 网络层锁），回调结束即置空——只存在于测试控制路径。
+std::function<void()> g_mock_on_verify_user;
+
 bool verify_user(const char* userid, char* passwd)
 {
+    if (g_mock_on_verify_user) g_mock_on_verify_user();
     g_mock_last_verify_passwd = passwd ? passwd : "";
     return g_mock_db_succeed;
 }

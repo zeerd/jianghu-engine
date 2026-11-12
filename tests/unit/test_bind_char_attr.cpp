@@ -72,14 +72,18 @@ TEST_F(BindCharAttrTest, LearnBonusAndInvalid)
 
     // 契约：is_invalid 是谓词，恒返回布尔（Lua 里 0 为真，不可回整数）
     lua_bind_push_object(L, &ch);
-    EXPECT_FALSE(CallBool(l_is_invalid, 1));
+    int k = call_method(L, "is_invalid", 1);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 
     // 非角色对象同样回一个布尔，不回空
     CContainer box;
     lua_bind_push_object(L, &box);
-    EXPECT_EQ(1, call(l_is_invalid, 1));
+    k = call_method(L, "is_invalid", 1);
+    EXPECT_EQ(1, k);
     EXPECT_TRUE(lua_isboolean(L, -1));
-    lua_pop(L, 1);
+    lua_pop(L, k);
 }
 
 TEST_F(BindCharAttrTest, RespectRudeSelf)
@@ -168,9 +172,23 @@ TEST_F(BindCharAttrTest, SkillLevelExpConversions)
 // ---- CharLook.cpp (static) ----
 TEST_F(BindCharAttrTest, EffStatusMsg)
 {
-    lua_pushinteger(L, 50);
-    std::string s;
-    EXPECT_TRUE(CallStr(l_eff_status_msg, 1, s));
+    // 下放后由内容层前导实现，与 CChar::eff_status_msg 全档位逐值对拍
+    ASSERT_NE(ensure_lua_env(), nullptr);
+    lua_State* E = ensure_lua_env();
+
+    for (int ratio = 0; ratio <= 100; ++ratio) {
+        EXPECT_STREQ(
+            CChar::eff_status_msg(ratio),
+            lua_str_expr(
+                E, ("eff_status_msg(" + std::to_string(ratio) + ")").c_str())
+                .c_str())
+            << "ratio=" << ratio;
+    }
+
     // 契约：ratio 50 → 40~60 区间描述（CChar::eff_status_msg 分派）
-    EXPECT_EQ("气息粗重，动作开始散乱，看来所受的伤著实不轻。", s);
+    EXPECT_EQ("气息粗重，动作开始散乱，看来所受的伤著实不轻。",
+              lua_str_expr(E, "eff_status_msg(50)"));
+    // 缺省 ratio 走 100（原绑定 luaL_optinteger 默认值语义）
+    EXPECT_EQ("看起来气血充盈，并没有受伤。",
+              lua_str_expr(E, "eff_status_msg()"));
 }

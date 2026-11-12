@@ -17,7 +17,10 @@ class CUser;
 // --- 登录主流程 ---
 // handle：本连接的句柄（见 CConnectionHandleManager），受理时即绑定进
 // CUser，必须早于 me->online()（open_client 依赖它把门闸置为 NORMAL）
-int on_login(CConnectionHandleManager::Handle handle, int sockfd, char* arg);
+// sockfd：套接字句柄按 UINT_PTR 宽度承载（头文件不引入 winsock，用等宽的
+// uintptr_t），不收窄到 int——套接字是句柄，句柄的宽度由平台决定。
+int on_login(CConnectionHandleManager::Handle handle, uintptr_t sockfd,
+             char* arg);
 void on_send_online(CUser* me);
 
 // --- 游客登录（guest/guest 进游戏大厅 rk） ---

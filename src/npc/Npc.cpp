@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Npc.cpp
  * @brief implementation of the CNpc class. */
 
@@ -21,7 +21,7 @@ CNpc::~CNpc() {}
 int32_t CNpc::query_attr(int attr)
 {
     if (attr == IS_NPC) return 1;
-    if (attr == CAN_SAVE) return query("can_save");
+    if (attr == CAN_SAVE) return static_cast<int32_t>(query("can_save"));
 
     return CChar::query_attr(attr);
 }
@@ -29,14 +29,15 @@ int32_t CNpc::query_attr(int attr)
 // 随机行动
 int CNpc::self_action()
 {
-    int chance;
+    ratio_t chance;
     const char* ptr = NULL;
 
     if (!environment()) return 0;
     if (!is_living(this)) return 0;
 
     if (!(chance
-          = is_fighting() ? query("chat_chance_combat") : query("chat_chance")))
+          = static_cast<ratio_t>(is_fighting() ? query("chat_chance_combat")
+                                               : query("chat_chance"))))
         return 0;
 
     if (g_utils.random(100) < chance) {
@@ -195,7 +196,7 @@ void CNpc::random_move()
     CRoom* room      = (CRoom*)m_environment;
     DTEXITLIST* list = room->query_exits();
 
-    int doors = list->size();
+    int doors = static_cast<int>(list->size());
     if (doors) {
         char msg[80];
         auto it = list->begin();
@@ -250,15 +251,6 @@ int CNpc::accept_fight(CChar* me)
     return 0;
 }
 
-void CNpc::wield_ownered_item(const char* name)
-{
-    CContainer* obj = carry_object(name);
-    obj->set("owner", querystr("base_name"));
-    obj->set("no_get", "这不是你的东西。");
-    obj->set("no_duo", 1);
-    if (auto* eq = dynamic_cast<IEquippable*>(obj)) eq->wield();
-}
-
 //---------------------------------------------------------
 // [LuaBind] auto-managed bindings
 //---------------------------------------------------------
@@ -277,21 +269,6 @@ int l_carry_object(lua_State* L)
     int32_t amount   = (int32_t)luaL_optinteger(L, 3, 1);
     lua_bind_push_object(L, npc->carry_object(name, amount));
     return 1;
-}
-
-// self:wield_ownered_item(name) -
-// 携带并装备一件属于自己（owner=base_name）的武器
-int l_wield_ownered_item(lua_State* L)
-{
-    CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
-
-    CNpc* npc = dynamic_cast<CNpc*>(obj);
-    if (!npc) return 0;
-
-    const char* name = luaL_checkstring(L, 2);
-    npc->wield_ownered_item(name);
-    return 0;
 }
 
 // self:perform_action(magic, target) -> 1 出手成功 / 0 失败

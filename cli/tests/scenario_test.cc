@@ -2,8 +2,8 @@
 //
 // 构建与运行（仓库根目录）：
 //   msbuild cli\tests\jianghu_cli_tests.vcxproj /p:Configuration=Release
-//     /p:Platform=Win32
-//   bin\cli\jianghu_cli_tests.exe --gtest_filter=ScenarioRun*
+//     /p:Platform=x64
+//   bin\cli\x64\jianghu_cli_tests.exe --gtest_filter=ScenarioRun*
 //
 // 契约：run_scenario 每执行一步都要把步骤回显写进 stdout 并立即 flush，
 // 下一步的回显必须发生在上一步的 flush 之后。

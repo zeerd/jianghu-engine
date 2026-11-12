@@ -250,6 +250,24 @@ static int resolve_script_ref(CMainObject* obj)
     return LUA_NOREF;
 }
 
+// self:script_table() —— 还原对象自己的脚本表。
+// 脚本运行时需要回到自己的表：基类模块按名派发子类覆盖项（food_base 的
+// finish_eat 钩子），而 self 是引擎压入的 userdata，表字段在它上面取不到，
+// 只能由引擎按 registry 引用还原。对象没有脚本时返回 nil。
+
+int l_script_table(lua_State* L)
+
+{
+    CMainObject* obj = get_object(L, 1);
+    int ref          = obj ? resolve_script_ref(obj) : LUA_NOREF;
+    if (ref == LUA_NOREF) {
+        lua_pushnil(L);
+        return 1;
+    }
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+    return 1;
+}
+
 // self:call_out(func, delay, param1, param2)
 // func 可以是函数名（先在 owner 自己的脚本表中按名查找、缺名时回退到当前
 // 执行脚本，注册期校验存在性），也可以是函数值（模块定义的回调直接传函数，

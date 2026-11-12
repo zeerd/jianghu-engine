@@ -1,8 +1,8 @@
 // test_stacking.cpp - Unit tests for StackingLogic (stackable item invariants).
 //
 // Migrated from test/test_stacking.cpp to Google Test.
-// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=Win32
-// Run:    tests\Debug\tests.exe
+// Build:  msbuild tests.vcxproj /p:Configuration=Debug /p:Platform=x64
+// Run:    x64\Debug\tests.exe
 //
 #include "gtest/gtest.h"
 #include "StackingLogic.h"
@@ -61,10 +61,10 @@ TEST(StackingLogic, ValidSplitAmount_PreservesInvariants)
     // Simulate the split() math the server performs:
     //   remaining = current - split
     //   both parts must satisfy TotalWeight/TotalValue invariants.
-    long current = 80, split = 30;
-    long v = StackingLogic::valid_split_amount(current, split);
+    amount_t current = 80, split = 30;
+    amount_t v = StackingLogic::valid_split_amount(current, split);
     if (v > 0) {
-        long remaining = current - v;
+        amount_t remaining = current - v;
         EXPECT_EQ(StackingLogic::total_weight(1, remaining), remaining);
         EXPECT_EQ(StackingLogic::total_weight(1, v), v);
         // value conserved: 1*80 == 1*remaining + 1*v
@@ -91,20 +91,20 @@ TEST(StackingLogic, MergedAmount_Basic)
 // ---------------------------------------------------------------------------
 namespace Sim {
 struct Stack {
-    long amount;
-    long baseWeight;  // unit weight, never scaled
-    long baseValue;   // unit price, never scaled
-    long weight;      // derived: baseWeight * amount
-    long value;       // derived: baseValue * amount
+    amount_t amount;
+    amount_t baseWeight;  // unit weight, never scaled
+    money_t baseValue;    // unit price, never scaled
+    amount_t weight;      // derived: baseWeight * amount
+    money_t value;        // derived: baseValue * amount
 
-    explicit Stack(long baseWeight_, long baseValue_, long amount_)
+    explicit Stack(amount_t baseWeight_, money_t baseValue_, amount_t amount_)
         : amount(amount_), baseWeight(baseWeight_), baseValue(baseValue_)
     {
         weight = StackingLogic::total_weight(baseWeight, amount);
         value  = StackingLogic::total_value(baseValue, amount);
     }
 
-    void SetAmount(long n)
+    void SetAmount(amount_t n)
     {
         amount = n;
         weight = StackingLogic::total_weight(baseWeight, amount);

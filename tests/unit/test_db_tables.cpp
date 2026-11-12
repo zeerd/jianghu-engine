@@ -14,13 +14,13 @@ bool prepare_tables(void);
 
 namespace {
 
-// 服务器依赖的核心表：账号、门派招募、容器/物品/房间/箱子、存档、社交关系等。
+// 服务器依赖的核心表：账号、门派招募、容器/物品/房间/箱子、社交关系等。
 // 数据集专用表（如 t_treasure、t_corp）不在此列——它们由脚本经 db_register_ddl
 // 登记、prepare_tables 末尾统一执行，见 DatasetDdl 用例。
 // 顺序需与 prepare_tables 的执行顺序一致，失败点用例据此标注表名。
 const char* const kRequiredTables[] = {
-    "jianghudb", "recruit_exp", "t_item", "t_npc",    "t_room",
-    "t_box",     "t_saveobj",   "user",   "relative",
+    "jianghudb", "recruit_exp", "t_item",   "t_npc",
+    "t_room",    "t_box",       "relative",
 };
 
 constexpr int kTableCount
@@ -101,31 +101,41 @@ TEST_F(DbTablesTest, PrepareTables_CreatesEveryGameTable)
         EXPECT_TRUE(db.ExecutedContaining(CreateDdl(table)))
             << "missing DDL for table " << table;
     }
-    // 1 次 jianghudb 存在性查询 + kTableCount 条建表 DDL + 1 次起点播种
+    // kTableCount 条建表 DDL + 1 次已发号查询 + 1 次起点播种
     // + 1 次凭据列探测
     EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), kTableCount + 3);
 }
 
-// 玩家 ID 起点：jianghudb 首次建表时把自增起点抬到 1000（1~999 预留给
-// 巫师/系统账号）。起点只在"建表前表不存在"时播种——已有库重跑
-// prepare_tables 绝不能重置自增计数器（否则新号会撞已发的 cc_id）。
-TEST_F(DbTablesTest, PrepareTables_SeedsIdFloorOnFirstCreation)
+// 玩家 ID 起点：已发号不足 1000（1~999 预留给巫师/系统账号）时播种自增
+// 起点。空库（MAX 为 NULL）与历史无起点库（已发号落在预留段内）同属此列。
+TEST_F(DbTablesTest, PrepareTables_SeedsIdFloorWhenPlayersBelowReserve)
 {
-    // Mock 的 existence 查询默认返回空行集 → 视为首次建表 → 播种起点
+    // Mock 的查询默认返回空行集 → 读不到已发号 → 视为需要播种
     EXPECT_TRUE(prepare_tables());
     EXPECT_TRUE(db.ExecutedContaining("AUTO_INCREMENT = 1000"))
-        << "fresh table must be seeded with the id floor";
+        << "已发号不足起点必须把自增起点抬到 1000";
 }
 
-TEST_F(DbTablesTest, PrepareTables_SkipsIdFloorWhenTableExists)
+// 历史无起点库（已发号为 3）在下一次开机时被修复：起点抬到 1000，
+// 新号不再落进巫师/系统预留段
+TEST_F(DbTablesTest, PrepareTables_SeedsIdFloorWhenCounterFellBelow)
 {
-    // existence 查询返回一行 → jianghudb 已存在 → 禁止播种
-    db.SetQueryResultMatching("jianghudb",
-                              MockDatabase::MakeSingleRow({"jianghudb"}));
+    db.SetQueryResultMatching("MAX(cc_id)", MockDatabase::MakeSingleRow({"3"}));
+
+    EXPECT_TRUE(prepare_tables());
+    EXPECT_TRUE(db.ExecutedContaining("AUTO_INCREMENT = 1000"))
+        << "已发号仍在预留段内必须补播起点";
+}
+
+// 已发号进入 1000+ → 起点已在预留段之外，绝不能再动自增计数器
+TEST_F(DbTablesTest, PrepareTables_SkipsIdFloorBeyondReserve)
+{
+    db.SetQueryResultMatching("MAX(cc_id)",
+                              MockDatabase::MakeSingleRow({"1578"}));
 
     EXPECT_TRUE(prepare_tables());
     EXPECT_FALSE(db.ExecutedContaining("AUTO_INCREMENT = 1000"))
-        << "existing table must not have its id floor reset";
+        << "已发号越过预留段后不得再干预自增计数器";
 }
 
 TEST_F(DbTablesTest, PrepareTables_StopsAtFirstFailingTable)
@@ -136,8 +146,8 @@ TEST_F(DbTablesTest, PrepareTables_StopsAtFirstFailingTable)
 
         EXPECT_FALSE(prepare_tables())
             << "failure at table " << kRequiredTables[failing];
-        // 1 次存在性查询 + 失败前(含)的 failing+1 条 DDL
-        EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), failing + 2)
+        // 已发号查询在建表之后才发生，此时只下发了失败前(含)的 failing+1 条 DDL
+        EXPECT_EQ(static_cast<int>(db.GetExecutedSqls().size()), failing + 1)
             << "must stop at table " << kRequiredTables[failing];
     }
 }
@@ -236,8 +246,8 @@ TEST_F(DbTablesTest, PrepareTables_FailsWhenColumnProbeFails)
     EXPECT_EQ(CountAlterTables(db), 0) << "探测没结论就不猜列的存在性";
 }
 
-// 账号 ID 起点播种失败必须中止启动：起点没播下去就建号，新号会撞上
-// 已发的 cc_id（主键冲突）
+// 账号 ID 起点播种失败必须中止启动：起点没播下去就建号，新号会落进
+// 1~999 的巫师/系统预留段
 TEST_F(DbTablesTest, PrepareTables_FailsWhenIdFloorSeedFails)
 {
     db.SetExecuteFailAt(kTableCount);  // 核心表之后的第一条 execute 即播种

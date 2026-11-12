@@ -137,19 +137,19 @@ TEST_F(RegisterClerkTest, Regchar_StartsFlowAndShowsMenu)
     EXPECT_EQ(1, me->query_temp("regclerk/step"));
     EXPECT_TRUE(me->has("regname")) << "注册菜单包含设置姓名";
     EXPECT_TRUE(me->has("regpass")) << "注册菜单包含设置密码";
+    EXPECT_TRUE(me->has("regemail")) << "注册菜单包含设置邮箱";
     EXPECT_TRUE(me->has("reggender")) << "注册菜单包含选择性别";
     EXPECT_TRUE(me->has("regstat")) << "注册菜单包含设置天赋";
     EXPECT_TRUE(me->has("regdone")) << "注册菜单包含确认创建";
 
-    // 格式规则必须在首次输入之前就可见，不能等玩家答错才提示
-    EXPECT_TRUE(me->has("&s=设置登录密码（4~22 个字符）"))
-        << "菜单项直接给出密码长度规则";
-    EXPECT_TRUE(me->has("&s=设置邮箱地址（须含 @"))
-        << "菜单项直接给出邮箱格式规则";
-    EXPECT_TRUE(me->has("&s=设置天赋属性（依次为力量、智慧、体质、敏捷"))
-        << "菜单项直接给出四维属性顺序";
-    EXPECT_TRUE(me->has("单项 10~30、总和 84"))
-        << "菜单项直接给出单项区间与总和";
+    // 格式规则必须在首次输入之前就可见，不能等玩家答错才提示：
+    // 规则随开流程的逐条播报给出，菜单项只留动作名
+    EXPECT_TRUE(me->has("设置登录密码（4~22 个字符）"))
+        << "开流程即播报密码长度规则";
+    EXPECT_TRUE(me->has("设置邮箱地址（须含 @")) << "开流程即播报邮箱格式规则";
+    EXPECT_TRUE(me->has("设置天赋属性（以空格分隔的四个数字"))
+        << "开流程即播报四维属性顺序";
+    EXPECT_TRUE(me->has("单项 10~30、总和 84")) << "开流程即播报单项区间与总和";
 }
 
 TEST_F(RegisterClerkTest, Regname_StoresValidName)

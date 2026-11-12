@@ -8,7 +8,7 @@
 ## 确立构建契约
 
 从最近的 `.vcxproj` / `.sln` 读实际设置：C++17（`stdcpp17`）、MSVC、
-**仅 Win32**（x64 无意义，禁止产出）、`/source-charset:utf-8`、Level3 警告。
+**默认 x64**（Win32 仍可构建，但不是默认平台）、`/source-charset:utf-8`、Level3 警告。
 区分 C++ 源与生成头、区分 `src/`（生产）、`tests/`（Google Test）、`cli/`
 （独立工具）三个面的规则差异。版本敏感的语言断言查 C++17 标准与 MSVC 文档，
 不要求 C++17 目标使用 C++20 设施。

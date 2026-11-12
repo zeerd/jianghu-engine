@@ -1,4 +1,4 @@
-﻿// LuaNpc.inl : 由 Lua 脚本定义的 NPC 模板实现
+// LuaNpc.inl : 由 Lua 脚本定义的 NPC 模板实现
 // 注意：此文件被 LuaNpc.h 包含（模板类），不作为独立编译单元
 //
 //---------------------------------------------------------
@@ -537,7 +537,7 @@ int CLuaNpcT<T>::do_look(CChar* me)
 
 // 调用 Lua 脚本的 hit_ob 函数
 template <typename T>
-const char* CLuaNpcT<T>::hit_ob(CChar* me, CChar* victim, int32_t damage_bonus)
+const char* CLuaNpcT<T>::hit_ob(CChar* me, CChar* victim, damage_t damage_bonus)
 {
     if (m_script_ref == LUA_NOREF) return T::hit_ob(me, victim, damage_bonus);
 

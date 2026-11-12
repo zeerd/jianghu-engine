@@ -54,28 +54,25 @@ end
 -- 菜单项文案即格式说明书：玩家在首次输入之前就该看得到规则，
 -- 不能等答错一次才通过错误提示倒推。
 local function reg_menu(self, me)
-    self:add_menu_item("设置角色姓名。", "$2regname $1 $2", me)
-    self:add_menu_item("设置登录密码（4~22 个字符）。", "$2regpass $1 $2", me)
-    self:add_menu_item("设置邮箱地址（须含 @，如 name@example.com）。", "$2regemail $1 $2", me)
-    self:add_menu_item("选择性别。", "$0reggender $1", me)
-    self:add_menu_item(
-        "设置天赋属性（依次为力量、智慧、体质、敏捷，"
-            .. "单项 10~30、总和 84，如 21 21 21 21）。",
-        "$2regstat $1 $2",
-        me
-    )
-    self:add_menu_item("确认创建角色。", "$0regdone $1", me)
+    self:add_menu_item("设置角色姓名", "$2regname $1 $2", me)
+    self:add_menu_item("设置登录密码", "$2regpass $1 $2", me)
+    self:add_menu_item("设置邮箱地址", "$2regemail $1 $2", me)
+    self:add_menu_item("选择性别", "$0reggender $1", me)
+    self:add_menu_item("设置天赋属性", "$2regstat $1 $2", me)
+    self:add_menu_item("确认创建角色", "$0regdone $1", me)
     self:send_menu(me)
 end
 
 -- 开始/继续注册
 local function do_regchar(self, me)
     me:set("regclerk/step", 1, "T")
-    if #me:dbase_temp("str", "regclerk/name") == 0 then
-        self:say("想创建角色，先用『设置角色姓名』告诉我你的名字吧。", me)
-    else
-        self:say("我们接着来，还差几步就可以完成注册了。", me)
-    end
+    self:say("设置角色姓名。", me)
+    self:say("设置登录密码（4~22 个字符）。", me)
+    self:say("设置邮箱地址（须含 @，如 name@example.com）。", me)
+    self:say("选择性别。", me)
+    self:say("设置天赋属性（以空格分隔的四个数字）", me)
+    self:say("（依次为力量、智慧、体质、敏捷）", me)
+    self:say("（单项 10~30、总和 84，如 21 21 21 21）。", me)
     reg_menu(self, me)
     return 1
 end
@@ -273,16 +270,22 @@ function npc.handle_action(self, comm, me, arg)
 
     if me:query("regclerk/step", "T") ~= 0 then
         if comm == "regname" then
+            tell_object(me, "设置角色姓名。")
             return do_regname(self, me, arg)
         elseif comm == "regpass" then
+            tell_object(me, "设置登录密码。")
             return do_regpass(self, me, arg)
         elseif comm == "regemail" then
+            tell_object(me, "设置邮箱地址。")
             return do_regemail(self, me, arg)
         elseif comm == "reggender" then
+            tell_object(me, "设置性别。")
             return do_reggender(self, me, arg)
         elseif comm == "regstat" then
+            tell_object(me, "设置属性点。")
             return do_regstat(self, me, arg)
         elseif comm == "regdone" then
+            tell_object(me, "完成注册。")
             return do_regdone(self, me)
         end
     end

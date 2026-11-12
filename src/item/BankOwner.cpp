@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file BankOwner.cpp
  * @brief implementation of the CBankOwner class. */
 
@@ -16,7 +16,7 @@ CBankOwner::CBankOwner() {}
 CBankOwner::~CBankOwner() {}
 
 // 存钱 deposit
-int CBankOwner::do_deposit(CChar* me, int32_t amount)
+int CBankOwner::do_deposit(CChar* me, money_t amount)
 {
     char msg[255];
 
@@ -34,17 +34,17 @@ int CBankOwner::do_deposit(CChar* me, int32_t amount)
     message_vision(
         snprintf(msg, 255, "$N存入现款%s。", CMoney::money_str(amount)), me);
 
-    LOG_INFO("%s(%s)存入现款%ld，存款达到%ld。", me->name(1), me->id(1), amount,
-             me->query("balance"));
+    LOG_INFO("%s(%s)存入现款%lld，存款达到%lld。", me->name(1), me->id(1),
+             (long long)amount, (long long)me->query("balance"));
 
     return 1;
 }
 
 // 提款
-int CBankOwner::do_withdraw(CChar* me, int32_t amount)
+int CBankOwner::do_withdraw(CChar* me, money_t amount)
 {
     char msg[255];
-    int32_t hamount;
+    money_t hamount;
 
     hamount = me->query("balance");
 
@@ -57,17 +57,18 @@ int CBankOwner::do_withdraw(CChar* me, int32_t amount)
     CMoney::pay_player(me, amount);
     tell_object(me, "提款完毕。");
 
-    snprintf(msg, 255, "%s(%s)提款%d，余额%d。From (%s)", me->name(1),
-             me->id(1), amount, me->query("balance"), get_ip(me));
+    snprintf(msg, 255, "%s(%s)提款%lld，余额%lld。From (%s)", me->name(1),
+             me->id(1), (long long)amount, (long long)me->query("balance"),
+             get_ip(me));
     LOG_INFO("%s", msg);
 
     return 1;
 }
 
 // 贷款
-int CBankOwner::do_loan(CChar* me, int32_t amount)
+int CBankOwner::do_loan(CChar* me, money_t amount)
 {
-    int32_t hamount;
+    money_t hamount;
     char msg[255];
 
     hamount = me->query("balance");
@@ -92,8 +93,9 @@ int CBankOwner::do_loan(CChar* me, int32_t amount)
     CMoney::pay_player(me, amount);
     tell_object(me, "贷款完毕。");
 
-    snprintf(msg, 255, "%s(%s)贷款%d，余额%d。From (%s)", me->name(1),
-             me->id(1), amount, me->query("balance"), get_ip(me));
+    snprintf(msg, 255, "%s(%s)贷款%lld，余额%lld。From (%s)", me->name(1),
+             me->id(1), (long long)amount, (long long)me->query("balance"),
+             get_ip(me));
     LOG_INFO("%s", msg);
 
     return 1;

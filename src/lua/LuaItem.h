@@ -62,7 +62,7 @@ public:
     virtual int can_equip(CChar* me);
 
     // 重写 hit_ob：调用 Lua 脚本的 hit_ob 函数（若存在）
-    virtual const char* hit_ob(CChar* me, CChar* victim, int32_t damage_bonus);
+    virtual const char* hit_ob(CChar* me, CChar* victim, damage_t damage_bonus);
 
     // 重写 query_autoload：调用 Lua 脚本的 query_autoload 函数（若存在）
     virtual int query_autoload();
