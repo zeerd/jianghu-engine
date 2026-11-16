@@ -124,7 +124,7 @@ return {
         end
 
         local who = target
-        if who:is_busy() ~= 0 or who:is_fighting() ~= 0 then
+        if who:is_busy() or who:is_fighting() then
             return notify_fail("对方显然没空理你。")
         end
 

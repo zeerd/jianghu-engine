@@ -33,15 +33,15 @@ function npc.create(self)
     self:set("int", 15)
 
     -- 高级战斗技能
-    self:set_skill("sword", 100 + random(20))
-    self:set_skill("sword_adv", 80 + random(20))
-    self:set_skill("force", 100 + random(20))
-    self:set_skill("force_adv", 80 + random(20))
-    self:set_skill("dodge", 90 + random(20))
-    self:set_skill("dodge_adv", 70 + random(20))
-    self:set_skill("parry", 90 + random(20))
-    self:set_skill("parry_adv", 70 + random(20))
-    self:set_skill("unarmed", 80 + random(20))
+    self:set_skill("sword", 100 + math.random(0, 19))
+    self:set_skill("sword_adv", 80 + math.random(0, 19))
+    self:set_skill("force", 100 + math.random(0, 19))
+    self:set_skill("force_adv", 80 + math.random(0, 19))
+    self:set_skill("dodge", 90 + math.random(0, 19))
+    self:set_skill("dodge_adv", 70 + math.random(0, 19))
+    self:set_skill("parry", 90 + math.random(0, 19))
+    self:set_skill("parry_adv", 70 + math.random(0, 19))
+    self:set_skill("unarmed", 80 + math.random(0, 19))
 
     self:skill_map("set", "sword", "sword_adv")
     self:skill_map("set", "force", "force_adv")
@@ -107,7 +107,7 @@ function npc.do_full(self, param1, param2)
         end
     else
         -- 战斗中也有概率回血
-        if random(4) == 0 and self:query("hp") < self:query("max_hp") // 2 then
+        if math.random(4) == 1 and self:query("hp") < self:query("max_hp") // 2 then
             self:perform_action("force recover", 0)
         end
     end
@@ -116,22 +116,22 @@ end
 
 -- 战斗中自动出绝招
 function npc.chat_msg_combat(self)
-    local r = random(5)
-    if r == 0 then
+    local r = math.random(5)
+    if r == 1 then
         -- 使用剑气
         self:perform_action("sword qi", 1)
-    elseif r == 1 then
+    elseif r == 2 then
         -- 使用狮子吼
         self:perform_action("force roar", 1)
-    elseif r == 2 then
+    elseif r == 3 then
         -- 使用自疗术
         if self:query("hp") < self:query("max_hp") // 2 then
             self:perform_action("force heal", 0)
         end
-    elseif r == 3 then
+    elseif r == 4 then
         -- 使用连环击
         self:perform_action("unarmed combo", 1)
-    elseif r == 4 then
+    elseif r == 5 then
         -- 使用凌空虚渡
         self:perform_action("dodge float", 0)
     end

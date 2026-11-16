@@ -27,7 +27,11 @@ double CUtils::urandom(double seed)
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"  // NOLINT (needed for scattered binds)
 
-// g_utils.random(n) -> number
+// g_utils.random(n) -> number：返回 [0, n-1]，seed <= 0 时返回 0。
+// 已废弃（脚本侧）：Lua 标准库 math.random 返回 [1, n]，两套语义相反——按
+// math.random 的习惯写 t[random(n)] 会取到 t[0] = nil，写 random(mp / 2) 会
+// 因实参无整数表示被 luaL_checkinteger 拒收。本绑定仅为存量数据集保留；
+// lua-default / lua-sample 与新脚本一律改用 math.random。
 int l_random(lua_State* L)
 {
     int n = (int)luaL_checkinteger(L, 1);

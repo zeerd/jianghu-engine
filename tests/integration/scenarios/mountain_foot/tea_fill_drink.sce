@@ -36,11 +36,12 @@ wait text 穷光蛋 timeout=10000
 
 # 去钱庄存 100（起步现金有余），为扣费成功支铺路
 # 茶棚只有回山脚的一扇门，去钱庄须先回山脚再走（房间拓扑，/go 只走直达门）
+# /go 收注册名（门id），进房断显示名「钱庄」——双名设定见 sample_bank.lua
 cmd /t 0
 cmd /go 青云山山脚
 wait room 青云山山脚
 cmd /go 山脚钱庄
-wait room 山脚钱庄
+wait room 钱庄
 wait object 钱庄老板
 cmd /t lao ban
 clear
@@ -64,7 +65,7 @@ cmd /t 0
 cmd /go 青云山山脚
 wait room 青云山山脚
 cmd /go 山脚钱庄
-wait room 山脚钱庄
+wait room 钱庄
 wait object 钱庄老板
 cmd /t lao ban
 clear

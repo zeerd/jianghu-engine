@@ -1,7 +1,8 @@
 ﻿/** @file LuaSyntaxChecker.cpp
  *  @brief --check-lua 静态校验实现。
  *
- *  五道防线，各自对应一次真实线上故障（都是先炸后发现 → 逐道前移到启动前）：
+ *  各道防线与静态违规检测，各自对应一次真实线上故障（都是先炸后发现 → 逐道
+ *  前移到启动前）：
  *
  *  1. 语法          luaL_loadbuffer：括号/引号不匹配、关键字拼错。
  *  2. require 闭包  字面量 require("a.b") 指向不存在的模块（历史事故：
@@ -28,6 +29,12 @@
  *                   吞掉的错误、模块体执行期错误，一律记为违规。实现见
  *                   LuaSmokeCheck.cpp。
  *
+ *  7. random 语义    全局 random()（已废弃，0 基 [0, n-1]，见 Random.cpp）与
+ *                   math.random（1 基 [1, n]）混用：t[random(i)] 取到 nil、
+ *                   random(mp / 2) 抛 "number has no integer representation"、
+ *                   math.random(0) 回绕成全量域大整数。教材根（lua-default /
+ *                   lua-sample）另禁用裸 random()，不留已废弃 API 的示范。
+ *
  *  第 3、4 道必须拿到"引擎到底绑了什么"才有判断依据，故本文件自持调用
  *  lua_bind_init()（幂等），不依赖调用方是否已初始化——历史上 check-lua 只跑
  *  CLuaEngine::init()，头注释宣称"完整绑定环境"却从未绑定，等于没有依据。
@@ -44,6 +51,8 @@
  *      挂得到，跨对象同名会被放行。
  *   4. 防线5 只检 call_out/call_out_combat 的**字面量**注册名（非字面量实参
  *      静态不可判，跳过）；remove_call_out 的配对与死移除不在本道。
+ *   5. 防线7 的实参只判 float 除法 '/'：字面量浮点（random(2.5)）、'^'、由
+ *      函数返回的 float 不判；'//' 与 math.floor(...) 内的 '/' 视为整型。
  */
 
 #include <windows.h>
@@ -776,6 +785,412 @@ void detect_string_arith(const std::vector<LexTok>& toks,
     }
 }
 
+// ======================== 防线 7：random 语义 ========================
+//
+// 引擎全局 random() 走 l_random（src/util/Random.cpp，已废弃）：返回 [0, n-1]、
+// 实参经 luaL_checkinteger 拒收非整型 float；Lua 标准库 math.random 返回
+// [1, n]。两套语义在语料里并存，混用即线上故障——actions[random(i)] 取到
+// t[0] = nil；random(mp / 2) 在 mp 为奇数时抛 "number has no integer
+// representation"；math.random(0) 把空区间回绕成全量域大整数。本道只判写法与
+// 所选语义是否自洽，不做取值分析：
+//   R1 0 基下标     t[random(...)]，或裸 random() 存进局部后 t[name]
+//   R2 实参含 '/'   '/' 结果是 float，多半无整数表示（'//' 与 math.floor 的
+//                   实参除外）
+//   R3 math.random  与字面量 0 比较恒真/恒假；单参 0/负数
+//   R4 教材根禁用   lua-default / lua-sample 是新脚本的范本，不留已废弃 API
+//
+enum RandKind { RAND_NONE, RAND_ENGINE, RAND_MATH };
+
+// 裸 random() 的赋值点：line 供报错引用，tok 供作用域判定（跨函数同名的局部
+// 是两个不同的变量，不能当成同一条数据流）
+struct BareRandomLocal {
+    int line   = 0;
+    size_t tok = 0;
+};
+
+// k 处是被调用的名字：RAND_ENGINE = 裸 random(...)，RAND_MATH =
+// math.random(...)
+RandKind rand_call_kind(const std::vector<LexTok>& toks, size_t k)
+{
+    if (toks[k].kind != LT_NAME || toks[k].text != "random") return RAND_NONE;
+    if (k + 1 >= toks.size() || toks[k + 1].kind != LT_OP
+        || toks[k + 1].text != "(")
+        return RAND_NONE;
+    if (k > 0 && toks[k - 1].kind == LT_OP
+        && (toks[k - 1].text == "." || toks[k - 1].text == ":")) {
+        return (k >= 2 && toks[k - 2].kind == LT_NAME
+                && toks[k - 2].text == "math")
+                   ? RAND_MATH
+                   : RAND_NONE;  // t.random(...) / obj:random(...)
+                                 // 不是我们要判的
+    }
+    return RAND_ENGINE;
+}
+
+// open 指向 '('，返回配对 ')' 的下标；无配对返回 toks.size()
+size_t match_paren(const std::vector<LexTok>& toks, size_t open)
+{
+    int depth = 0;
+    for (size_t j = open; j < toks.size(); ++j) {
+        if (toks[j].kind != LT_OP) continue;
+        if (toks[j].text == "(") {
+            ++depth;
+        }
+        else if (toks[j].text == ")") {
+            if (--depth == 0) return j;
+        }
+    }
+    return toks.size();
+}
+
+// open 指向 '['，返回配对 ']' 的下标；无配对返回 toks.size()
+size_t match_bracket(const std::vector<LexTok>& toks, size_t open)
+{
+    int depth = 0;
+    for (size_t j = open; j < toks.size(); ++j) {
+        if (toks[j].kind != LT_OP) continue;
+        if (toks[j].text == "[") {
+            ++depth;
+        }
+        else if (toks[j].text == "]") {
+            if (--depth == 0) return j;
+        }
+    }
+    return toks.size();
+}
+
+// open 指向 '{'，返回配对 '}' 的下标；无配对返回 toks.size()
+size_t match_brace(const std::vector<LexTok>& toks, size_t open)
+{
+    int depth = 0;
+    for (size_t j = open; j < toks.size(); ++j) {
+        if (toks[j].kind != LT_OP) continue;
+        if (toks[j].text == "{") {
+            ++depth;
+        }
+        else if (toks[j].text == "}") {
+            if (--depth == 0) return j;
+        }
+    }
+    return toks.size();
+}
+
+// 实参区间 (open, close) 内是否出现 float 除法 '/'。math.floor(...) 的实参
+// 除外：floor 的结果恒可转整型；'//' 是另一个 token，本函数不认它。
+bool has_float_division(const std::vector<LexTok>& toks, size_t open,
+                        size_t close)
+{
+    size_t floor_close = 0;
+    for (size_t j = open + 1; j < close; ++j) {
+        if (j < floor_close) continue;
+        const LexTok& t = toks[j];
+        if (t.kind == LT_NAME && t.text == "floor" && j >= 2 && j + 1 < close
+            && toks[j - 1].kind == LT_OP && toks[j - 1].text == "."
+            && toks[j - 2].kind == LT_NAME && toks[j - 2].text == "math"
+            && toks[j + 1].kind == LT_OP && toks[j + 1].text == "(") {
+            floor_close = match_paren(toks, j + 1);
+            continue;
+        }
+        if (t.kind == LT_OP && t.text == "/") return true;
+    }
+    return false;
+}
+
+// 教材根：新脚本的范本，按路径判定。先补一个前导 '\'：--dir 既可以写绝对路径
+// 也可以写相对路径（`--dir lua-default` 收集到的就是 `lua-default\x.lua`），
+// 两种写法都要落在同一个判定上。
+bool under_textbook_root(const std::string& path)
+{
+    std::string s = "\\" + path;
+    std::replace(s.begin(), s.end(), '/', '\\');
+    for (char& c : s)
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+    return s.find("\\lua-default\\") != std::string::npos
+           || s.find("\\lua-sample\\") != std::string::npos;
+}
+
+// 裸 random() 的结果直接落进变量（R1 的数据流起点）：`local NAME = random(...)`
+// 与 `NAME = random(...)`。赋值后还接运算符/字面量的不是裸值（`random(i) + 1`
+// 早已是 1 基），跳过。NAME 是表字段还是语句赋值静态难分，只认本文件声明过的
+// 局部（宁可漏、不可误报）。
+void collect_bare_random_locals(const std::vector<LexTok>& toks,
+                                const FileScan& fs,
+                                std::map<std::string, BareRandomLocal>& out)
+{
+    for (size_t k = 0; k + 3 < toks.size(); ++k) {
+        size_t name = 0;
+        size_t eq   = 0;
+        if (toks[k].kind == LT_KW && toks[k].text == "local") {
+            if (toks[k + 1].kind != LT_NAME || toks[k + 2].kind != LT_OP
+                || toks[k + 2].text != "=")
+                continue;
+            name = k + 1;
+            eq   = k + 2;
+        }
+        else if (toks[k].kind == LT_NAME && toks[k + 1].kind == LT_OP
+                 && toks[k + 1].text == "=" && fs.locals.count(toks[k].text)
+                 && (k == 0 || toks[k - 1].kind != LT_OP
+                     || (toks[k - 1].text != "." && toks[k - 1].text != "]"))) {
+            name = k;
+            eq   = k + 1;
+        }
+        else {
+            continue;
+        }
+        const size_t call = eq + 1;
+        if (call + 1 >= toks.size()
+            || rand_call_kind(toks, call) != RAND_ENGINE)
+            continue;
+        const size_t close = match_paren(toks, call + 1);
+        if (close == toks.size()) continue;
+        if (close + 1 < toks.size()) {
+            const LexTok& next = toks[close + 1];
+            if (next.kind == LT_OP || next.kind == LT_NUM
+                || next.kind == LT_STR)
+                continue;
+            if (next.text == "(" || next.text == "{" || next.text == "[")
+                continue;
+        }
+        out.emplace(toks[name].text, BareRandomLocal{toks[name].line, name});
+    }
+}
+
+// 0 基表的构造证据（有证据才豁免，其余照报）：
+//   1. `for NAME = 0, ...` 的循环变量被当下标（dice 的 counts、mpms 的 noacc）
+//   2. 字面量 0 下标 `T[0]`
+//   3. 显式 0 基键 `T = { [0] = ..., [1] = ... }`（wanjie / zaixiang
+//   的通缉怪表，
+//      表头注释即写明"0 基索引，对应 C++ monster[N]"）
+// 对这种表用 0 基 random 下标是正确写法，不判。
+void collect_zero_based_tables(const std::vector<LexTok>& toks,
+                               std::set<std::string>& out)
+{
+    std::set<std::string> zero_vars;
+    for (size_t k = 0; k + 3 < toks.size(); ++k) {
+        if (toks[k].kind != LT_KW || toks[k].text != "for") continue;
+        if (toks[k + 1].kind != LT_NAME) continue;
+        if (toks[k + 2].kind != LT_OP || toks[k + 2].text != "=") continue;
+        if (toks[k + 3].kind != LT_NUM || toks[k + 3].text != "0") continue;
+        zero_vars.insert(toks[k + 1].text);
+    }
+    for (size_t k = 1; k + 1 < toks.size(); ++k) {
+        if (toks[k].kind != LT_OP || toks[k].text != "[") continue;
+        if (toks[k - 1].kind != LT_NAME) continue;
+        const bool zero_literal
+            = toks[k + 1].kind == LT_NUM && toks[k + 1].text == "0";
+        if (!zero_literal && !zero_vars.count(toks[k + 1].text)) continue;
+        out.insert(toks[k - 1].text);
+    }
+    for (size_t k = 0; k + 2 < toks.size(); ++k) {
+        if (toks[k].kind != LT_NAME) continue;
+        if (toks[k + 1].kind != LT_OP || toks[k + 1].text != "=") continue;
+        if (toks[k + 2].kind != LT_OP || toks[k + 2].text != "{") continue;
+        const size_t close = match_brace(toks, k + 2);
+        if (close == toks.size()) continue;
+        for (size_t j = k + 3; j + 2 < close; ++j) {
+            if (toks[j].kind == LT_OP && toks[j].text == "["
+                && toks[j + 1].kind == LT_NUM && toks[j + 1].text == "0"
+                && toks[j + 2].kind == LT_OP && toks[j + 2].text == "]") {
+                out.insert(toks[k].text);
+                break;
+            }
+        }
+    }
+}
+
+// R1：0 基下标 —— 直接 t[random(...)]，或 t[name] 且 name 是裸 random() 的结果
+void detect_random_index(
+    const std::vector<LexTok>& toks, const std::string& rel, const FileScan& fs,
+    const std::map<std::string, BareRandomLocal>& bare_locals,
+    std::vector<Violation>& out)
+{
+    // 脚本自己定义/遮蔽了 random（如 local random = math.random），0 基判定
+    // 无从谈起，跳过本条（R2 与两种 API 都要求整型实参，不受影响）
+    if (fs.locals.count("random") || fs.defs.count("random")) return;
+    std::set<std::string> zero_tables;
+    collect_zero_based_tables(toks, zero_tables);
+    for (size_t k = 0; k + 1 < toks.size(); ++k) {
+        if (toks[k].kind != LT_OP || toks[k].text != "[") continue;
+        const size_t close = match_bracket(toks, k);
+        if (close == toks.size() || close < k + 2) continue;
+        // 目标表有 0 基构造证据 → 0 基下标正是它要的写法
+        if (k > 0 && toks[k - 1].kind == LT_NAME
+            && zero_tables.count(toks[k - 1].text))
+            continue;
+
+        if (rand_call_kind(toks, k + 1) == RAND_ENGINE
+            && match_paren(toks, k + 2) == close - 1) {
+            Violation v;
+            v.line = toks[k + 1].line;
+            v.key  = "R:" + rel + ":idx";
+            v.detail
+                = "engine random() is 0-based ([0, n-1]); using it as a"
+                  " table index reads t[0] = nil. Write random(n) + 1, or"
+                  " use math.random(n) which is 1-based";
+            out.push_back(v);
+            continue;
+        }
+        if (close != k + 2 || toks[k + 1].kind != LT_NAME) continue;
+        const auto it = bare_locals.find(toks[k + 1].text);
+        if (it == bare_locals.end()) continue;
+        // 跨函数同名：赋值行在使用行之后，或两处之间隔着 function 关键词，说明
+        // 这里读的是另一个局部（数据集 mfnpc_1 就是 for 循环变量 i 撞了同名
+        // 局部）—— 不判，宁可漏、不可误报。
+        if (k < it->second.tok) continue;
+        bool cross_function = false;
+        for (size_t j = it->second.tok + 1; j < k; ++j) {
+            if (toks[j].kind == LT_KW && toks[j].text == "function") {
+                cross_function = true;
+                break;
+            }
+        }
+        if (cross_function) continue;
+        Violation v;
+        v.line = toks[k + 1].line;
+        v.key  = "R:" + rel + ":idxvar:" + toks[k + 1].text;
+        v.detail = "'" + toks[k + 1].text
+                   + "' is a raw random() result (0-based, assigned on line "
+                   + std::to_string(it->second.line) + "); indexing with it reads"
+                     " t[0] = nil. Add +1 at the assignment";
+        out.push_back(v);
+    }
+}
+
+// R2：实参含 '/' → float，多半没有整数表示（luaL_checkinteger 拒收）
+void detect_random_float_arg(const std::vector<LexTok>& toks,
+                             const std::string& rel,
+                             std::vector<Violation>& out)
+{
+    for (size_t k = 0; k < toks.size(); ++k) {
+        const RandKind kind = rand_call_kind(toks, k);
+        if (kind == RAND_NONE) continue;
+        const size_t open  = k + 1;
+        const size_t close = match_paren(toks, open);
+        if (close == toks.size() || !has_float_division(toks, open, close))
+            continue;
+        Violation v;
+        v.line = toks[k].line;
+        v.key  = "R:" + rel + ":intarg";
+        v.detail = std::string(kind == RAND_MATH ? "math.random" : "random")
+                   + " takes an integer argument, but '/' in the argument"
+                     " yields a float that may have no integer representation"
+                     " (runtime: number has no integer representation). Use"
+                     " '//' or wrap it in math.floor(...)";
+        out.push_back(v);
+    }
+}
+
+// R3a：单参且为字面量（可带一元负号）的 math.random —— 0 不是"空一点的区间"
+void detect_math_random_bound(const std::vector<LexTok>& toks,
+                              const std::string& rel,
+                              std::vector<Violation>& out)
+{
+    for (size_t k = 0; k < toks.size(); ++k) {
+        if (rand_call_kind(toks, k) != RAND_MATH) continue;
+        const size_t open  = k + 1;
+        const size_t close = match_paren(toks, open);
+        if (close == toks.size()) continue;
+        const size_t argc = close - open - 1;
+        bool neg          = false;
+        size_t lit        = 0;
+        if (argc == 1 && toks[open + 1].kind == LT_NUM) {
+            lit = open + 1;
+        }
+        else if (argc == 2 && toks[open + 1].kind == LT_OP
+                 && toks[open + 1].text == "-"
+                 && toks[open + 2].kind == LT_NUM) {
+            neg = true;
+            lit = open + 2;
+        }
+        if (lit == 0) continue;
+        char* end         = nullptr;
+        const long long n = strtoll(toks[lit].text.c_str(), &end, 0);
+        if (!end || *end != '\0') continue;
+        const long long bound = neg ? -n : n;
+        if (bound > 0) continue;
+        Violation v;
+        v.line = toks[k].line;
+        v.key  = "R:" + rel + ":mrand0";
+        v.detail = bound == 0
+                       ? std::string("math.random(0) does not return 0: Lua 5.5")
+                             + " wraps the empty interval into a full-range"
+                             + " integer. Use a literal 0, or math.random(0, n)"
+                                 " for a 0-based range"
+                       : std::string("math.random with a negative bound raises")
+                             + " 'interval is empty' at runtime";
+        out.push_back(v);
+    }
+}
+
+// R3b：单参 math.random 落在 [1, n]，与字面量 0 比较的结果是常量
+void detect_math_random_compare(const std::vector<LexTok>& toks,
+                                const std::string& rel,
+                                std::vector<Violation>& out)
+{
+    for (size_t k = 0; k < toks.size(); ++k) {
+        if (rand_call_kind(toks, k) != RAND_MATH) continue;
+        const size_t open  = k + 1;
+        const size_t close = match_paren(toks, open);
+        if (close == toks.size()) continue;
+        if (close - open - 1 != 1)
+            continue;  // 两参形式（math.random(0,1)）可取 0
+        const bool right = close + 2 < toks.size()
+                           && toks[close + 2].kind == LT_NUM
+                           && toks[close + 2].text == "0";
+        const bool left
+            = k >= 4 && toks[k - 4].kind == LT_NUM && toks[k - 4].text == "0";
+        if (!right && !left) continue;
+        const LexTok& op             = right ? toks[close + 1] : toks[k - 3];
+        static const char* kCmpOps[] = {"==", "~=", "<", "<=", ">", ">="};
+        if (op.kind != LT_OP
+            || std::find(std::begin(kCmpOps), std::end(kCmpOps), op.text)
+                   == std::end(kCmpOps))
+            continue;
+        const bool always
+            = op.text == "~=" || op.text == ">" || op.text == ">=";
+        Violation v;
+        v.line   = toks[k].line;
+        v.key    = "R:" + rel + ":mrandcmp";
+        v.detail = "math.random with one argument returns at least 1, so '"
+                   + op.text + " 0' is "
+                   + (always ? "always true" : "never true")
+                   + " (0-based habit applied to a 1-based function)";
+        out.push_back(v);
+    }
+}
+
+// R4：教材根禁用已废弃的裸 random()
+void detect_textbook_random(const std::vector<LexTok>& toks,
+                            const std::string& abs_path, const std::string& rel,
+                            std::vector<Violation>& out)
+{
+    if (!under_textbook_root(abs_path)) return;
+    for (size_t k = 0; k < toks.size(); ++k) {
+        if (rand_call_kind(toks, k) != RAND_ENGINE) continue;
+        Violation v;
+        v.line = toks[k].line;
+        v.key  = "R:" + rel + ":textbook";
+        v.detail
+            = "the deprecated global random() must not appear in textbook"
+              " scripts (lua-default / lua-sample); use math.random, whose"
+              " [1, n] range is the Lua standard";
+        out.push_back(v);
+    }
+}
+
+void detect_random_misuse(const std::vector<LexTok>& toks,
+                          const std::string& abs_path, const std::string& rel,
+                          const FileScan& fs, std::vector<Violation>& out)
+{
+    std::map<std::string, BareRandomLocal> bare_locals;
+    collect_bare_random_locals(toks, fs, bare_locals);
+    detect_random_index(toks, rel, fs, bare_locals, out);
+    detect_random_float_arg(toks, rel, out);
+    detect_math_random_bound(toks, rel, out);
+    detect_math_random_compare(toks, rel, out);
+    detect_textbook_random(toks, abs_path, rel, out);
+}
+
 // ======================== 防线 5：call_out 目标可见性 ========================
 //
 // 注册期引擎按名先查 owner 的脚本表、缺名回退当前执行脚本的表（见
@@ -1112,6 +1527,9 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         all_methods.insert(fs.methods.begin(), fs.methods.end());
 
         detect_string_arith(toks, rel_paths[i], o.violations);
+
+        // 防线7：random 语义（0 基下标 / 非整型实参 / math.random 与 0 基混用）
+        detect_random_misuse(toks, files[i], rel_paths[i], fs, o.violations);
 
         // 防线5：call_out 注册名在本文件的判定（跨文件的入候选，pass2 消解）
         detect_callout_sites(toks, rel_paths[i], i, fs, o.violations,

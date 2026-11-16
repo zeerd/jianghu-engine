@@ -67,7 +67,7 @@ end
 function npc.do_refresh(self, param1, param2)
     local map = load("room", "青云山山顶")
     if map:query("random/tree") == 0 then
-        if random(5) == 1 then
+        if math.random(5) == 1 then
             map:add_object("item", "sample_tree")
             map:set("random/tree", 1)
         else
@@ -78,16 +78,16 @@ function npc.do_refresh(self, param1, param2)
 end
 
 function npc.chat_msg(self)
-    local r = random(6)
-    if r == 0 then
+    local r = math.random(6)
+    if r == 1 then
         return "哎，最近山上的贼人又多了起来，过往的商队都绕道走了。"
-    elseif r == 1 then
-        return "年轻人，上山可要小心啊，那些山贼可不是好惹的。"
     elseif r == 2 then
-        return "听说半山腰的那位高手以前也是江湖上赫赫有名的人物呢。"
+        return "年轻人，上山可要小心啊，那些山贼可不是好惹的。"
     elseif r == 3 then
-        return "山脚的杂货铺老板人不错，你可以在那里备些药品再上山。"
+        return "听说半山腰的那位高手以前也是江湖上赫赫有名的人物呢。"
     elseif r == 4 then
+        return "山脚的杂货铺老板人不错，你可以在那里备些药品再上山。"
+    elseif r == 5 then
         return "这青云山以前可是个好地方，自从来了那伙山贼就不太平了。"
     else
         return "老头子我在这山脚下住了大半辈子，什么风浪没见过。"

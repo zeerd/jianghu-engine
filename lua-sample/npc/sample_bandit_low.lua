@@ -5,7 +5,7 @@ local npc = {}
 
 function npc.create(self)
     local names = { "山贼甲", "山贼乙", "山贼丙", "山贼丁" }
-    local idx = random(4) + 1
+    local idx = math.random(4)
     self:set_name(names[idx], "shan zei")
 
     self:set("gender", "男性")
@@ -29,10 +29,10 @@ function npc.create(self)
     self:set("int", 10)
 
     -- 战斗技能
-    self:set_skill("sword", 30 + random(20))
-    self:set_skill("force", 20 + random(10))
-    self:set_skill("dodge", 25 + random(15))
-    self:set_skill("parry", 25 + random(15))
+    self:set_skill("sword", 30 + math.random(0, 19))
+    self:set_skill("force", 20 + math.random(0, 9))
+    self:set_skill("dodge", 25 + math.random(0, 14))
+    self:set_skill("parry", 25 + math.random(0, 14))
 
     self:skill_map("set", "sword", "sword")
     self:skill_map("set", "force", "force")
@@ -51,7 +51,7 @@ end
 -- 战斗中概率自动出招：单次掷骰查表——掷中才施展基本内功的复元术
 -- （本怪只配了基础技能，出招表里只有它真会的这一招）
 function npc.chat_msg_combat(self)
-    if random(3) == 0 then
+    if math.random(3) == 1 then
         self:perform_action("force recover", 0)
     end
 end

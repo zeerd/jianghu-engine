@@ -200,7 +200,7 @@
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" if not exist "$(OutDir)libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -255,7 +255,7 @@
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" if not exist "$(OutDir)libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -305,7 +305,7 @@
       <LinkErrorReporting>QueueForNextLogin</LinkErrorReporting>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" if not exist "$(OutDir)libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -358,7 +358,7 @@
       <LinkErrorReporting>QueueForNextLogin</LinkErrorReporting>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" if not exist "$(OutDir)libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
@@ -408,7 +408,7 @@
       <LinkErrorReporting>QueueForNextLogin</LinkErrorReporting>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" if not exist "$(OutDir)libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x86\mysql-connector-c-6.1.11-win32\lib\libmysql.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
@@ -461,7 +461,7 @@
       <LinkErrorReporting>QueueForNextLogin</LinkErrorReporting>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
+      <Command>if exist "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" if not exist "$(OutDir)libmysql.dll" xcopy /Y "$(SolutionDir)3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -644,13 +644,13 @@ function resident_base.reset(self)
     end
 
     self:load_from_local()
-    self:set("wait_clear", 40 + random(40), "T")
+    self:set("wait_clear", 40 + math.random(0, 39), "T")
     resident_base.clear_house(self)
 end
 
 -- 载入存档并初始化房间
 function resident_base.setup(self)
-    self:set("wait_clear", 40 + random(40), "T")
+    self:set("wait_clear", 40 + math.random(0, 39), "T")
     self:load_from_local()
     self:base_setup()
 end

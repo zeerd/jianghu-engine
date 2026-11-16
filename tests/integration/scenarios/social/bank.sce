@@ -11,9 +11,15 @@
 #   · 取款/贷款成功只回「完毕」、无数额，所以数额靠随后的 /balance 钉住。
 #
 # 前置：本道自带现金（起步本金），存款=0 是新角色的真实初始态。
+#
+# 房间双名（room/sample_bank.lua）：`/go 山脚钱庄` 走**注册名**（门的 id），
+# `wait room 钱庄` 断的是**显示名**（create 里的 set_name）——两条断言取值
+# 不同，才同时证明导航通道与显示通道各自生效。
+# ⚠ 显示名必须断短名：`wait room` 也接受场景图名（I=），而房间未声明 map
+#   时 map 回落 base_name = "山脚钱庄"，断长名会被 map 假通过。
 
 cmd /go 山脚钱庄
-wait room 山脚钱庄
+wait room 钱庄
 wait object 钱庄老板
 
 cmd /t lao ban

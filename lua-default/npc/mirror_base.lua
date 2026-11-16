@@ -135,7 +135,7 @@ function mirror_base.reward_killer(self, me) end
 
 -- 平时闲话：有概率遁走自毁（镜像的台词：抄完就跑）
 function mirror_base.chat_msg(self)
-    if random(10) ~= 0 then
+    if math.random(10) ~= 1 then
         return nil
     end
 
@@ -147,7 +147,7 @@ end
 -- 战斗闲话：低血自救——尝试一次 heal perform（法术由技能脚本提供，
 -- 世界没提供时命令静默失败，镜像只是白出一招）
 function mirror_base.chat_msg_combat(self)
-    if self:query("hp") < self:query("max_hp") // 3 and random(2) == 0 then
+    if self:query("hp") < self:query("max_hp") // 3 and math.random(2) == 1 then
         self:perform_action("force heal", 0)
     end
 

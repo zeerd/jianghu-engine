@@ -9,7 +9,7 @@ return {
     -- query_action(self, me)
     query_action = function(self, me)
         local level = me:query("level")
-        local damage = 30 + random(71) + level * 2
+        local damage = 30 + math.random(0, 70) + level * 2
         return {
             action = "$N用后腿往$n的$l用力一蹬",
             damage = damage,

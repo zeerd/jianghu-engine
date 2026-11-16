@@ -25,7 +25,7 @@ return {
             { action = "$N高高举起手中$w，奋力的向$n的头顶劈去！", dodge = 0, parry = 20 },
         }
 
-        local level = random(8) + 1
+        local level = math.random(8)
         return actions[level]
     end,
 

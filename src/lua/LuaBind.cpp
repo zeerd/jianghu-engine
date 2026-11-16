@@ -209,6 +209,8 @@ static const luaL_Reg global_funcs[]
        {"tell_object", l_tell_object},
        {"message", l_message},
        {"notify_fail", l_notify_fail},
+       // 全局 random() 已废弃（0 基 [0, n-1]，与 math.random 的 [1, n] 相反），
+       // 仅为存量数据集保留；新脚本与教材一律用 math.random
        {"random", l_random},
        {"respect", l_respect},
        {"get_ip", l_get_ip},

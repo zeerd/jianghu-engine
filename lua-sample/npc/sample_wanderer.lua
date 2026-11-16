@@ -22,10 +22,10 @@ end
 
 -- 云游道人的山道闲话：返回台词即房间广播（chat_chance 掷中时调用）
 function npc.chat_msg(self)
-    local r = random(3)
-    if r == 0 then
+    local r = math.random(3)
+    if r == 1 then
         return "云游四方，山高水长。"
-    elseif r == 1 then
+    elseif r == 2 then
         return "这青云山的景致，一年比一年好了。"
     end
     return "葫芦里的酒快见底了，下山得打一壶。"

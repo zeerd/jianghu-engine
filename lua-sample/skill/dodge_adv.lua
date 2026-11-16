@@ -15,7 +15,7 @@ return {
             "但是$N凌空一翻，躲过了攻击。",
             "但是$N身形如鬼魅般闪过。",
         }
-        return msgs[random(4) + 1]
+        return msgs[math.random(4)]
     end,
 
     valid_enable = function(self, usage)

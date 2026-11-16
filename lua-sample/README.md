@@ -300,7 +300,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | `sample_mountain_mid.lua` | 半山腰：师父 + 练功木人 + 铁人桩；`valid_startroom`/`sleep_room` |
 | `sample_mountain_top.lua` | 山顶：副本入口，青蛇练级点 |
 | `sample_tea_stall.lua` | 茶棚：水源 fill（含茶钱 fee） |
-| `sample_bank.lua` | 钱庄：type=bankowner 老板（存取款/贷款） |
+| `sample_bank.lua` | 钱庄：type=bankowner 老板（存取款/贷款）；**房间双名演示**——注册名 `山脚钱庄`（门与寻址用）vs 显示名 `钱庄`（客户端抬头用），设定见该文件头注 |
 | `sample_arena.lua` | 演武场：脚本驱动比武的落脚点 |
 | `sample_woods.lua` | 林间空地：死胡同支线，山道强人驻扎 |
 | `sample_resident.lua` | 住宅区：type=resident，申请→置产→搬家；驻守月老 |

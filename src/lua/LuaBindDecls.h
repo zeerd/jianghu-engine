@@ -121,7 +121,7 @@ int l_query_team(lua_State* L);
 int l_query_weapon(lua_State* L);
 int l_query_weight(lua_State* L);
 int l_querystr(lua_State* L);
-int l_random(lua_State* L);
+int l_random(lua_State* L);  // 已废弃：脚本用 math.random，仅为存量数据集保留
 int l_random_move(lua_State* L);
 int l_random_npc(lua_State* L);
 int l_random_vendor(lua_State* L);

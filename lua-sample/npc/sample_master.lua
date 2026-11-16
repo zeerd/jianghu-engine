@@ -102,14 +102,14 @@ function npc.attempt_apprentice(self, me)
 end
 
 function npc.chat_msg(self)
-    local r = random(5)
-    if r == 0 then
+    local r = math.random(5)
+    if r == 1 then
         return "武功之道，在于勤修苦练，不可急功近利。"
-    elseif r == 1 then
-        return "内功心法，乃武学根基，不可忽视。"
     elseif r == 2 then
-        return "剑法讲究身剑合一，心到剑到。"
+        return "内功心法，乃武学根基，不可忽视。"
     elseif r == 3 then
+        return "剑法讲究身剑合一，心到剑到。"
+    elseif r == 4 then
         return "轻功身法，可助你在江湖中来去自如。"
     else
         return "拳脚功夫，看似简单，实则蕴含无穷变化。"

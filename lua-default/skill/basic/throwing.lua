@@ -71,14 +71,14 @@ return {
 
         if me:is_fighting() then
             sp = me:query_skill("throwing")
-            sp = random(sp)
+            sp = math.random(math.max(1, sp)) - 1
             dp = target:query_skill("dodge")
             dp = dp // 2
         else
             sp = me:query_skill("throwing")
-            sp = random(sp)
+            sp = math.random(math.max(1, sp)) - 1
             dp = target:query_skill("dodge")
-            dp = random(dp // 2)
+            dp = math.random(math.max(1, dp // 2)) - 1
         end
 
         if sp > dp then

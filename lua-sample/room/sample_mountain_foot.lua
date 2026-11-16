@@ -14,6 +14,16 @@ return {
         self:add_object("npc", "sample_vendor")
         -- 巡游NPC：起点放在路口（出口最多），random_move 由此走遍全图
         self:add_object("npc", "sample_wanderer")
+        -- 门的四个名字：add_object("door", 门id, next_room, next_door [, dir])
+        --   门id      导航键：/go 与 present_door 按它（或 dir）匹配；出口列表
+        --             下发的 D= 也是它。本世界把门id 写成目标房的注册名，
+        --             玩家才按名走得动（/go 山脚钱庄）。
+        --   next_room 目标房的注册名（或脚本名），load_room 按它解析回脚本。
+        --   next_door 目标房里那扇回程门的 id，进房时当来路标签下发。
+        --   dir       方向别名（如 "out"），出口列表的 A= 字段；本样本不传。
+        -- 出口列表显示的标签是门的 name，默认等于门id；要单独换标签用
+        -- door:set_name("…")，只改显示不改导航键（住宅区的门即此写法）。
+        -- 房间两个名字（注册名 vs 显示名）的完整设定见 sample_bank.lua。
         self:add_object("door", "青云山半山腰", "青云山半山腰", "青云山山脚")
         self:add_object("door", "山脚茶棚", "山脚茶棚", "青云山山脚")
         self:add_object("door", "山脚钱庄", "山脚钱庄", "青云山山脚")

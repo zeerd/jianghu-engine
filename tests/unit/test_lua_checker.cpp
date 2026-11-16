@@ -100,6 +100,29 @@ const char* kCalloutCrossProvider
 const char* kCalloutDynamicOk
     = "tests/unit/lua-tests/check_fixture/callout_dynamic_ok.lua";
 
+// 防线7：random 语义（引擎全局 random 是 0 基、实参必须整型；
+// math.random 是 1 基、单参 0 会回绕）
+const char* kRandomIndexBad
+    = "tests/unit/lua-tests/check_fixture/random_index_bad.lua";
+const char* kRandomIndexOk
+    = "tests/unit/lua-tests/check_fixture/random_index_ok.lua";
+const char* kRandomLocalBad
+    = "tests/unit/lua-tests/check_fixture/random_local_index_bad.lua";
+const char* kRandomLocalOk
+    = "tests/unit/lua-tests/check_fixture/random_local_index_ok.lua";
+const char* kRandomLocalCrossFnOk
+    = "tests/unit/lua-tests/check_fixture/random_local_cross_function_ok.lua";
+const char* kRandomZeroBasedOk
+    = "tests/unit/lua-tests/check_fixture/random_zero_based_table_ok.lua";
+const char* kRandomFloatBad
+    = "tests/unit/lua-tests/check_fixture/random_float_arg_bad.lua";
+const char* kRandomFloatOk
+    = "tests/unit/lua-tests/check_fixture/random_float_arg_ok.lua";
+const char* kMathRandomZeroBad
+    = "tests/unit/lua-tests/check_fixture/math_random_zero_bad.lua";
+const char* kMathRandomNeverZeroBad
+    = "tests/unit/lua-tests/check_fixture/math_random_never_zero_bad.lua";
+
 // 基线文件由用例自己在仓库内 test_tmp\ 生成、析构即删（.gitignore 已排除）。
 // 它只是测试的 arrange（生产接口按路径读基线，注释行/空行/CRLF/重复条目
 // 计数都得真跑一遍），不是需要跟代码同步演进的数据 —— 提交进仓库只会变成
@@ -487,4 +510,139 @@ TEST_F(LuaCheckerRequireTest, CalloutDynamicArgSkipped)
 {
     EXPECT_EQ(check(kCalloutDynamicOk), 0)
         << "非字面量目标名静态不可判，不应误报失败";
+}
+
+// ---------------- 防线 7：random 语义 ----------------
+//
+// 引擎全局 random 走 C++ 绑定（src/util/Random.cpp 的 l_random，已废弃）：
+// 返回 [0, n-1]、n<=0 返回 0、实参经 luaL_checkinteger 拒收非整型 float；
+// Lua 标准库 math.random 返回 [1, n]。两套语义在语料里并存，混用即线上故障。
+
+// 直接下标：random() 可返回 0 → t[0] 为 nil，索引即抛
+TEST_F(LuaCheckerRequireTest, RandomIndexWithoutOffsetFails)
+{
+    EXPECT_EQ(check(kRandomIndexBad), 1)
+        << "引擎 random() 是 0 基，t[random(n)] 会取到 t[0] = nil";
+}
+
+// 上一条的反面：+1 与 math.random 都落在 1..n，不得误报
+TEST_F(LuaCheckerRequireTest, RandomIndexWithOffsetPasses)
+{
+    EXPECT_EQ(check(kRandomIndexOk), 0)
+        << "random(n)+1 与 math.random(n) 都是合法下标写法";
+}
+
+// 先存局部再下标与直接下标同错（xiaoyao_dao query_action 的线上形态）
+TEST_F(LuaCheckerRequireTest, RandomLocalIndexedFails)
+{
+    EXPECT_EQ(check(kRandomLocalBad), 1)
+        << "裸 random() 结果存进 local 后下标，同样是 0 基取值";
+}
+
+TEST_F(LuaCheckerRequireTest, RandomLocalWithOffsetPasses)
+{
+    EXPECT_EQ(check(kRandomLocalOk), 0) << "赋值时就带上 +1 的局部下标不应误报";
+}
+
+// 跨函数的同名局部是两个变量（数据集 mfnpc_1：for 循环变量 i 撞了另一个函数里
+// 的 random 局部）—— 不得把随机赋值串到别人头上，宁可漏、不可误报。
+TEST_F(LuaCheckerRequireTest, RandomLocalCrossFunctionNotFlagged)
+{
+    EXPECT_EQ(check(kRandomLocalCrossFnOk), 0)
+        << "使用点在赋值之前 / 中间隔着 function 的同名局部不得误报";
+}
+
+// 0 基表有构造证据（`for i = 0, n - 1` 的循环变量被当下标）时，0 基下标正是
+// 它要的写法 —— 这类容器对 0 基 random 取值是正确的，报了就是假红。
+TEST_F(LuaCheckerRequireTest, ZeroBasedTableIndexNotFlagged)
+{
+    EXPECT_EQ(check(kRandomZeroBasedOk), 0)
+        << "按 0 基建表的容器用 0 基 random 下标不得误报";
+}
+
+// 实参：luaL_checkinteger 拒收无整数表示的 float，mp / 2 在奇数时必抛
+TEST_F(LuaCheckerRequireTest, RandomFloatArgFails)
+{
+    EXPECT_EQ(check(kRandomFloatBad), 1)
+        << "random(mp / 2) 传非整型 float 会抛 number has no integer "
+           "representation";
+}
+
+// 上一条的反面：//、math.floor、裸整数都给出整型实参
+TEST_F(LuaCheckerRequireTest, RandomIntegerArgPasses)
+{
+    EXPECT_EQ(check(kRandomFloatOk), 0)
+        << "整除、math.floor 与整型实参都是合法写法，不得误报";
+}
+
+// math.random 单参 0 在 Lua 5.5 不报错，但空区间回绕成全量域大整数
+TEST_F(LuaCheckerRequireTest, MathRandomZeroArgFails)
+{
+    EXPECT_EQ(check(kMathRandomZeroBad), 1)
+        << "单参 math.random(0) 不是 0，是回绕出来的无意义大整数";
+}
+
+// math.random(n) >= 1，与 0 比较是恒假常量（0 基思维套在 1 基 API 上）
+TEST_F(LuaCheckerRequireTest, MathRandomComparedToZeroFails)
+{
+    EXPECT_EQ(check(kMathRandomNeverZeroBad), 1)
+        << "math.random 结果 >= 1，== 0 分支永不成立";
+}
+
+namespace {
+// 教材根判定是路径作用域的：同一个调用在教材根内是违规、在根外不是。
+// 夹具现写现删（test_tmp 已被 .gitignore 排除），不往仓库留错误脚本。
+// 析构先删文件、再试删目录：remove 对非空目录是无操作，所以 test_tmp 根
+// 绝不会被整目录删掉，只有我们自己建的那个空目录会消失。
+class ScopedLuaFile {
+public:
+    ScopedLuaFile(const std::filesystem::path& dir, const std::string& name,
+                  const std::string& content)
+        : m_dir(dir)
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(m_dir, ec);
+        m_path = (m_dir / name).string();
+        std::ofstream out(m_path, std::ios::binary | std::ios::trunc);
+        out << content;
+    }
+
+    ~ScopedLuaFile()
+    {
+        std::error_code ec;
+        std::filesystem::remove(m_path, ec);
+        std::filesystem::remove(m_dir, ec);
+    }
+
+    ScopedLuaFile(const ScopedLuaFile&)            = delete;
+    ScopedLuaFile& operator=(const ScopedLuaFile&) = delete;
+
+    const char* c_str() const { return m_path.c_str(); }
+
+private:
+    std::filesystem::path m_dir;
+    std::string m_path;
+};
+}  // namespace
+
+TEST_F(LuaCheckerRequireTest, TextbookRootBansDeprecatedRandom)
+{
+    const ScopedLuaFile in(test_tmp_dir() / "lua-default",
+                           "textbook_random_bad.lua",
+                           "-- textbook must not model the deprecated API\n"
+                           "local dmg = 20 + random(81)\n"
+                           "return { dmg = dmg }\n");
+    EXPECT_EQ(check(in.c_str()), 1)
+        << "教材根（lua-default / lua-sample）里的裸 random() 必须判失败";
+}
+
+TEST_F(LuaCheckerRequireTest, NonTextbookRandomNotBanned)
+{
+    const ScopedLuaFile out(test_tmp_dir() / "nontextbook",
+                            "nontextbook_random_ok.lua",
+                            "-- 存量数据集仍允许 random()，禁用只作用于教材\n"
+                            "local dmg = 20 + random(81)\n"
+                            "return { dmg = dmg }\n");
+    EXPECT_EQ(check(out.c_str()), 0)
+        << "教材根之外的 random() 不属于禁用范围，不得误报";
 }

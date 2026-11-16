@@ -60,6 +60,11 @@ struct CheckLuaOptions {
 //   6. 钩子冒烟      （默认开，`--no-smoke` 关）真跑 item 的 create/do_use：
 //                    钩子抛错、被脚本自己 pcall 吞掉的错、模块体执行期错，
 //                    一律记为违规
+//   7. random 语义    引擎全局 random()（已废弃，0 基 [0, n-1]）与 math.random
+//                    （1 基 [1, n]）混用：0 基下标取到 nil、实参含 '/' 抛
+//                    "number has no integer representation"、math.random 单参
+//                    0/负数、与字面量 0 比较恒真/恒假；教材根
+//                    （lua-default / lua-sample）禁用裸 random()
 //
 // 返回: 0=全部通过, 1=有失败
 int run_lua_checker(const char* cmdLine);

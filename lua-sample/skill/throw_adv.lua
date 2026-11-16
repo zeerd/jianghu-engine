@@ -39,8 +39,7 @@ return {
 
         for i = #actions, 1, -1 do
             if actions[i].lvl < level then
-                local idx = random(i)
-                local a = actions[idx + 1]
+                local a = actions[math.random(i)]
                 return {
                     action = a.action,
                     dodge = a.dodge,
@@ -98,7 +97,7 @@ return {
         combat_attack("normal", me, target, TYPE_QUICK)
 
         me:add("mp", -80)
-        me:start_busy(random(2))
+        me:start_busy(math.random(0, 1))
         return 1
     end,
 }

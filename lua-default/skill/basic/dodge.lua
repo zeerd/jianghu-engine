@@ -13,7 +13,7 @@ return {
             "但是被$p及时避开。",
             "但是$n已有准备，不慌不忙地躲开。",
         }
-        return msgs[random(5) + 1]
+        return msgs[math.random(5)]
     end,
 
     valid_learn = function(self, me)

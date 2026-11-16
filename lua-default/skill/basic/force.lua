@@ -43,7 +43,7 @@ return {
         local damage = mp // 30 + factor - mp_you // 100
 
         if damage < 0 then
-            if not me:query_weapon() and random(victim:query_skill("force") + 1) > me:query_skill("force") // 2 then
+            if not me:query_weapon() and math.random(0, victim:query_skill("force")) > me:query_skill("force") // 2 then
                 damage = -damage
                 me:receive_damage("hp", damage * 2, victim)
                 me:receive_wound("hp", damage, victim)
@@ -71,7 +71,7 @@ return {
 
         if damage_bonus + damage < 0 then
             damage_bonus = 0
-        elseif random(me:query_skill("force")) < damage then
+        elseif math.random(math.max(1, me:query_skill("force"))) - 1 < damage then
             damage_bonus = damage_bonus + damage
         end
 

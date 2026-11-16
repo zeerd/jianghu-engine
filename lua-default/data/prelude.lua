@@ -175,7 +175,7 @@ function random_get_item(ob, ntype, exclude)
     if #pool == 0 then
         return nil
     end
-    return pool[random(#pool) + 1]
+    return pool[math.random(#pool)]
 end
 
 -- 查找 me 所在房间内的角色：present("object_id") 只在房间容器内找，

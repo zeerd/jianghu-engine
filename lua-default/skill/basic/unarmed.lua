@@ -17,6 +17,6 @@ return {
             "$N操起铁锹，狠狠的砸在$n的脑袋上。",
         }
 
-        return { action = actions[random(8) + 1] }
+        return { action = actions[math.random(8)] }
     end,
 }

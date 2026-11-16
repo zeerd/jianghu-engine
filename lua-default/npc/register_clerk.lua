@@ -38,10 +38,10 @@ function npc.do_greeting(self, pid)
 end
 
 function npc.chat_msg(self)
-    local r = random(3)
-    if r == 0 then
+    local r = math.random(3)
+    if r == 1 then
         return "有谁想闯荡江湖的，来找我注册角色啊。"
-    elseif r == 1 then
+    elseif r == 2 then
         return "注册很简单的，名字、密码、性别、天赋，一会儿就好。"
     else
         return "注册完成以后，记得用账号和密码重新登录啊。"

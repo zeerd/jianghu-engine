@@ -442,8 +442,10 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
 
 - 慢 DB / DB 断连 → 全服冻结（无语句超时、无重连：`m_mysql` 保持非空、后续调用全部失败）。
 - 运行时 `libmysql.dll` 不入库（`.gitignore` 忽略所有 `libmysql.dll`）：`PostBuildEvent`
-  从 `3rd\<平台>\` 取对应位宽的 DLL，取不到就跳过拷贝（构建照常成功，缺 DLL 延后到
-  运行期暴露）；位宽不对则进程起不来（`193`）。
+  只在「`3rd\<平台>\` 里有对应位宽的 DLL、且 `$(OutDir)` 尚无此 DLL」时才拷贝——缺源
+  （干净 checkout 无 3rd DLL）与目标被运行中服务器占用（`Sharing violation`）都让构建
+  照常通过，缺 DLL 延后到运行期暴露、`$(OutDir)` 里的旧 DLL 不刷新；位宽不对则进程
+  起不来（`193`）。
 - 增加任何第二模拟线程 → 世界态免锁前提瓦解，且已存在 `static` 返回值等隐性依赖。
 - 脚本包若为第三方来源 → 无沙箱 + `db_execute` 构成全域读写面。
 - `jianghudb` 列顺序一旦变更 → `verify_user` 下标映射静默错位。

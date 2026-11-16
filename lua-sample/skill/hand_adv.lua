@@ -18,7 +18,7 @@ return {
 
         for i = #actions, 1, -1 do
             if actions[i].lvl < level then
-                return { action = actions[random(i) + 1].action }
+                return { action = actions[math.random(i)].action }
             end
         end
         return { action = actions[1].action }

@@ -18,7 +18,7 @@ function n.create(self)
     self:set("gender", "女性")
 
     self:set("age", 20)
-    self:set("per", 18 + random(15))
+    self:set("per", 18 + math.random(0, 14))
     self:set("combat_exp", 20000)
     self:set("str", 40)
     self:set("no_kill", 1)
@@ -124,7 +124,7 @@ function n.init(self, me)
                             .. "想意图不轨，还是赶快把他们扫地出门比较安全！",
                         self
                     )
-                    me:move(load("room", global_room_name(random(room_count()))))
+                    me:move(load("room", global_room_name(math.random(math.max(1, room_count())) - 1)))
                 end
             end
         end
@@ -140,7 +140,7 @@ function n.init(self, me)
                     .. "被人从房里一脚踢了出来，狼狈万状的逃开了。",
                 me
             )
-            me:move(load("room", global_room_name(random(room_count()))))
+            me:move(load("room", global_room_name(math.random(math.max(1, room_count())) - 1)))
             me:add("hp", -100)
         else
             if is_master(self, me) ~= 0 then

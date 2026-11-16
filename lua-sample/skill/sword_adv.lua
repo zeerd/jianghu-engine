@@ -40,8 +40,7 @@ return {
 
         for i = #actions, 1, -1 do
             if actions[i].lvl < level then
-                local idx = random(i)
-                local a = actions[idx + 1]
+                local a = actions[math.random(i)]
                 return {
                     action = a.action,
                     dodge = a.dodge,
@@ -148,7 +147,7 @@ return {
         me:improve_skill("sword_adv", 1 + me:query("level") // 5, 1)
 
         -- 收招硬直：绝招的收势代价，心跳拍计时（1 拍 ≈ 1 秒）
-        me:start_busy(1 + random(2))
+        me:start_busy(1 + math.random(0, 1))
         return 1
     end,
 }

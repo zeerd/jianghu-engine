@@ -18,7 +18,7 @@ return {
 
         for i = #actions, 1, -1 do
             if actions[i].lvl < level then
-                return { action = actions[random(i) + 1].action }
+                return { action = actions[math.random(i)].action }
             end
         end
         return { action = actions[1].action }
@@ -70,7 +70,7 @@ return {
             if not target or target:query("hp") <= 0 then
                 break
             end
-            local damage = me:query_skill("unarmed_adv", 1) + random(20)
+            local damage = me:query_skill("unarmed_adv", 1) + math.random(0, 19)
             target:receive_damage("hp", damage)
             message("vision", "$N第" .. i .. "击打在$n身上！", me, target)
         end
