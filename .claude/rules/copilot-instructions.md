@@ -1,6 +1,6 @@
 ---
 name: common
-description: 全工程常驻硬门禁与纪律：代码变更测试流程、注释与命名、构建/风格/cppcheck、git 只读、Lua check-lua 校验调用
+description: 全工程常驻硬门禁与纪律：代码变更测试流程、注释与命名、构建/风格/cppcheck、git 只读、Lua check-lua 校验调用、脚本与临时文件编码
 applyTo: '**'
 ---
 
@@ -50,7 +50,7 @@ applyTo: '**'
 
 编译与测试默认走 x64 版本（生产同构平台）；Win32 版本仍可编译，但只在显式指定时构建。
 
-不要给脚本加BOM！
+不要给lua脚本加BOM！
 
 代码中使用了太多了`char*`和`char foo[123]`了，重写或修改问题时，优先考虑替换成`std::string`的可行性。
 
@@ -125,6 +125,22 @@ Get-Content C:\jianghu-engine\bin\check_lua_output.txt
 |---|---|
 | `require(...) cannot resolve`，且**连被校验目录内部**的模块都解析不到 | cwd/config 组合不对，脚本无恙：回到「正确的调用方法」重跑，require 保持原样 |
 | 仅个别 `require` 失败，目标模块确实不存在 | 真缺口：先核对两个脚本根下都没有该文件，再补模块或改 require |
+
+## 脚本与临时文件编码
+
+写 `.ps1`、临时文件、工具输出时按下面走，编码问题不进控制台、不进判读依据。
+
+- **`write` 工具落盘的文件恒为 UTF-8 无 BOM**：往 `.ps1` 写中文即触发下表第一行，动笔前先决定本脚本走纯 ASCII 还是 BOM。
+- **`.ps1` 优先写成纯 ASCII**：中文只出现在正则字符类或少量字符串时，用 `[char]0x4E00` 形式的转义拼出；中文成段、非 ASCII 绕不开时按 `AGENTS.md`「文件编码（BOM）」条款加 UTF-8 BOM。
+- **控制台回显的中文一律按乱码对待**：需要判读的输出写进 UTF-8 无 BOM 的临时文件，用 read 工具读。
+- **临时文件用 `[IO.File]::WriteAllText($p, $t, (New-Object Text.UTF8Encoding($false)))` 落盘**；PS 5.1 的 `Out-File -Encoding utf8` 写出的是带 BOM 文件。
+- **同一错误重复刷屏时先截断**：`Select-Object -Last N` 取尾部，或整体落文件后再读，逐条读输出不产生判读价值。
+
+| 症状 | 动作 |
+|---|---|
+| `.ps1` 报 `Unterminated [] set`，且报错行里的字符类是乱码 | 脚本含非 ASCII 且无 BOM：改纯 ASCII 转义，或按 `AGENTS.md` 加 UTF-8 BOM |
+| 工具回显中文为乱码 / `????` | 结果写 UTF-8 无 BOM 临时文件，用 read 工具读；控制台内容不作判读依据 |
+| 输出数万行、几乎全是同一条报错 | `Select-Object -Last N` 取尾部或整体落文件，先定位首条真实报错 |
 
 ## 其他
 

@@ -160,6 +160,7 @@ static const luaL_Reg object_methods[]
        {"base_handle_action4", l_base_handle_action4},
        {"base_valid_leave", l_base_valid_leave},
        {"base_do_talk", l_base_do_talk},
+       {"base_query", l_base_query},
        {"save_to_local", l_save},
        {"load_from_local", l_load_from_local},
        {"remove_all_doors", l_remove_all_doors},

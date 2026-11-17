@@ -50,6 +50,42 @@ TEST_F(LuaItemTest, HookResultsReadBackAcrossMembers)
     EXPECT_EQ(1, item.do_action(0, &me)) << "do_action 回读(438-439)";
 }
 
+// ---- can_use 的可用性判定 ----
+// 声明了 Can_Use 就按它回读；没声明时按「是否实现 do_use」判定——
+// 实现了使用行为的物品即可使用，两者都没有才落回 C++ 兜底。
+TEST_F(LuaItemTest, CanUseFallsBackToDoUsePresence)
+{
+    CLuaItem item("fixture_usable_item");
+    item.set_name("只有使用行为", "li_usable");
+    item.create(0);
+    ASSERT_EQ(1, item.query("li_created")) << "create 钩子已执行";
+
+    lua_State* L        = ensure_lua_env();
+    const int stack_top = lua_gettop(L);
+
+    EXPECT_EQ(1, item.can_use()) << "缺 Can_Use 但有 do_use → 可用";
+    EXPECT_EQ(stack_top, lua_gettop(L)) << "两次取字段的收尾不能漏弹栈";
+}
+
+TEST_F(LuaItemTest, CanUseExplicitZeroOverridesDoUse)
+{
+    CLuaItem item("fixture_unusable_item");
+    item.set_name("显式禁用", "li_unusable");
+    item.create(0);
+    ASSERT_EQ(1, item.query("li_created")) << "create 钩子已执行";
+
+    EXPECT_EQ(0, item.can_use()) << "显式 Can_Use=0 压过 do_use 判定";
+}
+
+TEST_F(LuaItemTest, CanUseFallsBackToCppWithoutUseBehavior)
+{
+    CLuaItem blank("fixture_blank_item");
+    blank.set_name("空钩子", "li_canuse_blank");
+    blank.create(0);
+
+    EXPECT_EQ(0, blank.can_use()) << "既无 Can_Use 也无 do_use → C++ 兜底";
+}
+
 TEST_F(LuaItemTest, CanCombineInBoxScriptBranch)
 {
     CLuaItem item("fixture_lua_item");

@@ -152,6 +152,32 @@ TEST_F(LuaNpcScriptTest, Inquiry_FuncCallbackAnswers)
     Free(npc);
 }
 
+// 回调自己 say + 发菜单后返回 0 引擎侧必须同样把 0 当「不说」。
+TEST_F(LuaNpcScriptTest, Inquiry_FuncCallbackZeroReturnSaysNothing)
+{
+    CNpc* npc = Spawn("t_quiet_npc");
+    ASSERT_NE(npc, nullptr);
+    CLuaNpc* script_npc = AsScriptNpc(npc);
+    ASSERT_NE(script_npc, nullptr);
+    script_npc->set_inquiry_func("沉默", "answer_silent", "沉默");
+
+    StateRecordingUser visitor;
+    visitor.set_name("客官", "lua_npc_guest3");
+    visitor.move(&room);
+    visitor.delete_temp("client/loading");
+    visitor.clear();
+
+    char ask[32] = "沉默";
+    EXPECT_EQ(npc->do_talk(&visitor, ask), 1);
+    EXPECT_TRUE(visitor.has("我自个儿说完了"))
+        << "回调内部的自述必须送达访客" << visitor.msgs.size();
+    EXPECT_FALSE(visitor.has("&m=0&"))
+        << "return 0 是「不说」的契约，引擎不得把 0 当文本代说";
+
+    visitor.move(nullptr);
+    Free(npc);
+}
+
 TEST_F(LuaNpcScriptTest, Inquiry_UnknownTopicStillHandled)
 {
     CNpc* npc = Spawn("t_quiet_npc");
@@ -281,6 +307,31 @@ TEST_F(LuaNpcScriptTest, ChatMsg_ReturnScriptText)
     EXPECT_STREQ(npc->chat_msg(), "夹具伙计嘀咕了一句。");
     EXPECT_STREQ(npc->chat_msg_combat(), "夹具伙计抡起了扫帚。");
     EXPECT_EQ(npc->query("last_chat"), 1);
+
+    Free(npc);
+}
+
+// 播报类回调返回 0 引擎侧必须同样把 0 当「无消息」，而不是转成文本 "0"。
+TEST_F(LuaNpcScriptTest, ChatMsg_ZeroReturnMeansNoMessage)
+{
+    CNpc* npc = Spawn("t_silent_npc");
+    ASSERT_NE(npc, nullptr);
+
+    EXPECT_EQ(npc->chat_msg(), nullptr)
+        << "return 0 必须解析为无消息，而非文本 \"0\"";
+    EXPECT_EQ(npc->chat_msg_combat(), nullptr)
+        << "return 0 必须解析为无消息，而非文本 \"0\"";
+
+    Free(npc);
+}
+
+TEST_F(LuaNpcScriptTest, HitOb_ZeroReturnMeansNoWoundText)
+{
+    CNpc* npc = Spawn("t_silent_npc");
+    ASSERT_NE(npc, nullptr);
+
+    EXPECT_EQ(npc->hit_ob(me, me, 7), nullptr)
+        << "return 0 必须解析为无伤讯，而非文本 \"0\"";
 
     Free(npc);
 }

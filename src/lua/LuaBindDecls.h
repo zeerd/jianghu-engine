@@ -20,6 +20,7 @@ int l_base_do_talk(lua_State* L);
 int l_base_handle_action(lua_State* L);
 int l_base_handle_action4(lua_State* L);
 int l_base_init(lua_State* L);
+int l_base_query(lua_State* L);
 int l_base_reset(lua_State* L);
 int l_base_setup(lua_State* L);
 int l_base_valid_leave(lua_State* L);

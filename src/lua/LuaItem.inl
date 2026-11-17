@@ -188,7 +188,12 @@ int CLuaItemT<T>::can_use()
     lua_rawgeti(L, LUA_REGISTRYINDEX, m_script_ref);
     lua_getfield(L, -1, "Can_Use");
     if (!lua_isfunction(L, -1)) {
-        lua_pop(L, 2);
+        // 脚本未声明 Can_Use：实现了 do_use 即视为可用，声明显式 Can_Use 优先
+        lua_pop(L, 1);  // 弹掉非函数字段，留下脚本表
+        lua_getfield(L, -1, "do_use");
+        int has_do_use = lua_isfunction(L, -1);
+        lua_pop(L, 2);  // 弹掉 do_use 与脚本表
+        if (has_do_use) return 1;
         return T::can_use();
     }
 

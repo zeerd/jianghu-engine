@@ -95,6 +95,40 @@ TEST_F(BindGlueTest, BaseDoTalkGuard)
     EXPECT_EQ(1, CallRetCount(l_base_do_talk, 3));
 }
 
+// base_query：脚本子类在 query 尾部回退基类属性查询（对应原版子类 Query
+// 中 `return CNpc::Query(nAttr)` 的基类回退语义）
+TEST_F(BindGlueTest, BaseQueryGuard)
+{
+    lua_bind_push_object(L, &ch);
+    lua_pushinteger(L, CChar::IS_NPC);
+    // plain CChar 不是 CLuaVendor/CLuaBankOwner/CLuaNpc -> 守卫推 0 返回 1
+    EXPECT_EQ(1, CallRetCount(l_base_query, 2));
+}
+
+// base_query 真类型分发：IS_NPC 由基类 CNpc::query_attr 裁决
+// （Vendor/BankOwner 同样落到该实现）
+TEST_F(BindGlueTest, BaseQueryDispatchRealTypes)
+{
+    {
+        CLuaNpc n("t_error_npc");
+        lua_bind_push_object(L, &n);
+        lua_pushinteger(L, CChar::IS_NPC);
+        EXPECT_EQ(1, (int)CallInt(l_base_query, 2)) << "Npc 支";
+    }
+    {
+        CLuaVendor v("t_error_vendor");
+        lua_bind_push_object(L, &v);
+        lua_pushinteger(L, CChar::IS_NPC);
+        EXPECT_EQ(1, (int)CallInt(l_base_query, 2)) << "Vendor 支";
+    }
+    {
+        CLuaBankOwner b("t_error_bankowner");
+        lua_bind_push_object(L, &b);
+        lua_pushinteger(L, CChar::IS_NPC);
+        EXPECT_EQ(1, (int)CallInt(l_base_query, 2)) << "BankOwner 支";
+    }
+}
+
 // item-list iterator over an empty list
 TEST_F(BindGlueTest, IterItemsEmpty)
 {

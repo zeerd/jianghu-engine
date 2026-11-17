@@ -11,4 +11,10 @@ function npc.answer_origin(self, me)
     return "我本是后山一块石头。"
 end
 
+function npc.answer_silent(self, me)
+    self:say("我自个儿说完了。", me)
+    self:send_menu(me)
+    return 0
+end
+
 return npc

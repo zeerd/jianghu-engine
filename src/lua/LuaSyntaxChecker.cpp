@@ -34,6 +34,17 @@
  *                   random(mp / 2) 抛 "number has no integer representation"、
  *                   math.random(0) 回绕成全量域大整数。教材根（lua-default /
  *                   lua-sample）另禁用裸 random()，不留已废弃 API 的示范。
+ *  8. 整型实参      绑定形参走 luaL_checkinteger 时，实参必须有整数表示：
+ *                   start_busy(skill / 50 + 2)、add("mp", -mp / 2) 这类 '/'
+ *                   产出 float，不被整除即抛 "number has no integer
+ *                   representation"（数据集 lingboweibu 的线上故障）。直接
+ *                   传入与先存局部再传入两条路径都判，string.format 的 %d
+ *                   转换符同判；绑定清单与整型位置见 kIntegerArgSpecs。
+ *  9. 模块表字段    字面量 require 绑定的局部调用模块没导出的字段，运行期抛
+ *                   "attempt to call a nil value (field 'x')"（数据集
+ *                   mingjiao_db 把 on_mj_special 写成全局函数，35 处
+ *                   mj_db.on_mj_special(...) 全取到 nil）。与模块自己的导出
+ *                   面对账，不看"语料里有没有人定义过这个名字"。
  *
  *  第 3、4 道必须拿到"引擎到底绑了什么"才有判断依据，故本文件自持调用
  *  lua_bind_init()（幂等），不依赖调用方是否已初始化——历史上 check-lua 只跑
@@ -51,8 +62,14 @@
  *      挂得到，跨对象同名会被放行。
  *   4. 防线5 只检 call_out/call_out_combat 的**字面量**注册名（非字面量实参
  *      静态不可判，跳过）；remove_call_out 的配对与死移除不在本道。
- *   5. 防线7 的实参只判 float 除法 '/'：字面量浮点（random(2.5)）、'^'、由
- *      函数返回的 float 不判；'//' 与 math.floor(...) 内的 '/' 视为整型。
+ *   5. 防线7/8 的实参只判 float 除法 '/'：字面量浮点（random(2.5)）、'^'、由
+ *      函数返回的 float 不判；'//' 与 math.floor(...)/math.modf(...) 内的 '/'
+ *      视为整型。防线8 的局部变量追踪是文件平面的：同名局部、跨函数同名按
+ *      宁可漏的口径跳过（与盲区2 同源的取舍）。
+ *   6. 防线9 只跟踪字面量 require 直接绑定的局部：别名转发（local a = m）、
+ *      经字段保存的 require、m.sub.fn() 的 fn、require "lit".field 无括号
+ *      直链都追不到接收者，不判；模块导出面静态不可判（动态键 / 元表 /
+ *      返回值不是表 / 分支返回）时整模块不报。
  */
 
 #include <windows.h>
@@ -875,8 +892,9 @@ size_t match_brace(const std::vector<LexTok>& toks, size_t open)
     return toks.size();
 }
 
-// 实参区间 (open, close) 内是否出现 float 除法 '/'。math.floor(...) 的实参
-// 除外：floor 的结果恒可转整型；'//' 是另一个 token，本函数不认它。
+// 实参区间 (open, close) 内是否出现 float 除法 '/'。math.floor(...) 与
+// math.modf(...) 的实参除外：floor 取整、modf 取整数部分，结果都恒有整数
+// 表示；'//' 是另一个 token，本函数不认它。
 bool has_float_division(const std::vector<LexTok>& toks, size_t open,
                         size_t close)
 {
@@ -884,10 +902,11 @@ bool has_float_division(const std::vector<LexTok>& toks, size_t open,
     for (size_t j = open + 1; j < close; ++j) {
         if (j < floor_close) continue;
         const LexTok& t = toks[j];
-        if (t.kind == LT_NAME && t.text == "floor" && j >= 2 && j + 1 < close
-            && toks[j - 1].kind == LT_OP && toks[j - 1].text == "."
-            && toks[j - 2].kind == LT_NAME && toks[j - 2].text == "math"
-            && toks[j + 1].kind == LT_OP && toks[j + 1].text == "(") {
+        if (t.kind == LT_NAME && (t.text == "floor" || t.text == "modf")
+            && j >= 2 && j + 1 < close && toks[j - 1].kind == LT_OP
+            && toks[j - 1].text == "." && toks[j - 2].kind == LT_NAME
+            && toks[j - 2].text == "math" && toks[j + 1].kind == LT_OP
+            && toks[j + 1].text == "(") {
             floor_close = match_paren(toks, j + 1);
             continue;
         }
@@ -1191,6 +1210,399 @@ void detect_random_misuse(const std::vector<LexTok>& toks,
     detect_textbook_random(toks, abs_path, rel, out);
 }
 
+// ======================== 防线 8：整型实参 ========================
+//
+// 绑定形参走 luaL_checkinteger / luaL_optinteger 时，实参必须有整数表示：
+// '/' 产出 float，x / 3 在 x 不被整除时直接抛 "number has no integer
+// representation"（数据集 lingboweibu 的 start_busy 线上故障，报错形如
+// cast: Lua skill cast chan failed ... bad argument #1 to 'start_busy'）。
+// 防线7 只判 random / math.random 的实参，其余整型绑定归本道；string.format
+// 的 %d/%i/%o/%u/%x 转换符按整型实参同判。
+//
+// 只判实参里的 '/'：'//' 是另一个 token；math.floor(...) 与 math.modf(...)
+// 的结果恒有整数表示，其内部的 '/' 由 has_float_division 一并放行。字面量
+// 浮点、'^'、函数返回的 float 不判。
+//
+// 间接形态（先存局部、再传给绑定）按 token 顺序追踪：赋值语句的右侧扫完才
+// 更新状态，语句右侧的读取看到的是赋值前的值；后续非 float 赋值清除标记；
+// 赋值与使用之间隔着 function 的同名局部视为两个变量（与 R1 同口径）——
+// 宁可漏、不可误报。
+
+// 整型实参绑定表：绑定名 → 整型的 L 位置（1 起，方法调用含 self）。
+// random 归防线7（R2），不在此表；string.format 的位置随格式串变化，单独处理。
+// 每行 {"name", "位置,位置"} 的写法是与源码对账的契约：
+// tests/unit/test_lua_checker.cpp::IntegerArgBindingsReconcileWithSource 解析
+// 本表、逐条比对 src/ 里的 luaL_checkinteger 位置，新增整型绑定而未登记即失败。
+struct IntegerArgSpec {
+    const char* name;
+    const char* l_positions;  // 逗号分隔的 L 位置
+};
+
+static const IntegerArgSpec kIntegerArgSpecs[] = {
+    {"add", "3"},
+    {"add_balance", "2"},
+    {"add_magic", "4,5,6,7,9"},
+    {"add_money", "2"},
+    {"add_object", "4"},
+    {"apply_condition", "3,4"},
+    {"apprentice", "4"},
+    {"base_query", "2"},
+    {"begin_fb", "3,4"},
+    {"begin_fight", "2,3"},
+    {"call_out", "3,4,5"},
+    {"call_out_combat", "3,4,5"},
+    {"can_join", "2"},
+    {"carry_good", "3,4"},
+    {"carry_object", "3"},
+    {"combat_attack", "4,5"},
+    {"create", "2"},
+    {"create_family", "3"},
+    {"desc", "3"},
+    {"do_action_base", "2"},
+    {"do_bishi", "4"},
+    {"do_emote", "4"},
+    {"find", "2,3"},
+    {"get_fight_team_char", "2"},
+    {"get_team_list", "2,4"},
+    {"global_room_name", "1"},
+    {"id", "2"},
+    {"improve_skill", "3,4"},
+    {"inc_skill", "3"},
+    {"join_team", "3"},
+    {"load", "3"},
+    {"lock_data", "2"},
+    {"locked", "3"},
+    {"move_in", "3"},
+    {"name", "2"},
+    {"pay_money", "3"},
+    {"perform_action", "3"},
+    {"present", "3,4,5"},
+    {"query_skill", "3"},
+    {"receive_curing", "3"},
+    {"receive_damage", "3"},
+    {"receive_healing", "3"},
+    {"receive_poison", "3"},
+    {"receive_wound", "3"},
+    {"register_char", "5,6,7,8"},
+    {"remove_powerup", "2,3"},
+    {"revive", "2"},
+    {"script_exists", "2"},
+    {"select_member", "2"},
+    {"set_amount", "2"},
+    {"set_heart_beat", "2"},
+    {"set_skill", "3"},
+    {"set_weight", "2"},
+    {"split", "2"},
+    {"start_busy", "2"},
+    {"start_powerup", "3,4,5"},
+    {"throw_weapon", "4"},
+    {"unlocked", "2"},
+    {"update_recruit", "4,5"},
+    {"xrandom", "1"},
+};
+
+const std::map<std::string, std::set<int>>& integer_arg_bindings()
+{
+    static const std::map<std::string, std::set<int>> table = [] {
+        std::map<std::string, std::set<int>> t;
+        for (const IntegerArgSpec& s : kIntegerArgSpecs) {
+            std::set<int> positions;
+            const char* p = s.l_positions;
+            while (*p) {
+                positions.insert(atoi(p));
+                while (*p && *p != ',') ++p;
+                if (*p == ',') ++p;
+            }
+            t[s.name] = std::move(positions);
+        }
+        return t;
+    }();
+    return table;
+}
+
+// 实参按顶层逗号切分：每个实参给出 [begin, end) 的 token 下标。
+void split_call_args(const std::vector<LexTok>& toks, size_t open, size_t close,
+                     std::vector<std::pair<size_t, size_t>>& out)
+{
+    size_t depth = 0;
+    size_t begin = open + 1;
+    for (size_t j = open + 1; j < close; ++j) {
+        const LexTok& t = toks[j];
+        if (t.kind != LT_OP) continue;
+        if (t.text == "(" || t.text == "[" || t.text == "{") {
+            ++depth;
+        }
+        else if (t.text == ")" || t.text == "]" || t.text == "}") {
+            if (depth > 0) --depth;
+        }
+        else if (t.text == "," && depth == 0) {
+            out.push_back({begin, j});
+            begin = j + 1;
+        }
+    }
+    if (begin < close) out.push_back({begin, close});
+}
+
+// 表达式接续 token：换行处出现它，说明表达式还没写完（Lua 没有自动分号，
+// `x\n - 2` 就是 x - 2），多行 RHS 不在此断句。
+bool is_expr_continuation(const LexTok& t)
+{
+    if (t.kind == LT_KW) return t.text == "and" || t.text == "or";
+    if (t.kind != LT_OP) return false;
+    static const char* kOps[] = {
+        "+", "-", "*", "/", "%", "^", "==", "~=", "<", ">", "<=", ">=", ".."};
+    return std::find(std::begin(kOps), std::end(kOps), t.text)
+           != std::end(kOps);
+}
+
+// 赋值语句右侧的结束位置（最后一个 token 的下标 + 1）：深度 0 处的 ';'、
+// 或换行后既不以运算符接续也不以运算符开头，即语句到此为止。
+size_t assign_rhs_end(const std::vector<LexTok>& toks, size_t eq)
+{
+    int depth  = 0;
+    int line   = toks[eq].line;
+    size_t end = eq + 1;
+    for (size_t j = eq + 1; j < toks.size(); ++j) {
+        const LexTok& t = toks[j];
+        if (t.kind == LT_OP) {
+            if (t.text == "(" || t.text == "[" || t.text == "{") {
+                ++depth;
+            }
+            else if (t.text == ")" || t.text == "]" || t.text == "}") {
+                if (depth > 0) --depth;
+            }
+            else if (t.text == ";" && depth == 0) {
+                return j;
+            }
+        }
+        if (depth == 0 && t.line > line) {
+            const LexTok& prev = toks[j - 1];
+            if (!is_expr_continuation(prev) && !is_expr_continuation(t)
+                && t.text != "(" && t.text != "[" && t.text != "{") {
+                return j;
+            }
+        }
+        end  = j + 1;
+        line = t.line;
+    }
+    return end;
+}
+
+struct IntegerArgEvent {
+    size_t pos = 0;    // 排序位：赋值取 RHS 末尾，实参取调用名
+    int kind   = 0;    // 0 = 赋值, 1 = 实参读取
+    std::string name;  // 赋值：变量名；读取：绑定名
+    bool float_rhs   = false;
+    size_t decl_tok  = 0;  // 赋值：变量名所在 token（跨函数判定用）
+    int decl_line    = 0;
+    size_t arg_begin = 0;
+    size_t arg_end   = 0;
+    int line         = 0;
+    int lpos         = 0;
+};
+
+void detect_integer_arg_float(const std::vector<LexTok>& toks,
+                              const std::string& rel,
+                              std::vector<Violation>& out)
+{
+    const std::map<std::string, std::set<int>>& table = integer_arg_bindings();
+
+    // function 关键词前缀计数：判定赋值与使用是否跨函数（同名不同变量）
+    std::vector<int> fn_count(toks.size() + 1, 0);
+    for (size_t j = 0; j < toks.size(); ++j) {
+        fn_count[j + 1]
+            = fn_count[j]
+              + (toks[j].kind == LT_KW && toks[j].text == "function" ? 1 : 0);
+    }
+
+    std::vector<IntegerArgEvent> events;
+
+    // ---- 赋值：local NAME = ... 与 NAME = ...（字段赋值、for
+    // 控制变量除外）----
+    for (size_t j = 0; j + 2 < toks.size(); ++j) {
+        size_t name_idx = 0;
+        if (toks[j].kind == LT_KW && toks[j].text == "local"
+            && toks[j + 1].kind == LT_NAME && toks[j + 2].kind == LT_OP
+            && toks[j + 2].text == "=") {
+            name_idx = j + 1;
+        }
+        else if (toks[j].kind == LT_NAME && toks[j + 1].kind == LT_OP
+                 && toks[j + 1].text == "=") {
+            if (j > 0 && toks[j - 1].kind == LT_OP
+                && (toks[j - 1].text == "." || toks[j - 1].text == ":")) {
+                continue;  // 字段赋值
+            }
+            if (j > 0 && toks[j - 1].kind == LT_KW
+                && (toks[j - 1].text == "local" || toks[j - 1].text == "for")) {
+                continue;  // 声明分支已处理 / for 控制变量
+            }
+            name_idx = j;
+        }
+        else {
+            continue;
+        }
+        const size_t eq      = name_idx + 1;
+        const size_t rhs_end = assign_rhs_end(toks, eq);
+        IntegerArgEvent e;
+        e.pos       = rhs_end;
+        e.kind      = 0;
+        e.name      = toks[name_idx].text;
+        e.float_rhs = has_float_division(toks, eq, rhs_end);
+        e.decl_tok  = name_idx;
+        e.decl_line = toks[name_idx].line;
+        events.push_back(e);
+    }
+
+    // ---- 调用实参：直接含 '/' 的当场报，含浮点局部的进有序追踪 ----
+    for (size_t k = 0; k + 1 < toks.size(); ++k) {
+        if (toks[k].kind != LT_NAME) continue;
+        if (toks[k + 1].kind != LT_OP || toks[k + 1].text != "(") continue;
+
+        const bool method
+            = k > 0 && toks[k - 1].kind == LT_OP && toks[k - 1].text == ":";
+        std::string call_name;
+        if (method) {
+            call_name = toks[k].text;
+        }
+        else if (k > 1 && toks[k - 1].kind == LT_OP && toks[k - 1].text == "."
+                 && toks[k - 2].kind == LT_NAME && toks[k - 2].text == "string"
+                 && toks[k].text == "format") {
+            call_name = "string.format";
+        }
+        else if (k > 0 && toks[k - 1].kind == LT_OP
+                 && toks[k - 1].text == ".") {
+            continue;  // 其他表字段调用，不属绑定
+        }
+        else {
+            call_name = toks[k].text;
+        }
+
+        std::vector<int> lpositions;
+        if (call_name == "string.format") {
+            // 格式串占 L1，第 n 个整型转换符对应 L(n+2) 的 vararg
+            if (k + 2 >= toks.size() || toks[k + 2].kind != LT_STR) continue;
+            const std::string& fmt = toks[k + 2].text;
+            int ordinal            = 0;
+            for (size_t p = 0; p < fmt.size(); ++p) {
+                if (fmt[p] != '%') continue;
+                if (p + 1 < fmt.size() && fmt[p + 1] == '%') {
+                    ++p;
+                    continue;
+                }
+                size_t q = p + 1;
+                while (q < fmt.size() && strchr("-+ #0", fmt[q]) != nullptr)
+                    ++q;
+                while (q < fmt.size() && fmt[q] >= '0' && fmt[q] <= '9') ++q;
+                if (q < fmt.size() && fmt[q] == '.') {
+                    ++q;
+                    while (q < fmt.size() && fmt[q] >= '0' && fmt[q] <= '9')
+                        ++q;
+                }
+                if (q < fmt.size() && strchr("diouxX", fmt[q]) != nullptr) {
+                    lpositions.push_back(ordinal + 2);
+                    ++ordinal;
+                }
+                p = q;
+            }
+            if (lpositions.empty()) continue;
+        }
+        else {
+            auto it = table.find(call_name);
+            if (it == table.end()) continue;
+            lpositions.assign(it->second.begin(), it->second.end());
+        }
+
+        const size_t open  = k + 1;
+        const size_t close = match_paren(toks, open);
+        if (close == toks.size()) continue;
+        std::vector<std::pair<size_t, size_t>> args;
+        split_call_args(toks, open, close, args);
+
+        for (int lpos : lpositions) {
+            if (method && lpos < 2) continue;  // L1 是 self，不是脚本实参
+            const size_t arg_idx = (size_t)(lpos - 1 - (method ? 1 : 0));
+            if (arg_idx >= args.size()) continue;
+            const size_t ab = args[arg_idx].first;
+            const size_t ae = args[arg_idx].second;
+            if (ab >= ae) continue;
+
+            if (has_float_division(toks, ab - 1, ae)) {
+                Violation v;
+                v.line = toks[k].line;
+                v.key  = "I:" + rel + ":" + call_name;
+                v.detail
+                    = call_name
+                      + " takes an integer argument, but '/' in the argument"
+                        " yields a float that may have no integer"
+                        " representation (runtime: number has no integer"
+                        " representation). Use '//' or wrap it in"
+                        " math.floor(...)";
+                out.push_back(v);
+                continue;
+            }
+            bool has_name = false;
+            for (size_t t = ab; t < ae; ++t) {
+                if (toks[t].kind == LT_NAME) {
+                    has_name = true;
+                    break;
+                }
+            }
+            if (!has_name) continue;
+            IntegerArgEvent e;
+            e.pos       = k;
+            e.kind      = 1;
+            e.name      = call_name;
+            e.arg_begin = ab;
+            e.arg_end   = ae;
+            e.line      = toks[k].line;
+            e.lpos      = lpos;
+            events.push_back(e);
+        }
+    }
+
+    // ---- 有序追踪：赋值先于同位读取，语句右侧的读取看到赋值前的值 ----
+    std::sort(events.begin(), events.end(),
+              [](const IntegerArgEvent& a, const IntegerArgEvent& b) {
+                  if (a.pos != b.pos) return a.pos < b.pos;
+                  return a.kind < b.kind;
+              });
+
+    struct FloatLocal {
+        size_t decl_tok;
+        int line;
+    };
+    std::map<std::string, FloatLocal> floats;
+    for (const IntegerArgEvent& e : events) {
+        if (e.kind == 0) {
+            if (e.float_rhs) {
+                floats[e.name] = {e.decl_tok, e.decl_line};
+            }
+            else {
+                floats.erase(e.name);
+            }
+            continue;
+        }
+        for (size_t t = e.arg_begin; t < e.arg_end; ++t) {
+            if (toks[t].kind != LT_NAME) continue;
+            auto it = floats.find(toks[t].text);
+            if (it == floats.end()) continue;
+            if (fn_count[e.pos] > fn_count[it->second.decl_tok]) continue;
+            Violation v;
+            v.line = e.line;
+            v.key  = "I:" + rel + ":" + e.name;
+            v.detail
+                = e.name + " takes an integer argument; '" + toks[t].text
+                  + "' holds a float assigned on line "
+                  + std::to_string(it->second.line)
+                  + " ('/' there), which may have no integer representation"
+                    " (runtime: number has no integer representation). Use"
+                    " '//' or math.floor(...) at the assignment";
+            out.push_back(v);
+            break;  // 一个实参报一次
+        }
+    }
+}
+
 // ======================== 防线 5：call_out 目标可见性 ========================
 //
 // 注册期引擎按名先查 owner 的脚本表、缺名回退当前执行脚本的表（见
@@ -1315,12 +1727,24 @@ void collect_file_methods(lua_State* L, std::set<std::string>& out)
 //     只查找与编译、不执行模块。返回 (true, "") 或 (false, 解析失败原因)。
 //  2. _check_file_methods —— 返回 io 文件句柄的元表（见
 //  collect_file_methods）。
+//  3. _check_require_path —— 与引擎 searcher 同一套 package.path 解析（见
+//     CLuaEngine::init 里的 gbkSearcherLua），只回文件路径、不执行模块；
+//     防线9 拿它定位模块源码，再静态取导出面。
 const char* k_checker_helpers_lua
     = "function _check_require_closure(modname)\n"
       "    local ok, res = pcall(package.searchers[2], modname)\n"
       "    if ok and type(res) == 'function' then return true, '' end\n"
       "    if ok and type(res) == 'string' then return false, res end\n"
       "    return false, tostring(res)\n"
+      "end\n"
+      "function _check_require_path(modname)\n"
+      "    local modpath = modname:gsub('%.', '/')\n"
+      "    for pattern in package.path:gmatch('[^;]+') do\n"
+      "        local filepath = pattern:gsub('?', modpath)\n"
+      "        local f = io.open(filepath, 'rb')\n"
+      "        if f then f:close() return filepath end\n"
+      "    end\n"
+      "    return nil\n"
       "end\n"
       "function _check_file_methods()\n"
       "    local ok, f = pcall(io.open, 'NUL', 'r')\n"
@@ -1371,6 +1795,378 @@ void collect_require_calls(const std::vector<LexTok>& toks,
             continue;
         }
         out.push_back(toks[k + 2].text);
+    }
+}
+
+// ======================== 防线 9：模块表字段对账 ========================
+//
+// 模块没导出的字段被调用，运行期抛 "attempt to call a nil value (field 'x')"
+// —— 数据集 mingjiao_db 把 on_mj_special 定义成全局函数，35 处
+// mj_db.on_mj_special(...) 全部取到 nil，cast 当场失败。防线4 只看"语料里
+// 有没有人定义过这个名字"，全局定义的同名函数会把这类调用整片放走，故本道
+// 把字面量 require 绑定的局部与**该模块自己的导出面**对账：
+//   导出面可判 + 字段只被调用（全文件从未被读）→ 缺失即违规
+//   导出面不可判（动态键 / 元表 / 返回值不是表）→ 整模块不报
+//   局部被重新赋值或以别的方式使用 → 不再跟踪
+// 只判调用：`if m.optional then m.optional() end` 这类先探测后调用的可选
+// 字段是合法写法。别名转发（local a = m）、经字段保存的 require、
+// m.sub.fn() 的 fn 追不到接收者，一律不判 —— 宁可漏、不可误报。
+
+// 模块导出面：known=false 表示静态不可判定，本道对该模块一律不报
+struct ModuleSurface {
+    bool known = false;
+    std::set<std::string> exports;
+};
+
+// 字面量 require 绑定的局部；decl 是局部名所在词元（作用域判定用）
+struct ModuleBinding {
+    std::string name;
+    std::string module;
+    size_t decl = 0;
+};
+
+// 一次接收者字段访问；call=false 是读（探测或当值传递）
+struct ModuleFieldUse {
+    std::string module;
+    std::string field;
+    int line  = 0;
+    bool call = false;
+};
+
+// 语句块深度（只计语句关键字，不计括号/花括号）：function/if/for/while/do/
+// repeat 开一块，end/until 收一块，for/while 头部自带的 do 不单独计数。
+// pre[k] 是处理词元 k 之前的深度。块栈口径与 analyze_scope 一致（那边还要
+// 判表字段，故各自维护）。
+void block_depths(const std::vector<LexTok>& toks, std::vector<int>& pre)
+{
+    pre.assign(toks.size() + 1, 0);
+    bool pending_do = false;
+    for (size_t k = 0; k < toks.size(); ++k) {
+        pre[k + 1]      = pre[k];
+        const LexTok& t = toks[k];
+        if (t.kind != LT_KW) continue;
+        if (t.text == "function" || t.text == "if" || t.text == "repeat") {
+            ++pre[k + 1];
+        }
+        else if (t.text == "for" || t.text == "while") {
+            ++pre[k + 1];
+            pending_do = true;
+        }
+        else if (t.text == "do") {
+            if (pending_do)
+                pending_do = false;
+            else
+                ++pre[k + 1];
+        }
+        else if ((t.text == "end" || t.text == "until") && pre[k + 1] > 0) {
+            --pre[k + 1];
+        }
+    }
+}
+
+// 模块的返回语句：语句块深度 0 处的 return。没有、或不止一个（分支返回）
+// 都判不可判，返回 toks.size()。
+size_t top_level_return(const std::vector<LexTok>& toks,
+                        const std::vector<int>& pre)
+{
+    size_t found = toks.size();
+    for (size_t k = 0; k < toks.size(); ++k) {
+        if (toks[k].kind != LT_KW || toks[k].text != "return") continue;
+        if (pre[k] != 0) continue;
+        if (found != toks.size()) return toks.size();
+        found = k;
+    }
+    return found;
+}
+
+// open 指向 KW "function"，返回配对 end 的下标；无配对返回 toks.size()
+size_t match_function_end(const std::vector<LexTok>& toks, size_t open,
+                          const std::vector<int>& pre)
+{
+    const int body = pre[open] + 1;
+    for (size_t j = open + 1; j < toks.size(); ++j) {
+        if (toks[j].kind == LT_KW && toks[j].text == "end" && pre[j] == body)
+            return j;
+    }
+    return toks.size();
+}
+
+// 表构造器顶层键（NAME = …、[ "str" ] = …）。非字面量下标键判不可判（返回
+// false）；函数体整体跳过——体内的 x = … 是语句不是键；嵌套表的键不算顶层。
+bool collect_ctor_keys(const std::vector<LexTok>& toks, size_t open,
+                       const std::vector<int>& pre, std::set<std::string>& out)
+{
+    const size_t close = match_brace(toks, open);
+    if (close == toks.size()) return false;
+    size_t depth = 1;
+    for (size_t k = open + 1; k < close; ++k) {
+        const LexTok& t = toks[k];
+        if (t.kind == LT_OP && t.text == "{") {
+            ++depth;
+            continue;
+        }
+        if (t.kind == LT_OP && t.text == "}") {
+            --depth;
+            continue;
+        }
+        if (depth != 1) continue;
+        if (t.kind == LT_KW && t.text == "function") {
+            const size_t e = match_function_end(toks, k, pre);
+            if (e == toks.size() || e >= close) return false;
+            k = e;
+            continue;
+        }
+        if (t.kind == LT_OP && t.text == "[") {
+            if (k + 3 >= close || toks[k + 1].kind != LT_STR
+                || toks[k + 2].kind != LT_OP || toks[k + 2].text != "]"
+                || toks[k + 3].kind != LT_OP || toks[k + 3].text != "=")
+                return false;  // [ 表达式 ] = … 运行期才定键
+            out.insert(toks[k + 1].text);
+            k += 3;
+            continue;
+        }
+        if (t.kind == LT_NAME && k + 1 < close && toks[k + 1].kind == LT_OP
+            && toks[k + 1].text == "=")
+            out.insert(t.text);
+    }
+    return true;
+}
+
+// `return NAME` 的模块：NAME 恰好被赋值一次、初值是表构造器，之后的
+// `NAME . 字段` 写入即导出面。动态下标（NAME [）、元表与 rawset（可能凭空
+// 添字段）都判不可判。
+bool module_surface_from_var(const std::vector<LexTok>& toks,
+                             const std::string& name,
+                             const std::vector<int>& pre, ModuleSurface& out)
+{
+    out.exports.clear();
+    out.known = false;
+
+    size_t init_rhs = toks.size();
+    int assigns     = 0;
+    for (size_t k = 0; k + 2 < toks.size(); ++k) {
+        if (toks[k].kind != LT_NAME || toks[k].text != name) continue;
+        if (toks[k + 1].kind != LT_OP || toks[k + 1].text != "=") continue;
+        if (k > 0 && toks[k - 1].kind == LT_OP
+            && (toks[k - 1].text == "." || toks[k - 1].text == ":"
+                || toks[k - 1].text == "]"))
+            continue;  // 字段写入，不是对模块变量的赋值
+        ++assigns;
+        init_rhs = k + 2;
+    }
+    if (assigns != 1) return false;
+    if (init_rhs >= toks.size() || toks[init_rhs].kind != LT_OP
+        || toks[init_rhs].text != "{")
+        return false;
+
+    for (size_t k = 0; k + 1 < toks.size(); ++k) {
+        if (toks[k].kind != LT_NAME || toks[k].text != name) continue;
+        if (toks[k + 1].kind == LT_OP && toks[k + 1].text == "[") return false;
+        if (toks[k + 1].kind != LT_OP || toks[k + 1].text != ".") continue;
+        if (k + 2 >= toks.size() || toks[k + 2].kind != LT_NAME) continue;
+        const bool write = k + 3 < toks.size() && toks[k + 3].kind == LT_OP
+                           && toks[k + 3].text == "=";
+        const bool fn    = k > 0 && toks[k - 1].kind == LT_KW
+                           && toks[k - 1].text == "function";
+        if (write || fn) out.exports.insert(toks[k + 2].text);
+    }
+    for (size_t k = 0; k + 2 < toks.size(); ++k) {
+        if (toks[k].kind != LT_NAME) continue;
+        if (toks[k].text != "setmetatable" && toks[k].text != "rawset")
+            continue;
+        if (k > 0 && toks[k - 1].kind == LT_OP && toks[k - 1].text == ".")
+            continue;
+        if (toks[k + 1].kind != LT_OP || toks[k + 1].text != "(") continue;
+        if (toks[k + 2].kind == LT_NAME && toks[k + 2].text == name)
+            return false;
+    }
+
+    if (!collect_ctor_keys(toks, init_rhs, pre, out.exports)) {
+        out.exports.clear();
+        return false;
+    }
+    out.known = true;
+    return true;
+}
+
+// 模块导出面：返回表构造器取顶层键，`return NAME` 取 NAME 的字段写入；
+// 其余形态（返回调用 / 字面量 / 分支返回 / 无返回）判不可判。
+ModuleSurface analyze_module_surface(const std::vector<LexTok>& toks)
+{
+    ModuleSurface s;
+    if (toks.empty()) return s;
+    std::vector<int> pre;
+    block_depths(toks, pre);
+    const size_t ret = top_level_return(toks, pre);
+    if (ret == toks.size() || ret + 1 >= toks.size()) return s;
+    const LexTok& value = toks[ret + 1];
+    if (value.kind == LT_OP && value.text == "{") {
+        if (!collect_ctor_keys(toks, ret + 1, pre, s.exports))
+            return ModuleSurface();
+        s.known = true;
+        return s;
+    }
+    if (value.kind == LT_NAME
+        && module_surface_from_var(toks, value.text, pre, s))
+        return s;
+    return ModuleSurface();
+}
+
+// 按模块名取导出面（缓存）：路径解析不到、模块读不到都记为不可判——
+// require 解析失败已由防线2 单独报，这里不重复。
+const ModuleSurface& resolve_module_surface(
+    lua_State* L, const std::string& mod,
+    std::map<std::string, ModuleSurface>& cache)
+{
+    std::map<std::string, ModuleSurface>::const_iterator hit = cache.find(mod);
+    if (hit != cache.end()) return hit->second;
+
+    ModuleSurface s;
+    lua_getglobal(L, "_check_require_path");
+    lua_pushlstring(L, mod.c_str(), mod.size());
+    if (lua_pcall(L, 1, 1, 0) == LUA_OK) {
+        const char* path = lua_tostring(L, -1);
+        if (path && *path) {
+            const std::string gbk = load_file_as_gbk(path);
+            if (!gbk.empty()) {
+                std::vector<LexTok> toks;
+                lex_lua(gbk, toks);
+                s = analyze_module_surface(toks);
+            }
+        }
+    }
+    lua_pop(L, 1);
+    return cache.emplace(mod, s).first->second;
+}
+
+// 调用点绑定：`local NAME = require("lit")` 与 `local NAME = require "lit"`
+void collect_module_bindings(const std::vector<LexTok>& toks,
+                             std::vector<ModuleBinding>& out)
+{
+    for (size_t k = 0; k + 3 < toks.size(); ++k) {
+        if (toks[k].kind != LT_KW || toks[k].text != "local") continue;
+        if (toks[k + 1].kind != LT_NAME) continue;
+        if (toks[k + 2].kind != LT_OP || toks[k + 2].text != "=") continue;
+        if (toks[k + 3].kind != LT_NAME || toks[k + 3].text != "require")
+            continue;
+        std::string mod;
+        if (k + 4 < toks.size() && toks[k + 4].kind == LT_STR) {
+            mod = toks[k + 4].text;  // require "lit"：无括号写法
+        }
+        else if (k + 6 < toks.size() && toks[k + 4].kind == LT_OP
+                 && toks[k + 4].text == "(" && toks[k + 5].kind == LT_STR
+                 && toks[k + 6].kind == LT_OP && toks[k + 6].text == ")") {
+            mod = toks[k + 5].text;
+        }
+        else {
+            continue;  // 模块名非字面量：防线2 记 NOTE，本道不判
+        }
+        out.push_back({toks[k + 1].text, mod, k + 1});
+    }
+}
+
+// 局部只在「链首字段访问」里出现才跟踪：重新赋值、当值传递、别名转发、
+// 形参同名遮蔽都追不到绑定，继续跟踪只会误报。
+bool binding_is_trackable(const std::vector<LexTok>& toks,
+                          const ModuleBinding& b)
+{
+    for (size_t k = 0; k < toks.size(); ++k) {
+        if (toks[k].kind != LT_NAME || toks[k].text != b.name) continue;
+        if (k == b.decl) continue;
+        if (k + 1 >= toks.size() || toks[k + 1].kind != LT_OP
+            || (toks[k + 1].text != "." && toks[k + 1].text != ":"))
+            return false;
+        if (k > 0 && toks[k - 1].kind == LT_OP
+            && (toks[k - 1].text == "." || toks[k - 1].text == ":"
+                || toks[k - 1].text == "]"))
+            return false;  // 是别人的字段，只是撞了名
+    }
+    return true;
+}
+
+// 接收者字段访问：NAME . 字段 / NAME : 字段，以及 require("lit") . 字段。
+// 只记链首字段——m.sub.fn() 的 fn 追不到接收者，不判。
+void collect_module_field_uses(const std::vector<LexTok>& toks,
+                               const std::vector<ModuleBinding>& bindings,
+                               std::vector<ModuleFieldUse>& out)
+{
+    std::map<std::string, std::string> by_name;
+    for (const ModuleBinding& b : bindings) by_name[b.name] = b.module;
+
+    for (size_t k = 1; k + 1 < toks.size(); ++k) {
+        if (toks[k].kind != LT_OP
+            || (toks[k].text != "." && toks[k].text != ":"))
+            continue;
+        const LexTok& recv = toks[k - 1];
+        std::string module;
+        if (recv.kind == LT_NAME) {
+            std::map<std::string, std::string>::const_iterator it
+                = by_name.find(recv.text);
+            if (it == by_name.end()) continue;
+            module = it->second;
+        }
+        else if (recv.kind == LT_OP && recv.text == ")" && k >= 4
+                 && toks[k - 4].kind == LT_NAME && toks[k - 4].text == "require"
+                 && toks[k - 3].kind == LT_OP && toks[k - 3].text == "("
+                 && toks[k - 2].kind == LT_STR
+                 && match_paren(toks, k - 3) == k - 1
+                 && (k < 5 || toks[k - 5].kind != LT_OP
+                     || (toks[k - 5].text != "." && toks[k - 5].text != ":"))) {
+            module = toks[k - 2].text;  // require("lit").field 直链
+        }
+        else {
+            continue;
+        }
+        if (toks[k + 1].kind != LT_NAME) continue;
+        out.push_back({module, toks[k + 1].text, toks[k].line,
+                       k + 2 < toks.size() && toks[k + 2].kind == LT_OP
+                           && toks[k + 2].text == "("});
+    }
+}
+
+// 按（模块, 字段）归并：被读过一次就当可选字段放行；只被调用的字段才与
+// 导出面对账，导出面不可判或字段确实在里面则放行。
+void detect_module_field_calls(const std::vector<LexTok>& toks,
+                               const std::string& rel_path, lua_State* L,
+                               std::map<std::string, ModuleSurface>& surfaces,
+                               std::vector<Violation>& out)
+{
+    std::vector<ModuleBinding> bindings;
+    collect_module_bindings(toks, bindings);
+    std::vector<ModuleBinding> tracked;
+    for (const ModuleBinding& b : bindings)
+        if (binding_is_trackable(toks, b)) tracked.push_back(b);
+
+    std::vector<ModuleFieldUse> uses;
+    collect_module_field_uses(toks, tracked, uses);
+    if (uses.empty()) return;
+
+    typedef std::pair<std::string, std::string> FieldKey;  // {模块, 字段}
+    std::map<FieldKey, int> calls;                         // 首次调用行号
+    std::set<FieldKey> reads;
+    for (const ModuleFieldUse& u : uses) {
+        const FieldKey key(u.module, u.field);
+        if (u.call)
+            calls.emplace(key, u.line);
+        else
+            reads.insert(key);
+    }
+
+    for (std::map<FieldKey, int>::const_iterator it = calls.begin();
+         it != calls.end(); ++it) {
+        if (reads.count(it->first)) continue;  // 被探测过 → 可选字段
+        const ModuleSurface& s
+            = resolve_module_surface(L, it->first.first, surfaces);
+        if (!s.known || s.exports.count(it->first.second)) continue;
+        Violation v;
+        v.line = it->second;
+        v.key  = "F:" + rel_path + ":" + key_escape(it->first.first) + ":"
+                 + key_escape(it->first.second);
+        v.detail = "module field '" + it->first.second
+                   + "' is not exported by require(\"" + it->first.first
+                   + "\"); calling it raises \"attempt to call a nil value"
+                     " (field '" + it->first.second + "')\" at runtime";
+        out.push_back(v);
     }
 }
 
@@ -1472,6 +2268,8 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
     std::vector<std::string> rel_paths(files.size());
     std::vector<Cand> cands;
     std::vector<CalloutCand> callout_cross;  // 防线5：待全量表定义消解的站点
+    std::map<std::string, ModuleSurface>
+        module_surfaces;  // 防线9：模块导出面缓存
     std::set<std::string> all_defs;
     std::set<std::string> all_methods;
 
@@ -1531,9 +2329,16 @@ int check_lua_files(lua_State* L, const std::vector<std::string>& files,
         // 防线7：random 语义（0 基下标 / 非整型实参 / math.random 与 0 基混用）
         detect_random_misuse(toks, files[i], rel_paths[i], fs, o.violations);
 
+        // 防线8：整型实参绑定的 '/' 实参（直接与经局部变量的间接形态）
+        detect_integer_arg_float(toks, rel_paths[i], o.violations);
+
         // 防线5：call_out 注册名在本文件的判定（跨文件的入候选，pass2 消解）
         detect_callout_sites(toks, rel_paths[i], i, fs, o.violations,
                              callout_cross);
+
+        // 防线9：字面量 require 绑定的局部与其模块导出面的对账
+        detect_module_field_calls(toks, rel_paths[i], L, module_surfaces,
+                                  o.violations);
 
         // A1 候选：全局读（先按活 _G 过滤，剩余待全量 script_defs 消解）
         // A2 候选：`x:name(` 冒号调用（先按对象/标准库方法过滤）

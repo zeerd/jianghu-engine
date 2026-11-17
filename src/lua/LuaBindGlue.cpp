@@ -508,6 +508,42 @@ int l_base_do_talk(lua_State* L)
     return 1;
 }
 
+// self:base_query(attr) - 调用基类属性查询
+// 与 l_base_do_talk 同理：dynamic_cast 到每个 CLuaNpcT 具体类型后
+// 非虚调用 base_query，供脚本子类在其 query 尾部做基类回退。
+
+int l_base_query(lua_State* L)
+
+{
+    CMainObject* obj = get_object(L, 1);
+
+    if (!obj) return 0;
+
+    int attr = (int)luaL_checkinteger(L, 2);
+
+    if (CLuaVendor* n = dynamic_cast<CLuaVendor*>(obj)) {
+        lua_pushinteger(L, n->base_query(attr));
+
+        return 1;
+    }
+
+    if (CLuaBankOwner* n = dynamic_cast<CLuaBankOwner*>(obj)) {
+        lua_pushinteger(L, n->base_query(attr));
+
+        return 1;
+    }
+
+    if (CLuaNpc* n = dynamic_cast<CLuaNpc*>(obj)) {
+        lua_pushinteger(L, n->base_query(attr));
+
+        return 1;
+    }
+
+    lua_pushinteger(L, 0);
+
+    return 1;
+}
+
 // self:base_handle_action4(comm, me, arg, tar) - 调用基类 4 参 handle_action
 
 // NPC（CLuaNpcT）与房间（CLuaRoomT）脚本接管 handle_action 后均可调用

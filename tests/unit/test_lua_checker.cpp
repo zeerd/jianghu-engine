@@ -2,7 +2,7 @@
 //
 // 构建与运行（唯一认可方式）: .\run-coverage.ps1（仓库根）
 //
-// 四道防线各自对应一次线上故障，这里逐道守护（详见 LuaSyntaxChecker.cpp
+// 各道防线各自对应一次线上故障，这里逐道守护（详见 LuaSyntaxChecker.cpp
 // 文件头）：
 //   1. 语法         括号/引号不匹配
 //   2. require 闭包 字面量 require 指向不存在的模块（语法全绿、加载即炸）
@@ -10,6 +10,8 @@
 //   4. 未绑定方法   self:set_verbs()，对象元表里只有 set_beast_verbs
 //   5. call_out 目标 延迟函数不在发起脚本的返回表里（xy_tielao 的 do_tanhua
 //                   写成顶层裸 function）——注册期按名查不到、回调挂不上
+//   9. 模块表字段   mingjiao_db 把 on_mj_special 写成全局函数，35 处
+//                   mj_db.on_mj_special() 取到 nil（cast即抛 field 为 nil）
 //
 // 第 3 道最容易因"没装绑定表"而整片误报或漏报，故专门用裸 lua_State 用例钉住
 // check_lua_files 自持调用 lua_bind_init 这一前提。
@@ -21,8 +23,14 @@
 
 #include <lua.hpp>
 
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -122,6 +130,28 @@ const char* kMathRandomZeroBad
     = "tests/unit/lua-tests/check_fixture/math_random_zero_bad.lua";
 const char* kMathRandomNeverZeroBad
     = "tests/unit/lua-tests/check_fixture/math_random_never_zero_bad.lua";
+
+// 防线9：字面量 require 绑定的局部与其模块导出面的对账
+const char* kModuleFieldMissing
+    = "tests/unit/lua-tests/check_fixture/module_field_missing_bad.lua";
+const char* kModuleFieldOk
+    = "tests/unit/lua-tests/check_fixture/module_field_ok.lua";
+const char* kModuleFieldGuardOk
+    = "tests/unit/lua-tests/check_fixture/module_field_guard_ok.lua";
+const char* kModuleFieldTableBad
+    = "tests/unit/lua-tests/check_fixture/module_field_table_bad.lua";
+const char* kModuleFieldDynamicOk
+    = "tests/unit/lua-tests/check_fixture/module_field_dynamic_ok.lua";
+const char* kModuleFieldMetatableOk
+    = "tests/unit/lua-tests/check_fixture/module_field_metatable_ok.lua";
+const char* kModuleFieldNilOk
+    = "tests/unit/lua-tests/check_fixture/module_field_nil_ok.lua";
+const char* kModuleFieldDirectOk
+    = "tests/unit/lua-tests/check_fixture/module_field_direct_ok.lua";
+const char* kModuleFieldDirectBad
+    = "tests/unit/lua-tests/check_fixture/module_field_direct_bad.lua";
+const char* kModuleFieldReassignOk
+    = "tests/unit/lua-tests/check_fixture/module_field_reassign_ok.lua";
 
 // 基线文件由用例自己在仓库内 test_tmp\ 生成、析构即删（.gitignore 已排除）。
 // 它只是测试的 arrange（生产接口按路径读基线，注释行/空行/CRLF/重复条目
@@ -645,4 +675,489 @@ TEST_F(LuaCheckerRequireTest, NonTextbookRandomNotBanned)
                             "return { dmg = dmg }\n");
     EXPECT_EQ(check(out.c_str()), 0)
         << "教材根之外的 random() 不属于禁用范围，不得误报";
+}
+
+// ---------------- 防线 9：模块表字段对账 ----------------
+//
+// 模块没导出的字段被调用时，运行期抛 "attempt to call a nil value
+// (field 'x')"：数据集 mingjiao_db 把 on_mj_special 定义成全局函数，
+// 35 处 mj_db.on_mj_special(...) 全部取到 nil，cast 当场失败。
+// 本道只判"被调用、且全文件从未被读"的字段——先探测再调用的可选字段是
+// 合法写法；模块导出面静态不可判定（动态键 / 元表 / 无返回表）时整模块不报。
+
+TEST_F(LuaCheckerRequireTest, ModuleMissingFieldCallFails)
+{
+    EXPECT_EQ(check(kModuleFieldMissing), 1)
+        << "模块未导出的字段被直接调用应判失败";
+}
+
+TEST_F(LuaCheckerRequireTest, ModuleExportedFieldCallPasses)
+{
+    EXPECT_EQ(check(kModuleFieldOk), 0) << "模块已导出的字段调用不得误报";
+}
+
+// 先探测后调用：字段在别处被读过，说明调用点是被守卫的可选 API
+TEST_F(LuaCheckerRequireTest, ModuleProbedFieldCallPasses)
+{
+    EXPECT_EQ(check(kModuleFieldGuardOk), 0)
+        << "被探测过的字段不得按缺失字段误报";
+}
+
+TEST_F(LuaCheckerRequireTest, ModuleTableCtorMissingFieldFails)
+{
+    EXPECT_EQ(check(kModuleFieldTableBad), 1)
+        << "返回表构造器的模块，未导出的字段调用应判失败";
+}
+
+// 导出面静态不可判定的三种形态：动态键、元表 __index、返回值不是表
+TEST_F(LuaCheckerRequireTest, ModuleDynamicSurfaceNotReported)
+{
+    EXPECT_EQ(check(kModuleFieldDynamicOk), 0)
+        << "键在运行期才生成的模块不得误报";
+}
+
+TEST_F(LuaCheckerRequireTest, ModuleMetatableSurfaceNotReported)
+{
+    EXPECT_EQ(check(kModuleFieldMetatableOk), 0)
+        << "字段可能来自 __index 的模块不得误报";
+}
+
+TEST_F(LuaCheckerRequireTest, ModuleNilReturnNotReported)
+{
+    EXPECT_EQ(check(kModuleFieldNilOk), 0)
+        << "不返回表的模块没有导出面可对账，不得误报";
+}
+
+TEST_F(LuaCheckerRequireTest, ModuleDirectChainFieldPasses)
+{
+    EXPECT_EQ(check(kModuleFieldDirectOk), 0)
+        << "链在 require() 上的已导出字段调用不得误报";
+}
+
+TEST_F(LuaCheckerRequireTest, ModuleDirectChainMissingFieldFails)
+{
+    EXPECT_EQ(check(kModuleFieldDirectBad), 1)
+        << "链在 require() 上的未导出字段调用应判失败";
+}
+
+// 局部被重新赋值后不再指向模块，字段调用不属本道范围
+TEST_F(LuaCheckerRequireTest, ModuleReassignedBindingNotTracked)
+{
+    EXPECT_EQ(check(kModuleFieldReassignOk), 0)
+        << "已改指向的局部不得按模块字段误报";
+}
+
+// ---------------- 防线 8：整型实参 ----------------
+//
+// 绑定形参经 luaL_checkinteger / luaL_optinteger：实参含 '/' 会产出没有整数
+// 表示的 float，运行期抛 "number has no integer representation"（数据集
+// lingboweibu 的 start_busy 线上故障，报错形如 cast: Lua skill cast chan
+// failed ... bad argument #1 to 'start_busy'）。直接传入、先存局部再传入、
+// string.format 的 %d 转换符三条路径各钉一条；绑定清单另与源码对账。
+class IntegerArgTest : public LuaCheckerRequireTest {
+protected:
+    // 夹具现写现删（test_tmp 不入库），返回失败文件数
+    int check_snippet(const char* name, const std::string& body)
+    {
+        const ScopedLuaFile file(test_tmp_dir() / "int_arg", name, body);
+        return check(file.c_str());
+    }
+};
+
+// 直接把 '/' 传给整型绑定：start_busy 的第二参是 luaL_checkinteger
+TEST_F(IntegerArgTest, DirectFloatArgFails)
+{
+    EXPECT_EQ(check_snippet("direct_float_bad.lua",
+                            "local function cast(me, target)\n"
+                            "    local skill = me:query_skill(\"demo\", 1)\n"
+                            "    target:start_busy(skill / 50 + 2)\n"
+                            "end\n"
+                            "return {}\n"),
+              1)
+        << "start_busy(skill / 50 + 2) 在 skill 不整除时抛 number has no "
+           "integer representation，必须判失败";
+}
+
+// 先存局部、再传给绑定（lingboweibu 线上故障的原始形态）
+TEST_F(IntegerArgTest, IndirectFloatLocalFails)
+{
+    EXPECT_EQ(check_snippet("indirect_float_bad.lua",
+                            "local function cast(me, target)\n"
+                            "    local skill = me:query_skill(\"demo\", 1)\n"
+                            "    local busy = skill / 50 + 2\n"
+                            "    target:start_busy(busy)\n"
+                            "end\n"
+                            "return {}\n"),
+              1)
+        << "浮点局部传给整型绑定同样是运行期故障，必须判失败";
+}
+
+// 反面：整除、math.floor 包裹、字面量都是合法写法
+TEST_F(IntegerArgTest, IntegerFormsPass)
+{
+    EXPECT_EQ(
+        check_snippet("integer_forms_ok.lua",
+                      "local function cast(me, target)\n"
+                      "    local skill = me:query_skill(\"demo\", 1)\n"
+                      "    target:start_busy(skill // 50 + 2)\n"
+                      "    target:start_busy(math.floor(skill / 50) + 2)\n"
+                      "    target:start_busy(3)\n"
+                      "end\n"
+                      "return {}\n"),
+        0)
+        << "'//'、math.floor 内的 '/' 与整型字面量不得误报";
+}
+
+// 取负写法：-x / 2 与 -(x // 2) 同义，'/' 仍是 float
+TEST_F(IntegerArgTest, NegatedFloatArgFails)
+{
+    EXPECT_EQ(check_snippet("negated_float_bad.lua",
+                            "local function hurt(me)\n"
+                            "    me:add(\"hp\", -me:query(\"hp\") / 2)\n"
+                            "end\n"
+                            "return {}\n"),
+              1)
+        << "add 的第三参是整型，'-hp / 2' 必须判失败";
+}
+
+// string.format 的 %d 转换符按整型实参判：先存局部再格式化
+TEST_F(IntegerArgTest, StringFormatIndirectFloatFails)
+{
+    EXPECT_EQ(check_snippet("string_format_indirect_bad.lua",
+                            "local function report(me)\n"
+                            "    local hp = me:query(\"hp\") / 2\n"
+                            "    local msg = string.format(\"%d\", hp)\n"
+                            "    return msg\n"
+                            "end\n"
+                            "return {}\n"),
+              1)
+        << "string.format(\"%d\", float) 抛 number has no integer "
+           "representation，浮点局部必须判失败";
+}
+
+// string.format 的 %d 转换符按整型实参判：格式化时才做的除法
+TEST_F(IntegerArgTest, StringFormatDirectFloatFails)
+{
+    EXPECT_EQ(
+        check_snippet(
+            "string_format_direct_bad.lua",
+            "local function report(me)\n"
+            "    local msg = string.format(\"%d\", me:query(\"hp\") / 2)\n"
+            "    return msg\n"
+            "end\n"
+            "return {}\n"),
+        1)
+        << "string.format(\"%d\", x / 2) 的直接形态必须判失败";
+}
+
+// 反面：非整型绑定不得被牵连（set 的值参数是任意数值）
+TEST_F(IntegerArgTest, NonIntegerBindingNotFlagged)
+{
+    EXPECT_EQ(check_snippet("non_integer_binding_ok.lua",
+                            "local function store(me)\n"
+                            "    me:set(\"count\", 1 / 2)\n"
+                            "end\n"
+                            "return {}\n"),
+              0)
+        << "只有整型形参的绑定才归本道，不得按绑定名一锅端";
+}
+
+// 赋值语句右侧的读取看到的是赋值前的值：只报语句之后的那次使用
+TEST_F(IntegerArgTest, UseInsideAssignmentNotFlagged)
+{
+    EXPECT_EQ(check_snippet("use_in_rhs_ok.lua",
+                            "local function roll(me, target)\n"
+                            "    local damage = 10\n"
+                            "    damage = (damage + random(damage)) / 2\n"
+                            "    target:receive_damage(\"hp\", damage)\n"
+                            "end\n"
+                            "return {}\n"),
+              1)
+        << "语句右侧的 damage 还是赋值前的整型，只应报语句之后的那次使用";
+}
+
+// 同名局部跨 function 是两个变量（与 R1 同口径：宁可漏、不可误报）
+TEST_F(IntegerArgTest, CrossFunctionSameNameNotFlagged)
+{
+    EXPECT_EQ(check_snippet("cross_function_ok.lua",
+                            "busy = 0\n"
+                            "local function setup(me)\n"
+                            "    busy = me:query(\"hp\") / 2\n"
+                            "end\n"
+                            "local function cast(me, target)\n"
+                            "    target:start_busy(busy)\n"
+                            "end\n"
+                            "return {}\n"),
+              0)
+        << "赋值与使用隔着 function 的同名变量不得串到一起";
+}
+
+// ---------------- 防线 8：绑定清单与源码对账 ----------------
+//
+// kIntegerArgSpecs 是防线8 的判断依据，手抄必然漂移：源码新增整型绑定而未
+// 登记，就是"静默漏检"——本用例从 src/ 反查（LuaBind.cpp 的绑定表给出名字，
+// 各 l_* 实现体里的 luaL_checkinteger/luaL_optinteger 给出位置），与清单逐条
+// 比对，两个方向的差异都判失败。
+namespace {
+// 分片有独立工作目录（test_tmp/shards/sN，只有夹具树），源码得自己往上找：
+// 从当前目录逐级上溯，直到同时看得到 src/ 与 tests/ 的那一层。
+std::filesystem::path repo_root()
+{
+    std::error_code ec;
+    std::filesystem::path p = std::filesystem::current_path(ec);
+    if (ec) return {};
+    for (int i = 0; i < 8 && !p.empty(); ++i) {
+        if (std::filesystem::exists(p / "src" / "lua" / "LuaBind.cpp", ec)) {
+            return p;
+        }
+        const std::filesystem::path parent = p.parent_path();
+        if (parent == p) break;
+        p = parent;
+    }
+    return {};
+}
+
+std::string read_source_file(const std::filesystem::path& p)
+{
+    std::ifstream in(p, std::ios::binary);
+    if (!in) return {};
+    return std::string(std::istreambuf_iterator<char>(in),
+                       std::istreambuf_iterator<char>());
+}
+
+// 从 `int l_xxx(lua_State...` 的声明处取函数体（花括号配对，跳过注释与
+// 字符串/字符字面量）；形参表之后是 ';' 的是声明，返回空串。
+std::string function_body(const std::string& src, size_t header_pos)
+{
+    size_t open = header_pos;
+    while (open < src.size() && src[open] != '(') ++open;
+    if (open >= src.size()) return {};
+    int paren = 0;
+    size_t j  = open;
+    for (; j < src.size(); ++j) {
+        if (src[j] == '(')
+            ++paren;
+        else if (src[j] == ')' && --paren == 0) {
+            ++j;
+            break;
+        }
+    }
+    if (paren != 0) return {};
+    if (src.substr(open, j - open).find("lua_State") == std::string::npos) {
+        return {};  // 不是 Lua 绑定实现
+    }
+    // 形参表之后只许空白与注释，然后才是定义体 '{'
+    while (j < src.size()) {
+        if (isspace((unsigned char)src[j])) {
+            ++j;
+        }
+        else if (src[j] == '/' && j + 1 < src.size() && src[j + 1] == '/') {
+            const size_t nl = src.find('\n', j);
+            if (nl == std::string::npos) return {};
+            j = nl + 1;
+        }
+        else if (src[j] == '/' && j + 1 < src.size() && src[j + 1] == '*') {
+            const size_t close = src.find("*/", j + 2);
+            if (close == std::string::npos) return {};
+            j = close + 2;
+        }
+        else {
+            break;
+        }
+    }
+    if (j >= src.size() || src[j] != '{') return {};  // 声明而非定义
+
+    int depth = 0;
+    for (size_t k = j; k < src.size(); ++k) {
+        const char c = src[k];
+        if (c == '/' && k + 1 < src.size() && src[k + 1] == '/') {
+            const size_t nl = src.find('\n', k);
+            if (nl == std::string::npos) return {};
+            k = nl;
+            continue;
+        }
+        if (c == '/' && k + 1 < src.size() && src[k + 1] == '*') {
+            const size_t close = src.find("*/", k + 2);
+            if (close == std::string::npos) return {};
+            k = close + 1;
+            continue;
+        }
+        if (c == '"' || c == '\'') {
+            const char q = c;
+            ++k;
+            while (k < src.size() && src[k] != q) {
+                if (src[k] == '\\') ++k;
+                ++k;
+            }
+            continue;
+        }
+        if (c == '{') {
+            ++depth;
+        }
+        else if (c == '}') {
+            if (--depth == 0) return src.substr(j, k - j + 1);
+        }
+    }
+    return {};
+}
+
+// 函数体里 luaL_checkinteger / luaL_optinteger 的字面量 L 位置
+std::set<int> integer_positions(const std::string& body)
+{
+    std::set<int> out;
+    const char* keys[] = {"luaL_checkinteger", "luaL_optinteger"};
+    for (const char* key : keys) {
+        const size_t klen = strlen(key);
+        size_t p          = 0;
+        while ((p = body.find(key, p)) != std::string::npos) {
+            size_t j = p + klen;
+            while (j < body.size() && isspace((unsigned char)body[j])) ++j;
+            if (j < body.size() && body[j] == '(') {
+                ++j;
+                while (j < body.size() && isspace((unsigned char)body[j])) ++j;
+                if (j + 1 < body.size() && body[j] == 'L'
+                    && !isalnum((unsigned char)body[j + 1])
+                    && body[j + 1] != '_') {
+                    ++j;
+                    while (j < body.size() && isspace((unsigned char)body[j])) {
+                        ++j;
+                    }
+                    if (j < body.size() && body[j] == ',') {
+                        ++j;
+                        while (j < body.size()
+                               && isspace((unsigned char)body[j])) {
+                            ++j;
+                        }
+                        if (j < body.size()
+                            && isdigit((unsigned char)body[j])) {
+                            out.insert(atoi(body.c_str() + j));
+                        }
+                    }
+                }
+            }
+            p += klen;
+        }
+    }
+    return out;
+}
+}  // namespace
+
+TEST(IntegerArgBindings, ReconcileWithSource)
+{
+    const std::filesystem::path root = repo_root();
+    ASSERT_FALSE(root.empty())
+        << "从当前目录上溯找不到仓库根（src/lua/LuaBind.cpp）";
+
+    // 1) 绑定表：绑定名 → 实现符号（object_methods + global_funcs 两张表）
+    const std::string bind_src
+        = read_source_file(root / "src" / "lua" / "LuaBind.cpp");
+    ASSERT_FALSE(bind_src.empty())
+        << "读不到 src/lua/LuaBind.cpp（测试必须在仓库树内运行）";
+    std::map<std::string, std::string> name_to_sym;
+    size_t p = 0;
+    while ((p = bind_src.find(", l_", p)) != std::string::npos) {
+        const size_t brace   = bind_src.rfind("{\"", p);
+        const size_t quote   = (brace == std::string::npos)
+                                   ? std::string::npos
+                                   : bind_src.find('"', brace + 2);
+        const size_t sym_end = bind_src.find('}', p);
+        if (brace != std::string::npos && quote != std::string::npos
+            && quote < p && p - brace < 64 && sym_end != std::string::npos) {
+            name_to_sym[bind_src.substr(brace + 2, quote - brace - 2)]
+                = bind_src.substr(p + 2, sym_end - p - 2);
+        }
+        p += 4;
+    }
+    ASSERT_GT(name_to_sym.size(), 100u)
+        << "LuaBind.cpp 的绑定表解析结果异常（应有 170+ 条）";
+
+    // 2) 各 l_* 实现体 → 整型位置
+    std::map<std::string, std::set<int>> impl_positions;
+    for (auto it = std::filesystem::recursive_directory_iterator(root / "src");
+         it != std::filesystem::recursive_directory_iterator(); ++it) {
+        if (!it->is_regular_file()) continue;
+        const std::string ext = it->path().extension().string();
+        if (ext != ".cpp" && ext != ".h") continue;
+        const std::string text = read_source_file(it->path());
+        size_t q               = 0;
+        while ((q = text.find("int l_", q)) != std::string::npos) {
+            size_t e = q + 6;
+            while (e < text.size()
+                   && (isalnum((unsigned char)text[e]) || text[e] == '_')) {
+                ++e;
+            }
+            size_t s = e;
+            while (s < text.size()
+                   && (text[s] == ' ' || text[s] == '\t' || text[s] == '\r'
+                       || text[s] == '\n')) {
+                ++s;
+            }
+            if (s < text.size() && text[s] == '('
+                && text.compare(s + 1, 9, "lua_State") == 0) {
+                // q 指向 "int "，l_ 从 q + 4 起
+                const std::string sym = text.substr(q + 4, e - q - 4);
+                if (impl_positions.find(sym) == impl_positions.end()) {
+                    const std::string body = function_body(text, q);
+                    if (!body.empty())
+                        impl_positions[sym] = integer_positions(body);
+                }
+            }
+            q = e;
+        }
+    }
+
+    // 3) 源码口径：绑定到、且实现体里确实有整型形参的
+    std::map<std::string, std::set<int>> expected;
+    for (const auto& kv : name_to_sym) {
+        auto it = impl_positions.find(kv.second);
+        if (it == impl_positions.end() || it->second.empty()) continue;
+        expected[kv.first] = it->second;
+    }
+    expected.erase("random");  // random 归防线7（R2），不入本表
+    ASSERT_GT(expected.size(), 50u)
+        << "从 src/ 反查到的整型绑定过少，解析逻辑或源码结构变了";
+
+    // 4) 清单口径：解析 kIntegerArgSpecs
+    const std::string checker_src
+        = read_source_file(root / "src" / "lua" / "LuaSyntaxChecker.cpp");
+    ASSERT_FALSE(checker_src.empty()) << "读不到 LuaSyntaxChecker.cpp";
+    const size_t table_begin = checker_src.find("kIntegerArgSpecs[] = {");
+    ASSERT_NE(table_begin, std::string::npos)
+        << "找不到 kIntegerArgSpecs（防线8 清单位置变了）";
+    const size_t table_end = checker_src.find("};", table_begin);
+    ASSERT_NE(table_end, std::string::npos) << "kIntegerArgSpecs 没有收尾";
+
+    std::map<std::string, std::set<int>> listed;
+    size_t r = table_begin;
+    while (r < table_end) {
+        const size_t entry = checker_src.find("{\"", r);
+        if (entry == std::string::npos || entry >= table_end) break;
+        const size_t name_begin = entry + 2;
+        const size_t name_end   = checker_src.find('"', name_begin);
+        if (name_end == std::string::npos || name_end >= table_end) break;
+        // 条目形如 {"name", "1,2"}：位置串在第二对引号里
+        const size_t pos_begin = checker_src.find('"', name_end + 1);
+        if (pos_begin == std::string::npos || pos_begin >= table_end) break;
+        const size_t pos_end = checker_src.find('"', pos_begin + 1);
+        if (pos_end == std::string::npos || pos_end >= table_end) break;
+
+        const std::string name
+            = checker_src.substr(name_begin, name_end - name_begin);
+        const std::string pos_text
+            = checker_src.substr(pos_begin + 1, pos_end - pos_begin - 1);
+        std::set<int> positions;
+        size_t s2 = 0;
+        while (s2 < pos_text.size()) {
+            positions.insert(atoi(pos_text.c_str() + s2));
+            while (s2 < pos_text.size() && pos_text[s2] != ',') ++s2;
+            if (s2 < pos_text.size()) ++s2;
+        }
+        listed[name] = positions;
+        r            = pos_end + 1;
+    }
+    ASSERT_GT(listed.size(), 50u) << "kIntegerArgSpecs 解析结果异常";
+
+    EXPECT_EQ(expected, listed)
+        << "kIntegerArgSpecs 必须与 src/ 逐条对账：新增整型绑定（或改了整型"
+           "形参位置）而未登记 → 静默漏检；绑定已改非整型而未摘除 → 误报";
 }

@@ -48,7 +48,7 @@ struct CheckLuaOptions {
 // --write-baseline   : 把发现的违规写入基线（违规不判失败；语法/require
 // 错误仍失败）
 //
-// 校验内容（六道防线，详见 LuaSyntaxChecker.cpp 文件头）：
+// 校验内容（各道防线，详见 LuaSyntaxChecker.cpp 文件头）：
 //   1. 语法          luaL_loadbuffer
 //   2. require 闭包  字面量 require("...") 须能被 package.searchers[2] 解析
 //   3. 未绑定全局    脚本读到的全局必须在 _G 或由某个脚本定义
@@ -65,6 +65,13 @@ struct CheckLuaOptions {
 //                    "number has no integer representation"、math.random 单参
 //                    0/负数、与字面量 0 比较恒真/恒假；教材根
 //                    （lua-default / lua-sample）禁用裸 random()
+//   8. 整型实参      绑定形参经 luaL_checkinteger 时，实参含 '/' 会产出无整数
+//                    表示的 float（start_busy(skill / 50 + 2) 这类），运行期抛
+//                    "number has no integer representation"；直接传入与先存
+//                    局部再传入都判，string.format 的 %d 转换符同判
+//   9. 模块表字段    字面量 require 绑定的局部调用模块没导出的字段 → 运行期
+//                    "attempt to call a nil value (field 'x')"；与模块自己的
+//                    导出面对账，导出面静态不可判的模块整道跳过
 //
 // 返回: 0=全部通过, 1=有失败
 int run_lua_checker(const char* cmdLine);

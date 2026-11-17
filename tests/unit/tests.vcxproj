@@ -239,6 +239,7 @@
     <ClCompile Include="test_live_position.cpp" />
     <ClCompile Include="test_room_add_npc.cpp" />
     <ClCompile Include="test_room_interface.cpp" />
+    <ClCompile Include="test_room_tianchi_jump.cpp" />
     <ClCompile Include="test_box_door.cpp" />
     <ClCompile Include="test_rename_notify.cpp" />
     <ClCompile Include="test_bind_fightroom.cpp" />

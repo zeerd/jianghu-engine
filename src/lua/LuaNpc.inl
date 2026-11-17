@@ -194,8 +194,10 @@ int CLuaNpcT<T>::do_lua_inquiry(CChar* me, char* ask)
                       lua_tostring(L, -1));
             lua_pop(L, 2);
         }
-        else if (lua_isstring(L, -1)) {
-            // lua_pop 会让 lua_tostring 返回的指针失效，先取值再弹栈
+        else if (lua_type(L, -1) == LUA_TSTRING) {
+            // 只有真字符串才代说：数字/nil 等价于空返回，回调内部
+            // 已自行 say + 发菜单时不再追加。lua_pop 会让 lua_tostring 返回
+            // 的指针失效，先取值再弹栈。
             std::string answer = lua_tostring(L, -1);
             lua_pop(L, 2);
             if (!answer.empty()) {
@@ -563,9 +565,10 @@ const char* CLuaNpcT<T>::hit_ob(CChar* me, CChar* victim, damage_t damage_bonus)
         return T::hit_ob(me, victim, damage_bonus);
     }
 
-    // 返回值可以是字符串（提示信息）或 nil/空字符串（表示无消息）
-    if (lua_isstring(L, -1)) {
-        // lua_pop 会让 lua_tostring 返回的指针失效，先拷贝再弹栈
+    // 返回值可以是字符串（提示信息）或 nil/0/空字符串（表示无消息）
+    if (lua_type(L, -1) == LUA_TSTRING) {
+        // 只有真字符串才是伤讯，数字/nil 等价于空返回。lua_pop 会让
+        // lua_tostring 返回的指针失效，先拷贝再弹栈。
         static char buf[256];
         strncpy(buf, lua_tostring(L, -1), sizeof(buf) - 1);
         buf[sizeof(buf) - 1] = 0;
@@ -602,8 +605,9 @@ char* CLuaNpcT<T>::chat_msg_combat()
         return T::chat_msg_combat();
     }
 
-    if (lua_isstring(L, -1)) {
-        // lua_pop 会让 lua_tostring 返回的指针失效，先拷贝再弹栈
+    if (lua_type(L, -1) == LUA_TSTRING) {
+        // 只有真字符串才播报，数字/nil 等价于空返回。lua_pop 会让
+        // lua_tostring 返回的指针失效，先拷贝再弹栈。
         static char buf[256];
         strncpy(buf, lua_tostring(L, -1), sizeof(buf) - 1);
         buf[sizeof(buf) - 1] = 0;
@@ -649,8 +653,9 @@ char* CLuaNpcT<T>::chat_msg()
             break;
         }
 
-        if (lua_isstring(L, -1)) {
-            // lua_pop 会让 lua_tostring 返回的指针失效，先拷贝再弹栈
+        if (lua_type(L, -1) == LUA_TSTRING) {
+            // 只有真字符串才播报，数字/nil 等价于空返回。lua_pop 会让
+            // lua_tostring 返回的指针失效，先拷贝再弹栈。
             static char buf[256];
             strncpy(buf, lua_tostring(L, -1), sizeof(buf) - 1);
             buf[sizeof(buf) - 1] = 0;

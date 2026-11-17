@@ -243,7 +243,7 @@ end
 
 ### 7.4 菜单驱动命令（Item/NPC 三参版）
 
-`handle_action` 常与 `AddMenuItem`/`SendMenu` 配合：`do_use` 弹出菜单，玩家点击后引擎把菜单项命令回灌进 `CCmdHandle::command`，从而再次经过 `handle_action` 链。菜单项命令串用 `$0`/`$1` 占位对象 ID（`$0` 指菜单所属对象、`$1` 指目标）。
+`handle_action` 常与 `AddMenuItem`/`SendMenu` 配合：`do_use` 弹出菜单，玩家点击后引擎把菜单项命令回灌进 `CCmdHandle::command`，从而再次经过 `handle_action` 链。菜单项命令串形如 `"$0<comm> $1 [参数]"`：`$0`/`$1` 是**两字符**占位符，由客户端解析——`$0` 是被直接跳过的格式前缀（`$` + 一位数字，不产生任何字符），`$1` 替换为菜单所属对象的 object ID 作为命令目标槽，命令因此被路由回该对象的 `handle_action`。替换实现见 `cli/src/game_state_question.cc` 的 `resolve_menu_cmd`。
 
 ---
 

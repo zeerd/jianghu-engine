@@ -80,6 +80,11 @@ public:
     // self:base_do_talk(me, ask)
     int base_do_talk(CChar* me, char* ask);
 
+    // 供 Lua 脚本显式调用基类属性查询（IS_NPC/CAN_SAVE 等由基类裁决，
+    // 与原版子类 Query 中 `return CNpc::Query(nAttr)` 的回退语义一致）
+    // self:base_query(attr)
+    int32_t base_query(int attr) { return T::query_attr(attr); }
+
     // 重写 create_family 桥接：脚本通过 set_inquiry 注册询问
     // 预置回答版：set_inquiry(ask, answer, topic)
     void set_inquiry(const char* ask, const char* answer,
