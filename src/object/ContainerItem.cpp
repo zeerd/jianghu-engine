@@ -221,10 +221,16 @@ int l_desc(lua_State* L)
 int l_say(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     IDialogSource* c = dynamic_cast<IDialogSource*>(obj);
-    if (!c) return 0;
+    if (!c) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     const char* msg = luaL_checkstring(L, 2);
     CChar* me       = NULL;
@@ -232,6 +238,6 @@ int l_say(lua_State* L)
 
     const char* tips = lua_isstring(L, 4) ? lua_tostring(L, 4) : NULL;
 
-    c->say(msg, me, tips);
-    return 0;
+    lua_pushboolean(L, c->say(msg, me, tips) != 0);
+    return 1;
 }

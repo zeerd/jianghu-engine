@@ -49,8 +49,9 @@ int CCmdStandard::get(CChar* me, int32_t target, char* arg)
     m = who->query_entire_dbase();
     if (!m->undefinedp("no_get")
         && !(is_wizard(me) && me->query("env/override"))) {
-        strncpy(cmd, who->querystr("no_get"), 255);
-        return notify_fail(cmd[0] ? cmd : "这个东西拿不起来。");
+        const std::string no_get = truncated_copy(who->querystr("no_get"), 254);
+        return notify_fail(no_get.empty() ? "这个东西拿不起来。"
+                                          : no_get.c_str());
     }
 
     // 判断是否主人
@@ -142,7 +143,6 @@ int CCmdStandard::use(CChar* me, int32_t target, char* arg)
 
 int CCmdStandard::wield(CChar* me, int32_t target, char* arg)
 {
-    char cmd[80];
     int ap = 25;
     CContainer* who;
 
@@ -158,13 +158,13 @@ int CCmdStandard::wield(CChar* me, int32_t target, char* arg)
     notify_fail("你无法装备这样东西。");
     if (who->query_attr(CChar::CAN_EQUIPPED) && check_ap(ap, me)
         && dynamic_cast<IActionHandler*>(who)->do_action(CChar::DO_WIELD)) {
-        strncpy(cmd, who->querystr("wield_msg"), 80);
-        if (!strlen(cmd)) {
-            strncpy(cmd, who->querystr("wear_msg"), 80);
-            if (!strlen(cmd)) strcpy(cmd, "$N装备$n。");
+        std::string cmd = truncated_copy(who->querystr("wield_msg"), 79);
+        if (cmd.empty()) {
+            cmd = truncated_copy(who->querystr("wear_msg"), 79);
+            if (cmd.empty()) cmd = "$N装备$n。";
         }
 
-        message_vision(cmd, me, who);
+        message_vision(cmd.c_str(), me, who);
         resume_ap(ap, me);
         me->flush_my_equip();
         me->flush_my_info();
@@ -178,7 +178,6 @@ int CCmdStandard::wield(CChar* me, int32_t target, char* arg)
 
 int CCmdStandard::un_wield(CChar* me, int32_t target, char* arg)
 {
-    char cmd[80];
     int ap = 25;
     CContainer* who;
 
@@ -200,9 +199,10 @@ int CCmdStandard::un_wield(CChar* me, int32_t target, char* arg)
             if (check_ap(ap, me)
                 && dynamic_cast<IActionHandler*>(obj)->do_action(
                     CChar::DO_UNWIELD)) {
-                strncpy(cmd, obj->querystr("unwield_msg"), 80);
-                if (!strlen(cmd)) strcpy(cmd, "$N放下手中的$n。");
-                message_vision(cmd, me, obj);
+                std::string cmd
+                    = truncated_copy(obj->querystr("unwield_msg"), 79);
+                if (cmd.empty()) cmd = "$N放下手中的$n。";
+                message_vision(cmd.c_str(), me, obj);
                 resume_ap(ap, me);
             }
         }
@@ -216,13 +216,13 @@ int CCmdStandard::un_wield(CChar* me, int32_t target, char* arg)
     if (!(who = get_self_object(me, target))) return 0;
     if (check_ap(ap, me)
         && dynamic_cast<IActionHandler*>(who)->do_action(CChar::DO_UNWIELD)) {
-        strncpy(cmd, who->querystr("unwield_msg"), 80);
-        if (!strlen(cmd)) {
-            strncpy(cmd, who->querystr("remove_msg"), 80);
-            if (!strlen(cmd)) strcpy(cmd, "$N放下手中的$n。");
+        std::string cmd = truncated_copy(who->querystr("unwield_msg"), 79);
+        if (cmd.empty()) {
+            cmd = truncated_copy(who->querystr("remove_msg"), 79);
+            if (cmd.empty()) cmd = "$N放下手中的$n。";
         }
 
-        message_vision(cmd, me, who);
+        message_vision(cmd.c_str(), me, who);
         resume_ap(ap, me);
         me->flush_my_equip();
         me->flush_my_info();

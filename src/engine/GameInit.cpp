@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file GameInit.cpp
  * @brief 游戏初始化 / 关闭 / 服务器配置
  */
@@ -86,11 +86,14 @@ int init_game(const char* ipaddress, const char* name, const char* password)
     g_server_port        = ini_get_int("server", "port", 6600);
     std::string tmp_name = utf8_to_gbk(ini_get("server", "name", "jianghu"));
     strncpy(g_server_name, tmp_name.c_str(), sizeof(g_server_name) - 1);
-    g_server_id = ini_get_int("server", "id", 1);
+    g_server_name[sizeof(g_server_name) - 1] = 0;
+    g_server_id                              = ini_get_int("server", "id", 1);
     strncpy(g_server_dbname, ini_get("database", "name", "game"),
             sizeof(g_server_dbname) - 1);
+    g_server_dbname[sizeof(g_server_dbname) - 1] = 0;
     std::string tmp_room = utf8_to_gbk(ini_get("server", "start_room", "rk"));
     strncpy(g_start_room, tmp_room.c_str(), sizeof(g_start_room) - 1);
+    g_start_room[sizeof(g_start_room) - 1] = 0;
 
     g_start_age = ini_get_int("server", "start_age", 14);
 

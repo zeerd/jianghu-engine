@@ -106,15 +106,17 @@ int l_querystr(lua_State* L)
 int l_add(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
 
     const char* key     = luaL_checkstring(L, 2);
     mapping_value_t val = (mapping_value_t)luaL_checkinteger(L, 3);
-    if (scope_is_temp(L, 4))
-        obj->add_temp(key, val);
-    else
-        obj->add(key, val);
-    return 0;
+    mapping_value_t v
+        = scope_is_temp(L, 4) ? obj->add_temp(key, val) : obj->add(key, val);
+    lua_pushinteger(L, v);
+    return 1;
 }
 
 // self:del(key[, "T"])

@@ -77,7 +77,7 @@ end
 -- 每次进房恰好触发一次，天然一场一计数；定义 init 后引擎不再代跑基类
 -- CChar::init 的延迟 auto_fight——进房即开战取而代之。
 function npc.init(self, me)
-    if not is_user(me) then
+    if not me:is_user() then
         return
     end
     if self:is_fighting() then

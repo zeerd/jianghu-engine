@@ -222,16 +222,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     ini_load(resolved_config);
     // 保存实际配置路径，供窗口信息面板显示
     snprintf(g_config_path, sizeof(g_config_path), "%s", resolved_config);
-    char dbip[80], user[80], pwd[80];
-    strncpy(dbip, ini_get("database", "host", "127.0.0.1"), sizeof(dbip) - 1);
-    strncpy(user, ini_get("database", "user", "root"), sizeof(user) - 1);
-    strncpy(pwd, ini_get("database", "password", "root"), sizeof(pwd) - 1);
-    dbip[sizeof(dbip) - 1] = '\0';
-    user[sizeof(user) - 1] = '\0';
-    pwd[sizeof(pwd) - 1]   = '\0';
+    std::string dbip
+        = truncated_copy(ini_get("database", "host", "127.0.0.1"), 79);
+    std::string user = truncated_copy(ini_get("database", "user", "root"), 79);
+    std::string pwd
+        = truncated_copy(ini_get("database", "password", "root"), 79);
 
     // Initialize game
-    if (!init_game(dbip, user, pwd)) {
+    if (!init_game(dbip.c_str(), user.c_str(), pwd.c_str())) {
         MessageBox(NULL, "Init_Game failed", "Error", MB_OK | MB_ICONERROR);
         WSACleanup();
         return 1;

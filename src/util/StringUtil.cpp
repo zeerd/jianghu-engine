@@ -47,6 +47,24 @@ void analyse_string(char* Comm, char* arg, int len)
     arg[a] = 0;
 }
 
+// 指令劈分：首个空格切分，arg 截到 len-1（与就地版同轨）；无空格时 arg 空、
+// comm 原样。
+void analyse_string(std::string& comm, std::string& arg, size_t len)
+{
+    size_t p = comm.find(' ');
+    if (p == std::string::npos) {
+        arg.clear();
+        return;
+    }
+
+    arg = comm.substr(p + 1);
+    if (len == 0)
+        arg.clear();
+    else if (arg.size() > len - 1)
+        arg.resize(len - 1);
+    comm.resize(p);
+}
+
 //---------------------------------------------------------
 // 解析 key=value 参数
 //---------------------------------------------------------
@@ -75,6 +93,17 @@ char* get_value(const char* cmd_str, const char* keyword, char* pValue,
     strncpy(pValue, pKey, nCopyLen)[nCopyLen] = 0;
 
     return pValue;
+}
+
+//---------------------------------------------------------
+// 定宽字段装配：按字段宽度截尾拷贝
+//---------------------------------------------------------
+std::string truncated_copy(const char* src, size_t max_len)
+{
+    if (!src) return {};
+    std::string out(src);
+    if (out.size() > max_len) out.resize(max_len);
+    return out;
 }
 
 //---------------------------------------------------------

@@ -973,7 +973,7 @@ namespace JSON
 			_sso = false;
 			_cow = true;
 			_d = s;
-			_cow_len = l;
+			_cow_len = static_cast<unsigned int>(l);
 		}
 		else if(l <= (15 / sizeof(char_t))) {
 			if(!_sso && !_cow) delete _s;

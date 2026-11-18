@@ -38,21 +38,27 @@ TEST_F(BindFBRoomTest, QueryFbParentNonRoom)
     lua_pop(L, k);
 }
 
-// move_in: empty CFB (m_RoomNum == 0) -> short-circuits, returns 0 values
+// move_in: empty CFB (m_RoomNum == 0) -> short-circuits, false
 TEST_F(BindFBRoomTest, MoveInEmptyFb)
 {
     lua_bind_push_object(L, &fb);
     lua_bind_push_object(L, &me);
     lua_pushinteger(L, 0);
-    EXPECT_EQ(0, CallRetCount(l_move_in, 3));
+    int k = call(l_move_in, 3);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 }
 
-// move_in: self not a CFB -> guard returns 0
+// move_in: self not a CFB -> guard returns false
 TEST_F(BindFBRoomTest, MoveInGuard)
 {
     lua_bind_push_object(L, &me);
     lua_bind_push_object(L, &me);
-    EXPECT_EQ(0, CallRetCount(l_move_in, 2));
+    int k = call(l_move_in, 2);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 }
 
 // begin_fb: self not a CFB -> guard returns 0 (never reaches Set_Heart_Beat)

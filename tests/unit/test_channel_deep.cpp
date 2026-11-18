@@ -21,6 +21,7 @@
 #include "RoomMgr.h"
 #include "User.h"
 #include "mock/mock_itemmgr.h"
+#include "EmoteSystem.h"
 #include "../config/MainConfig.h"
 
 extern int g_current_time;
@@ -160,6 +161,23 @@ TEST_F(ChatChannelDeepTest, SpecificChannelBlocked_Returns0)
     u->set("chblk/chat", g_current_time + 3600);
 
     EXPECT_EQ(cc.do_channel(u, nullptr, "chat", "hello"), 0);
+
+    u->move(nullptr);
+    delete u;
+}
+
+// emote 未命中 -> 纯文本回退（GBK 中文首字节 >=160 的分支）
+TEST_F(ChatChannelDeepTest, EmoteMissFallsBackToPlainWrap)
+{
+    CEmoteSystem es;
+    es.load_emotes_from_lua();
+    cc.set_emote_system(&es);
+
+    CUser* u = MakeUser("em_fallback", "emfb1");
+    u->move(&env);
+
+    // 频道带 * -> emote=1；消息不是已注册表情 -> do_emote 返 nullptr -> 回退
+    EXPECT_EQ(1, cc.do_channel(u, nullptr, "f1*", "这不是表情的句子"));
 
     u->move(nullptr);
     delete u;

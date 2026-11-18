@@ -115,8 +115,8 @@ function hooks.combat_rule(phase, actor, target, detail)
         phase == "attack_gate"
         and actor
         and target
-        and is_user(actor)
-        and is_user(target)
+        and actor:is_user()
+        and target:is_user()
         and (actor:query("level") < 75 or target:query("level") < 75)
     then
         return { reason = "才入江湖，何必动刀动枪。" }

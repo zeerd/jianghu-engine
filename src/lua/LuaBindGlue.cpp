@@ -279,11 +279,17 @@ int l_call_out(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
 
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
 
     CContainer* c = dynamic_cast<CContainer*>(obj);
 
-    if (!c) return 0;
+    if (!c) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
 
     bool is_func_value   = lua_isfunction(L, 2);
     const char* funcName = is_func_value ? nullptr : luaL_checkstring(L, 2);
@@ -304,7 +310,10 @@ int l_call_out(lua_State* L)
         scriptRef = g_LuaEngine->get_active_script_ref();
     }
 
-    if (scriptRef == LUA_NOREF) return 0;
+    if (scriptRef == LUA_NOREF) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
 
     int calloutId;
 
@@ -316,7 +325,8 @@ int l_call_out(lua_State* L)
             c, scriptRef, funcRef, param1, param2);
         if (calloutId < 0) {
             luaL_unref(L, LUA_REGISTRYINDEX, funcRef);
-            return 0;
+            lua_pushinteger(L, 0);
+            return 1;
         }
     }
     else {
@@ -325,7 +335,10 @@ int l_call_out(lua_State* L)
         calloutId = g_LuaEngine->register_callout(c, scriptRef, funcName,
                                                   param1, param2);
 
-        if (calloutId < 0) return 0;
+        if (calloutId < 0) {
+            lua_pushinteger(L, 0);
+            return 1;
+        }
     }
 
     // 调用 call_out，pFunc 是桥接函数，param1 是回调 ID
@@ -374,11 +387,17 @@ int l_call_out_combat(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
 
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
 
     CContainer* c = dynamic_cast<CContainer*>(obj);
 
-    if (!c) return 0;
+    if (!c) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
 
     const char* funcName = luaL_checkstring(L, 2);
 
@@ -398,7 +417,8 @@ int l_call_out_combat(lua_State* L)
             "[Callout] call_out_combat delay=0 out of combat, "
             "ob=%s(%ld) reject",
             c->name(1), c->object_id());
-        return 0;
+        lua_pushinteger(L, 0);
+        return 1;
     }
 
     int scriptRef = resolve_script_ref(obj);
@@ -407,13 +427,19 @@ int l_call_out_combat(lua_State* L)
         scriptRef = g_LuaEngine->get_active_script_ref();
     }
 
-    if (scriptRef == LUA_NOREF) return 0;
+    if (scriptRef == LUA_NOREF) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
 
     int calloutId
 
         = g_LuaEngine->register_callout(c, scriptRef, funcName, param1, param2);
 
-    if (calloutId < 0) return 0;
+    if (calloutId < 0) {
+        lua_pushinteger(L, 0);
+        return 1;
+    }
 
     c->call_out_combat(lua_callout_bridge, delay, calloutId, 0);
 

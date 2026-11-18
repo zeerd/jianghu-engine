@@ -128,103 +128,99 @@ void tell_room(CContainer* ob, const char* str, CChar* exclude,
 void message_channel(const char* channel, const char* msg, CChar* me,
                      CContainer* you)
 {
-    char my_gender[10], your_gender[10], my_name[40], your_name[40];
-    char str1[512], str2[512], str3[512];
-
     if (!me) return;
 
-    strncpy(my_name, me->name(), 40);
-    strncpy(my_gender, me->querystr("gender"), 10);
+    const std::string my_name   = truncated_copy(me->name(), 39);
+    const std::string my_gender = truncated_copy(me->querystr("gender"), 9);
 
-    if (!my_name[0]) return;  // mon 10/23/97
+    if (my_name.empty()) return;  // mon 10/23/97
 
     // 防止颜色混淆$NOR->$COM
-    strncpy(str1, msg, 512)[511] = 0;
+    std::string str1 = truncated_copy(msg, 511);
     replace_string(str1, "$NOR", "$COM", 512);
 
-    memcpy(str2, str1, 512);
-    memcpy(str3, str1, 512);
+    std::string str2 = str1;
+    std::string str3 = str1;
 
     replace_string(str1, "$P", gender_self(my_gender), 512);
     replace_string(str1, "$N", gender_self(my_gender), 512);
 
-    replace_string(str3, "$P", my_name, 512);
-    replace_string(str3, "$N", my_name, 512);
+    replace_string(str3, "$P", my_name.c_str(), 512);
+    replace_string(str3, "$N", my_name.c_str(), 512);
 
     if (you) {
-        strncpy(your_name, you->name(), 40);
-        strncpy(your_gender, you->querystr("gender"), 10);
+        const std::string your_name = truncated_copy(you->name(), 39);
+        const std::string your_gender
+            = truncated_copy(you->querystr("gender"), 9);
 
         replace_string(str2, "$P", gender_pronoun(my_gender), 512);
         replace_string(str2, "$p", gender_self(your_gender), 512);
-        replace_string(str2, "$N", my_name, 512);
+        replace_string(str2, "$N", my_name.c_str(), 512);
         replace_string(str2, "$n", gender_self(your_gender), 512);
 
         if (is_user(you)
             && !(static_cast<CChar*>(you)->refuse_channel(channel)))
-            tell_object(you, str2);
+            tell_object(you, str2.c_str());
 
         replace_string(str1, "$p", gender_pronoun(your_gender), 512);
-        replace_string(str1, "$n", your_name, 512);
-        replace_string(str3, "$p", your_name, 512);
-        replace_string(str3, "$n", your_name, 512);
+        replace_string(str1, "$n", your_name.c_str(), 512);
+        replace_string(str3, "$p", your_name.c_str(), 512);
+        replace_string(str3, "$n", your_name.c_str(), 512);
     }
 
-    if (!me->refuse_channel(channel)) tell_object(me, str1);
+    if (!me->refuse_channel(channel)) tell_object(me, str1.c_str());
 
     CContainer* room = me->environment();
     if (room) {
         MAP2USER list;
         room->get_users(channel, &list);
-        message(channel, str3, &list, me, you);
+        message(channel, str3.c_str(), &list, me, you);
     }
 }
 
 void message_vision(const char* msg, CContainer* me, CContainer* you, bool self)
 {
-    char my_gender[10], your_gender[10], my_name[40], your_name[40];
-    char str1[512], str2[512], str3[512];
-
     if (!me) return;
 
-    strncpy(my_name, me->name(), 40);
-    strncpy(my_gender, me->querystr("gender"), 10);
+    const std::string my_name   = truncated_copy(me->name(), 39);
+    const std::string my_gender = truncated_copy(me->querystr("gender"), 9);
 
-    if (!my_name[0]) return;  // mon 10/23/97
+    if (my_name.empty()) return;  // mon 10/23/97
 
     // 防止颜色混淆$NOR->$COM
-    strncpy(str1, msg, 512)[511] = 0;
+    std::string str1 = truncated_copy(msg, 511);
     replace_string(str1, "$NOR", "$COM", 512);
 
-    memcpy(str2, str1, 512);
-    memcpy(str3, str1, 512);
+    std::string str2 = str1;
+    std::string str3 = str1;
 
     replace_string(str1, "$P", gender_self(my_gender), 512);
     replace_string(str1, "$N", gender_self(my_gender), 512);
 
-    replace_string(str3, "$P", my_name, 512);
-    replace_string(str3, "$N", my_name, 512);
+    replace_string(str3, "$P", my_name.c_str(), 512);
+    replace_string(str3, "$N", my_name.c_str(), 512);
 
     if (you) {
-        strncpy(your_name, you->name(), 40);
-        strncpy(your_gender, you->querystr("gender"), 10);
+        const std::string your_name = truncated_copy(you->name(), 39);
+        const std::string your_gender
+            = truncated_copy(you->querystr("gender"), 9);
 
         replace_string(str2, "$P", gender_pronoun(my_gender), 512);
         replace_string(str2, "$p", gender_self(your_gender), 512);
-        replace_string(str2, "$N", my_name, 512);
+        replace_string(str2, "$N", my_name.c_str(), 512);
         replace_string(str2, "$n", gender_self(your_gender), 512);
-        message_vision_room(you, "tell", str2);
+        message_vision_room(you, "tell", str2.c_str());
 
         replace_string(str1, "$p", gender_pronoun(your_gender), 512);
-        replace_string(str1, "$n", your_name, 512);
-        replace_string(str3, "$p", your_name, 512);
-        replace_string(str3, "$n", your_name, 512);
+        replace_string(str1, "$n", your_name.c_str(), 512);
+        replace_string(str3, "$p", your_name.c_str(), 512);
+        replace_string(str3, "$n", your_name.c_str(), 512);
     }
 
-    message_vision_room(me, "tell", str1);
+    message_vision_room(me, "tell", str1.c_str());
 
     if (me->environment() && !self)
-        message_vision_room(me, "chat", str3, me, you);
+        message_vision_room(me, "chat", str3.c_str(), me, you);
 }
 
 // 向频道内所有玩家发送消息
@@ -251,16 +247,15 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
     DTItemList* t;
     iterator_user pos;
     CContainer *obj, *env;
-    char chat[480];
     char msg[512];
 
     env = me->environment();
 
-    strncpy(chat, chatmsg, 480)[479] = 0;  // 防止字符越界
+    const std::string chat = truncated_copy(chatmsg, 479);
 
     if (strcmp(room, "notify") == 0)  // 通知消息，范围是全部玩家
     {
-        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat);
+        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat.c_str());
         for (pos = g_user_list.begin(); pos != g_user_list.end(); pos++)
             (pos->second)->send_command(msg, SEND_WAIT_IMMEDIATE);
 
@@ -270,7 +265,7 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
     if (strcmp(room, "send_all") == 0)  // 通知命令，范围是全部玩家
     {
         for (pos = g_user_list.begin(); pos != g_user_list.end(); pos++)
-            (pos->second)->send_command(chat, SEND_WAIT_IMMEDIATE);
+            (pos->second)->send_command(chat.c_str(), SEND_WAIT_IMMEDIATE);
 
         return;
     }
@@ -279,7 +274,7 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
     {
         if (!env) return;
         t = env->get_item_list();
-        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat);
+        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat.c_str());
         for (auto val : *t) {
             obj = val;
             if (obj == exclude || obj == exclude2) continue;
@@ -291,7 +286,7 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
         // 信息发送给环境
         const char* ch = env->querystr("channel_cast");  // 房间内的频道转播
         if (ch[0]) {
-            g_channel.do_channel(env, NULL, ch, chat);
+            g_channel.do_channel(env, NULL, ch, chat.c_str());
         }
 
         return;
@@ -301,7 +296,7 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
     {
         env = me;
         t   = env->get_item_list();
-        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat);
+        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat.c_str());
         for (auto val : *t) {
             obj = val;
             if (obj == exclude) continue;
@@ -313,7 +308,7 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
         // 信息发送给环境
         const char* ch = env->querystr("channel_cast");  // 房间内的频道转播
         if (ch[0]) {
-            g_channel.do_channel(env, NULL, ch, chat);
+            g_channel.do_channel(env, NULL, ch, chat.c_str());
         }
 
         return;
@@ -324,7 +319,7 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
     {
         if (!env) return;
         t = env->get_item_list();
-        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat);
+        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat.c_str());
         for (auto val : *t) {
             obj = val;
 
@@ -337,7 +332,7 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
 
     // 通知频道
     if (strcmp(room, "tell") == 0) {
-        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat);
+        snprintf(msg, 512, "&C=%d&M=%s&", NOTIFY, chat.c_str());
         dynamic_cast<IClientObject*>(me)->send_command(msg,
                                                        SEND_WAIT_IMMEDIATE);
     }
@@ -345,14 +340,14 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
     // 发布命令通道
     if (strcmp(room, "command") == 0) {
         if (!env) return;
-        strncpy(msg, chatmsg, 512)[511] = 0;
-        t                               = env->get_item_list();
+        const std::string cmd = truncated_copy(chatmsg, 511);
+        t                     = env->get_item_list();
         for (auto val : *t) {
             obj = val;
             if (obj == exclude) continue;
             if (auto* cli = dynamic_cast<IClientObject*>(obj);
                 cli && cli->has_client())  // 有客户端才投得出去
-                cli->send_command(msg, SEND_WAIT_IMMEDIATE);
+                cli->send_command(cmd.c_str(), SEND_WAIT_IMMEDIATE);
         }
         return;
     }
@@ -371,38 +366,48 @@ void message_vision_room(CContainer* me, const char* room, const char* chatmsg,
     }
 }
 
-// 用newstr替换msg中的oldstr
+// 用newstr替换msg中的oldstr：截到 len-1（宽度契约），替换产物不回扫
+void replace_string(std::string& msg, const char* oldstr, const char* newstr,
+                    size_t len)
+{
+    if (len == 0) {
+        msg.clear();
+        return;
+    }
+
+    std::string out;
+    out.reserve(msg.size());
+    size_t p = 0;
+    while (p < msg.size()) {
+        size_t t    = 0;
+        size_t mark = out.size();
+        while (p < msg.size() && msg[p] == oldstr[t]) {
+            if (out.size() == len - 1) break;
+            out.push_back(msg[p]);
+            p++;
+            t++;
+            if (!oldstr[t])  // 完整命中：回卷到匹配起点，改写为 newstr
+            {
+                out.resize(mark);
+                for (size_t n = 0; newstr[n] && out.size() < len - 1; n++)
+                    out.push_back(newstr[n]);
+            }
+        }
+        if (out.size() == len - 1) break;
+        if (p >= msg.size()) break;  // 终止符不入结果
+        out.push_back(msg[p]);
+        p++;
+    }
+    msg = std::move(out);
+}
+
 void replace_string(char* msg, const char* oldstr, const char* newstr,
                     int nMsgLen)
 {
-    int p = 0, t = 0, r = 0, mark;
-
-    std::vector<char> replace(nMsgLen);  // 最大长度
-
-    while (msg[p]) {
-        t    = 0;
-        mark = r;
-        while (msg[p] && msg[p] == oldstr[t]) {
-            if (r == nMsgLen - 1) break;
-            replace[r++] = msg[p];
-            p++;
-            t++;
-            if (!oldstr[t])  // 找到替换字符串了。
-            {
-                int n = 0;
-                r     = mark;
-                while (newstr[n]) {
-                    if (r == nMsgLen - 1) break;
-                    replace[r++] = newstr[n++];
-                }
-            }
-        }
-
-        if (r == nMsgLen - 1) break;
-        replace[r++] = msg[p++];
-    }
-    replace[r] = 0;
-    strcpy(msg, replace.data());
+    if (nMsgLen <= 0) return;
+    std::string out(msg);
+    replace_string(out, oldstr, newstr, static_cast<size_t>(nMsgLen));
+    strcpy(msg, out.c_str());
 }
 
 //---------------------------------------------------------

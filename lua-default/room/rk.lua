@@ -34,7 +34,7 @@ return {
             return 0
         end
 
-        if not is_wizard(me) and comm ~= "quit" and comm ~= "mudage" and comm ~= "password" and comm ~= "validate" then
+        if not me:is_wizard() and comm ~= "quit" and comm ~= "mudage" and comm ~= "password" and comm ~= "validate" then
             tell_object(me, "你尝试了一下，但是发现这里似乎没有信号。")
             return 1
         end

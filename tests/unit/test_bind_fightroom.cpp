@@ -83,13 +83,16 @@ TEST_F(BindFightRoomTest, BeginEndFightGuard)
 
 TEST_F(BindFightRoomTest, JoinLeaveTeamGuard)
 {
-    // self is a plain CChar (not CFightRoom) -> fr==NULL guard returns 0
+    // self is a plain CChar (not CFightRoom) -> fr==NULL guard returns false
     CChar a;
     a.set_name("a", "a1");
     lua_bind_push_object(L, &a);
     lua_bind_push_object(L, &a);
     lua_pushinteger(L, 0);
-    EXPECT_EQ(0, CallRetCount(l_join_team, 3));
+    int k = call(l_join_team, 3);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 
     lua_bind_push_object(L, &a);
     lua_bind_push_object(L, &a);

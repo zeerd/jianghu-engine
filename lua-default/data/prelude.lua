@@ -127,18 +127,19 @@ function query_self_rude(ob)
     return respect("self_rude", ob)
 end
 
--- 对象谓词族：引擎只暴露 is(ob, KIND)（恒返回布尔），这里按旧名组合
-function is_user(ob)
+-- 对象谓词族：引擎只暴露 is(ob, KIND)（恒返回布尔），这里按旧名组合。
+-- 四个谓词一律挂方法表，脚本侧统一写 ob:is_user() / ob:is_wizard() /
+-- ob:is_living() / ob:is_character()——与 ob:is_fighting()、ob:is_busy()
+-- 同一形态，读代码时不必在「全局谓词」与「对象方法」两套写法间切换。
+function index.is_user(ob)
     return is(ob, "user")
 end
-function is_wizard(ob)
+function index.is_wizard(ob)
     return is(ob, "wizard")
 end
-function is_living(ob)
+function index.is_living(ob)
     return is(ob, "living")
 end
-
--- is_character 是对象方法（ob:is_character()），挂在方法表上
 function index.is_character(ob)
     return is(ob, "character")
 end

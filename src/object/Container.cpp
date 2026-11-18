@@ -227,13 +227,13 @@ int l_object_id(lua_State* L)
     return 1;
 }
 
-// self:purge() - 清空容器内所有物品
+// self:purge() -> boolean - 清空容器内所有物品，返回存档行删除是否成功
 int l_purge(lua_State* L)
 {
     CContainer* c = NULL;
     if (lua_isuserdata(L, 1)) c = dynamic_cast<CContainer*>(get_object(L, 1));
-    if (c) c->purge();
-    return 0;
+    lua_pushboolean(L, c ? c->purge() != 0 : 0);
+    return 1;
 }
 
 // self:clear() - 清空整个持久 dbase

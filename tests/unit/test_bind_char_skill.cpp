@@ -15,7 +15,10 @@ TEST_F(BindCharSkillTest, SetQuerySkill)
     lua_bind_push_object(L, &ch);
     lua_pushstring(L, "unarmed");
     lua_pushinteger(L, 50);
-    CallVoid(l_set_skill, 3);
+    int k = call(l_set_skill, 3);
+    ASSERT_EQ(1, k) << "set_skill 返回成败";
+    EXPECT_TRUE(lua_toboolean(L, -1)) << "技能设置成功";
+    lua_pop(L, k);
     EXPECT_EQ(50, ch.query_skill("unarmed", 1));
 
     lua_bind_push_object(L, &ch);
@@ -60,8 +63,19 @@ TEST_F(BindCharSkillTest, DeleteSkill)
     ch.set_skill("dodge", 20);
     lua_bind_push_object(L, &ch);
     lua_pushstring(L, "dodge");
-    CallVoid(l_delete_skill, 2);
+    int k = call(l_delete_skill, 2);
+    ASSERT_EQ(1, k) << "delete_skill 返回成败";
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, k);
     EXPECT_EQ(0, ch.query_skill("dodge", 1));
+
+    // 空技能名 -> false
+    lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "");
+    k = call(l_delete_skill, 2);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 }
 
 TEST_F(BindCharSkillTest, ApplyCondition)
@@ -69,8 +83,53 @@ TEST_F(BindCharSkillTest, ApplyCondition)
     lua_bind_push_object(L, &ch);
     lua_pushstring(L, "poison");
     lua_pushinteger(L, 5);
-    CallVoid(l_apply_condition, 3);
+    int k = call(l_apply_condition, 3);
+    ASSERT_EQ(1, k) << "apply_condition 返回成败";
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, k);
     EXPECT_GE(ch.query_condition("poison"), 0);
+
+    // 毒盾拒绝 -> false
+    ch.set_temp("apply/poi_shield", (int32_t)1);
+    lua_bind_push_object(L, &ch);
+    lua_pushstring(L, "poison");
+    lua_pushinteger(L, 5);
+    k = call(l_apply_condition, 3);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
+    ch.delete_temp("apply/poi_shield");
+}
+
+// ---- 守卫路径：无效 self 也必须返回一个 false ----
+TEST_F(BindCharSkillTest, GuardsReturnFalse)
+{
+    // 对象但非 CChar -> dynamic_cast 失败
+    CContainer box;
+    box.set_name("box", "skill_guard_box");
+
+    lua_bind_push_object(L, &box);
+    lua_pushstring(L, "unarmed");
+    lua_pushinteger(L, 1);
+    int k = call(l_set_skill, 3);
+    ASSERT_EQ(1, k) << "set_skill 守卫路径也压值";
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
+
+    lua_bind_push_object(L, &box);
+    lua_pushstring(L, "dodge");
+    k = call(l_delete_skill, 2);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
+
+    lua_bind_push_object(L, &box);
+    lua_pushstring(L, "poison");
+    lua_pushinteger(L, 5);
+    k = call(l_apply_condition, 3);
+    ASSERT_EQ(1, k);
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 }
 
 TEST_F(BindCharSkillTest, QuerySkillsTable)

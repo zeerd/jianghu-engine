@@ -562,14 +562,20 @@ int l_can_join(lua_State* L)
 int l_join_team(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     CFightRoom* fr = dynamic_cast<CFightRoom*>(obj);
-    if (!fr) return 0;
+    if (!fr) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     CChar* ob = NULL;
     if (lua_isuserdata(L, 2)) ob = dynamic_cast<CChar*>(get_object(L, 2));
     int team = (int)luaL_optinteger(L, 3, 0);
-    if (ob) fr->join_team(ob, team);
-    return 0;
+    lua_pushboolean(L, ob && fr->join_team(ob, team) != 0);
+    return 1;
 }
 
 // self:begin_fight([flag[, hp_check]]) - 开始战斗

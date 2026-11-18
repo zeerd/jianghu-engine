@@ -66,26 +66,22 @@ int is_user(CContainer* me)
 
 int verify_password(const char* id, const char* pass)
 {
-    char tmp[80];
-    strncpy(tmp, pass, sizeof(tmp) - 1);
-    tmp[sizeof(tmp) - 1] = 0;
-    for (char* p = tmp; *p; ++p) {
-        if (*p == '\'') *p = ' ';
+    std::string tmp = truncated_copy(pass, 79);
+    for (char& c : tmp) {
+        if (c == '\'') c = ' ';
     }
 
-    return db_verify_password(id, tmp) ? 1 : 0;
+    return db_verify_password(id, tmp.c_str()) ? 1 : 0;
 }
 
 int change_verify_password(const char* id, const char* pass)
 {
-    char tmp[512];
-    strncpy(tmp, pass, sizeof(tmp) - 1);
-    tmp[sizeof(tmp) - 1] = 0;
-    for (char* p = tmp; *p; ++p) {
-        if (*p == '\'') *p = ' ';
+    std::string tmp = truncated_copy(pass, 511);
+    for (char& c : tmp) {
+        if (c == '\'') c = ' ';
     }
 
-    return db_change_verify_password(id, tmp) ? 1 : 0;
+    return db_change_verify_password(id, tmp.c_str()) ? 1 : 0;
 }
 
 int change_password(const char* id, const char* pass)

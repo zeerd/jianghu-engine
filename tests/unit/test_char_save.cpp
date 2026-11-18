@@ -9,6 +9,7 @@
 #include "Mapping.h"
 #include "test_char_common.h"
 #include "test_lua_env.h"
+#include "mock/mock_itemmgr.h"  // restore_data 的 auto_load 分支需要 load_item 工厂
 
 class CharSaveTest : public ::testing::Test {
 protected:
@@ -122,11 +123,33 @@ TEST_F(CharSaveTest, RestoreData_RoundTrip)
     CMapping save;
     src->get_save_data(&save);
 
+    // auto_load 分支：键无逗号 -> load_item(全键) -> set_amount -> move 回身上
+    CMapping auto_load;
+    auto_load.set("sword_1", (mapping_value_t)3);
+    save.set("auto_load", auto_load);
+
+    CMockItemMgr mgr;
+    IItemMgr* saved_mgr = g_item_mgr;
+    g_item_mgr          = &mgr;
+    mgr.load_factory    = [](const char*) -> CContainer* {
+        CContainer* it = new CContainer();
+        it->set_name("mock_item", "mock_item");
+        return it;
+    };
+
     CUser* dst = new CUser();
     dst->set("id", "s9");
     EXPECT_EQ(dst->restore_data(&save), 1);
     EXPECT_EQ(dst->query_skill("dodge", 1), 42);
     EXPECT_EQ(dst->query_skill("unarmed", 1), 30);
+    int n = 0;
+    for (auto* item : *dst->get_item_list()) {
+        (void)item;
+        ++n;
+    }
+    EXPECT_EQ(1, n) << "auto_load 物品回到身上";
+
+    g_item_mgr = saved_mgr;
     delete src;
     delete dst;
 }

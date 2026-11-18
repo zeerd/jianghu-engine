@@ -86,7 +86,7 @@ return {
         self:base_init()
         local me = self:environment()
 
-        if is_user(me) then
+        if me and me:is_user() then
             self:set("owner", me:id(1))
         end
     end,
@@ -119,7 +119,7 @@ return {
         if not target:is_character() then
             return notify_fail("你要与谁交易，请看清楚点！")
         end
-        if not is_living(target) then
+        if not target:is_living() then
             return notify_fail("先把对方弄醒再说。")
         end
 

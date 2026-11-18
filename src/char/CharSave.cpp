@@ -49,6 +49,7 @@ int CChar::save_to_server()
             char master[40];
 
             strncpy(master, querystr("family/master_id"), 40);
+            master[39] = 0;
             char key[80];
 
             CMapping* ptr = g_channel.query_recruit(master);
@@ -221,6 +222,7 @@ int CChar::restore_data(CMapping* save)
 
     for (int i = 0; i < v.count(); i++) {
         strncpy(str, v[i], 80);
+        str[79] = 0;
 
         char* ptr = strstr(str, ",");
         if (ptr) {

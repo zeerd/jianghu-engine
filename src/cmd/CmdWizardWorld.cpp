@@ -48,15 +48,14 @@ int CCmdWizard::clone_npc(CChar* me, int32_t target, char* arg)
 int CCmdWizard::clone_object(CChar* me, int32_t target, char* arg)
 {
     CContainer* obj;
-    char msg[255], tmp[4];
+    char msg[255];
     int32_t num;
 
     analyse_string(arg, msg, 40);
-    num = atol(arg);
-    strncpy(tmp, msg, 3);
-    tmp[3] = 0;
+    num                      = atol(arg);
+    const std::string prefix = truncated_copy(msg, 3);
 
-    if (EQUALSTR(tmp, "zz_") && me->query("grant") < 100) return 0;
+    if (EQUALSTR(prefix.c_str(), "zz_") && me->query("grant") < 100) return 0;
 
     if (!(obj = g_item_mgr->load_item(msg))) return 0;  // 克隆失败
 

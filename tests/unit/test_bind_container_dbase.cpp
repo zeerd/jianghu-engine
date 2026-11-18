@@ -46,8 +46,27 @@ TEST_F(BindContainerDbaseTest, AddAccumulates)
     PushSelf(&ch);
     PushStr("gold");
     PushInt(5);
-    CallVoid(l_add, 3);
+    int k = call(l_add, 3);
+    ASSERT_EQ(1, k) << "add 返回累加后的新值";
+    EXPECT_EQ(15, (int)lua_tointeger(L, -1));
+    lua_pop(L, k);
     EXPECT_EQ(15, ch.query("gold"));
+}
+
+// 守卫：obj 为空的绑定 userdata（对象已销毁但 Lua 仍持有）-> 返回 0（不是 nil）
+TEST_F(BindContainerDbaseTest, AddGuardReturnsZero)
+{
+    LuaObject* ud = (LuaObject*)lua_newuserdata(L, sizeof(LuaObject));
+    ud->obj       = NULL;
+    luaL_getmetatable(L, "jianghu_object");
+    lua_setmetatable(L, -2);
+
+    lua_pushstring(L, "gold");
+    lua_pushinteger(L, 5);
+    int k = call(l_add, 3);
+    ASSERT_EQ(1, k) << "add 守卫路径也压值";
+    EXPECT_EQ(0, (int)lua_tointeger(L, -1));
+    lua_pop(L, k);
 }
 
 TEST_F(BindContainerDbaseTest, Del)
@@ -102,7 +121,10 @@ TEST_F(BindContainerDbaseTest, AddTempAndDelete)
     PushStr("cnt");
     PushInt(4);
     PushStr("T");
-    CallVoid(l_add, 4);
+    int k = call(l_add, 4);
+    ASSERT_EQ(1, k) << "add_temp 返回累加后的新值";
+    EXPECT_EQ(7, (int)lua_tointeger(L, -1));
+    lua_pop(L, k);
     EXPECT_EQ(7, ch.query_temp("cnt"));
 
     PushSelf(&ch);

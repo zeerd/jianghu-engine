@@ -369,23 +369,23 @@ void CReward::handle_pk_reward(CChar* killer, CChar* victim, int pkreward,
     }
     if (!pkreward && pk) pk_reward(killer, victim);
 
-    char ti1[20], ti2[20];
+    std::string ti1, ti2;
     if (killer->querymap("family"))
-        strncpy(ti1, killer->querystr("family/family_name"), 20);
+        ti1 = truncated_copy(killer->querystr("family/family_name"), 19);
     else
-        strncpy(ti1, "百姓", 20);
+        ti1 = "百姓";
     if (victim->querymap("family"))
-        strncpy(ti2, victim->querystr("family/family_name"), 20);
+        ti2 = truncated_copy(victim->querystr("family/family_name"), 19);
     else
-        strncpy(ti2, "百姓", 20);
+        ti2 = "百姓";
 
     if (pkreward)
-        snprintf(msg, 255, "%s%s在%s杀死仇敌%s%s，得经验%lld点。", ti1,
-                 killer->name(), env->name(), ti2, victim->name(),
+        snprintf(msg, 255, "%s%s在%s杀死仇敌%s%s，得经验%lld点。", ti1.c_str(),
+                 killer->name(), env->name(), ti2.c_str(), victim->name(),
                  (long long)gain);
     else
-        snprintf(msg, 255, "%s%s在%s杀死%s%s，得经验%lld点。", ti1,
-                 killer->name(), env->name(), ti2, victim->name(),
+        snprintf(msg, 255, "%s%s在%s杀死%s%s，得经验%lld点。", ti1.c_str(),
+                 killer->name(), env->name(), ti2.c_str(), victim->name(),
                  (long long)gain);
 
     if (!pk_chang)

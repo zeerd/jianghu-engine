@@ -60,8 +60,8 @@ int CChannel::check_channel_msg(CChar* me, const char* verb, const char* msg,
 //---------------------------------------------------------
 // EmoteSystem delegation
 //---------------------------------------------------------
-char* CChannel::do_emote(CChar* me, CChar* target, const char* verb,
-                         int channel_emote, const char* who)
+const char* CChannel::do_emote(CChar* me, CChar* target, const char* verb,
+                               int channel_emote, const char* who)
 {
     return m_emote.do_emote(me, target, verb, channel_emote, who);
 }

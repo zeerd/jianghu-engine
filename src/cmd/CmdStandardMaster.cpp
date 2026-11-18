@@ -618,49 +618,49 @@ int CCmdStandard::enable(CChar* me, int32_t target, char* arg)
         return 1;
     }
 
-    char ski[80], map_to[40];
-    char base_skill[10];
-    strncpy(ski, arg, 80);
+    std::string ski = truncated_copy(arg, 79);
+    std::string map_to;
     analyse_string(ski, map_to, 40);
 
-    if (!strlen(map_to))
+    if (map_to.empty())
         return notify_fail("指令格式：enable [<技能种类> <技能名称>|none]");
 
-    base_skill[0] = 0;
+    std::string base_skill;
 
     for (int i = 0; i < 22; i++)
-        if (strcmp(valid_types[i], ski) == 0)
-            strncpy(base_skill, valid_types[i], 10);
+        if (strcmp(valid_types[i], ski.c_str()) == 0)
+            base_skill = valid_types[i];
 
-    if (!base_skill[0])
+    if (base_skill.empty())
         return notify_fail(
             "没有这个技能种类，用 enable ? 可以查看有哪些种类。");
 
-    if (strcmp(map_to, "none") == 0) {
-        me->map_skill(base_skill);
+    if (strcmp(map_to.c_str(), "none") == 0) {
+        me->map_skill(base_skill.c_str());
         me->delete_temp("perf_quick");
         // me->reset_action();
         me->flush_my_skill(me);
         tell_object(me, "Ok.");
         return 1;
     }
-    else if (strcmp(map_to, base_skill) == 0) {
+    else if (strcmp(map_to.c_str(), base_skill.c_str()) == 0) {
         tell_object(me, snprintf(msg, 255, "「%s」是基础，不需要 enable。",
-                                 base_skill));
+                                 base_skill.c_str()));
         return 1;
     }
 
-    if (!me->query_skill(map_to, 1)) return notify_fail("你不会这种技能。");
+    if (!me->query_skill(map_to.c_str(), 1))
+        return notify_fail("你不会这种技能。");
 
-    if (!load_skill(map_to)->valid_enable(base_skill))
+    if (!load_skill(map_to.c_str())->valid_enable(base_skill.c_str()))
         return notify_fail("这个技能不能当成这种用途。");
 
-    me->map_skill(base_skill, map_to);
+    me->map_skill(base_skill.c_str(), map_to.c_str());
     me->delete_temp("perf_quick");
     // me->reset_action();
     tell_object(me, "Ok.");
 
-    if (strcmp(base_skill, "force") == 0) {
+    if (strcmp(base_skill.c_str(), "force") == 0) {
         tell_object(me, "你改用另一种内功，内力必须重新修炼。");
         me->set("mp", MAPPING_VALUE_ZERO);
         me->set("mp_factor", MAPPING_VALUE_ZERO);
@@ -669,7 +669,7 @@ int CCmdStandard::enable(CChar* me, int32_t target, char* arg)
     }
 
     // 判断是否用于组合
-    if (strlen(me->query_skill_prepared(base_skill))) {
+    if (strlen(me->query_skill_prepared(base_skill.c_str()))) {
         CMapping* prepare = me->query_skill_prepare();
         prepare->clear();
         tell_object(me, "你改用另一种空手技能，空手技能必须重新激发。");
@@ -695,7 +695,7 @@ static bool can_prepare_combine(CChar* me, const char* skill_a,
 int CCmdStandard::prepare(CChar* me, int32_t target, char* arg)
 {
     CMapping* smap = me->query_skill_map();
-    char basic1[10], basic2[10];
+    std::string basic1, basic2;
     char valid_types[7][10]
         = {"unarmed", "finger", "hand", "cuff", "claw", "strike", "leg"};
 
@@ -721,8 +721,8 @@ int CCmdStandard::prepare(CChar* me, int32_t target, char* arg)
     char map_to[40];
     analyse_string(arg, map_to, 40);
 
-    basic1[0] = 0;
-    basic2[0] = 0;
+    basic1.clear();
+    basic2.clear();
 
     if (map_to[0]) {
         if (pmap->get_count() == 1)
@@ -736,16 +736,16 @@ int CCmdStandard::prepare(CChar* me, int32_t target, char* arg)
 
         for (int i = 0; i < 7; i++) {
             if (EQUALSTR(smap->querystr(valid_types[i]), arg))
-                strncpy(basic1, valid_types[i], 10);
+                basic1 = valid_types[i];
             if (EQUALSTR(smap->querystr(valid_types[i]), map_to))
-                strncpy(basic2, valid_types[i], 10);
+                basic2 = valid_types[i];
         }
 
-        if (!basic1[0] || !basic2[0])
+        if (basic1.empty() || basic2.empty())
             return notify_fail("这两种拳术尚未激发或目前不能准备。");
 
-        me->prepare_skill(basic1, arg);
-        me->prepare_skill(basic2, map_to);
+        me->prepare_skill(basic1.c_str(), arg);
+        me->prepare_skill(basic2.c_str(), map_to);
 
         me->flush_my_skill(me);
         tell_object(me, "完成技能准备。");
@@ -763,12 +763,13 @@ int CCmdStandard::prepare(CChar* me, int32_t target, char* arg)
 
         for (int i = 0; i < 7; i++) {
             if (EQUALSTR(smap->querystr(valid_types[i]), arg))
-                strncpy(basic1, valid_types[i], 10);
+                basic1 = valid_types[i];
         }
 
-        if (!basic1[0]) return notify_fail("这种技能尚未激发或目前不能准备。");
+        if (basic1.empty())
+            return notify_fail("这种技能尚未激发或目前不能准备。");
 
-        me->prepare_skill(basic1, arg);
+        me->prepare_skill(basic1.c_str(), arg);
 
         me->flush_my_skill(me);
         tell_object(me, "完成技能准备。");

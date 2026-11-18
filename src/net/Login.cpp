@@ -164,7 +164,9 @@ int on_login(CConnectionHandleManager::Handle handle, uintptr_t sockfd,
     char local_ip[512], ipaddress[80];
     char cardno[80], cardpass[80];
     char msg[512], version_info[255];
-    char nid[255], id[255], fmt1[80], fmt2[80];
+    char nid[255], id[255];
+    const char* fmt1 = "";
+    const char* fmt2 = "";
     const char* myip;
     double left = 0;
 
@@ -299,8 +301,8 @@ int on_login(CConnectionHandleManager::Handle handle, uintptr_t sockfd,
             env->change_room(me);
         }
 
-        strncpy(fmt1, "$N重新连线进入这个世界。", 80);
-        strncpy(fmt2, "%s从(%s)重新连线完毕。", 80);
+        fmt1     = "$N重新连线进入这个世界。";
+        fmt2     = "%s从(%s)重新连线完毕。";
         newenter = false;
     }
     else  // 未在线则登录
@@ -433,8 +435,8 @@ int on_login(CConnectionHandleManager::Handle handle, uintptr_t sockfd,
                 "个正式角色吧！（输入 register 即可开始注册）");
         }
 
-        strncpy(fmt1, "$N连线进入这个世界。", 80);
-        strncpy(fmt2, "%s从(%s)连线进入这个世界。", 80);
+        fmt1 = "$N连线进入这个世界。";
+        fmt2 = "%s从(%s)连线进入这个世界。";
     }
 
     // 返回签到结果，包括版本信息

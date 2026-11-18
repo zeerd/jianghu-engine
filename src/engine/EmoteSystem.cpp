@@ -53,14 +53,13 @@ void CEmoteSystem::download_emote(CUser* me)
     }
 }
 
-char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
-                             int channel_emote, const char* who)
+const char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
+                                   int channel_emote, const char* who)
 {
-    static char msg[512];
+    static std::string msg;
     char tmp[512];
-    string str;
-    char my_gender[10], target_gender[10], msg_postfix[10];
-    char target_name[40];
+    string str, my_gender, target_gender;
+    const char* msg_postfix = "";
     CMapping* emote;
 
     if (!me->environment()) return nullptr;
@@ -73,35 +72,23 @@ char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
 
     if (target) {
         if (target == me) {
-            strncpy(msg_postfix, "_self", 10);
-            target = nullptr;
+            msg_postfix = "_self";
+            target      = nullptr;
         }
         else {
-            strncpy(msg_postfix, "_target", 10);
-
-            strncpy(target_gender, target->querystr("gender"), 10);
-            strncpy(target_name, target->name(), 40);
-
-            if (is_user(me) && is_user(target)) {
-                if (EQUALSTR(me->querystr("couple/id"),
-                             target->querystr("id"))) {
-                    snprintf(target_name, 40, "%s%s",
-                             me->querystr("couple/gender"), target->name(1));
-                }
-            }
+            msg_postfix   = "_target";
+            target_gender = truncated_copy(target->querystr("gender"), 9);
         }
     }
-    else
-        msg_postfix[0] = 0;
 
-    strncpy(my_gender, me->querystr("gender"), 10);
+    my_gender = truncated_copy(me->querystr("gender"), 9);
 
     char key[20];
 
     snprintf(key, 20, "myself%s", msg_postfix);
     str = emote->querystr(key);
     if (str.length()) {
-        strncpy(msg, str.c_str(), 512);
+        msg = truncated_copy(str.c_str(), 511);
         replace_string(msg, "$N", who ? who : me->name(), 512);
         replace_string(msg, "$P", gender_self(my_gender), 512);
         replace_string(msg, "$S", query_self(me), 512);
@@ -115,12 +102,13 @@ char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
             replace_string(msg, "$p", gender_pronoun(target_gender), 512);
         }
 
-        if (!channel_emote) tell_object(me, snprintf(tmp, 512, "$HIC%s", msg));
+        if (!channel_emote)
+            tell_object(me, snprintf(tmp, 512, "$HIC%s", msg.c_str()));
     }
 
     str = emote->querystr("target");
     if (target && str.length()) {
-        strncpy(msg, str.c_str(), 512);
+        msg = truncated_copy(str.c_str(), 511);
         replace_string(msg, "$N", who ? who : me->name(), 512);
         replace_string(msg, "$P", gender_pronoun(my_gender), 512);
         replace_string(msg, "$S", query_self(me), 512);
@@ -133,14 +121,14 @@ char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
         replace_string(msg, "$p", gender_self(target_gender), 512);
 
         if (!channel_emote)
-            tell_object(target, snprintf(tmp, 512, "$HIC%s", msg));
+            tell_object(target, snprintf(tmp, 512, "$HIC%s", msg.c_str()));
     }
 
     snprintf(key, 20, "others%s", msg_postfix);
     str = emote->querystr(key);
     if (str.length()) {
         char tmp[512];
-        strncpy(msg, str.c_str(), 512);
+        msg = truncated_copy(str.c_str(), 511);
         replace_string(
             msg, "$N",
             who ? who
@@ -161,15 +149,16 @@ char* CEmoteSystem::do_emote(CChar* me, CChar* target, const char* verb,
         }
 
         if (!channel_emote) {
-            message_vision_room(me, "chat", snprintf(tmp, 512, "$HIC%s", msg),
-                                me, target);
+            message_vision_room(me, "chat",
+                                snprintf(tmp, 512, "$HIC%s", msg.c_str()), me,
+                                target);
         }
         else
-            return msg;
+            return msg.c_str();
     }
 
     // Let NPC know we are doing emote on him.
     if (target) target->relay_emote(me, verb);
 
-    return const_cast<char*>("");
+    return "";
 }

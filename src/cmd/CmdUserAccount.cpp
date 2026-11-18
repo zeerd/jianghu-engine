@@ -224,20 +224,22 @@ int CCmdUser::validate(CChar* me, int32_t target, char* arg)
 // 修改暗码
 int CCmdUser::verify_pass(CChar* me, int32_t target, char* arg)
 {
-    char msg[40];
-
-    analyse_string(arg, msg, 40);
-    if (!msg[0]) {
-        strncpy(msg, arg, 40)[39] = 0;
-        arg[0]                    = 0;
+    std::string comm(arg);
+    std::string msg;
+    analyse_string(comm, msg, 40);
+    if (msg.empty()) {
+        msg = truncated_copy(comm.c_str(), 39);
+        comm.clear();
     }
+    // comm 只会是原串的前缀或等长，回写不越界
+    strcpy(arg, comm.c_str());
 
     if (!verify_password(me->id(1), arg)) return notify_fail("身份验证未通过!");
 
-    if (strlen(msg) < 5) return notify_fail("暗码不能少于5个字元！");
-    if (strlen(msg) > 20) return notify_fail("您的暗码也太长了！");
+    if (msg.size() < 5) return notify_fail("暗码不能少于5个字元！");
+    if (msg.size() > 20) return notify_fail("您的暗码也太长了！");
 
-    if (!change_verify_password(me->querystr("id"), msg))
+    if (!change_verify_password(me->querystr("id"), msg.c_str()))
         return notify_fail("修改暗码失败！");
 
     tell_object(me, "修改暗码成功！");

@@ -10,6 +10,10 @@
 #include <string>
 
 // --- 字符串工具 ---
+// 就地替换：结果截到 len-1（字段宽度是协议契约）。std::string 形态是唯一
+// 算法实现；char* 形态由它代写，保留给尚未迁移到字符串管线的调用点。
+void replace_string(std::string& msg, const char* oldstr, const char* newstr,
+                    size_t len);
 void replace_string(char* msg, const char* oldstr, const char* newstr, int len);
 char* chinese_number(mapping_value_t i, char* msg);
 

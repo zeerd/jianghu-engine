@@ -428,13 +428,19 @@ TEST_F(BindCharCombatTest, EnableDisablePlayer)
 
     lua_pushstring(L, "test disable");
 
-    EXPECT_EQ(0, CallRetCount(l_disable_player, 2));
+    int k = call(l_disable_player, 2);
+    ASSERT_EQ(1, k) << "disable_player 返回成败";
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 
     EXPECT_STREQ("test disable", ch.querystr_temp("disabled"));
 
     lua_bind_push_object(L, &ch);
 
-    EXPECT_EQ(0, CallRetCount(l_enable_player, 1));
+    k = call(l_enable_player, 1);
+    ASSERT_EQ(1, k) << "enable_player 返回成败";
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 
     EXPECT_EQ('\0', ch.querystr_temp("disabled")[0]);
 }
@@ -513,6 +519,27 @@ TEST_F(BindCharCombatTest, SaveLoadOffline)
     EXPECT_EQ(0, u.query_temp("client/loading"));
 
     g_db = nullptr;
+}
+
+// ---- 绑定守卫：无效 self 也必须返回一个 false（与成功支同一契约）----
+TEST_F(BindCharCombatTest, DisableEnableGuardReturnsFalse)
+{
+    // 对象但非 CChar -> dynamic_cast 失败
+    CContainer box;
+    box.set_name("box", "guard_box");
+
+    lua_bind_push_object(L, &box);
+    lua_pushstring(L, "x");
+    int k = call(l_disable_player, 2);
+    ASSERT_EQ(1, k) << "disable_player 守卫路径也压值";
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
+
+    lua_bind_push_object(L, &box);
+    k = call(l_enable_player, 1);
+    ASSERT_EQ(1, k) << "enable_player 守卫路径也压值";
+    EXPECT_FALSE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 }
 
 // ---- l_start_powerup 深路 ----

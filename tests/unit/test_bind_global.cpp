@@ -1035,6 +1035,70 @@ TEST_F(BindGlobalTest, DbQuery_BuildsRowsTable)
     g_db = nullptr;
 }
 
+// 行索引契约：结果集第 i 行落在 Lua 侧第 i+1 个键，多行时不得串位或塌缩。
+TEST_F(BindGlobalTest, DbQuery_MultiRowKeepsRowPositions)
+{
+    MockDatabase db;
+
+    DbResultSet rs;
+    DbRow first;
+    first.columns = {"r1c1", "r1c2"};
+    DbRow second;
+    second.columns = {"r2c1", "r2c2"};
+    rs.rows.push_back(first);
+    rs.rows.push_back(second);
+
+    db.SetQueryResultMatching("select multi", rs);
+
+    g_db = &db;
+
+    lua_pushstring(L, "select multi from t");
+
+    int k = call(l_db_query, 1);
+
+    EXPECT_EQ(1, k);
+
+    if (k >= 1 && lua_istable(L, -1)) {
+        EXPECT_EQ(2u, (unsigned)lua_rawlen(L, -1)) << "两行";
+
+        lua_rawgeti(L, -1, 1);  // 第一行子表
+
+        if (lua_istable(L, -1)) {
+            EXPECT_EQ(2u, (unsigned)lua_rawlen(L, -1)) << "第一行两列";
+
+            lua_rawgeti(L, -1, 1);
+            EXPECT_STREQ("r1c1", lua_tostring(L, -1));
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, -1, 2);
+            EXPECT_STREQ("r1c2", lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);  // 第一行子表
+
+        lua_rawgeti(L, -1, 2);  // 第二行子表
+
+        if (lua_istable(L, -1)) {
+            EXPECT_EQ(2u, (unsigned)lua_rawlen(L, -1)) << "第二行两列";
+
+            lua_rawgeti(L, -1, 1);
+            EXPECT_STREQ("r2c1", lua_tostring(L, -1));
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, -1, 2);
+            EXPECT_STREQ("r2c2", lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);  // 第二行子表
+    }
+
+    lua_pop(L, k);
+
+    g_db = nullptr;
+}
+
 TEST_F(BindGlobalTest, DbRegisterDdl_RegistersOnce)
 
 {

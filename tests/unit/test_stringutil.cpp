@@ -10,10 +10,12 @@
 
 // --- Forward declare functions under test ---
 void analyse_string(char* Comm, char* arg, int len);
+void analyse_string(std::string& comm, std::string& arg, size_t len);
 char* get_value(const char* cmd_str, const char* keyword, char* pValue,
                 int nValueLen);
 void normalize_password(char* pass);
 char* decode_str(char* msg);
+std::string truncated_copy(const char* src, size_t max_len);
 
 namespace {
 
@@ -98,6 +100,64 @@ TEST(StringUtil, AnalyseString_ArgTruncated)
     analyse_string(buf, arg, sizeof(arg));
     EXPECT_STREQ(buf, "cmd");
     EXPECT_STREQ(arg, "sho");  // truncated to nLen-1
+}
+
+// ====================================================================
+// analyse_string（std::string 形态）：同一劈分契约，arg 截到 len-1
+// ====================================================================
+
+TEST(AnalyseStringStd, SplitsFirstSpace)
+{
+    std::string comm = "kill monster";
+    std::string arg;
+    analyse_string(comm, arg, 64);
+    EXPECT_EQ(comm, "kill");
+    EXPECT_EQ(arg, "monster");
+}
+
+TEST(AnalyseStringStd, NoSpaceKeepsCommAndClearsArg)
+{
+    std::string comm = "look";
+    std::string arg  = "stale";
+    analyse_string(comm, arg, 64);
+    EXPECT_EQ(comm, "look");
+    EXPECT_EQ(arg, "");
+}
+
+TEST(AnalyseStringStd, KeepsRemainingArgsIntact)
+{
+    std::string comm = "say hello world";
+    std::string arg;
+    analyse_string(comm, arg, 64);
+    EXPECT_EQ(comm, "say");
+    EXPECT_EQ(arg, "hello world");
+}
+
+TEST(AnalyseStringStd, ArgTruncatedAtLenMinusOne)
+{
+    std::string comm = "cmd shortarg";
+    std::string arg;
+    analyse_string(comm, arg, 4);
+    EXPECT_EQ(comm, "cmd");
+    EXPECT_EQ(arg, "sho") << "与就地版同轨：arg 截到 len-1";
+}
+
+TEST(AnalyseStringStd, LeadingSpaceSplitsToEmptyComm)
+{
+    std::string comm = " look";
+    std::string arg;
+    analyse_string(comm, arg, 64);
+    EXPECT_EQ(comm, "");
+    EXPECT_EQ(arg, "look");
+}
+
+TEST(AnalyseStringStd, ZeroLenClearsArg)
+{
+    std::string comm = "cmd tail";
+    std::string arg  = "x";
+    analyse_string(comm, arg, 0);
+    EXPECT_EQ(comm, "cmd") << "头部照常切出";
+    EXPECT_EQ(arg, "");
 }
 
 // ====================================================================
@@ -220,6 +280,41 @@ TEST(StringUtil, DecodeStr_RoundTripsFrameWithWhitespace)
     EXPECT_EQ(Decode(EncodeWithKey(plain, "ConfigKey123")), plain);
 
     ini_load("tests/unit/test_config.ini");
+}
+
+// ====================================================================
+// truncated_copy：定宽字段装配——超长按字段宽度截尾（宽度是协议契约）
+// ====================================================================
+
+// 短于/等于宽度的源串原样返回（宽度边界本身不构成截断）
+TEST(StringUtil, TruncatedCopy_WithinWidthUnchanged)
+{
+    EXPECT_EQ(truncated_copy("百姓", 19), "百姓");
+    EXPECT_EQ(truncated_copy("exactly-10", 10), "exactly-10");
+    EXPECT_EQ(truncated_copy("", 19), "");
+}
+
+// 超宽源串截到字段宽度为止
+TEST(StringUtil, TruncatedCopy_TruncatesBeyondWidth)
+{
+    EXPECT_EQ(truncated_copy("longer than ten", 10), "longer tha");
+}
+
+// 空指针按空串处理：ini/dbase 取值可能给出空指针，不得解引用崩溃
+TEST(StringUtil, TruncatedCopy_NullptrYieldsEmpty)
+{
+    EXPECT_EQ(truncated_copy(nullptr, 19), "");
+}
+
+// 按字节截尾，可能截在多字节字符中间——与历史定宽字段口径一致。
+// 输入用显式字节构造：窄字面量按 /execution-charset:gbk 落二进制，断言
+// 只谈字节语义才不受编码取值影响。
+TEST(StringUtil, TruncatedCopy_TruncatesByBytes)
+{
+    const std::string two_multibyte("\xE7\x99\xBE\xE5\xA8\x83", 6);
+    EXPECT_EQ(truncated_copy(two_multibyte.c_str(), 4),
+              two_multibyte.substr(0, 4))
+        << "必须按字节截到 4，而不是按字符边界截到 3";
 }
 
 // ====================================================================

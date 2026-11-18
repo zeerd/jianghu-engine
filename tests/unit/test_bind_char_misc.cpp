@@ -258,7 +258,10 @@ TEST_F(BindCharMiscTest, CreatePurgeClear)
 
     lua_bind_push_object(L, &c);
 
-    CallVoid(l_purge, 1);  // non-treasure -> no-op, returns 0 values
+    int kp = call(l_purge, 1);  // 无存档行可删 -> 成功
+    ASSERT_EQ(1, kp);
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, kp);
 
     CChar ch;
 

@@ -86,7 +86,7 @@ return {
         self:del("sign/id")
         self:del("sign/name")
 
-        if is_user(env) then
+        if env and env:is_user() then
             tell_object(env, "婚姻登记表上的签名渐渐淡去了……")
         elseif env then
             message("room", env, "婚姻登记表上的签名渐渐淡去了……")

@@ -45,12 +45,11 @@ void CRoom::add_menu_item(string show, string cmd, CChar* me)
 
 int CRoom::say(const char* arg, CChar* me, const char* tips)
 {
-    char chat[402];
     char msg[512];
 
     if (!me) {
-        strncpy(chat, arg, 400)[400] = 0;
-        snprintf(msg, 512, "%s说：%s", name(), chat);
+        const std::string chat = truncated_copy(arg, 400);
+        snprintf(msg, 512, "%s说：%s", name(), chat.c_str());
         message_vision_room(this, "chat", msg);
     }
     else {

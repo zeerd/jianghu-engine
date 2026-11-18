@@ -80,11 +80,11 @@ function n.do_greeting2(self)
 end
 
 function n.init(self, me)
-    if not self:is_fighting() and is_user(me) then
+    if not self:is_fighting() and me:is_user() then
         local list = me:get_item_list()
         if list then
             for obj in iter_items(list) do
-                if is_user(obj) then
+                if obj:is_user() then
                     obj:move(load("room", START_ROOM))
                     if is_master(self, me) ~= 0 then
                         message(

@@ -344,15 +344,24 @@ int l_begin_fb(lua_State* L)
 int l_move_in(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     CFB* fb = dynamic_cast<CFB*>(obj);
-    if (!fb) return 0;
+    if (!fb) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     CMainObject* mo = get_object(L, 2);
     CChar* me       = mo ? dynamic_cast<CChar*>(mo) : NULL;
-    if (!me) return 0;
+    if (!me) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     int party = (int)luaL_optinteger(L, 3, 0);
-    fb->move_in(me, party);
-    return 0;
+    lua_pushboolean(L, fb->move_in(me, party) != 0);
+    return 1;
 }
 
 // self:load_fb_room(room_name) -> object - 副本总控(CFB)加载一个副本房间

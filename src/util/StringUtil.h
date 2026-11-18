@@ -6,10 +6,23 @@
 
 #include <sal.h>
 
+#include <cstddef>
+#include <string>
+
 // --- 字符串分析 ---
 void analyse_string(char* Comm, char* arg, int len);
 char* get_value(const char* cmd_str, const char* keyword, char* pValue,
                 int nValueLen);
+// 指令劈分（首个空格切分）：comm 收头部（含后续原样）、arg 收尾部并截到
+// len-1；无空格时 arg 置空、comm 不变。char* 形态为就地版，保留给可变
+// 缓冲调用点。
+void analyse_string(std::string& comm, std::string& arg, size_t len);
+
+// --- 定宽字段装配 ---
+// 按字段宽度截尾拷贝：源串超长时只取前 max_len 字节——按字节截，可能截在
+// 多字节字符中间，与历史定宽字段口径一致。字段宽度是协议契约（超长值截断
+// 是既定行为）；空指针按空串处理。
+std::string truncated_copy(const char* src, size_t max_len);
 
 // --- 格式化 ---
 // _Printf_format_string_ 让编译器按格式串核对实参宽度：槽位值已是 64 位，

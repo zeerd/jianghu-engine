@@ -98,15 +98,17 @@ int l_db_query(lua_State* L)
 
     lua_newtable(L);
 
-    for (size_t i = 0; i < result.rows.size(); i++) {
+    // 行列索引走 int：DbRow::operator[](int) 与 DbResultSet::size() 是 int
+    // 契约， 与其余 db 调用方（Sql.cpp / SqlRank.cpp）同基线。
+    for (int i = 0; i < result.size(); i++) {
         const DbRow& row = result.rows[i];
 
         lua_newtable(L);
 
-        for (size_t j = 0; j < row.columns.size(); j++) {
-            lua_pushlstring(L, row[j].c_str(), static_cast<int>(row[j].size()));
+        for (int j = 0; j < (int)row.columns.size(); j++) {
+            lua_pushlstring(L, row[j].c_str(), row[j].size());
 
-            lua_rawseti(L, -2, static_cast<int>(j) + 1);
+            lua_rawseti(L, -2, j + 1);
         }
 
         lua_rawseti(L, -2, i + 1);

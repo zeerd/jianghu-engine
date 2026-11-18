@@ -405,10 +405,10 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     CChar* me;
     CChar tempChar;
     int emote = 0;
-    char verb[40], chat[512], msg[512];
+    char msg[512], fmt_buf[512];
 
-    strncpy(verb, arg1, 40)[39]   = 0;
-    strncpy(chat, arg2, 480)[480] = 0;
+    std::string verb = truncated_copy(arg1, 39);
+    std::string chat = truncated_copy(arg2, 480);
 
     // 1, 判断发布消息者是个物件
     if (ob->is_character())
@@ -419,15 +419,14 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     }
 
     // 2, 分离动词，如果是带*的，将*去掉，标记其为一个表情。
-    int len = static_cast<int>(strlen(verb)) - 1;
-    if (len < 0) return 0;
-    if (verb[len] == '*' && len > 0) {
-        emote     = 1;
-        verb[len] = 0;
+    if (verb.empty()) return 0;
+    if (verb.back() == '*' && verb.size() > 1) {
+        emote = 1;
+        verb.pop_back();
     }
 
     // 3, 判断动词是否属于合法频道
-    CMapping* channel = channels.querymap(verb);
+    CMapping* channel = channels.querymap(verb.c_str());
     if (!channel) return 0;
 
     // 4, 判断该频道是否支持表情
@@ -437,17 +436,16 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     }
 
     // 5, 去掉右空格，如无说话内容，不理睬。
-    int chat_len = static_cast<int>(strlen(chat)) - 1;
-    if (chat_len < 0) return 1;
+    if (chat.empty()) return 1;
 
-    while (chat_len && chat[chat_len] == ' ') chat[chat_len--] = 0;
+    while (chat.size() > 1 && chat.back() == ' ') chat.pop_back();
 
-    if (!chat[0]) strcpy(chat, "...");
+    if (chat.empty()) chat = "...";
 
     // 6, 检查使用者是否有权利使用该频道。
     char block_key[20];
 
-    snprintf(block_key, 20, "chblk/%s", verb);
+    snprintf(block_key, 20, "chblk/%s", verb.c_str());
 
     if (is_user(me) && !is_wizard(me)) {
         if (g_current_time < me->query("chblk/all"))
@@ -467,7 +465,8 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
             return notify_fail("你的年纪太小了，只能用新手频道说话。");
 
         // check if same channel message but not wizard
-        if (!check_channel_msg(me, verb, chat, block_key)) return 0;
+        if (!check_channel_msg(me, verb.c_str(), chat.c_str(), block_key))
+            return 0;
 
         if (!is_wizard(me) && channel->query("use_mp")) {
             if (me->query("mp") < 20)
@@ -491,71 +490,73 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     }
 
     // 7, 转换为表情
-    char* fmt = chat;
-    int bHide = 0;
+    const char* fmt = chat.c_str();
+    int bHide       = 0;
 
     if (emote && m_emote) {
         if (channel->query("interMain_emote"))
-            fmt = m_emote->do_emote(me, who, chat, 3);
-        else if (strcmp(verb, "rumor") == 0 && g_utils.random(10) < 8) {
-            fmt   = m_emote->do_emote(me, who, chat, 2,
+            fmt = m_emote->do_emote(me, who, chat.c_str(), 3);
+        else if (strcmp(verb.c_str(), "rumor") == 0 && g_utils.random(10) < 8) {
+            fmt   = m_emote->do_emote(me, who, chat.c_str(), 2,
                                       channel->querystr("anonymous"));
             bHide = 1;
         }
         else
-            fmt = m_emote->do_emote(me, who, chat, 1);
+            fmt = m_emote->do_emote(me, who, chat.c_str(), 1);
 
         if (!fmt || !fmt[0]) {
             // 只允许中文表情
             if (*((unsigned char*)&chat[0]) < 160) return 0;
 
-            char tmp[512];
+            const std::string tmp = truncated_copy(chat.c_str(), 511);
 
-            strncpy(tmp, chat, 512);
+            fmt = snprintf(fmt_buf, 512, "%s(%s)%s", me->name(), me->id(),
+                           tmp.c_str());
 
-            fmt = snprintf(chat, 512, "%s(%s)%s", me->name(), me->id(), tmp);
-
-            if (strcmp(verb, "rumor") == 0) {
+            if (strcmp(verb.c_str(), "rumor") == 0) {
                 if (is_user(me))
-                    fmt = snprintf(chat, 512, "%s%s",
-                                   channel->querystr("anonymous"), tmp);
+                    fmt = snprintf(fmt_buf, 512, "%s%s",
+                                   channel->querystr("anonymous"), tmp.c_str());
             }
         }
     }
 
     // 8, 获得发言者身份，如果是匿名频道，换作匿名。
-    char mouren[40];
+    std::string mouren = truncated_copy(channel->querystr("anonymous"), 39);
 
-    strncpy(mouren, channel->querystr("anonymous"), 40)[39] = 0;
-
-    if (mouren[0]) {
+    if (!mouren.empty()) {
         // 造谣有20%的几率要破
         if (is_user(me) && !emote)  // 修改表情有时连巫师也会骗过的BUG。
             if (g_utils.random(10) < 8)
                 bHide = 1;
-            else
-                snprintf(mouren, 40, "%s(%s)", me->name(1), me->id(1));
+            else {
+                const std::string shown
+                    = std::string(me->name(1)) + "(" + me->id(1) + ")";
+                mouren = truncated_copy(shown.c_str(), 39);
+            }
 
         if (bHide)
             do_channel(ob, nullptr, "sys",
                        snprintf(msg, 512, "%s躲了起来造谣。", me->name(1)));
     }
     else {
-        strncpy(mouren, me->querystr("channel_id"), 40)[39] = 0;
-        if (is_user(me) || !mouren[0]) {
+        mouren = truncated_copy(me->querystr("channel_id"), 39);
+        if (is_user(me) || mouren.empty()) {
             if (strcmp(me->name(0), me->name(1)) && emote)
                 do_channel(ob, nullptr, "sys",
                            snprintf(msg, 512, "$HIW%s(%s)$HIW扮%s!",
                                     me->name(1), me->id(1), me->name()));
 
-            snprintf(mouren, 40, "%s(%s)", me->name(1), me->id(1));
+            const std::string shown
+                = std::string(me->name(1)) + "(" + me->id(1) + ")";
+            mouren = truncated_copy(shown.c_str(), 39);
         }
     }
 
     // 9, 发送给接收该频道的用户
 
     MAP2USER list;
-    if (!filter_list(channel, me, verb, list)) return 0;
+    if (!filter_list(channel, me, verb.c_str(), list)) return 0;
 
     const char* wiz_name;
     mapping_value_t grant = me->query("grant");
@@ -574,8 +575,11 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     // 本次发言并逐行广播，nil 则交还内置频道分支
     CLuaHookCall hook("do_channel");
     if (hook.valid()) {
-        hook.add_str(verb).add_object(me).add_str(fmt).add_str(mouren).add_str(
-            channel->querystr("msg_speak"));
+        hook.add_str(verb.c_str())
+            .add_object(me)
+            .add_str(fmt)
+            .add_str(mouren.c_str())
+            .add_str(channel->querystr("msg_speak"));
         if (hook.call() && !hook.result_is_nil()) {
             for (int i = 0, n = hook.table_str_count(); i < n; i++) {
                 std::string line;
@@ -587,17 +591,17 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     }
 
     if (emote) {
-        if (strcmp(verb, "party") == 0)
+        if (strcmp(verb.c_str(), "party") == 0)
             message("channel:",
                     snprintf(msg, 512, channel->querystr("msg_emote"),
                              me->querystr("family/family_name"), fmt),
                     &list);
-        else if (strcmp(verb, "corps") == 0)
+        else if (strcmp(verb.c_str(), "corps") == 0)
             message("channel:",
                     snprintf(msg, 512, channel->querystr("msg_emote"),
                              load_room(me->querystr("corps/id"))->name(), fmt),
                     &list);
-        else if (strcmp(verb, "wiz") == 0) {
+        else if (strcmp(verb.c_str(), "wiz") == 0) {
             message("channel:",
                     snprintf(msg, 512, channel->querystr("msg_emote"), wiz_name,
                              fmt),
@@ -611,38 +615,39 @@ int CChatChannel::do_channel(CContainer* ob, CChar* who, const char* arg1,
     else {
         const char* corps_id = me->querystr("corps/id");
 
-        if (strcmp(verb, "party") == 0)
+        if (strcmp(verb.c_str(), "party") == 0)
             message("channel:",
                     snprintf(msg, 512, channel->querystr("msg_speak"),
-                             me->querystr("family/family_name"), mouren, fmt),
+                             me->querystr("family/family_name"), mouren.c_str(),
+                             fmt),
                     &list);
-        else if (strcmp(verb, "corps") == 0)
+        else if (strcmp(verb.c_str(), "corps") == 0)
             message("channel:",
                     snprintf(msg, 512, channel->querystr("msg_speak"),
-                             load_room(corps_id)->name(), mouren, fmt),
+                             load_room(corps_id)->name(), mouren.c_str(), fmt),
                     &list);
-        else if (strcmp(verb, "wiz") == 0)
+        else if (strcmp(verb.c_str(), "wiz") == 0)
             message("channel:",
                     snprintf(msg, 512, channel->querystr("msg_speak"), wiz_name,
-                             mouren, fmt),
+                             mouren.c_str(), fmt),
                     &list);
-        else if (strcmp(verb, "new") == 0)
+        else if (strcmp(verb.c_str(), "new") == 0)
             message("channel:",
                     snprintf(msg, 512, channel->querystr("msg_speak"),
                              corps_id[0] ? load_room(corps_id)->name() : "新手",
-                             mouren, fmt),
+                             mouren.c_str(), fmt),
                     &list);
-        else if (strcmp(verb, "chat") == 0)
+        else if (strcmp(verb.c_str(), "chat") == 0)
             message("channel:",
                     snprintf(msg, 512, channel->querystr("msg_speak"),
                              corps_id[0] ? load_room(corps_id)->name() : "闲聊",
-                             mouren, fmt),
+                             mouren.c_str(), fmt),
                     &list);
         else
-            message(
-                "channel:",
-                snprintf(msg, 512, channel->querystr("msg_speak"), mouren, fmt),
-                &list);
+            message("channel:",
+                    snprintf(msg, 512, channel->querystr("msg_speak"),
+                             mouren.c_str(), fmt),
+                    &list);
     }
 
     return 1;

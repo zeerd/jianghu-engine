@@ -21,7 +21,7 @@ return {
     end,
 
     init = function(self, me)
-        if not is_user(me) then
+        if not me:is_user() then
             return
         end
 

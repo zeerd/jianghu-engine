@@ -429,23 +429,35 @@ int l_query_team(lua_State* L)
 int l_disable_player(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
+    if (!ch) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     const char* msg = luaL_checkstring(L, 2);
-    ch->disable_player(msg);
-    return 0;
+    lua_pushboolean(L, ch->disable_player(msg) != 0);
+    return 1;
 }
 
 // self:enable_player() -> void
 int l_enable_player(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
-    ch->enable_player();
-    return 0;
+    if (!ch) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+    lua_pushboolean(L, ch->enable_player() != 0);
+    return 1;
 }
 
 // self:setup() - 重新初始化（CRoom/CChar）

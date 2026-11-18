@@ -40,8 +40,8 @@ public:
      * @param who           覆盖默认发送者名字
      * @return 渲染后的文本；失败返回 NULL 或空串
      */
-    char* do_emote(CChar* me, CChar* target, const char* verb,
-                   int channel_emote, const char* who = nullptr);
+    const char* do_emote(CChar* me, CChar* target, const char* verb,
+                         int channel_emote, const char* who = nullptr);
 
     /** @brief 将 emote 动词下载到客户端。 */
     void download_emote(CUser* me);

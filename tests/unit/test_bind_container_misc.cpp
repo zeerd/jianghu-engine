@@ -263,7 +263,10 @@ TEST_F(BindContainerMiscTest, SayBindDeliversToViewer)
     lua_bind_push_object(L, &eq);
     lua_pushstring(L, "低语回荡在耳边");
     lua_bind_push_object(L, &viewer);
-    CallVoid(l_say, 3);
+    int k = call(l_say, 3);
+    ASSERT_EQ(1, k) << "say 返回成败";
+    EXPECT_TRUE(lua_toboolean(L, -1));
+    lua_pop(L, k);
 
     EXPECT_TRUE(viewer.has("低语回荡在耳边")) << "l_say → 定向投递(256)";
     viewer.move(nullptr);

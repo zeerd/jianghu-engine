@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file SqlRank.cpp
  * @brief 排行榜  */
 
@@ -46,18 +46,15 @@ int paihangbang(CContainer* me)
                 continue;
             }
 
-            char name[40], fam[20];
-            strncpy(name, row[1].c_str(), 40);
-            if (!row[2].empty())
-                strncpy(fam, row[2].c_str(), 20);
-            else
-                fam[0] = 0;
+            const std::string name = truncated_copy(row[1].c_str(), 39);
+            const std::string fam  = truncated_copy(row[2].c_str(), 19);
 
             if (auto* handler = dynamic_cast<IActionHandler*>(me))
                 handler->handle_action(
                     "update", NULL,
                     snprintf(msg, 255, "%d %s %s %s %s", i, row[0].c_str(),
-                             name[0] ? name : "无名氏", fam[0] ? fam : "无门派",
+                             name.empty() ? "无名氏" : name.c_str(),
+                             fam.empty() ? "无门派" : fam.c_str(),
                              row[3].c_str()));
         }
 

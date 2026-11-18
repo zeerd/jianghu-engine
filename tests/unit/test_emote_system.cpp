@@ -63,7 +63,7 @@ TEST_F(EmoteRenderTest, ChannelModeNoTarget_RendersOthersText)
     CChar me;
     EnterRoom(&me, "张三", "emote_me", &env);
 
-    char* out = es.do_emote(&me, nullptr, "watermelon", 1);
+    const char* out = es.do_emote(&me, nullptr, "watermelon", 1);
 
     ASSERT_NE(out, nullptr) << "表情表未从 Lua 载入或渲染失败";
     EXPECT_TRUE(std::strstr(out, "今日我请大家吃西瓜") != nullptr) << out;
@@ -78,7 +78,7 @@ TEST_F(EmoteRenderTest, DirectModeNoTarget_TellsSenderAndReturnsEmpty)
     CChar me;
     EnterRoom(&me, "张三", "emote_me", &env);
 
-    char* out = es.do_emote(&me, nullptr, "watermelon", 0);
+    const char* out = es.do_emote(&me, nullptr, "watermelon", 0);
 
     ASSERT_NE(out, nullptr);
     EXPECT_STREQ(out, "");
@@ -94,7 +94,7 @@ TEST_F(EmoteRenderTest, DirectModeWithTarget_RendersAndRelaysToTarget)
     EnterRoom(&me, "张三", "emote_me", &env);
     EnterRoom(&target, "李四", "emote_tgt", &env);
 
-    char* out = es.do_emote(&me, &target, "watermelon", 0);
+    const char* out = es.do_emote(&me, &target, "watermelon", 0);
 
     ASSERT_NE(out, nullptr);
     EXPECT_STREQ(out, "");
@@ -127,7 +127,7 @@ TEST_F(EmoteRenderTest, SelfTarget_UsesSelfPostfix)
     CChar me;
     EnterRoom(&me, "张三", "emote_me", &env);
 
-    char* out = es.do_emote(&me, &me, "watermelon", 1);
+    const char* out = es.do_emote(&me, &me, "watermelon", 1);
 
     ASSERT_NE(out, nullptr);
     EXPECT_TRUE(std::strstr(out, "猴急") != nullptr) << out;
@@ -145,14 +145,14 @@ TEST_F(EmoteRenderTest, UserEmitter_RendersNameWithId)
     me.clear();
     target.clear();
 
-    char* out = es.do_emote(&me, &target, "watermelon", 1);
+    const char* out = es.do_emote(&me, &target, "watermelon", 1);
     ASSERT_NE(out, nullptr);
     EXPECT_TRUE(std::strstr(out, "张三(emote_me)") != nullptr) << out;
     EXPECT_TRUE(std::strstr(out, "李四") != nullptr) << out;
 
     me.set("couple/id", "emote_tgt");
     me.set("couple/gender", "娘子");
-    char* coupled = es.do_emote(&me, &target, "watermelon", 1);
+    const char* coupled = es.do_emote(&me, &target, "watermelon", 1);
     ASSERT_NE(coupled, nullptr);
     EXPECT_TRUE(std::strstr(coupled, "李四") != nullptr)
         << "情侣身份不得改写目标名渲染";

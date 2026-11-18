@@ -310,39 +310,57 @@ int l_query_skill(lua_State* L)
 int l_set_skill(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
+    if (!ch) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     const char* skill = luaL_checkstring(L, 2);
     int level         = (int)luaL_checkinteger(L, 3);
-    ch->set_skill(skill, level);
-    return 0;
+    lua_pushboolean(L, ch->set_skill(skill, level) != 0);
+    return 1;
 }
 
 // self:delete_skill(skill) - 删除技能
 int l_delete_skill(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
+    if (!ch) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     const char* skill = luaL_checkstring(L, 2);
-    ch->delete_skill(skill);
-    return 0;
+    lua_pushboolean(L, ch->delete_skill(skill) != 0);
+    return 1;
 }
 
 // self:apply_condition(cnd, duration[, who])
 int l_apply_condition(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     CChar* ch = dynamic_cast<CChar*>(obj);
-    if (!ch) return 0;
+    if (!ch) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     const char* cnd  = luaL_checkstring(L, 2);
     int32_t duration = (int32_t)luaL_checkinteger(L, 3);
@@ -350,11 +368,13 @@ int l_apply_condition(lua_State* L)
     if (lua_isnumber(L, 4)) damage = (int32_t)luaL_checkinteger(L, 4);
     CChar* who = NULL;
     if (lua_isuserdata(L, 5)) who = dynamic_cast<CChar*>(get_object(L, 5));
+    bool ok;
     if (who)
-        ch->apply_condition(who, cnd, duration, damage);
+        ok = ch->apply_condition(who, cnd, duration, damage);
     else
-        ch->apply_condition(cnd, duration, damage);
-    return 0;
+        ok = ch->apply_condition(cnd, duration, damage);
+    lua_pushboolean(L, ok);
+    return 1;
 }
 
 // self:skill_map(action, ...) - 技能映射（usage -> 高级技能）分派口。

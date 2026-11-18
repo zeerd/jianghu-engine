@@ -152,7 +152,7 @@ function M.intercept_foreign(self, comm, me, arg, tar, yongren)
             return 1
         end
 
-        if is_user(obj) then
+        if obj:is_user() then
             message("vision", "$N疑惑的问着$n：你想拣什么？", yongren, me)
             return 1
         end

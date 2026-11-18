@@ -45,6 +45,7 @@ int CVendor::do_list(CChar* me, int page)
     char version[40];
 
     strncpy(version, me->querystr_temp("client/version"), 40);
+    version[39] = 0;
 
     DTGood* good;
     int i = 0, begin = page * 10, end = page * 10 + 10;
@@ -285,6 +286,7 @@ int CVendor::handle_action(char* comm, CChar* me, char* arg)
 
     if (is_fighting()) return 0;
     strncpy(szGood, arg, 80);
+    szGood[79] = 0;
     analyse_string(szGood, szPage, 50);
 
     if (strcmp(comm, "list") == 0) {

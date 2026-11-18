@@ -19,7 +19,7 @@ function npc.create(self)
 end
 
 function npc.init(self, me)
-    if is_user(me) and not self:is_fighting() then
+    if me:is_user() and not self:is_fighting() then
         self:remove_call_out("do_greeting")
         self:call_out("do_greeting", 1, me:object_id())
     end

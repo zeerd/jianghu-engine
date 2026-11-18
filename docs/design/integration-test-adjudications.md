@@ -131,7 +131,7 @@ CharFight.cpp:91 内置表 → NPC 攻击走老链不经 Attack 的 skill hit_ob
 ## §6 `l_query_team` 的结构性不可达与 0 歧义观察（§6 同名行）
 
 **结构性不可达**（N2-2b 甄别）：同队检查（`throwing.lua:42`）之前有 33 行
-`is_user(target)`「不能偷袭玩家」的 PvE 收窄——同战斗队成员必为玩家、被 33 行拦停；
+`target:is_user()`「不能偷袭玩家」的 PvE 收窄——同战斗队成员必为玩家、被 33 行拦停；
 唯一到达 42 行的路径是「我与目标（NPC）都在战斗中且 `query_team` 相等」，而未分队时
 `query_temp` 返回 0 与 `FIGHT_TEAM_A=0` 同值（**0 歧义**）→ 0==0 意外相等误拒——此路径需
 「NPC 混战」无自然触发面，且补测它的是 Lua 行（不进 E2E 覆盖统计）。C++ 侧

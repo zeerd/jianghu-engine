@@ -30,7 +30,7 @@ local START_MONEY = 600000
 --   发放起步本金：新角色靠它购物、置业、存款，自立门户。
 --   只作用于玩家：青云子、老李头等 NPC 同为人类 race，也会走到此钩子。
 function hooks.setup_human(me)
-    if not is_user(me) then
+    if not me:is_user() then
         return
     end
     if me:query("start_money") ~= 0 then

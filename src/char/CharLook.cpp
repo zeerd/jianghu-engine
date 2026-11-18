@@ -255,7 +255,7 @@ int l_do_emote(lua_State* L)
     std::string who_gbk;
     if (lua_isstring(L, 5)) who_gbk = lua_tostring(L, 5);
     const char* who = who_gbk.empty() ? NULL : who_gbk.c_str();
-    char* rtn       = g_channel.do_emote(me, target, verb, channel_emote, who);
+    const char* rtn = g_channel.do_emote(me, target, verb, channel_emote, who);
     if (rtn) {
         lua_pushstring(L, rtn);
         return 1;

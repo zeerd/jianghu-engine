@@ -488,8 +488,7 @@ void CAttack::calculate_damage(AttackContext& ctx)
 // ====================================================================
 void CAttack::replace_placeholders(AttackContext& ctx)
 {
-    char str[512];
-    strncpy(str, ctx.result.c_str(), 512);
+    std::string str = truncated_copy(ctx.result.c_str(), 511);
 
     replace_string(str, "$l", "身体", 512);
 

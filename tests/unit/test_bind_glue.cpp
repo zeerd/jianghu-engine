@@ -174,13 +174,17 @@ TEST_F(BindGlueTest, CallOutNoScript)
     lua_pushstring(L, "some_func");
     lua_pushinteger(L, 1);
     int k = call(l_call_out, 3);
-    EXPECT_LE(k, 0);  // returns 0 (no id) when there is no script
+    ASSERT_EQ(1, k) << "无脚本时也要压一个 0";
+    EXPECT_EQ(0, (int)lua_tointeger(L, -1));
+    lua_pop(L, k);
 
     lua_bind_push_object(L, &ch);
     lua_pushstring(L, "some_func");
     lua_pushinteger(L, 1);
     k = call(l_call_out_combat, 3);
-    EXPECT_LE(k, 0);
+    ASSERT_EQ(1, k) << "无脚本时也要压一个 0";
+    EXPECT_EQ(0, (int)lua_tointeger(L, -1));
+    lua_pop(L, k);
 
     lua_bind_push_object(L, &ch);
     lua_pushstring(L, "some_func");

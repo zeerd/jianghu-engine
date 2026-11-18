@@ -306,21 +306,27 @@ void CContainer::on_name_changed()
 //---------------------------------------------------------
 #include "LuaBindIncludes.h"
 
-// self:move(target)
+// self:move(target) -> boolean - 移入是否成功（透传 CContainer::move 的结果）
 int l_move(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
-    if (!obj) return 0;
+    if (!obj) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     CContainer* c = dynamic_cast<CContainer*>(obj);
-    if (!c) return 0;
+    if (!c) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     CContainer* target = NULL;
     if (lua_isuserdata(L, 2))
         target = dynamic_cast<CContainer*>(get_object(L, 2));
 
-    if (target) c->move(target);
-    return 0;
+    lua_pushboolean(L, target ? c->move(target) : 0);
+    return 1;
 }
 
 // self:environment() -> object

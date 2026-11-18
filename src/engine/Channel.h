@@ -45,8 +45,8 @@ public:
     // ========================================================================
     //  表情（委托给 EmoteSystem）
     // ========================================================================
-    char* do_emote(CChar* me, CChar* target, const char* verb,
-                   int channel_emote, const char* who = NULL);
+    const char* do_emote(CChar* me, CChar* target, const char* verb,
+                         int channel_emote, const char* who = NULL);
     void download_emote(CUser* me);
 
     // ========================================================================
