@@ -122,7 +122,7 @@ bin\cli\x64\jianghu_cli.exe --config tests\integration\cli.conf `
 ## 7. 服务器配置要点（指针）
 
 `tests/integration/config.ini` 的关键项（独立测试库、独立端口、`rate_limit=0`、
-lua-sample 脚本根）与「命令行 `--config` 直接加载、不改写 `data/config.ini`」
+lua-sample 脚本根）与「命令行 `--config` 直接加载、不改写仓库根 `config.ini`」
 的原则见 **`docs/design/integration-test.md` §1.3**。
 
 ---

@@ -3,7 +3,7 @@
 # 与单元测试入口 run-coverage.ps1 并列。作用：
 #   1. 构建 Release|x64 的服务器 bin\e2e\jianghu.exe 与 CLI bin\cli\x64\jianghu_cli.exe；
 #   2. 用 tests\integration\config.ini 启动真实服务器（服务端命令行 --config 指定配置，
-#      不再临时改写 data\config.ini），独立测试库 + 独立端口；
+#      不再临时改写 config.ini），独立测试库 + 独立端口；
 #   3. **一次性注册 $Workers 个账号**（并行），再**同时开跑各道剧本**
 #      （scenarios\lane_*.sce，每道一串 include 的功能片段，彼此互不依赖；
 #      例外是互动道：L5/L6 配对，注册阶段互相注入对方角色名与账号
@@ -89,6 +89,10 @@ param(
     [string]$CliExe = "",
     # 跳过 MSBuild 构建（直接使用现有 bin\e2e\jianghu.exe / CLI）
     [switch]$SkipBuild,
+    # 构建走 /t:Rebuild（Clean + 全量编译）：CI 用它显式声明「全量、不依赖增量
+    # 状态」，与 ci.yml build-and-test 的 /t:Rebuild 同一意图；本地默认增量，
+    # 保持快速迭代。-SkipBuild 存在时本开关无效。
+    [switch]$Rebuild,
     # 跳过 OpenCppCoverage（快速调试剧本，不出覆盖率报告）
     [switch]$NoCoverage,
     # 运行前重建测试库：删除 SQLite 库文件（服务端启动自动重建）
@@ -582,7 +586,7 @@ function Wait-Port([int]$p, [int]$timeoutSec) {
 }
 
 # 定位「本次测试的服务器」——**只按测试端口认进程，绝不按进程名全服清场**。
-# 有人会用同一个 bin\jianghu.exe 在别的端口（data\config.ini 默认 6600）做功能测试，
+# 有人会用同一个 bin\jianghu.exe 在别的端口（config.ini 默认 6600）做功能测试，
 # 按进程名 Get-Process jianghu 杀会把那台服务器误杀。
 # -NoCoverage 下服务器由本脚本直接拉起，句柄最可靠；覆盖率模式下服务器是
 # OpenCppCoverage 的子进程、本脚本没有句柄，改用「监听测试端口的 jianghu 进程」定位。
@@ -786,10 +790,13 @@ if (-not $SkipBuild) {
     # 使集成测试写自己的 exe，不与正在运行的 bin\jianghu.exe 抢文件锁（LNK1104）。
     # 注意用双写结尾反斜杠：既满足 OutDir 必须以 \ 结尾，又避开 PowerShell 向
     # 原生命令传「单个结尾反斜杠」被吃掉的坑。
-    & $msb $CliProj /p:Configuration=Release /p:Platform=x64 /m /nologo /verbosity:minimal
+    # 目标参数：默认不带 /t:（增量 Build）；-Rebuild 时补 /t:Rebuild 全量重编。
+    $targetArgs = @()
+    if ($Rebuild) { $targetArgs = @("/t:Rebuild") }
+    & $msb $CliProj @targetArgs /p:Configuration=Release /p:Platform=x64 /m /nologo /verbosity:minimal
     if ($LASTEXITCODE -ne 0) { throw "构建失败：$CliProj" }
     New-Item -ItemType Directory -Force -Path $E2EDir | Out-Null
-    & $msb $ServerProj /p:Configuration=Release /p:Platform=x64 /m "/p:OutDir=$E2EDir\\" /nologo /verbosity:minimal
+    & $msb $ServerProj @targetArgs /p:Configuration=Release /p:Platform=x64 /m "/p:OutDir=$E2EDir\\" /nologo /verbosity:minimal
     if ($LASTEXITCODE -ne 0) { throw "构建失败：$ServerProj" }
     # 虽然 E2E 数据库走 SQLite（sqlite3 静态编入），但 jianghu.exe 仍隐式链接
     # libmysql.lib（非 delay-load），进程启动时加载器就要求 libmySQL.dll 在场——

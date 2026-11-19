@@ -17,8 +17,7 @@ int CCmdUser::list_goods(CChar* me, int32_t target, char* arg)
     DTItemList* list = who->get_item_list();
     int i            = 0;
 
-    for (auto val : *list) {
-        CContainer* obj     = val;
+    for (CContainer* obj : *list) {
         mapping_value_t val = obj->query_temp("trade/value");
 
         if (!val) continue;

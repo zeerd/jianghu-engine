@@ -24,7 +24,7 @@ C++ 实现核心驱动（网络、战斗、属性、持久化等），具体游�
 | `tests/integration/` | 集成测试：`scenarios/`（CLI 无头剧本）、专用服务器配置 `config.ini` |
 | `lua-default/` | 服务器自带默认脚本（可被用户目录同名脚本覆盖） |
 | `lua-sample/` | 自包含示例数据集，用于快速体验与联调 |
-| `data/config.ini` | 服务器配置（端口、数据库、脚本目录等） |
+| `config.ini` | 服务器配置（端口、数据库、脚本目录等） |
 | `docs/` | [protocol.md](docs/protocol.md)（通讯协议规范）、[handle_action.md](docs/handle_action.md)（命令拦截钩子） |
 | `3rd/` | 第三方依赖：lua55、mysql、sqlite3，详见 [3rd/README.md](3rd/README.md) |
 
@@ -57,7 +57,7 @@ CLI 客户端（详见 [CLI 客户端](#cli-客户端)）：
 ## 运行
 
 `jianghu.exe` 是 GUI 程序（WinMain 入口），启动前编辑
-`data/config.ini`：
+仓库根的 `config.ini`：
 
 ```ini
 [server]
@@ -66,7 +66,7 @@ name = 金剑江湖
 
 [lua]
 script_root = C:\path\to\jianghu-dataset
-default_script_root = C:\jianghu-engine\lua-default
+default_script_root = C:\path\to\lua-default
 ```
 
 `script_root` 指向游戏数据集；`default_script_root` 是引擎自带的

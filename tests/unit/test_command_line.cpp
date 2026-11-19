@@ -2,7 +2,7 @@
 //
 // 契约：服务器用 --config <path> / --config=<path>
 // 指定配置文件，未提供/无法解析时 回落到默认
-// data/config.ini。注入式启动器（OpenCppCoverage）会把每个参数重新加引号，
+// config.ini（仓库根）。注入式启动器（OpenCppCoverage）会把每个参数重新加引号，
 // 传入形如 "--config" "C:\path\config.ini" 的命令行，也必须解析正确。
 //
 // 构建/运行：仓库根目录执行 .\run-coverage.ps1
@@ -15,7 +15,7 @@
 
 namespace {
 
-const char* const kDefault = "data/config.ini";
+const char* const kDefault = "config.ini";
 
 std::string Parse(const char* cmd_line)
 {
@@ -137,8 +137,7 @@ TEST(CommandLineOptionTest, MissLeavesBufferUntouched)
 {
     EXPECT_EQ(Option(nullptr, "log-run-id"), "<miss>|untouched");
     EXPECT_EQ(Option("", "log-run-id"), "<miss>|untouched");
-    EXPECT_EQ(Option("--config data/config.ini", "log-run-id"),
-              "<miss>|untouched");
+    EXPECT_EQ(Option("--config config.ini", "log-run-id"), "<miss>|untouched");
     // 无值 / 空值 / 缓冲不足都不算取到
     EXPECT_EQ(Option("--log-run-id", "log-run-id"), "<miss>|untouched");
     EXPECT_EQ(Option("--log-run-id ", "log-run-id"), "<miss>|untouched");

@@ -306,7 +306,7 @@ int CCmdHandle::command(char* Command, CChar* me)
         // 附上对象名，否则纯数字 ID 脱离当时场景无从对照
         std::string tgt = Tar;
         if (!target_name.empty()) tgt += "(" + target_name + ")";
-        LOG_WARN(
+        LOG_DEBUG(
             "未知的命令 来自%s(%s)@%s raw=[%s] cmd=[%s] target=[%s] arg=[%s]",
             me->name(1), me->id(1), where->name(1), Command, Comm, tgt.c_str(),
             arg);

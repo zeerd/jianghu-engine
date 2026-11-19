@@ -40,7 +40,7 @@ struct CheckLuaOptions {
 //               <file.lua> ...
 //
 // 未指定 --config 时使用默认路径：
-//   data/config.ini（服务器配置）
+//   config.ini（仓库根的服务器配置）
 //
 // --dir <path>       : 递归扫描目录下所有 .lua 文件；目录不存在、或目录里
 //                      一个 .lua 都没有，都按失败退出（不许假绿）

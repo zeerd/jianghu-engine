@@ -31,7 +31,7 @@ bool parse_option_value(const char* cmd_line, const char* name, char* out,
  * @brief 从命令行串解析 `--config <path>` / `--config=<path>`。
  *
  * 供服务器启动时指定配置文件（集成测试据此把专用配置留在 tests/integration/，
- * 不必临时改写 data/config.ini）。未提供或无法解析时返回 default_path。
+ * 不必临时改写 config.ini）。未提供或无法解析时返回 default_path。
  *
  * @param cmd_line     命令行串（不含程序名）
  * @param out          输出缓冲，至少 out_size 字节
@@ -40,6 +40,6 @@ bool parse_option_value(const char* cmd_line, const char* name, char* out,
  * @return 解析出的路径（写入 out）或 default_path
  */
 const char* parse_config_path(const char* cmd_line, char* out, size_t out_size,
-                              const char* default_path = "data/config.ini");
+                              const char* default_path = "config.ini");
 
 #endif  // COMMAND_LINE_H

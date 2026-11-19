@@ -1,4 +1,4 @@
-﻿/** @file LuaSyntaxChecker.cpp
+/** @file LuaSyntaxChecker.cpp
  *  @brief --check-lua 静态校验实现。
  *
  *  各道防线与静态违规检测，各自对应一次真实线上故障（都是先炸后发现 → 逐道
@@ -2688,7 +2688,7 @@ int run_lua_checker(const char* cmdLine)
     }
     p = skip_arg(p + strlen("--check-lua"));
 
-    std::string configPath = "data/config.ini";
+    std::string configPath = "config.ini";
     std::string dirPath;
     std::string baselinePath;
     bool writeBaseline = false;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file main.cpp
  * @brief Standard Win32 entry point */
 
@@ -39,7 +39,7 @@ static const char* g_szWindowClass = "JHServer";
 static HWND g_hWnd = NULL;
 
 // 实际使用的配置文件路径（WinMain 解析后保存，供窗口过程显示）
-static char g_config_path[1024] = "data/config.ini";
+static char g_config_path[1024] = "config.ini";
 
 // 信息面板子控件 ID
 #define IDC_INFO_VERSION 1001
@@ -203,7 +203,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
         return 1;
     }
 
-    // 读取配置：默认 data/config.ini，可用 --config <path> 覆盖
+    // 读取配置：默认 config.ini（仓库根），可用 --config <path> 覆盖
     // 注意：parse_config_path 仅在命令行真有 --config 时才写入 out 缓冲；
     // 无 --config 时直接返回 default_path 而不碰缓冲，故必须用其返回值。
     char config_path[1024] = "";

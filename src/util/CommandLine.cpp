@@ -63,7 +63,7 @@ bool parse_option_value(const char* cmd_line, const char* name, char* out,
 const char* parse_config_path(const char* cmd_line, char* out, size_t out_size,
                               const char* default_path)
 {
-    if (!default_path) default_path = "data/config.ini";
+    if (!default_path) default_path = "config.ini";
     // 未命中/无值/缓冲不足时 out 不被改动，回落 default_path
     if (parse_option_value(cmd_line, "config", out, out_size)) return out;
     return default_path;

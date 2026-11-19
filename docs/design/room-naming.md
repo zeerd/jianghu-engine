@@ -163,4 +163,4 @@ load("room", string.format("野外%d_%d_%d", n, x, y))
 | 单例房间表与加载 | `src/room/RoomMgr.cpp` |
 | 副本实例命名空间 | `src/room/FB.cpp`、`src/room/FBRoom.cpp` |
 | 门的落点解析 | `src/room/Door.cpp`、`src/room/FBRoom.cpp` |
-| 两个脚本根 | `data/config.ini` 的 `script_root` / `default_script_root` |
+| 两个脚本根 | 仓库根 `config.ini` 的 `script_root` / `default_script_root` |

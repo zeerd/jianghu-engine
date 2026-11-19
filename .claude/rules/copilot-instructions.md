@@ -119,7 +119,7 @@ Get-Content C:\jianghu-engine\bin\check_lua_output.txt
 
 - **教材（`lua-sample` / `lua-default`）的校验固定在仓库根执行、用 `tests\integration\config.ini`**——即上文「正确的调用方法」的姿势。
 - 换 cwd 或换 config 之前，先确认该 config 的 `script_root` / `default_script_root` 是**绝对路径**；相对路径只在它所相对的那个目录里成立。
-- 校验 `jianghu-dataset` 走数据集自己的 `validate.ps1`（其姿势为 `cd bin` + `.\e2e\jianghu.exe --config ..\data\config.ini`，那份 config 的脚本根是绝对路径）。
+- 校验 `jianghu-dataset` 走数据集自己的 `validate.ps1`（其姿势为 `cd bin` + `.\e2e\jianghu.exe --config ..\config.ini`，那份 config 的脚本根是绝对路径）。
 
 | 症状 | 动作 |
 |---|---|

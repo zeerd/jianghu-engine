@@ -100,7 +100,7 @@ default_script_root = lua-default ; 兜底默认脚本
 ```
 
 **关键原则**：服务端通过命令行 `--config tests\integration\config.ini` 直接加载，**不再临时改写
-`data/config.ini`**——测试配置是独立资产，不污染业务配置。
+仓库根的 `config.ini`**——测试配置是独立资产，不污染业务配置。
 
 **数据库为 SQLite 文件库**：`type = sqlite` 时服务端走 `SqliteDb.cpp`（sqlite3 静态编入 exe），
 启动自动建库文件与全部表、播种账号 ID 起点；`-ResetDb` 即删 `e2e.db` 文件。E2E 不再需要
@@ -214,6 +214,7 @@ vars 计算，DSL 无算术）→ 段 2 断言喊话是「第 `${expect_n}` 个�
 | 参数 | 说明 |
 |------|------|
 | `-SkipBuild` | 跳过 MSBuild，直接使用现有 `bin\e2e\jianghu.exe` 与 CLI |
+| `-Rebuild` | 构建走 `/t:Rebuild`（Clean + 全量编译），不依赖增量状态；本地默认仍是增量 |
 | `-NoCoverage` | 跳过 OpenCppCoverage，快速调试剧本（不出覆盖率报告） |
 | `-ResetDb` | 运行前重建测试库：删 `e2e.db` 库文件，服务端启动自动重建（SQLite，无需外部工具） |
 | `-Dbg` | 给各道 CLI 加 `--dbg`：把服务端报文（RTNINFO/STATE 等）打进 lane 日志，用于查「客户端属性值和服务端对不上」 |

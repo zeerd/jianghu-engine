@@ -68,7 +68,7 @@ verified-by: pending（待作者确认 Open Questions）
 - **引擎维护者**（`src/`）：需要知道哪些代码可以假设"没人和我抢锁"。
 - **脚本作者**（`lua-default/`、`lua-sample/`）：需要知道什么逻辑该放 Lua、什么不该放，
   以及 C++ 回落（`base_*`）与 `hooks.*` 的边界。
-- **运维 / 部署**：`data/config.ini`、数据库选型、启停流程（`WM_CLOSE` 优雅关服）。
+- **运维 / 部署**：仓库根 `config.ini`、数据库选型、启停流程（`WM_CLOSE` 优雅关服）。
 
 ---
 
@@ -205,7 +205,7 @@ verified-by: pending（待作者确认 Open Questions）
   写路径统一调 `normalize_password`（`StringUtil.cpp`）剥引号：长度校验、
   `verify_user` 比对、落库三者看到同一形态，否则含引号密码存入后永远登不上。
   SQL 字面量另经 `sql_escape_literal` 兜底（`db_change_password`/`db_change_verify_password`）。
-- **配置**：`--config <path>` 覆盖默认 `data/config.ini`（`src/util/CommandLine.cpp:10-58`，
+- **配置**：`--config <path>` 覆盖默认 `config.ini`（`src/util/CommandLine.cpp:10-58`，
   `main.cpp:61`）；`ini_load`/`ini_get` 读进全局 `g_ini_data`；
   各模块在 `init_game` 时**快照**成静态成员（`src/config/ServerConfig.cpp:13-21`、
   `CCombatConfig::load_ini` 的 `[server] ip_limit` 等），
@@ -461,7 +461,7 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
    账号口令已改加盐哈希存储（见 `docs/design/encryption.md` §2，旧行读时迁移）、
    次级校验用 MySQL `OLD_PASSWORD()`（SQLite 上直接明文比对）、
    SQL 由 `snprintf` 拼接且仅部分路径走 `sql_escape_literal`（`src/db/SqlEscape.cpp:8-20`）、
-   数据库口令明文写在 `data/config.ini`（默认 `root/root`）、默认巫师密码 `12345678`
+   数据库口令明文写在仓库根 `config.ini`（默认 `root/root`）、默认巫师密码 `12345678`
    （`Sql.cpp:101`）。
    **这是有意接受的范围（单机/内网/爱好者项目），还是已知但未排期的债务？**
    - Needs clarification from: 作者

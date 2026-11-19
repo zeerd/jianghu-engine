@@ -126,7 +126,7 @@ integration-test 两份 instructions 为准。
 
 ```text
 [P2] `or true` 覆盖了显式传入的 false
-文件：C:\jianghu-engine\lua-default\item\sample_item.lua:17
+文件：C:\path\to\lua-default\item\sample_item.lua:17
 
 `local enabled = opts.enabled or true` 把调用方显式传入的 false 换成 true，
 禁用开关失效。改为 `== nil` 时才取默认值。

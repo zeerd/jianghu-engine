@@ -40,9 +40,9 @@ no_betrayer_valid = 0
 newlife_no_conflict = 1
 
 [lua]
-script_root = C:\jianghu-engine\lua-sample
+script_root = lua-sample
 ; 服务器自带默认脚本目录（可选，同名脚本被用户目录覆盖）
-default_script_root = C:\jianghu-engine\lua-default
+default_script_root = lua-default
 
 [party]
 ; 队伍最大人数（包括队长），范围 2-10，默认 4

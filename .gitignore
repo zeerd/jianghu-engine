@@ -25,7 +25,7 @@ libmysql.dll.zip
 /.vscode
 /.vs
 /.claude/skills/skill-creator
-/data/config.ini
+/config.ini
 /log
 /x64
 /build_tmp
@@ -48,6 +48,7 @@ libmysql.dll.zip
 /tmp/
 /x64
 /Release
+/dist
 /Debug
 /packages
 /x64/Debug

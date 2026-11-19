@@ -165,7 +165,7 @@ bool init_sql_server(const char* ipaddress, const char* name,
     if (db_type == "sqlite") {
         s_dbOwner          = create_sqlite_db();
         g_db               = s_dbOwner.get();
-        const char* dbPath = ini_get("database", "path", "data/game.db");
+        const char* dbPath = ini_get("database", "path", "game.db");
         if (g_db->connect(nullptr, nullptr, nullptr, dbPath) != 0) {
             LOG_FATAL(
                 "InitSQLServer -- Failed to connect to SQLite: Error: %s\n",

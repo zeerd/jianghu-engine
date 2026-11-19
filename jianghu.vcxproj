@@ -119,35 +119,35 @@
   <!-- 产物与 jianghu_core 同布局：Win32 落 bin\，x64 落 x64\$(Configuration)\；
        IntDir 带 $(Platform) 段，两架构交替构建互不污染中间目录。 -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)\bin\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)bin\</OutDir>
+    <IntDir>$(SolutionDir)bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|Win32'">
-    <OutDir>$(SolutionDir)\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">
     <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)bin\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -184,10 +184,10 @@
     <Link>
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <!-- 库搜索目录：核心库的唯一副本在 $(SolutionDir)\bin\（ProjectReference 上已
+      <!-- 库搜索目录：核心库的唯一副本在 $(SolutionDir)bin\（ProjectReference 上已
          剔除 OutDir 传播，e2e 构建不再往 $(OutDir) 里复制第二份），且同一轮构建内
          先建库后链接，此处解析到的必是新鲜产物，不存在陈旧副本。 -->
-      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)\bin\;$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)bin\;$(SolutionDir)bin\Debug\;$(SolutionDir)bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AssemblyDebug />
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -291,7 +291,7 @@
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)bin\Debug\;$(SolutionDir)bin\;$(SolutionDir)bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>
@@ -394,7 +394,7 @@
       <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_01.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)\bin\Debug\;$(SolutionDir)\bin\;$(SolutionDir)\bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)bin\Debug\;$(SolutionDir)bin\;$(SolutionDir)bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <GenerateMapFile>true</GenerateMapFile>

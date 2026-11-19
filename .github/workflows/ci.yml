@@ -77,8 +77,10 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore jianghu.sln
 
+      # /t:Rebuild：runner 每轮 fresh checkout、构建产物不入库，Rebuild 与 Build
+      # 实际等价；显式全量是为了不依赖任何增量状态（Clean + 编译）。
       - name: Build (Release|x64)
-        run: msbuild jianghu.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo
+        run: msbuild jianghu.sln /t:Rebuild /m /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo
 
       - name: Install OpenCppCoverage
         run: choco install opencppcoverage -y
@@ -156,10 +158,12 @@ jobs:
       # runner 无需任何外部数据库服务。脚本自建 Release|x64 的服务器与 CLI
       # （服务器输出到 bin\e2e\，不与产物冲突）。
       # -ResetDb：保证每轮从空库起跑，不受工作区残留影响。
+      # -Rebuild：与 build-and-test 的 /t:Rebuild 同一意图——显式全量构建，
+      # 不依赖任何增量状态（本地默认仍是增量）。
       - name: Run E2E lanes (run-integration-tests.ps1)
         # runner 慢于本机：OpenCppCoverage 首次加载 PDB 更久，放宽就绪等待；
         # 单步超时同步放宽，避免时序 flake 在 CI 上放大
-        run: .\run-integration-tests.ps1 -ResetDb -ServerReadyTimeoutSec 600 -StepTimeout 30000
+        run: .\run-integration-tests.ps1 -Rebuild -ResetDb -ServerReadyTimeoutSec 600 -StepTimeout 30000
 
       # if: always()：失败时也要留下各道剧本日志与覆盖率产物供排查
       # （%TEMP%\e2e_lanes\ 里是各道 lane<N>.log / .report / .vars）
