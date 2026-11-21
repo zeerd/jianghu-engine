@@ -53,7 +53,7 @@ public:
 //
 // 因此本门禁不设任何运行时豁免（不看环境变量/命令行参数——否则任何
 // 一次设置就能绕过）：Debug 构建下本用例无条件失败，无论以何种方式运行
-// 都会在测试结果中报错。唯一认可的运行方式是 .\\run-coverage.ps1，
+// 都会在测试结果中报错。唯一认可的运行方式是 .\\run-unit-tests.ps1，
 // 它以 Release 配置编译并采集覆盖率。
 #ifdef _DEBUG
 TEST(TestConfigGate, DebugBuildIsNotAcceptance)
@@ -61,7 +61,7 @@ TEST(TestConfigGate, DebugBuildIsNotAcceptance)
     FAIL() << "This is a Debug-built tests.exe: no result from it counts "
               "as acceptance. Production is built Release|x64 (/MT, NDEBUG, "
               "/O2) where stack padding / debug heap hide out-of-bounds writes "
-              "and UB. Use .\\run-coverage.ps1 (builds Release and collects "
+              "and UB. Use .\\run-unit-tests.ps1 (builds Release and collects "
               "coverage).";
 }
 #endif  // _DEBUG

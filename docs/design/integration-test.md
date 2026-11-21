@@ -222,7 +222,7 @@ vars 计算，DSL 无算术）→ 段 2 断言喊话是「第 `${expect_n}` 个�
 | `-Simple` | 冒烟模式：单条道验证起服→登录→look→行走→关服；仅供人类快速确认，AI/Agent 禁用于验收 |
 | `-StepTimeout <ms>` | 单步 wait/assert 超时（默认 20000） |
 | `-ServerReadyTimeoutSec <sec>` | 服务器就绪等待上限（默认 180） |
-| `-Workers <n>` | 并行账号（道）数，默认 10；按前 N 条启用，依赖缺半启动即报错（见 §2） |
+| `-Workers <n>` | 并行账号（道）数，默认 11；按前 N 条启用，依赖缺半启动即报错（见 §2） |
 | `-DurationBudgetSec <sec>` | 剧本执行总耗时的绝对预算（默认 420s），超限告警不判 FAIL（见 §2.5） |
 | `-DurationRegressionSec <sec>` | 前次对比的 Δ 归因阈值（默认 10s），纯诊断不参与判定（见 §2.5） |
 
@@ -230,7 +230,7 @@ vars 计算，DSL 无算术）→ 段 2 断言喊话是「第 `${expect_n}` 个�
 
 ## 2. 道模型（lane）与并行机制
 
-一次运行**同时创建 N 个账号**（`-Workers`，默认 10）：先并行注册，再并行开跑各自的道。
+一次运行**同时创建 N 个账号**（`-Workers`，默认 11）：先并行注册，再并行开跑各自的道。
 按 `$Lanes` 前 N 条启用；**依赖缺半启动即报错**（PeerId/WitnessId/WizardId 三类校验，
 L2 起声明 `WizardId=9`）——故实际可用值为 1（仅 L1）或 ≥9。
 每道 = 一个独立账号 + 一个 `lane_*.sce`（用 `include` 串起若干功能片段）。L1~L4 **彼此
@@ -238,7 +238,8 @@ L2 起声明 `WizardId=9`）——故实际可用值为 1（仅 L1）或 ≥9。
 互依对（两道**互相依赖对方的角色名**）；L7 观战道单向依赖 L5、L8 山贼试炼单向依赖
 L3（黑风寨错峰的握手信号，见 §2.4）。L9 巫师服务道（账号自举、不注册）接受
 L1/L2/L3/L4/L5/L8/L10 的**单向服务请求**（`/t 1` + `tell` → 固定顺序 wait → 私发回执，
-见 §2.6）；L10 练功道自包含（N4 自 L3 拆出的五段练功链，见 §2.1）。
+见 §2.6）；L10 练功道自包含（N4 自 L3 拆出的五段练功链，见 §2.1）；L11 击杀经验道
+自包含（零历练基线的击杀结算，无服务请求，见 §2.1）。
 
 **执行顺序**：`register.sce` 先并行注册出各道的 `acct`，随后各道并行跑自己的片段链。
 墙钟时间约为最长的一道而非各道之和。
@@ -257,6 +258,7 @@ L1/L2/L3/L4/L5/L8/L10 的**单向服务请求**（`/t 1` + `tell` → 固定顺�
 | L8 | `lane_raid.sce` | 山贼试炼（N2 新增）：注册 con30 天赋流（Attrs 参数化）→ 历练冲级（`/upgrade` 自做，max_hp 1260 是战斗窗口地基）→ 战前顶 hp → force 技能/内力由 L9 供能（拆两次请求，enable 清 mp 的顺序硬约束）+ `/enable`/`/enforce` 自做 → **闯黑风寨与双山贼开战**（败退/重伤均收尾）→ 双向频道握手让位 L3。**降断言设计**：剧本只验「开战 → 战斗收束 → 战后信号」，不反验出招/反震——`l_perform_action` 已烧、`l_receive_wound` 结构性不可达（§6 内力经济行），副本第二入口窗口与内力经济实测归本道 |
 | L9 | `lane_wizard.sce` | 巫师服务（N4 新增，账号自举不注册）：巫师一号（cc_id=1）随服启动自举，按**固定 wait 顺序**收各需求道的 `/t 1` + `tell` 服务请求 → 执行 → 私发回执——服务面：收徒资格（`call set recruit_exp`，L5）/ NPC 师徒家门查询（`call query family/user`，回执带值，L4）/ 冲级（`call set level`，L5）/ 毒术+内力（`set_skill poison`+`call set mp`，L4）/ 山贼技能+内力（`set_skill`+`call set`，L8 两段）/ 偷袭（`set_skill throwing`+`call set mp`，L3）/ 组合（`set_skill` 四技能，L2）/ 练功（`call set max_mp`，L10）/ 卸力（`set_skill parry`+`set_skill parry_adv`+`call set`，L1）。请求词与 capture 标记全服唯一，服务段全程不 clear（§2.6） |
 | L10 | `lane_train.sce` | 练功道（N4 自 L3 拆出）：upgrade 门槛链（`levelup_heal`）/ force 链（`force_for_exercise`）/ 两轮收工打坐（`exercise_max_mp`）/ halt 保 mp（`halt_exercise`）/ 收工不抬升补全（`exercise_no_raise`，L9 供大上限）/ throwing 链（`learn_throwing`，棋子自购自 wield）——原 L3 的练功/学习任务唯一覆盖源 |
+| L11 | `lane_nk.sce` | NK 击杀经验：全新账号的**零历练基线** → 半山腰一击放倒重伤山贼 → 断言 `nk_gain` 档位×`times` 的定值入账（私发精确回执 + `attr combat_exp` 状态 + 尸体钉标准死亡链 `CChar::die → make_corpse`），同时走 `hooks.kill_bonus` 的**缺席支**（不配 `nk_bonus` 按 C++ 算出的值入账） |
 
 ### 2.2 配对互动道（L5/L6）的 peer 机制
 
@@ -283,7 +285,8 @@ L7 的 vars 注入 `peer`/`peer_acct` = L5（`PeerId=5`），L5 的 vars 反向�
 
 世界里稀缺且不可再生的资源必须**钉给唯一一道**——山脚木箱与药箱（L1）、山顶怪树经验果
 与青蛇及其掉落的蛇胆（L3）、排行榜房间播报（L1）、蛇胆与传送符（L4）、穿戴类四件
-（青巾/皮胸甲/布鞋/玉项链，山脚商人独此四件、库存各 5，采购与穿卸全归 L1）；商人库存按各道所需
+（青巾/皮胸甲/布鞋/玉项链，山脚商人独此四件、库存各 5，采购与穿卸全归 L1）、
+半山腰的重伤山贼（L11 击杀结算的唯一触发面，其余各道路过不碰）；商人库存按各道所需
 采购、合计不超上限。**黑风寨副本是唯一双道共享的稀缺资源**：L3 只在链尾路过大厅
 找小头目离开（不打山贼），山贼战与庭院首刷归 L8——两道靠**双向频道握手**错峰
 （L3 到寨口广播「L3已到寨口」→ L8 战后收到才回广播「黑风寨已清」→ L3 收到才
@@ -297,6 +300,10 @@ L7 的 vars 注入 `peer`/`peer_acct` = L5（`PeerId=5`），L5 的 vars 反向�
 **本人版**（`message_vision` 对本人渲染「你…」、对旁人渲染「<名字>…」，故取「你…」前缀），
 或**把该播报钉给唯一一道**（如尸体腐烂、排行榜）。`notify_fail`、`tell_object`、
 `say(msg, me)` 与 `attr`/`item`/`room`/`menu` 类条件天然只与本人相关。
+半山腰是各道通行的走廊（L2 拜师、L10 练功、其余各道中转），L11 在那里的击杀产出
+房间级死亡播报与尸体——两者文案（`<名>死了。`、`<名>的尸体`）不落入任何道在该房的
+`wait text`（其余各道在半山腰只 wait 房间到达与师父/木人回执），L11 自己的断言则
+全走私发回执与本人 `attr`。
 
 > `hooks.setup_human`（新角色起步本金）是示例世界的正常功能、不是测试脚手架——删掉后
 > 并行账号会踩踏全服唯一一份金币。
@@ -422,7 +429,7 @@ downloaduser 往返突发撞限流）；下线 `notify_offline` 广播 SENDUSER 
 `CreateDump.cpp`（正常轮不触发）、`AutoFight.cpp`（§6 无合法触发面）——行覆盖率分母与
 未命中清单**双通道同过**该过滤；函数级不测（Channel snoop、托盘 UI、alarm、run_id、
 nullify_vote、victim_penalty、mv 等）**保留分母**，只在清单里以 §6 决策认领表达。
-单测口径 `run-coverage.ps1` 的 `$excludedFiles`（多 main.cpp/Sql.cpp、无巫师与
+单测口径 `run-unit-tests.ps1` 的 `$excludedFiles`（多 main.cpp/Sql.cpp、无巫师与
 SnoopSystem/AutoFight）与 E2E 差异是**有意的**：被测对象不同——单测对巫师域 90%+ 有覆盖。
 
 ### 5.2 参考指标（非硬性门槛）

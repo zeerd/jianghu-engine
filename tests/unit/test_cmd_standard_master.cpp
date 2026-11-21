@@ -2,7 +2,7 @@
 //
 // Tests apprenticeship and teaching game state.
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include "Char.h"

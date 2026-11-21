@@ -16,7 +16,7 @@
 //  - 样本脚本 lua-sample/npc/sample_wooden_dummy.lua 的 do_talk 两条
 //    分支与它自己接管的 die（见文件末尾的 SampleWoodenDummyTest）
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstdint>

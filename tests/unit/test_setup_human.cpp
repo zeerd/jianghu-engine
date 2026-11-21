@@ -11,7 +11,7 @@
 //      期望头像取自 Lua 规范常量（data/constants.lua）；
 //   6) 体重只在为 0 时按 str 公式补齐。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

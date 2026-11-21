@@ -13,7 +13,7 @@
 // 开战成功路径经 g_item_mgr 造真实 CFightRoom——夹具注入 CMockItemMgr
 // 提供 fight_room 工厂（默认 g_item_mgr 为空指针）。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

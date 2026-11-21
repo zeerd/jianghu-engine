@@ -1,10 +1,9 @@
 # CI workflow：
 #   build-and-test ——  1. NuGet 还原（gtest 包还原到仓库根 packages\，与本机构建路径一致）
-#                    2. MSBuild 构建整个解决方案（Release|x64 —— 生产同构配置，
-#                       一次兜住服务器 / CLI / 测试三个方向的编译错误）
-#                    3. run-coverage.ps1 运行引擎测试 + CLI 测试并采集覆盖率
-#                       （仓库铁律：run-coverage.ps1 是唯一认可的测试运行方式；
-#                       其依赖的 OpenCppCoverage 由本 workflow 自动安装）
+#                    2. run-unit-tests.ps1 构建测试工程（Release|x64 —— 生产同构配置，
+#                       脚本内含构建，本 job 不另设前置构建步骤）并运行引擎测试 +
+#                       CLI 测试、采集覆盖率（仓库铁律：run-unit-tests.ps1 是唯一认可
+#                       的测试运行方式；其依赖的 OpenCppCoverage 由本 workflow 自动安装）
 #   e2e              ——  run-integration-tests.ps1 跑七条道的端到端集成测试。
 #                    数据库为 SQLite（tests\integration\e2e.db，服务端启动自动建库建表），
 #                    零外部服务依赖，CI runner 开箱即跑。产出与本机完全一致的
@@ -23,7 +22,7 @@
 #     LLVM，版本与本机不同可能产生格式判定差异；先观察一轮，
 #     确认全绿后再考虑移除 continue-on-error 改为硬卡点
 #   - coverage_history/ 被 git 忽略，CI 每轮都是全新 checkout：
-#     run-coverage.ps1 的 delta 首轮为 n/a（无基线），属正常现象；
+#     run-unit-tests.ps1 的 delta 首轮为 n/a（无基线），属正常现象；
 #     每轮的 summary.csv 会作为 artifact 上传留档
 #
 # 已知限制：
@@ -65,9 +64,6 @@ jobs:
           Expand-Archive -Path libmysql.dll.zip -DestinationPath "$env:RUNNER_TEMP\libmysql" -Force
           Copy-Item "$env:RUNNER_TEMP\libmysql\x64\lib\libmysql.dll" libmysql.dll -Force
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
@@ -77,11 +73,6 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore jianghu.sln
 
-      # /t:Rebuild：runner 每轮 fresh checkout、构建产物不入库，Rebuild 与 Build
-      # 实际等价；显式全量是为了不依赖任何增量状态（Clean + 编译）。
-      - name: Build (Release|x64)
-        run: msbuild jianghu.sln /t:Rebuild /m /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo
-
       - name: Install OpenCppCoverage
         run: choco install opencppcoverage -y
 
@@ -90,8 +81,8 @@ jobs:
 
       # 构建 + 运行两套测试 + 合并覆盖率一步完成，产出
       # coverage_report\（HTML + Cobertura）与 coverage_history\summary-*.txt
-      - name: Run tests with coverage (run-coverage.ps1)
-        run: .\run-coverage.ps1
+      - name: Run tests with coverage (run-unit-tests.ps1)
+        run: .\run-unit-tests.ps1
 
       # if: always()：测试失败时也要留下覆盖率/摘要产物供排查
       - name: Upload coverage report
@@ -158,8 +149,8 @@ jobs:
       # runner 无需任何外部数据库服务。脚本自建 Release|x64 的服务器与 CLI
       # （服务器输出到 bin\e2e\，不与产物冲突）。
       # -ResetDb：保证每轮从空库起跑，不受工作区残留影响。
-      # -Rebuild：与 build-and-test 的 /t:Rebuild 同一意图——显式全量构建，
-      # 不依赖任何增量状态（本地默认仍是增量）。
+      # -Rebuild：显式全量构建（Clean + 编译），不依赖任何增量状态；
+      # 本地默认仍是增量。
       - name: Run E2E lanes (run-integration-tests.ps1)
         # runner 慢于本机：OpenCppCoverage 首次加载 PDB 更久，放宽就绪等待；
         # 单步超时同步放宽，避免时序 flake 在 CI 上放大

@@ -1,6 +1,6 @@
 // test_lua_checker.cpp — --check-lua 的静态校验
 //
-// 构建与运行（唯一认可方式）: .\run-coverage.ps1（仓库根）
+// 构建与运行（唯一认可方式）: .\run-unit-tests.ps1（仓库根）
 //
 // 各道防线各自对应一次线上故障，这里逐道守护（详见 LuaSyntaxChecker.cpp
 // 文件头）：

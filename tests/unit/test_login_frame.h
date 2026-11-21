@@ -5,7 +5,7 @@
 // 明文 XOR 后撞上保留字节（空格/制表符/换行/NUL）返回 false——调用方须
 // ASSERT_TRUE 并换用例参数。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #pragma once
 
 #include <cstring>

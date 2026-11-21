@@ -4,7 +4,7 @@
 // Covers do_channel permission/formatting branches, check_channel_msg
 // frequency limiting, and filter_list listener logic.
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 

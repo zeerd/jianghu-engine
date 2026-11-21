@@ -25,9 +25,14 @@ public:
     virtual ~CReward() {};
 
 private:
+    // 无经验入账的统一出口：所有「这次不发经验」的分支都经它落日志，
+    // 同一条前缀便于按前缀检索是哪道闸拦下的
+    static exp_t log_zero_gain(const char* reason, CChar* killer,
+                               CChar* victim);
     exp_t calc_nkgain_base(CChar* victim);
-    exp_t calc_party_exp(CChar* killer, exp_t nkgain, exp_t cx, CUser*& player1,
-                         CUser*& player2, CUser*& player3);
+    // eff_dx 有效经验 = 受害者实战经验；nkgain 受害者经验档位；cx
+    // 全队最高实战经验
+    exp_t calc_party_exp(exp_t eff_dx, exp_t nkgain, exp_t cx);
     void distribute_party_exp(CChar* killer, CChar* victim, exp_t reward,
                               exp_t cx, CUser* player1, CUser* player2,
                               CUser* player3);

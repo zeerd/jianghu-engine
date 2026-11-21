@@ -10,7 +10,7 @@
 // 帐号档案走 MockDatabase（cc_savedata/cc_freeze/cc_server 三条预置），
 // verify_user 走 mock_db 的 g_mock_db_succeed 开关。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>

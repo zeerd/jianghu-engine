@@ -10,7 +10,7 @@
 //   - 同名优先：本技能自注册的法术压过继承来的同名法术；
 //   - 无幽灵法术：基础技能没有法术的种类不产生空法术条目。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

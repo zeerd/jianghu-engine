@@ -6,7 +6,7 @@
 // 数值覆盖型（{limit=N}）支改由前导 index.is_invalid 承载，
 // 见 test_char_attr 的 IsInvalid_* 三例。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include "Char.h"

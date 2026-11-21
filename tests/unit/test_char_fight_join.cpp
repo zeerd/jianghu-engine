@@ -1,6 +1,6 @@
 // test_char_fight_join.cpp - 开战时同室第三方入战的门（CChar::cmd_hit_ob）。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 // 开战搬房之后，cmd_hit_ob 遍历发起者原房间，按互不相干的门决定谁被搬进
 // 战斗房：受害者同门派、双方杀意名单（组队跟随另在 CFightRoom::join_team）。

@@ -12,7 +12,7 @@
 // 用例一律通过施放法术触发（skill->cast("sneak", ...)），因此脚本里漏掉
 // add_magic 登记时本文件会直接失败。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

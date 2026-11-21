@@ -183,8 +183,10 @@ victim.receive_damage("hp", dmg, me)
 
 **⑪ 奖惩结算**（`src\combat\CReward.cpp`）
 - NK（打怪）经验阶梯按受害者 `combat_exp`：35/50/75/99/150/195/255/300，
-  单杀上限 `level×4+100`；队伍分摊 `times = (有效经验 − dx/2)/(dx+1)` 钳制
-  `[0,2]`，`dx = cx×4/9`。
+  单杀上限 `level×4+100`；奖励 = `nkgain × times`，`times = (有效经验 − dx/2)/(dx+1)`
+  钳制 `[0,2]`。有效经验 = 受害者 `combat_exp`：它与 `dx` 同量纲，决定这次击杀
+  能否折出正收益；`nkgain` 档位只决定奖励量级，两者不可互换。`dx = cx×4/9`，
+  `cx` 取全队最高实战经验。
 - PK（**已确认设计**）：击杀者经验收益恒 0（`CReward.cpp` 的 `handle_pk_reward`）；受害方损失
   `10×exp_v/(exp_k+1)×(4000+exp_v)/1500`（杀手经验更高时）否则 `(4000+exp_v)/150`，
   钳制不超 `exp_v − sk_exp`；罪恶 `kill/guilt`（城市 +50/+10/+5、受害 −20，

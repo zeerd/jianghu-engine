@@ -6,7 +6,7 @@
 //   - ini_load 重复执行会清空并重读配置，复位被上一个用例改过的 g_ini_data；
 //   - 引擎只在没有 state 时初始化，绑定随 state 创建注册一次；
 //   - 钩子表按根重新装载，把改写过 hooks/commands 的用例状态复位。
-// 配置与脚本路径相对仓库根（测试必须从仓库根运行，见 run-coverage.ps1）。
+// 配置与脚本路径相对仓库根（测试必须从仓库根运行，见 run-unit-tests.ps1）。
 #pragma once
 
 #include "gtest/gtest.h"

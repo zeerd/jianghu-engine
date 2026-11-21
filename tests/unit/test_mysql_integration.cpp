@@ -8,7 +8,7 @@
 // 依赖本机 MySQL 服务与 tests/unit/test_config.ini 的 [database] 连接配置；
 // 服务不可达时用例记为通过并说明原因——MySQL 不是单测的硬依赖。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //   x64\Release\tests.exe --gtest_filter=MysqlIntegrationTest.*
 #include "pch.h"
 

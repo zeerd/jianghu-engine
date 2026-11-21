@@ -5,7 +5,7 @@
 // 注册专员、update_age 的大厅判定全部照旧生效），实例空置后由心跳回收；
 // 实例不可用时回落全局 rk 大厅，且不得残留半成品实例。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <algorithm>

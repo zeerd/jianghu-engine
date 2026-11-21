@@ -7,7 +7,7 @@
 //
 // 固定顺序：副本 → 本用例新增 NPC → 本用例新增房间。人要更早退出。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #pragma once
 
 #include <algorithm>

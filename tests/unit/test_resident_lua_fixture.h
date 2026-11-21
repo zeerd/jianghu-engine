@@ -6,7 +6,7 @@
 // 脚本函数经 call_script 直接调用；house_base 对属区的 house_price /
 // count_days / update_register 为 Lua 直调 resident_base 模块函数。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #pragma once
 
 #include <cstdio>

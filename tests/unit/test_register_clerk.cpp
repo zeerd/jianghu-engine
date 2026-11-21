@@ -6,7 +6,7 @@
 //   - 未开始注册（无 regclerk/step）时，注册命令一律回退基类（返回 0）
 //   - regdone 调 register_char 落库，成功后清临时状态并提示账号
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>

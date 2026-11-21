@@ -4,7 +4,7 @@
 // Covers: BanlistManager, VotingSystem, SnoopSystem, EmoteSystem,
 //         ChatChannel, and CChannel facade reference aliases.
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "test_state_recorder.h"  // 旁听回执观察面

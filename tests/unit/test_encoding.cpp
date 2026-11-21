@@ -1,6 +1,6 @@
 // test_encoding.cpp - Unit tests for Utf8ToGbk / GbkToUtf8 encoding conversion.
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "gtest/gtest.h"
 #include <cstring>

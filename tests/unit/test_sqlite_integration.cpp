@@ -5,7 +5,7 @@
 // 与 test_db_layer.cpp 互补：那里用 MockDatabase 只断言 SQL 字符串，
 // 这里在真实后端上断言可观察结果（建表成功、写入能读回、字节保真）。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //   x64\Release\tests.exe --gtest_filter=SqliteIntegrationTest.*
 #include "pch.h"
 
@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "Container.h"
+#include "Crypto.h"  // base64_encode：换盐用的合法盐字面量
 #include "IDatabase.h"
 #include "Sql.h"
 
@@ -298,6 +299,63 @@ TEST_F(SqliteIntegrationTest, AuthenticateAccountHashRoundTrip)
     EXPECT_TRUE(db_authenticate_account(sid.c_str(), "newpass1"));
     EXPECT_FALSE(db_authenticate_account(sid.c_str(), "pass1234"))
         << "改密后旧口令必须失效";
+}
+
+// 认证必须消费库里的 salt 列：换掉盐、哈希原样保留，同一口令就得对不上。
+// 这条钉死「盐只写不读」的实现——那种实现下改盐不影响认证，本用例会红
+TEST_F(SqliteIntegrationTest, AuthenticateConsumesStoredSalt)
+{
+    ASSERT_TRUE(prepare_tables());
+
+    char err[256] = "";
+    long id = db_register_account("李四", "pass1234", "lisi@example.com",
+                                  "女性", 21, 21, 21, 21, err, sizeof(err));
+    ASSERT_EQ(id, 1000) << err;
+    const std::string sid = std::to_string(id);
+
+    ASSERT_TRUE(db_authenticate_account(sid.c_str(), "pass1234"));
+
+    // 换成另一串长度合法的盐：口令与哈希都没动，用新盐重算必然不等于原哈希
+    const std::vector<uint8_t> other(CRYPTO_SALT_LEN, 0x5a);
+    const std::string other_salt = base64_encode(other.data(), other.size());
+    ASSERT_EQ(0, db->execute(("update jianghudb set cc_passwd_salt='"
+                              + other_salt + "' where cc_id=" + sid)
+                                 .c_str()))
+        << db->error();
+
+    EXPECT_FALSE(db_authenticate_account(sid.c_str(), "pass1234"))
+        << "认证按库里的盐重算：盐换了就该对不上";
+}
+
+// 同一口令的两个账号：库里必须是两串不同的盐、两串不同的哈希——共用盐会让
+// 同口令共享哈希，离线撞库一撞一串
+TEST_F(SqliteIntegrationTest, SamePasswordGetsDistinctSaltPerAccount)
+{
+    ASSERT_TRUE(prepare_tables());
+
+    char err[256] = "";
+    long first = db_register_account("张三", "samepass", "zs@example.com",
+                                     "男性", 21, 21, 21, 21, err, sizeof(err));
+    ASSERT_EQ(first, 1000) << err;
+    long second = db_register_account("李四", "samepass", "ls@example.com",
+                                      "女性", 21, 21, 21, 21, err, sizeof(err));
+    ASSERT_EQ(second, 1001) << err;
+
+    DbResultSet rs;
+    ASSERT_EQ(0, db->query("select cc_passwd_salt, cc_passwd_hash from "
+                           "jianghudb where cc_id in (1000, 1001) order by "
+                           "cc_id",
+                           rs))
+        << db->error();
+    ASSERT_EQ(rs.size(), 2);
+    EXPECT_FALSE(rs.rows[0][0].empty()) << "两行都必须带盐";
+    EXPECT_FALSE(rs.rows[1][0].empty()) << "两行都必须带盐";
+    EXPECT_NE(rs.rows[0][0], rs.rows[1][0]) << "同口令必须各用各的盐";
+    EXPECT_NE(rs.rows[0][1], rs.rows[1][1]) << "盐不同则落库哈希必不同";
+
+    // 各自用各自的盐：两行都能认证通过
+    EXPECT_TRUE(db_authenticate_account("1000", "samepass"));
+    EXPECT_TRUE(db_authenticate_account("1001", "samepass"));
 }
 
 // 历史明文行：首次校验通过后原地迁移（明文列清空、盐与哈希写入），

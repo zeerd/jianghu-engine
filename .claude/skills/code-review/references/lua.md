@@ -76,7 +76,7 @@
 # Lua 语法/绑定静态检查：jianghu.exe 是 GUI 程序，调用方式与 cwd 约束
 # 必须照 copilot-instructions.md 的「正确的调用方法」，没有输出即失败
 .\style.ps1                  # stylua（及 clang-format）格式自检
-.\run-coverage.ps1           # 含 lua-tests（tests/unit/lua-tests）的唯一认可途径
+.\run-unit-tests.ps1         # 含 lua-tests（tests/unit/lua-tests）的唯一认可途径
 ```
 
 交互行为以手工交互或 `.\run-integration-tests.ps1` 为准（用户要求或剧本需要

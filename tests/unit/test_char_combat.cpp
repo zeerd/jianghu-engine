@@ -1,6 +1,6 @@
 // test_char_combat.cpp - Unit tests for CharCombat.cpp (伤害/忙乱/killer).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Char.h"

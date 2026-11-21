@@ -88,11 +88,11 @@ exp_t CReward::calc_nkgain_base(CChar* victim)
     return nkgain;
 }
 
-// 计算组队经验分配
-exp_t CReward::calc_party_exp(CChar* killer, exp_t nkgain, exp_t cx,
-                              CUser*& player1, CUser*& player2, CUser*& player3)
+// 计算组队经验奖励
+// 有效经验取受害者的实战经验：它与 dx（全队最高历练折算）同量纲，
+// 决定这次击杀能否折出正收益；nkgain 只决定奖励的量级
+exp_t CReward::calc_party_exp(exp_t eff_dx, exp_t nkgain, exp_t cx)
 {
-    exp_t eff_dx = nkgain;
     exp_t dx     = cx * 2 / 3 * 2 / 3;
     double times = (double)(eff_dx - dx / 2) / (double)(dx + 1);
     if (times > 2) times = 2;
@@ -106,57 +106,49 @@ void CReward::distribute_party_exp(CChar* killer, CChar* victim, exp_t reward,
                                    CUser* player3)
 {
     char msg[255];
-    exp_t exp, nk_limit;
-    double bili;
+    exp_t paid[4]         = {0, 0, 0, 0};
     mapping_value_t count = killer->query_temp("party/battle_count");
 
-    // 计算队长经验
-    bili     = (double)(killer->query("combat_exp") + 1) / (double)(cx + 1);
-    exp      = (int32_t)(reward * bili);
-    nk_limit = killer->query("level") * 4 + 100;
-    if (exp > nk_limit) exp = nk_limit;
-    killer->add("combat_exp", exp);
-    killer->add("kill/nkgain", exp);
-    tell_object(killer, snprintf(msg, 255, "你杀死%s获得%d点NK经验！",
-                                 victim->name(1), (int)exp));
-
-    // 分配给队员1
-    if (player1 && count >= 1) {
-        bili = (double)(player1->query("combat_exp") + 1) / (double)(cx + 1);
-        exp  = (int32_t)(reward * bili);
-        nk_limit = player1->query("level") * 4 + 100;
+    // 每人一份：按其实战经验相对全队最高历练的比值折算，再按 level*4+100 封顶；
+    // 折算后为 0 的份额同样记在汇总里，否则「分红为 0」在日志里查无实据
+    auto pay = [&](CChar* member, int slot) {
+        double bili
+            = (double)(member->query("combat_exp") + 1) / (double)(cx + 1);
+        exp_t exp      = (int32_t)(reward * bili);
+        exp_t nk_limit = member->query("level") * 4 + 100;
         if (exp > nk_limit) exp = nk_limit;
-        player1->add("combat_exp", exp);
-        player1->add("kill/nkgain", exp);
-        tell_object(player1, snprintf(msg, 255, "你杀死%s获得%d点NK经验！",
-                                      victim->name(1), (int)exp));
-    }
+        paid[slot] = exp;
+        member->add("combat_exp", exp);
+        member->add("kill/nkgain", exp);
+        tell_object(member, snprintf(msg, 255, "你杀死%s获得%d点NK经验！",
+                                     victim->name(1), (int)exp));
+    };
 
-    // 分配给队员2
-    if (player2 && count >= 2) {
-        bili = (double)(player2->query("combat_exp") + 1) / (double)(cx + 1);
-        exp  = (int32_t)(reward * bili);
-        nk_limit = player2->query("level") * 4 + 100;
-        if (exp > nk_limit) exp = nk_limit;
-        player2->add("combat_exp", exp);
-        player2->add("kill/nkgain", exp);
-        tell_object(player2, snprintf(msg, 255, "你杀死%s获得%d点NK经验！",
-                                      victim->name(1), (int)exp));
-    }
+    pay(killer, 0);
+    if (player1 && count >= 1) pay(player1, 1);
+    if (player2 && count >= 2) pay(player2, 2);
+    if (player3 && count >= 3) pay(player3, 3);
 
-    // 分配给队员3
-    if (player3 && count >= 3) {
-        bili = (double)(player3->query("combat_exp") + 1) / (double)(cx + 1);
-        exp  = (int32_t)(reward * bili);
-        nk_limit = player3->query("level") * 4 + 100;
-        if (exp > nk_limit) exp = nk_limit;
-        player3->add("combat_exp", exp);
-        player3->add("kill/nkgain", exp);
-        tell_object(player3, snprintf(msg, 255, "你杀死%s获得%d点NK经验！",
-                                      victim->name(1), (int)exp));
-    }
+    LOG_INFO(
+        "NK组队分红 reward=%lld cx=%lld 队长=%s(%lld) 队员1=%lld 队员2=%lld "
+        "队员3=%lld",
+        (long long)reward, (long long)cx, killer->querystr("id"),
+        (long long)paid[0], (long long)paid[1], (long long)paid[2],
+        (long long)paid[3]);
 
     killer->delete_temp("party/battle_count");
+}
+
+// 无经验入账的统一出口：reason 说明是哪道闸拦下的，附双方身份与历练，
+// 排查「杀怪不涨经验」时按前缀检索这一行即可定位
+exp_t CReward::log_zero_gain(const char* reason, CChar* killer, CChar* victim)
+{
+    LOG_DEBUG(
+        "NK经验=0 原因=%s 击杀者=%s 等级=%d 历练=%lld 受害者=%s 历练=%lld",
+        reason, killer->querystr("id"), (int)killer->query("level"),
+        (long long)killer->query("combat_exp"), victim->querystr("id"),
+        (long long)victim->query("combat_exp"));
+    return 0;
 }
 
 // NPC击杀经验奖励
@@ -174,7 +166,8 @@ exp_t CReward::nk_gain(CChar* killer, CChar* victim)
             || killer->query_temp("party/number")) {
             // 夫妻组队不受 share_exp 限制
             if (!killer->query_temp("party/couple")) {
-                return 0;
+                return log_zero_gain("经验共享已关闭且击杀者在队伍中", killer,
+                                     victim);
             }
         }
     }
@@ -188,7 +181,7 @@ exp_t CReward::nk_gain(CChar* killer, CChar* victim)
         LOG_WARN("%s was killed by [%s], but fainted by [%s].", victim->name(1),
                  killer->querystr("id"),
                  victim->querystr_temp("last_fainted_from"));
-        return 0;
+        return log_zero_gain("非最后晕倒者（单杀归属他人）", killer, victim);
     }
 
     if (DIFFERSTR(victim->querystr_temp("last_fainted_from"),
@@ -201,14 +194,16 @@ exp_t CReward::nk_gain(CChar* killer, CChar* victim)
                 || !killer->query_temp(
                     snprintf(msg, 255, "party/friend_%s",
                              victim->querystr_temp("last_fainted_from"))))
-                return 0;
+                return log_zero_gain("组队分红：最后晕倒者离线或非本队好友",
+                                     killer, victim);
             if (pary_client->query_temp("fight/fight_team")
                     != killer->query_temp("fight/fight_team")
                 || !pary_client->query_temp("fight/is_fighting")
                 || !killer->query_temp("fight/is_fighting")
                 || DIFFERSTR((pary_client->environment())->querystr("name"),
                              (killer->environment())->querystr("name")))
-                return 0;
+                return log_zero_gain("组队分红：与晕倒者不同战斗或不在同一房间",
+                                     killer, victim);
         }
         else if (killer->querystr_temp("party/master")[0]) {
             CUser* pary_master
@@ -216,14 +211,16 @@ exp_t CReward::nk_gain(CChar* killer, CChar* victim)
             if (!pary_master
                 || DIFFERSTR(killer->querystr_temp("party/master"),
                              victim->querystr_temp("last_fainted_from")))
-                return 0;
+                return log_zero_gain("队长链路：最后晕倒者离线或非本队队长",
+                                     killer, victim);
             if (pary_master->query_temp("fight/fight_team")
                     != killer->query_temp("fight/fight_team")
                 || !pary_master->query_temp("fight/is_fighting")
                 || !killer->query_temp("fight/is_fighting")
                 || DIFFERSTR((pary_master->environment())->querystr("name"),
                              (killer->environment())->querystr("name")))
-                return 0;
+                return log_zero_gain("队长链路：与晕倒者不同战斗或不在同一房间",
+                                     killer, victim);
         }
     }
 
@@ -235,10 +232,12 @@ exp_t CReward::nk_gain(CChar* killer, CChar* victim)
     if (killer->querymap("family")
         && EQUALSTR(killer->querystr("family/family_name"),
                     victim->querystr("family/family_name")))
-        return 0;
+        return log_zero_gain("同门派不发击杀经验", killer, victim);
 
-    nkgain             = calc_nkgain_base(victim);
-    mapping_value_t cx = killer->query("combat_exp");
+    // 有效经验 = 受害者的实战经验：它与全队最高历练折出的 dx 同量纲
+    const mapping_value_t eff_dx = victim->query("combat_exp");
+    nkgain                       = calc_nkgain_base(victim);
+    mapping_value_t cx           = killer->query("combat_exp");
 
     // 假如玩家处于组队状态且启用经验共享
     if (CPartyConfig::share_exp() && killer->query_temp("party/number")) {
@@ -268,13 +267,18 @@ exp_t CReward::nk_gain(CChar* killer, CChar* victim)
         }
     }
 
-    reward = calc_party_exp(killer, nkgain, cx, player1, player2, player3);
+    reward = calc_party_exp(eff_dx, nkgain, cx);
 
     if (killer->query_temp("party/battle_count") > 0) {
+        // 组队份额已在 distribute_party_exp 逐份入账并落日志，结算点不再入账
         distribute_party_exp(killer, victim, reward, cx, player1, player2,
                              player3);
         return 0;
     }
+    if (reward <= 0)
+        return log_zero_gain(
+            "受害者历练不足以折出正收益（低于击杀者折半 dx/2）", killer,
+            victim);
     return reward;
 }
 
@@ -400,23 +404,38 @@ void CReward::handle_npc_kill_reward(CChar* killer, CChar* victim, exp_t reward)
     char msg[255];
     mapping_value_t nk_limit = killer->query("level") * 4 + 100;
     if (reward > nk_limit) reward = nk_limit;
+    const exp_t capped_reward = reward;
+    bool hook_overrode        = false;
 
     // 击杀奖励的数据集结算（彩票、经验倍率、朱果配额、固定保底经验）：
     // 每次玩家击杀 NPC 都先咨询挂点——nk_gain 的组队分红、晕倒归属、
     // 经验折算都可能把 reward 算成 0，若在咨询之前早返回，脚本写入的
     // 固定奖励会因这些上游因素失效。脚本在场则以其返回的 reward 入账，
-    // 缺席/未返回则按 C++ 封顶值入账；咨询后仍 <=0 的奖励保持静默。
+    // 缺席/未返回则按 C++ 封顶值入账；咨询后仍 <=0 的奖励不入账、不发提示，
+    // 但要落原因日志——静默会让「杀怪不涨经验」在日志里查无实据。
     CLuaHookCall hook("kill_bonus");
     if (hook.valid()) {
         hook.add_object(killer).add_object(victim).add_int(reward);
         if (hook.call() && !hook.result_is_nil()) {
             int64_t bonus = reward;
-            if (hook.table_field_int("reward", bonus))
-                reward = static_cast<int32_t>(bonus);
+            if (hook.table_field_int("reward", bonus)) {
+                reward        = static_cast<int32_t>(bonus);
+                hook_overrode = true;
+            }
         }
     }
 
-    if (reward <= 0) return;
+    if (reward <= 0) {
+        LOG_INFO(
+            "NK经验=0 原因=%s nk_gain=%lld 封顶=%lld 击杀者=%s 历练=%lld "
+            "受害者=%s 历练=%lld",
+            hook_overrode ? "挂点 kill_bonus 改写为 0"
+                          : "nk_gain 回传 0（真因见上文日志）",
+            (long long)capped_reward, (long long)nk_limit,
+            killer->querystr("id"), (long long)killer->query("combat_exp"),
+            victim->querystr("id"), (long long)victim->query("combat_exp"));
+        return;
+    }
 
     killer->add("kill/nkgain", reward);
     killer->add("combat_exp", reward);

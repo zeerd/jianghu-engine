@@ -1,9 +1,10 @@
 // test_stringutil.cpp - Unit tests for StringUtil functions.
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 #include "IniParser.h"
@@ -329,4 +330,27 @@ TEST(StringUtil, CcStrcmp_NullSides)
     EXPECT_EQ(cc_strcmp("a", "a"), 0);
     EXPECT_LT(cc_strcmp("a", "b"), 0);
     EXPECT_GT(cc_strcmp("b", "a"), 0);
+}
+
+// ====================================================================
+// absolute_path：相对路径按 cwd 定准，运行期产物由此出生即绝对
+// ====================================================================
+std::string absolute_path(const std::string& path);
+
+TEST(StringUtil, AbsolutePath_ResolvesRelativeAgainstCwd)
+{
+    const std::string abs = absolute_path("log\\plan-context.txt");
+    EXPECT_TRUE(std::filesystem::path(abs).is_absolute());
+    EXPECT_NE(abs.find("plan-context.txt"), std::string::npos);
+}
+
+TEST(StringUtil, AbsolutePath_KeepsAbsoluteInput)
+{
+    EXPECT_EQ(absolute_path("C:\\some\\dir\\file.txt"),
+              "C:\\some\\dir\\file.txt");
+}
+
+TEST(StringUtil, AbsolutePath_PassesEmptyThrough)
+{
+    EXPECT_TRUE(absolute_path("").empty());
 }

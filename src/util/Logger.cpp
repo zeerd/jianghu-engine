@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #include "Logger.h"
+#include "LogMonitor.h"
 #include "Encoding.h"
 
 #include <stdio.h>
@@ -140,13 +141,19 @@ void log_message(LogLevel level, const char* fmt, ...)
 
     std::string fname = logger_log_file_name(now->tm_mon + 1, now->tm_mday);
 
+    // 将 GBK 日志内容转为 UTF-8 输出（纯 ASCII 行 GbkToUtf8 会原样返回）
+    std::string utf8_line = gbk_to_utf8(line);
+    const char* out_line  = !utf8_line.empty() ? utf8_line.c_str() : line;
+
     FILE* fp = fopen(fname.c_str(), "at");
     if (fp) {
-        // 将 GBK 日志内容转为 UTF-8 输出（纯 ASCII 行 GbkToUtf8 会原样返回）
-        std::string utf8_line = gbk_to_utf8(line);
-        fputs(!utf8_line.empty() ? utf8_line.c_str() : line, fp);
+        fputs(out_line, fp);
         fclose(fp);
     }
+
+    // 同步交给日志监控（未启用时是一次布尔判断的空操作）：该行先写
+    // 环形缓冲、达阈值再置触发标志，监控消费的是缓冲快照而非单行
+    log_monitor_on_line(level, out_line);
 }
 
 //---------------------------------------------------------

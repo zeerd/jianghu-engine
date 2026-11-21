@@ -3,7 +3,7 @@
 //
 // 房屋由前缀动态房脚本 room/house_base.lua 承载：house_<属区>_<户主> 存档
 // 行由 MockDatabase 提供。
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

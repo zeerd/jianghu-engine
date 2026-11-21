@@ -1,6 +1,6 @@
 // test_char_skill.cpp - Unit tests for CharSkill.cpp (skill CRUD + conditions).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Char.h"

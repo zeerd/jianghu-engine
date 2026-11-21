@@ -15,7 +15,7 @@
 // 每个回调都 error()，一条用例即可驱动整个报错面；通用挂点由用例直接往
 // hooks 表注入抛错的钩子。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <windows.h>

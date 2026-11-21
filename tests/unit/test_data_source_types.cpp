@@ -1,6 +1,6 @@
 // test_data_source_types.cpp - 数据域类型契约（槽位域族 / 有界域族）
 //
-// 构建/运行：.\run-coverage.ps1（仓库根）
+// 构建/运行：.\run-unit-tests.ps1（仓库根）
 //
 // 槽位值的宽度是64 位升级的裁定结果：无上界的数据域跟随 mapping_value_t
 // 一路走到底，有界域（等级、序号、句柄）固定 int32。本文件把这条分界钉死——

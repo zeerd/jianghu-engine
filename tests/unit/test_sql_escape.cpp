@@ -5,7 +5,7 @@
 // 唯一需要处理的是单引号。本文件锁定该契约，并覆盖此前从未被测试的
 // db_save_container 转义路径。
 //
-// Build+Run: .\run-coverage.ps1
+//
 
 #include "pch.h"
 #include <string>

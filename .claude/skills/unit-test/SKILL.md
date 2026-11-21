@@ -1,6 +1,6 @@
 ---
 name: unit-test
-description: "单元测试操作规程。凡涉及编写、修改、评审、运行 C++/Lua 单元测试的任务——改了 src/ 下的 .cpp/.h 要补测试、动 tests/unit/ 或 tests.vcxproj、接 Mock/接口、跑 run-coverage.ps1、查 coverage_history 的 delta、排查 tests.exe 崩溃或链接错误——一律先加载本技能。硬门禁（修改必须带测试、run-coverage.ps1 唯一认可、禁止 Debug、delta ≥ 0）与创建规范、类化重构步骤、故障排查表都在这里。"
+description: "单元测试操作规程。凡涉及编写、修改、评审、运行 C++/Lua 单元测试的任务——改了 src/ 下的 .cpp/.h 要补测试、动 tests/unit/ 或 tests.vcxproj、接 Mock/接口、跑 run-unit-tests.ps1、查 coverage_history 的 delta、排查 tests.exe 崩溃或链接错误——一律先加载本技能。硬门禁（修改必须带测试、run-unit-tests.ps1 唯一认可、禁止 Debug、delta ≥ 0）与创建规范、类化重构步骤、故障排查表都在这里。"
 ---
 
 # 单元测试（unit-test）
@@ -10,9 +10,9 @@ description: "单元测试操作规程。凡涉及编写、修改、评审、运
 
 在 `tests/unit/` 目录下使用 Google Test 框架创建单元测试。
 
-`.\run-coverage.ps1`是唯一认可的编译和运行测试的方案和手段。其他方式的运行结果都是不被承认的。
+`.\run-unit-tests.ps1`是唯一认可的编译和运行测试的方案和手段。其他方式的运行结果都是不被承认的。
 
-**绝对禁止用 Debug 版运行测试用例。** `run-coverage.ps1` 从头到尾只有 Release 一个配置
+**绝对禁止用 Debug 版运行测试用例。** `run-unit-tests.ps1` 从头到尾只有 Release 一个配置
 （生产同构 `Release|x64`）；为什么 Debug 不是同一个被测对象、硬门禁怎么拦，见
 `docs/design/unit-test.md` §3。
 
@@ -29,7 +29,7 @@ description: "单元测试操作规程。凡涉及编写、修改、评审、运
 
 - **引擎测试**：`tests/unit/tests.vcxproj` 是唯一的引擎测试工程；单元测试源码放在 `tests/unit/` 目录下，文件名格式 `test_<功能名>.cpp`。
 - **CLI 测试**：`cli/tests/jianghu_cli_tests.vcxproj`（独立工程）；源码放在 `cli/tests/` 下，文件名格式 `<功能名>_test.cc`。
-- `run-coverage.ps1` 分别构建并运行两个工程的测试，再以 `--input_coverage` 合并覆盖率后统一展示。
+- `run-unit-tests.ps1` 分别构建并运行两个工程的测试，再以 `--input_coverage` 合并覆盖率后统一展示。
 
 ### 强制要求：修改必须有测试
 
@@ -160,20 +160,20 @@ Mock 文件通过 **链接时替换** 提供外部依赖的 mock 实现。当修
 
 ### 构建命令和运行方法
 
-> ⚠️ **验证测试的唯一方式是运行 `.\run-coverage.ps1`（仓库根目录）。**
+> ⚠️ **验证测试的唯一方式是运行 `.\run-unit-tests.ps1`（仓库根目录）。**
 > **禁止**手动 `msbuild tests/unit/tests.vcxproj` 后再直接运行 `tests.exe`：配置与
 > Lua 脚本按**相对仓库根**的路径读取（如 `ini_load("tests/unit/test_config.ini")`），
 > 只有从仓库根执行才找得到——手动进测试输出目录（如 `x64\Debug\`）跑会因工作目录
 > 错误让相对路径全部失效、测试大面积失败（布局见 `docs/design/unit-test.md` §1.3）。
-> `run-coverage.ps1` 已包办：定位 MSBuild、以生产同构的 `Release|x64` 编译
+> `run-unit-tests.ps1` 已包办：定位 MSBuild、以生产同构的 `Release|x64` 编译
 > `jianghu_core.lib` + 测试工程、**从仓库根执行测试**、采集覆盖率报告与 delta。
 > Debug 版另有一道硬门禁 `TestConfigGate.DebugBuildIsNotAcceptance`（无条件失败）；
 > 为什么 Debug 不是同一个被测对象，见 `docs/design/unit-test.md` §3。
-> 聚焦调试：`run-coverage.ps1` 编译完成后从仓库根直接跑 `x64\Release\tests.exe
+> 聚焦调试：`run-unit-tests.ps1` 编译完成后从仓库根直接跑 `x64\Release\tests.exe
 > --gtest_filter=Suite.*`；
-> **最终验收仍必须完整跑一遍 `.\run-coverage.ps1`**。
+> **最终验收仍必须完整跑一遍 `.\run-unit-tests.ps1`**。
 
-- **运行测试并收集覆盖率**：在仓库根目录执行 `.\run-coverage.ps1`（分支覆盖率：`.\run-coverage.ps1 -CoverageType branch`）。
+- **运行测试并收集覆盖率**：在仓库根目录执行 `.\run-unit-tests.ps1`（分支覆盖率：`.\run-unit-tests.ps1 -CoverageType branch`）。
 - 仅需要编译服务器 `jianghu.exe`（不跑测试）时，才可手动构建：
   `& $msb jianghu.vcxproj /p:Configuration=Debug /p:Platform=x64`。
 
@@ -201,5 +201,5 @@ Mock 文件通过 **链接时替换** 提供外部依赖的 mock 实现。当修
 | `LNK2001: unresolved external symbol` | Mock 层缺少函数实现 | 在 `mock/*.cpp` 中补 stub |
 | `LNK2005: already defined` | 符号同时存在于 lib 和 mock | 改为接口 + 依赖注入（见"可测试性设计"） |
 | `LNK1181: cannot open input file` | 库文件路径错误 | 检查 `AdditionalLibraryDirectories` |
-| 运行时崩溃、堆损坏 | `jianghu_core.lib` 与 `tests.exe` 使用了不同 CRT 版本 | 两者使用相同 CRT；以 `run-coverage.ps1` 的统一构建为准，不要手工混搭配置 |
+| 运行时崩溃、堆损坏 | `jianghu_core.lib` 与 `tests.exe` 使用了不同 CRT 版本 | 两者使用相同 CRT；以 `run-unit-tests.ps1` 的统一构建为准，不要手工混搭配置 |
 | 单独运行通过、批量运行失败 | 测试间状态泄漏 | 在 `SetUp()` 中重置所有全局状态与 mock 计数器 |

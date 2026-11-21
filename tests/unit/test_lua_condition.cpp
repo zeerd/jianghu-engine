@@ -12,7 +12,7 @@
 // 挂上的那一份，引擎契约绿了但样本写错（比如不递减 duration、归零不返回 0）
 // 时，仍会表现为「毒永远不解」。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <filesystem>

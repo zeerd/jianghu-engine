@@ -1,6 +1,6 @@
 // test_char_family.cpp - Unit tests for CharFamily.cpp (师徒/关系/跟随).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Char.h"

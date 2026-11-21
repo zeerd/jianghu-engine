@@ -163,7 +163,7 @@ CLI 测试源码放在 `cli/tests/`（`<功能>_test.cc`）。
 集成测试（CLI 无头剧本 + 真实服务器 + OpenCppCoverage）入口在仓库根的
 `run-integration-tests.ps1`，剧本与专用配置在 `tests/integration/`。
 
-`run-coverage.ps1` 是唯一认可的单元测试编译与运行方式：它分别构建并运行
+`run-unit-tests.ps1` 是唯一认可的单元测试编译与运行方式：它分别构建并运行
 引擎测试（`x64\Release\tests.exe`）与 CLI 测试
 （`bin\cli\x64\jianghu_cli_tests.exe`），再以 `--input_coverage` 合并两套
 覆盖率，生成统一的报告与增量（Release|x64 生产同构配置 +
@@ -171,8 +171,8 @@ OpenCppCoverage）。Debug 构建的引擎测试内置 `TestConfigGate`，运行
 即报错——Debug 结果不作验收依据。
 
 ```powershell
-.\run-coverage.ps1                    # 行覆盖率
-.\run-coverage.ps1 -CoverageType branch
+.\run-unit-tests.ps1                    # 行覆盖率
+.\run-unit-tests.ps1 -CoverageType branch
 ```
 
 集成测试一键运行（SQLite 文件库，零外部服务依赖；需 OpenCppCoverage）：

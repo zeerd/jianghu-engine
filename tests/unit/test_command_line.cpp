@@ -5,7 +5,7 @@
 // config.ini（仓库根）。注入式启动器（OpenCppCoverage）会把每个参数重新加引号，
 // 传入形如 "--config" "C:\path\config.ini" 的命令行，也必须解析正确。
 //
-// 构建/运行：仓库根目录执行 .\run-coverage.ps1
+// 构建/运行：仓库根目录执行 .\run-unit-tests.ps1
 #include "pch.h"
 
 #include <cstdio>

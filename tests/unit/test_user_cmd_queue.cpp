@@ -1,7 +1,7 @@
 // test_user_cmd_queue.cpp - Unit tests for CUser command queue
 // (unique_ptr<char[]> migration).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include <cstdio>

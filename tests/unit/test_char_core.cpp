@@ -1,6 +1,6 @@
 // test_char_core.cpp - Unit tests for Char.cpp (core lifecycle/heartbeat).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Char.h"

@@ -8,7 +8,7 @@
 // 观察面：master 的 query_learned()（weak_mode=1 + is_user 只累加 learned）
 //        与 query("combat_exp")。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 

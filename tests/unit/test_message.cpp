@@ -1,6 +1,6 @@
 // test_message.cpp - 消息管线字符串工具（replace_string 行为锁定）
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 

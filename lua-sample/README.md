@@ -178,6 +178,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 |-----|------|------|
 | 青云子（师父） | `npc/sample_master.lua` | 门派"青云门"祖师，可拜师学武 |
 | 练功木人 | `npc/sample_wooden_dummy.lua` | 镜像NPC（自装配 `npc/mirror_base.lua`）：`/ask 对练` 照挑战者复制自己，被打散即自毁、随房间 reset 复生 |
+| 重伤山贼 | `npc/blank_npc.lua` | 有效气血上限只剩 1 的重伤靶（一次负伤即死、不还手）：击杀经验走 `nk_gain` 按双方历练折算，死亡走标准链（`CChar::die` → 尸体） |
 
 **师父机制**（参照 `lua/npc/class` 下的NPC）：
 - 使用 `create_family()` 创建门派
@@ -297,7 +298,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 |------|------|
 | `sample_room_common.lua` | require 共享 `say_long`/`do_look` |
 | `sample_mountain_foot.lua` | 山脚：向导+商人+巡游道人，三箱（木箱/药箱/锁着的箱子） |
-| `sample_mountain_mid.lua` | 半山腰：师父 + 练功木人 + 铁人桩；`valid_startroom`/`sleep_room` |
+| `sample_mountain_mid.lua` | 半山腰：师父 + 练功木人 + 铁人桩 + 重伤山贼；`valid_startroom`/`sleep_room` |
 | `sample_mountain_top.lua` | 山顶：副本入口，青蛇练级点 |
 | `sample_tea_stall.lua` | 茶棚：水源 fill（含茶钱 fee） |
 | `sample_bank.lua` | 钱庄：type=bankowner 老板（存取款/贷款）；**房间双名演示**——注册名 `山脚钱庄`（门与寻址用）vs 显示名 `钱庄`（客户端抬头用），设定见该文件头注 |
@@ -308,7 +309,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | `sample_stronghold_courtyard.lua` | 庭院：type=fbroom，副本门入口 |
 | `sample_stronghold.lua` | 大厅：type=fbroom，战斗NPC + valid_leave |
 
-**npc/**（15）
+**npc/**（16）
 
 | 文件 | 说明 |
 |------|------|
@@ -318,6 +319,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | `sample_master.lua` | 青云子：收徒（attempt_apprentice）、悔过/验看问话 |
 | `sample_wooden_dummy.lua` | 练功木人：镜像NPC（require+install mirror_base），`/ask 对练` |
 | `sample_iron_dummy.lua` | 铁人桩：固定属性喂招沙包，`attack` 钩子演示 `base_attack` 交回 |
+| `sample_wounded_bandit.lua` | 重伤山贼：有效气血上限 1 的一负伤即死靶，不还手、不配 `nk_bonus`（击杀经验走 `nk_gain` 折算） |
 | `sample_arena_master.lua` | 演武教头：逐绑定装配战斗房 + `Do_BiShi` 两条开法 |
 | `sample_road_rogue.lua` | 山道强人：记仇/切磋/贿赂销账/死亡接管 |
 | `sample_qingshe.lua` | 青蛇：练级怪，`nk_bonus` 固定经验，die 掉蛇胆 |

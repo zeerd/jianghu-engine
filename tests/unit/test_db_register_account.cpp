@@ -6,7 +6,7 @@
 //   - 落库：insert into jianghudb 一行基本资料（档案由首次登录新人分支建立）
 //   - id：取回自增生成的 cc_id（起点由 prepare_tables 播到 1000）
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>

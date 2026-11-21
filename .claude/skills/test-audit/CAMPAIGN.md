@@ -4,7 +4,7 @@
 
 ## 1. Baseline（基线）
 
-在固定 SHA（`git rev-parse HEAD`，只读）处记录：子系统的测试与支持行数（`tests/unit/*.cpp` 与 `tests/unit/mock/`，生产代码单独计）、每个测试文件的通过/失败状态、一次全量 `.\run-coverage.ps1` 的测试总数与 `coverage_history/summary.csv` 末行。基线失败单列成清单 —— 历史战役中基线失败全部是真实产品 bug，不是陈旧测试。
+在固定 SHA（`git rev-parse HEAD`，只读）处记录：子系统的测试与支持行数（`tests/unit/*.cpp` 与 `tests/unit/mock/`，生产代码单独计）、每个测试文件的通过/失败状态、一次全量 `.\run-unit-tests.ps1` 的测试总数与 `coverage_history/summary.csv` 末行。基线失败单列成清单 —— 历史战役中基线失败全部是真实产品 bug，不是陈旧测试。
 
 完成标准：每个在范围内的测试文件都有记录的基线结果。
 
@@ -29,7 +29,7 @@
 
 ## 3. Read-only ledger per lane（逐车道只读台账）
 
-每条车道交给独立的只读 agent。它完整读取全部被分配的测试（包括参数化表），也读生产 owner 及其入口、调用方、历史（`git log` 只读）与测试注册路由（`tests.vcxproj` 的 `<ClCompile>` 条目、`run-coverage.ps1` 的收集范围）。每条测试声明进一份书面**台账**，打一个标记。Google Test 的参数化用例（`TEST_P`、循环生成的多行）算一条声明，除非各行需要不同标记；需要时逐行标。
+每条车道交给独立的只读 agent。它完整读取全部被分配的测试（包括参数化表），也读生产 owner 及其入口、调用方、历史（`git log` 只读）与测试注册路由（`tests.vcxproj` 的 `<ClCompile>` 条目、`run-unit-tests.ps1` 的收集范围）。每条测试声明进一份书面**台账**，打一个标记。Google Test 的参数化用例（`TEST_P`、循环生成的多行）算一条声明，除非各行需要不同标记；需要时逐行标。
 
 - `R`：保留，写明它守护的契约与能抓的 bug；仅挪到更准确命名的文件仍算 `R`，注明移动；
 - `F`：保留契约但修复断言，例如"多项缺一仍通过"的空洞负断言；
@@ -50,7 +50,7 @@
 
 逐车道编辑。共享 harness（`tests/unit/mock/`、`tests/unit/test_config.ini`、公共头）的修改串行通过单一 owner，避免并行冲突。每条车道顺手删除它解锁的测试专用生产 seam：注入参数、getter、reset 导出、中间层 —— 判据见 `.claude/skills/unit-test/SKILL.md` 的"可测试性设计：自由函数无法 Mock，必须类化"：生产调用方也需要的接口是设计，只有测试需要的才是 seam，直接删。移动的套件在 `tests/unit/tests.vcxproj` 的 `<ClCompile>` 中注册/注销；覆盖率基线按 shrink-only 更新（delta ≥ 0）。把本战役实际发现的持久测试归属规则写进 `.claude/skills/unit-test/SKILL.md`。
 
-完成标准：每条车道计划已应用，该车道 keeper 全绿（聚焦运行；车道全部完成后跑一次全量 `run-coverage.ps1`）。
+完成标准：每条车道计划已应用，该车道 keeper 全绿（聚焦运行；车道全部完成后跑一次全量 `run-unit-tests.ps1`）。
 
 ## 6. Preservation review（保全评审）
 
@@ -68,7 +68,7 @@
 
 ## 8. Reconcile and hand off（对账与交接）
 
-战役会跨越许多 `main` 提交。**合并 `main` 由用户执行**（agent 仅允许只读 git），不做长时间多提交的 rebase。`main` 改动了战役已删除的文件时，保持删除，把新契约移植进 keeper，并确认 `main` 新增的每个回归都有归属车道。在合并后的头上重跑全量 `run-coverage.ps1`；涉及 Lua/绑定的改动重跑 `--check-lua` 全量。
+战役会跨越许多 `main` 提交。**合并 `main` 由用户执行**（agent 仅允许只读 git），不做长时间多提交的 rebase。`main` 改动了战役已删除的文件时，保持删除，把新契约移植进 keeper，并确认 `main` 新增的每个回归都有归属车道。在合并后的头上重跑全量 `run-unit-tests.ps1`；涉及 Lua/绑定的改动重跑 `--check-lua` 全量。
 
 如此大的 diff 会让评审工具只看到截断的文件清单。维护者对通用兼容标志的决定记录进交接报告，而不是去改门槛。
 

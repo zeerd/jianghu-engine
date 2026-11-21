@@ -9,7 +9,7 @@
 //   3. pre_accept_object 的 handled 字段：物品交付已处理；
 //   4. 一次对话只咨询一次钩子（CNpc 与 Lua NPC 两条路径都成立）。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>
@@ -90,6 +90,8 @@ protected:
         npc = new CNpc();
         npc->set("name", "任务NPC");
         npc->set("id", "quest_npc");
+        // 可被击杀的 NPC 带历练：NK 折算的分子取受害者的 combat_exp
+        npc->set("combat_exp", (long)100);
         npc->move(room);
 
         item = new CContainer();

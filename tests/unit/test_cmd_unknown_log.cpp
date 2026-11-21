@@ -14,7 +14,7 @@
 // 从不读日志落盘内容；这行日志被删掉、只记命令词不记参数、或级别被改成
 // INFO/WARN/ERROR 时，用例都不会变红。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <stdio.h>

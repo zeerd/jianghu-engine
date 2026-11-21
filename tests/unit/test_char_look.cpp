@@ -1,6 +1,6 @@
 // test_char_look.cpp - Unit tests for CharLook.cpp (观察 / 外观描述).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Char.h"

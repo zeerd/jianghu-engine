@@ -2,8 +2,6 @@
 -- 仆役借出的物件都带 temp 标记 yongren/rent（起租物）。本模块负责判定
 -- 「谁身上带着本房的租品」与「外人带着租品时哪些指令要拦下」，供
 -- room/house_base.lua 的查租、赶人与命令截获复用。
---
--- Build+Run: .\run-coverage.ps1（HouseTest.*）；E2E 见 tests/integration/scenarios/house/
 
 local M = {}
 

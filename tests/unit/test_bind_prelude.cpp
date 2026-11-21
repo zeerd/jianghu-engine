@@ -1,6 +1,6 @@
 // test_bind_prelude.cpp — 启动期前导脚本（prelude）的装载、入参契约与可见性
 //
-// 构建/运行：.\run-coverage.ps1（从仓库根执行）
+// 构建/运行：.\run-unit-tests.ps1（从仓库根执行）
 //
 // 契约（src/lua/LuaBind.cpp lua_bind_run_prelude）：
 //   - <script_root|default_script_root>/data/prelude.lua，前者优先；

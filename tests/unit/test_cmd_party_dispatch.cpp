@@ -15,7 +15,7 @@
 // 断言空消息的 party 真被执行到 CCmdUser::party（party/invite
 // 被写入被邀请者）， 即不再被频道吞掉——修复的回归锚点。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

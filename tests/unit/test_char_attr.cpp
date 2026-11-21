@@ -1,7 +1,7 @@
 // test_char_attr.cpp - Unit tests for CharAttr.cpp (CChar attribute/exp
 // queries).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Char.h"

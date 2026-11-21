@@ -5,7 +5,7 @@
 // fixture_resident_no_install.lua 声明 type = "resident" 却不 install，
 // 作引擎不再自动混入的反向回归；房屋由前缀动态房脚本 room/house_base.lua
 // 承载。
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

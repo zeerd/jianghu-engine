@@ -11,7 +11,7 @@
 // 施法者等级 50、技能等级 100 → 实际 AP 耗费
 //   100 * (120 - 100/4 - 50/2) / 100 = 70
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

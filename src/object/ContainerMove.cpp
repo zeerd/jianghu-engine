@@ -51,7 +51,7 @@ int CContainer::move(CContainer* me)
             &g_channel, 0, "sys",
             snprintf(msg, 255, "%s价值%lld的%s从%s移动到%s。", color,
                      (long long)query("value"), name(1), env_old, env_new));
-        LOG_WARN("%s", msg);
+        LOG_INFO("%s", msg);
     }
 
     if (query("equipped")) {

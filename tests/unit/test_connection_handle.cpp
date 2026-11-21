@@ -5,7 +5,7 @@
 // （结构上无 ABA）；0 是「无连接」保留值。夹具负责配对归还本用例分配的句柄，
 // 避免悬垂条目污染后续用例的查表。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <atomic>

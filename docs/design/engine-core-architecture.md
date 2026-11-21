@@ -47,7 +47,7 @@ verified-by: pending（待作者确认 Open Questions）
 **Background**（inferred from code）:
 
 - 平台是 Windows / Winsock，IOCP 是该平台原生的高并发 I/O 模型；构建固定为 `Release|x64`
-  （生产与覆盖率同构，见 `run-coverage.ps1`、`docs/design/unit-test.md` §3）。
+  （生产与覆盖率同构，见 `run-unit-tests.ps1`、`docs/design/unit-test.md` §3）。
 - 内容（房间 / NPC / 物品 / 技能 / 任务）的变更频率远高于引擎本身的变更频率，
   内容必须外置，否则每次调数值都要重发布。
 - 世界规模小而状态复杂：单进程、单房间数以百计、在线玩家以千计的量级，
@@ -419,7 +419,7 @@ ASCII 掩盖），2026-10-24 已统一，契约测试 `tests/unit/test_dispatch_
   `include` 串起各自的剧本片段；L5/L6 配对互动、L7 观战依附 L5、L8 山贼试炼依附 L3、
   L9 巫师服务道、L10 练功道）。
   道模型、隔离原则与覆盖率口径的设计见 `docs/design/integration-test.md`。
-- **唯一认可的验证入口**：仓库根 `.\run-coverage.ps1`（`Release|x64`，
+- **唯一认可的验证入口**：仓库根 `.\run-unit-tests.ps1`（`Release|x64`，
   绝对禁止 Debug —— Debug 与 Release 不是同一个被测对象）。
 - Coverage：门槛 75% 及格 / 90% 良好；E2E 行覆盖无数字门槛（参考手段，
   缺口是系统性的，由单测兜底——口径见 `docs/design/integration-test.md` §5）。

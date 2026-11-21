@@ -12,7 +12,7 @@
 
 //
 
-// Build+Run: .\run-coverage.ps1
+//
 
 #include "pch.h"
 

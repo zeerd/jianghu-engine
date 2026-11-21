@@ -105,6 +105,10 @@ bool db_verify_password(const char* id, const char* pass)
         }
         if (result.empty()) return false;
 
+        // 空入参命中空存储 = 暗码未设置：校验放行，但没有凭据可迁移——
+        // 空口令不派生、不落库，「未设置」保持未设置
+        if (tmp[0] == '\0') return true;
+
         // 无感迁移：写入盐与哈希、清空旧列。校验已通过，迁移写失败只记
         // 日志，不改变本次结论。
         std::string new_salt, new_hash;
@@ -138,6 +142,15 @@ bool db_authenticate_account(const char* id, const char* passwd)
     try {
         const std::string pass = normalized_password(passwd);
 
+        // 空口令硬拒绝：空口令既不能成为凭据，也就永远不能通过认证——
+        // 哈希比对会命中「空口令的哈希」（旧版本留下的历史行），不拦就是
+        // 空口令登进账号的通道
+        if (pass.empty()) {
+            LOG_ERROR("db_authenticate_account: empty password rejected. id=%s",
+                      id);
+            return false;
+        }
+
         DbResultSet result;
         char msg[512];
         snprintf(msg, sizeof(msg),
@@ -150,8 +163,9 @@ bool db_authenticate_account(const char* id, const char* passwd)
             return false;
         }
         if (result.empty() || result.rows[0].columns.size() < 3) {
-            LOG_ERROR("database fail: user:%s passwd:%s store null", id,
-                      pass.c_str());
+            // 口令掩码：认证失败是 ERROR 级，ERROR 行会经日志监控外发，
+            // 而失败尝试的口令往往就是用户真实口令（见 encryption §2.7）
+            LOG_ERROR("database fail: user:%s passwd:*** store null", id);
             return false;
         }
 
@@ -169,8 +183,7 @@ bool db_authenticate_account(const char* id, const char* passwd)
 
         if (!matched) {
             // 账号不存在与口令不符同形：库里查不到与该口令匹配的凭据
-            LOG_ERROR("database fail: user:%s passwd:%s store null", id,
-                      pass.c_str());
+            LOG_ERROR("database fail: user:%s passwd:*** store null", id);
             return false;
         }
 

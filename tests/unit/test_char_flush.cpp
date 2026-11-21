@@ -16,7 +16,7 @@
 //     P= 仅 this==me，B=1/E=1 框架位固定首/末包，M=/K=1 映射/装备标记。
 //  5. send_table 的 st=1/2/3 行框架，表头 T/R/P 仅随首行，空表 0 包。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 

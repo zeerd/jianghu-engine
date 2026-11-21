@@ -8,7 +8,7 @@
 //   2. 站点层（CCmdHandle::command 角色目标拦截之前）：{reason} 非空即吞掉
 //      本次命令（返回 1、命令未被执行），空则照常落到 handle_action 分发链。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

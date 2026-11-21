@@ -1,4 +1,4 @@
-// 构建/运行（仓库根）：.\run-coverage.ps1
+// 构建/运行（仓库根）：.\run-unit-tests.ps1
 #include "gtest/gtest.h"
 
 #include <filesystem>

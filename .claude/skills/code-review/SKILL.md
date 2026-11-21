@@ -111,7 +111,7 @@ description: >
 
 | 检查 | 命令 | 注意 |
 | --- | --- | --- |
-| 单元测试（唯一认可途径） | `.\run-coverage.ps1` | 只用 Release；Debug 版结果不作数 |
+| 单元测试（唯一认可途径） | `.\run-unit-tests.ps1` | 只用 Release；Debug 版结果不作数 |
 | C++ 静态检查 | `.\run-cppcheck.ps1` | 结果在 `bin\cppcheck.result.txt`，有报须处理 |
 | Lua 语法/绑定检查 | `--check-lua` | 调用方式见 copilot-instructions.md |
 | 格式 | `.\style.ps1` | 改动后自检用 |

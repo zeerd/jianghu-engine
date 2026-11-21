@@ -7,7 +7,7 @@
 //   - 被 require 的 item 目录模块不参与冒烟（它是库，不是数据键）
 //   - 用完把全局 pcall 还原，不污染同状态里的其它测试
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <initializer_list>

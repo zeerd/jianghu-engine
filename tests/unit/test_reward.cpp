@@ -4,11 +4,13 @@
 // 攻击方总舵仇敌名单命中数据集 kill_settle 规则则损失加倍。结算同时累加
 // 受害者的 kill/pklose、pds 与 death/* 快照，并清掉总舵名单上的该次仇。
 // 玩家击杀 NPC 时：NK 奖励经 nk_gain 算出后按 level*4+100
-// 封顶入账（公共算法）； 封顶前的彩票掉落（pk 房 cp/*）、经验倍率（pk 房
-// exp）、朱果掉落（pk 房 宝物） 以及 lu32 悬赏结算属数据集内容，由
-// RewardNpcKillTest 锁定其可观察行为。
+// 封顶入账（公共算法）； 折算 times=(有效经验 − dx/2)/(dx+1) 的分子是
+// 受害者的 combat_exp，nkgain 档位只决定奖励量级——两者不同量纲，
+// 混用会让高历练击杀者把所有怪折成 0。封顶前的彩票掉落（pk 房
+// cp/*）、经验倍率（pk 房 exp）、朱果掉落（pk 房 宝物） 以及 lu32
+// 悬赏结算属数据集内容，由 RewardNpcKillTest 锁定其可观察行为。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 #include <cstring>
 #include <memory>
@@ -120,14 +122,16 @@ protected:
         killer->move(pk->get());
         return killer;
     }
-    // nkgain=200 与 cx=100 → dx=44、times 钳到 2 → 封顶前奖励 400；nkgain=10 →
-    // 奖励 0
-    CNpc* MakeNpcVictim(const char* name, const char* id, long nkgain)
+    // nkgain 定奖励量级，combat_exp 是折算的「有效经验」：cx=100 → dx=44，
+    // times=(combat_exp-22)/45；取 100 折出 1.73 → 200×1.73=346 → 封顶 140
+    CNpc* MakeNpcVictim(const char* name, const char* id, long nkgain,
+                        long combat_exp = 100)
     {
         victim = new CNpc();
         victim->set_name(name, id);
         victim->set("nkgain", nkgain);
         victim->set("level", (long)5);
+        victim->set("combat_exp", combat_exp);
         return victim;
     }
 };
@@ -237,7 +241,7 @@ TEST_F(RewardNpcKillTest, NpcKill_PetKills_RoutesRewardThroughMaster)
     master->set_temp("fight/is_fighting", (long)1);
     master->move(pk->get());
     g_user_list[master->object_id()] = master;
-    CNpc* v = MakeNpcVictim("流寇", "rw_pet_v", (long)60);
+    CNpc* v = MakeNpcVictim("流寇", "rw_pet_v", (long)60, (long)60);
     v->set_temp("last_fainted_from", "rw_pet_master");
     g_reward.killer_reward(k, v);
     EXPECT_EQ(k->query("combat_exp"), 1000 + 50)
@@ -263,7 +267,7 @@ TEST_F(RewardNpcKillTest, NpcKill_PetKills_MasterInOtherFight_UsesKiller)
     master->set_temp("fight/is_fighting", (long)1);
     master->move(pk->get());
     g_user_list[master->object_id()] = master;
-    CNpc* v = MakeNpcVictim("流寇", "rw_pet2_v", (long)60);
+    CNpc* v = MakeNpcVictim("流寇", "rw_pet2_v", (long)60, (long)60);
     v->set_temp("last_fainted_from", "rw_pet2_k");
     g_reward.killer_reward(k, v);
     EXPECT_EQ(k->query("combat_exp"), 100 + 50)
@@ -456,6 +460,74 @@ TEST_F(RewardPartyTest, NkGain_ShareExpOff_PartyDenied_CoupleExempt)
     EXPECT_GT(g_reward.nk_gain(killer, victim), 0) << "夫妻组队不受限";
     g_ini_data["party"].clear();
     CPartyConfig::init();
+}
+// ---------------- nk_gain：折算分子取受害者实战经验 ----------------
+// 档位 nkgain 与有效经验 combat_exp 是两个量：档位定量级、历练定能否折出
+// 正收益。两例用实战量级的数值钉住分子取谁——取错档位时前者折成 0、
+// 后者折出正数，都会翻车。
+TEST_F(RewardPartyTest, NkGain_EffectiveExpIsVictimCombatExp)
+{
+    killer->set("level", (long)16);
+    killer->set("combat_exp", (long)41811);  // dx = 41811×4/9 = 18582
+    victim->set("level", (long)10);
+    victim->set("combat_exp", (long)37803);  // 分档 → nkgain 150
+    // times = (37803 − 9291)/18583 ≈ 1.534 → 150 × 1.534 = 230
+    // （封顶 level×4+100 在结算点，nk_gain 不封顶）
+    EXPECT_EQ(230, g_reward.nk_gain(killer, victim));
+}
+TEST_F(RewardPartyTest, NkGain_LowVictimExpZeroRegardlessOfNkgain)
+{
+    killer->set("combat_exp", (long)1000);  // dx = 444、dx/2 = 222
+    victim->set("combat_exp", (long)100);
+    victim->set("nkgain", (long)500);  // 档位再高也救不回：分子取历练
+    EXPECT_EQ(0, g_reward.nk_gain(killer, victim));
+}
+// ---------------- nk_gain：归属闸门逐条拒发（零经验日志的落点）
+// ----------------
+TEST_F(RewardPartyTest, NkGain_PartyFainterOffline_Denied)
+{
+    killer->set_temp("party/number", 1);
+    victim->set_temp("last_fainted_from", "ghost_rk");
+    EXPECT_EQ(0, g_reward.nk_gain(killer, victim))
+        << "晕倒者不在线 → 组队分红拒发";
+}
+TEST_F(RewardPartyTest, NkGain_PartyFainterOtherTeam_Denied)
+{
+    killer->set_temp("party/number", 1);
+    killer->set_temp("fight/fight_team", 1);
+    killer->set_temp("fight/is_fighting", 1);
+    auto* fainter                     = MakeAlly("rk_faint", 100, 2);
+    g_user_list[fainter->object_id()] = fainter;
+    victim->set_temp("last_fainted_from", "rk_faint");
+    killer->set_temp("party/friend_rk_faint", 1);
+    EXPECT_EQ(0, g_reward.nk_gain(killer, victim))
+        << "晕倒者不在同一战斗队伍 → 组队分红拒发";
+    g_user_list.erase(fainter->object_id());
+}
+TEST_F(RewardPartyTest, NkGain_PartyMasterFainterOffline_Denied)
+{
+    killer->set_temp("party/master", "rk_master");
+    victim->set_temp("last_fainted_from", "ghost_master");
+    EXPECT_EQ(0, g_reward.nk_gain(killer, victim))
+        << "队长链路的晕倒者不在线 → 拒发";
+}
+TEST_F(RewardPartyTest, NkGain_PartyMasterOtherTeam_Denied)
+{
+    killer->set_temp("party/master", "rk_m2");
+    killer->set_temp("fight/fight_team", 1);
+    killer->set_temp("fight/is_fighting", 1);
+    auto* master                     = MakeAlly("rk_m2", 100, 5);
+    g_user_list[master->object_id()] = master;
+    victim->set_temp("last_fainted_from", "rk_m2");
+    EXPECT_EQ(0, g_reward.nk_gain(killer, victim))
+        << "队长与晕倒者不同战斗队伍 → 拒发";
+    g_user_list.erase(master->object_id());
+}
+TEST_F(RewardPartyTest, NkGain_SameFamily_Zero)
+{
+    killer->set("family/family_name", "武当");
+    victim->set("family/family_name", "武当");
+    EXPECT_EQ(0, g_reward.nk_gain(killer, victim)) << "同门派不发击杀经验";
 }
 // ---------------- pk_reward：结算钩子派发（pk_reward 钩子契约）
 // ---------------- 罪行档位与悬捕条件归数据集实现；C++ 只保留

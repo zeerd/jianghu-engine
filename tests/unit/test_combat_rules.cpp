@@ -10,7 +10,7 @@
 // 另验证可扩展性：另一数据集可在同一 phase 追加规则而 C++ 零改动。
 // 钩子缺席回退由 CLuaHookCall 统一保证（call 失败按 nil）。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

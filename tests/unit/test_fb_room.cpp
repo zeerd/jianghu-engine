@@ -5,7 +5,7 @@
 // m_door_list（合并后统一走 CRoom 的门列表），只经 add_door / present_door /
 // query_exits / remove_doors 观察。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "test_bind_common.h"
 
 #include <algorithm>

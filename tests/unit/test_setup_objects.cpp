@@ -2,7 +2,7 @@
 // std::unique_ptr (Phase 2 of the new/delete -> smart pointer migration), plus
 // the DB factory and CFightRoom::getTeamList ownership.
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 

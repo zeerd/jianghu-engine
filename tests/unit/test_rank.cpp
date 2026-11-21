@@ -5,7 +5,7 @@
 //   在 Lua 化前后返回完全一致的称谓文本。本文件按源码分支逐条锁定返回值，
 //   迁移后同一批断言必须原样通过（C++ 为 oracle）。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

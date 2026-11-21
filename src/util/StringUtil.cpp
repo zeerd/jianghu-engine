@@ -153,6 +153,21 @@ void normalize_password(char* pass)
     *w = 0;
 }
 
+// ---------------------------------------------------------
+// 路径：相对 → 绝对（按当前工作目录词法拼接，不触盘）
+//---------------------------------------------------------
+std::string absolute_path(const std::string& path)
+{
+    if (path.empty()) return path;
+    // _fullpath 按 cwd 拼接并折掉 "."/".."，不检查文件存在性；
+    // 失败（非法路径等）时原样返回，把报错留给后续调用点。
+    char* resolved = _fullpath(nullptr, path.c_str(), 0);
+    if (!resolved) return path;
+    std::string out(resolved);
+    free(resolved);
+    return out;
+}
+
 int cc_strcmp(const char* str1, const char* str2)
 {
     if (str1 == NULL) {

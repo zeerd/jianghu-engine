@@ -25,7 +25,7 @@ Bug 回归测试必须在修复前的代码上因预期原因失败、在 owner 
 本项目强制规则（来自 unit-test 技能，优先于本文件的宽松解释）：
 
 - 修改 `.cpp`/`.h` 必须带测试提交；
-- 验证以仓库根目录 `.\run-coverage.ps1` 为唯一认可的编译运行途径，`coverage_history/summary.csv` 的 `delta` 列必须 ≥ 0。
+- 验证以仓库根目录 `.\run-unit-tests.ps1` 为唯一认可的编译运行途径，`coverage_history/summary.csv` 的 `delta` 列必须 ≥ 0。
 
 ## Junk patterns（垃圾模式）
 
@@ -61,7 +61,7 @@ Bug 回归测试必须在修复前的代码上因预期原因失败、在 owner 
 
 测试靠保护行为、可信回归或独立有意义的契约来证明维护成本。审计中，一个"为保持行为的源码重组就必须改"的测试是可疑对象，但不自动可删；编写门槛仍然拒绝新增此类测试。
 
-判定候选前，读完整的测试与生产 owner、它的入口、调用方、被调方、兄弟实现、重叠测试、测试注册路由（`tests.vcxproj` 的 `<ClCompile>` 与 `run-coverage.ps1` 范围）与相关历史。测试声称依赖某库行为时，直接读依赖源码或类型（如 LuaBridge）。
+判定候选前，读完整的测试与生产 owner、它的入口、调用方、被调方、兄弟实现、重叠测试、测试注册路由（`tests.vcxproj` 的 `<ClCompile>` 与 `run-unit-tests.ps1` 范围）与相关历史。测试声称依赖某库行为时，直接读依赖源码或类型（如 LuaBridge）。
 
 ## Discovery（发现）
 
@@ -106,17 +106,17 @@ Bug 回归测试必须在修复前的代码上因预期原因失败、在 owner 
 
 ## Validation（验证）
 
-`run-coverage.ps1` 运行期间不要编辑源码或测试。禁止手动 `msbuild tests.vcxproj` 后**在非仓库根目录**直接运行 `tests.exe` —— 工作目录不在仓库根目录会让 `test_config.ini` 与 Lua 相对路径全部失效（聚焦调试与变异验证的受控例外见下文第 9 条；权威表述在 unit-test 技能）。
+`run-unit-tests.ps1` 运行期间不要编辑源码或测试。禁止手动 `msbuild tests.vcxproj` 后**在非仓库根目录**直接运行 `tests.exe` —— 工作目录不在仓库根目录会让 `test_config.ini` 与 Lua 相对路径全部失效（聚焦调试与变异验证的受控例外见下文第 9 条；权威表述在 unit-test 技能）。
 
-1. 聚焦运行：构建由 `.\run-coverage.ps1` 完成后，在**仓库根目录**执行 `.\x64\Release\tests.exe --gtest_filter=<Suite>.*`，跑最小 owner 与兄弟套件。
+1. 聚焦运行：构建由 `.\run-unit-tests.ps1` 完成后，在**仓库根目录**执行 `.\x64\Release\tests.exe --gtest_filter=<Suite>.*`，跑最小 owner 与兄弟套件。
 2. 对被删的源码 grep 或计划断言，跑拥有真实契约的可执行验证（如 `--check-lua` 全量、干跑脚本）。
 3. 格式化与洁净：C++ 跑 `.\style.ps1`，Lua 改动跑 stylua（命令见 copilot-instructions.md），然后 `git diff --check`。
-4. 全量验收：`.\run-coverage.ps1`，确认 `coverage_history/summary.csv` 的 `delta` ≥ 0；涉及 Lua 的改动追加 `ccjh.exe --check-lua` 全量（禁止抽样，调用方式见 copilot-instructions.md）。
+4. 全量验收：`.\run-unit-tests.ps1`，确认 `coverage_history/summary.csv` 的 `delta` ≥ 0；涉及 Lua 的改动追加 `ccjh.exe --check-lua` 全量（禁止抽样，调用方式见 copilot-instructions.md）。
 5. 静态检查按需：`.\run-cppcheck.ps1`。
 6. `git diff --numstat` 分列生产/工具与测试、测试支持；并自查硬规则：无迁移痕迹注释、无 BOM、x64 默认。
 7. **新断言失败先归因**：新写/重写的断言变红时，先读被测生产语义判定归属 —— 期望写错则修期望（典型如：`analyse_string` 是空格分隔不是 `=`；无 hard-core 标记的技能 push `nil` 而非表；`move()` 拒收 `amount>1` 的非叠加物品；`lua_check*`/`analyse_string` 对错参数会抛错或写穿只读内存而调用包装会吞掉异常）；只有复现确认是产品缺陷才走下文 Product defects 修生产。**禁止改生产代码迎合新断言，也禁止删断言保绿**。
 8. **编辑落地核对**：批量/多块编辑工具可能部分失败却返回成功摘要 —— 每个计划改动都要 grep 逐条确认已落地，并用 `git diff --numstat` 复核文件清单与预期一致。
-9. **变异验证的编译规程**（配合 CAMPAIGN 第 6 步）：变异后手动 msbuild 编译，在**仓库根**以 `--gtest_filter` 聚焦运行；变异结束逐字节恢复（`git diff` 为空）并重编译确认；变异状态下禁止跑 `run-coverage.ps1`（污染 `coverage_history/summary.csv`）。
+9. **变异验证的编译规程**（配合 CAMPAIGN 第 6 步）：变异后手动 msbuild 编译，在**仓库根**以 `--gtest_filter` 聚焦运行；变异结束逐字节恢复（`git diff` 为空）并重编译确认；变异状态下禁止跑 `run-unit-tests.ps1`（污染 `coverage_history/summary.csv`）。
 
 ## Landing and continuation（落地与继续）
 

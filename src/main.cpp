@@ -14,6 +14,7 @@
 #include "Global.h"
 #include "ServerSockHandler.h"
 #include "Logger.h"
+#include "LogMonitor.h"
 #include "MainConfig.h"
 #include "util/CommandLine.h"
 #include "util/IniParser.h"
@@ -235,6 +236,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
         return 1;
     }
 
+    // 日志监控：[opencode] 配置了 cli_path 才启动监控线程（否则空操作）
+    log_monitor_start();
+
     // Register window class
     WNDCLASSEX wcex    = {0};
     wcex.cbSize        = sizeof(WNDCLASSEX);
@@ -362,6 +366,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
 
         case WM_DESTROY: {
+            // 停日志监控：先于工作线程收口，在途分析被取消后线程立即归还
+            log_monitor_stop();
+
             // Cleanup
             tray_icon_remove();
             KillTimer(hWnd, 1);

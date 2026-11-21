@@ -3,7 +3,7 @@
 // 契约：CContainer::create 派发 hooks.object_create(obj, flag)；钩子可按
 // 身份补写图片号等缺省，钩子缺席时 icon 保持未定义。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>

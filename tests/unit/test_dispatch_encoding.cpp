@@ -1,6 +1,6 @@
 // test_dispatch_encoding.cpp — 房间指令分发的编码契约
 //
-// 构建与运行（唯一认可方式）: .\run-coverage.ps1（仓库根）
+// 构建与运行（唯一认可方式）: .\run-unit-tests.ps1（仓库根）
 //
 // 契约：脚本源码加载期 UTF-8→GBK（load_file_as_gbk），Lua 字符串空间是
 // GBK；房间分发（CLuaRoomT::handle_action / valid_leave）投递原始 GBK

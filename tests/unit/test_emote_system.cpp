@@ -7,7 +7,7 @@
 //  - 直接模式下目标必须与发出者同处一室；自目标改走 _self 文案
 //  - 目标收到 relay_emote 回执；动词表整表下发给客户端
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>

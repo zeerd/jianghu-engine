@@ -3,7 +3,7 @@
 // 覆盖 GetTeamMsg / getTeamList / Do_LeaveTeam / join_team / heart_beat 中
 // 按 team 下标复制的两队分支，作为把这些分支抽成公共函数时的行为基线。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 

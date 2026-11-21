@@ -6,7 +6,7 @@
 //   1. MAIN_VERSION 非空且以 "GS" 开头（回退链生效，未退化为空串）；
 //   2. 回退值 "GS20251028-dev" 的格式（无 VersionAuto.h 时的兜底形态）。
 //
-// 构建运行：仓库根 .\run-coverage.ps1
+// 构建运行：仓库根 .\run-unit-tests.ps1
 #include "pch.h"
 #include "MainConfig.h"
 #include <string.h>

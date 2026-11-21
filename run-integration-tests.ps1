@@ -1,6 +1,6 @@
 ﻿# run-integration-tests.ps1 — 集成测试入口（lua-sample 多账号并行 E2E）
 #
-# 与单元测试入口 run-coverage.ps1 并列。作用：
+# 与单元测试入口 run-unit-tests.ps1 并列。作用：
 #   1. 构建 Release|x64 的服务器 bin\e2e\jianghu.exe 与 CLI bin\cli\x64\jianghu_cli.exe；
 #   2. 用 tests\integration\config.ini 启动真实服务器（服务端命令行 --config 指定配置，
 #      不再临时改写 config.ini），独立测试库 + 独立端口；
@@ -15,7 +15,7 @@
 #   4. 在 OpenCppCoverage 下采集 src 行覆盖，导出 Cobertura / HTML / binary；
 #      所有道打的是同一个服务器进程，覆盖率天然合并，无需额外聚合；
 #      统计时按叶子文件名跳过 LuaSyntaxChecker.cpp 等结构性不可达文件
-#      （口径对齐 run-coverage.ps1 的 $excludedFiles；CmdWizard* 已因 L9
+#      （口径对齐 run-unit-tests.ps1 的 $excludedFiles；CmdWizard* 已因 L9
 #      巫师道落地而移出排除表——保持清单可见，但 2026-11-01 决策**不追求
 #      巫师命令覆盖度**：以 §6 决策认领，不设逐条消化目标）。
 #   5. 在控制台输出各道结果、行覆盖率与「未命中函数」清单；清单过长时只报数字，
@@ -90,7 +90,7 @@ param(
     # 跳过 MSBuild 构建（直接使用现有 bin\e2e\jianghu.exe / CLI）
     [switch]$SkipBuild,
     # 构建走 /t:Rebuild（Clean + 全量编译）：CI 用它显式声明「全量、不依赖增量
-    # 状态」，与 ci.yml build-and-test 的 /t:Rebuild 同一意图；本地默认增量，
+    # 状态」；本地默认增量，
     # 保持快速迭代。-SkipBuild 存在时本开关无效。
     [switch]$Rebuild,
     # 跳过 OpenCppCoverage（快速调试剧本，不出覆盖率报告）
@@ -120,7 +120,7 @@ param(
     # + L9 巫师服务道（账号自举、不注册）+ L10 练功道（N4 自 L3 拆出）；
     # 配对与依附关系都必须同时启用），每道一个账号，同时注册、同时开跑；
     # 调小会缩短并行度并丢掉未启用道的覆盖。
-    [int]$Workers = 10,
+    [int]$Workers = 11,
     # 耗时监控：本次剧本执行总耗时较前次同类通过运行增加超过该秒数时，
     # 归因是否新增场景导致，并探索拆分（移道 / 新增道）的可能性。
     # （Δ 归因是纯诊断；通过与否看下面的绝对预算）
@@ -257,7 +257,10 @@ $Lanes = @(
     # （exercise_no_raise，L9 供大上限）、throwing 链（learn_throwing）。
     # L2 已 288s 放不下 +130s，故开新道（§3.3「不足则评估新练功道」）；
     # 约 190s，非关键路径。WizardId=9：no_raise 段要巫师 call set max_mp。
-    @{ Id = 10; Desc = "练功"; Script = "lane_train.sce"; WizardId = 9 }
+    @{ Id = 10; Desc = "练功"; Script = "lane_train.sce"; WizardId = 9 },
+    # L11 NK 击杀经验：全新账号的零历练基线钉 nk_gain 折算定值入账（道头注
+    # 写明为什么必须单开道），重伤山贼钉给本道；无巫师/配对依赖，自包含。
+    @{ Id = 11; Desc = "NK击杀经验"; Script = "lane_nk.sce" }
 )
 
 if ($Workers -lt 1) { $Workers = 1 }

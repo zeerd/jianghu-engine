@@ -8,7 +8,7 @@
 //      命中记录则恢复 dbase，未命中则置 fail_ob。
 // 夹具 fixture_prefix_room.lua 位于 lua-tests（测试根），prefix="fxroom"。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

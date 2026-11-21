@@ -3,7 +3,7 @@
 // Covers level<->skill<->exp conversion tables, death penalty/recover and
 // remove_betrayer.  level_exp 数据来自 lua-default/data/level_exp.lua。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Char.h"

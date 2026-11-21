@@ -53,7 +53,7 @@
        OutDir is declared explicitly instead of relying on the MSBuild default so
        that each platform owns its own tests.exe and neither overwrites the other:
        Win32 -> tests\Debug\ (Debug) / Release\ (Release),
-       x64    -> x64\<Configuration>\ —— run-coverage.ps1 按平台取用。 -->
+       x64    -> x64\<Configuration>\ —— run-unit-tests.ps1 按平台取用。 -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)x64\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)bin\obj\Release\x64\$(ProjectName)\</IntDir>
@@ -88,7 +88,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)bin\$(Configuration)\;$(SolutionDir)bin\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
     </Link>
@@ -110,7 +110,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <!-- 核心库在 x64\$(Configuration)\（与本测试 exe 同址）；bin\ 是 Win32
          核心库的家，不进本架构的搜索路径——同名 .lib 不得互串。 -->
       <AdditionalLibraryDirectories>$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)x64\$(Configuration)\;$(SolutionDir)x64\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -135,7 +135,7 @@
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)bin\$(Configuration)\;$(SolutionDir)bin\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -157,7 +157,7 @@
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;lua55.lib;libmysql.lib;ws2_32.lib;mswsock.lib;Rpcrt4.lib;dbghelp.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <!-- 核心库在 x64\$(Configuration)\（与本测试 exe 同址）；bin\ 是 Win32
          核心库的家，不进本架构的搜索路径——同名 .lib 不得互串。 -->
       <AdditionalLibraryDirectories>$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)x64\$(Configuration)\;$(SolutionDir)x64\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -316,10 +316,15 @@
     <ClCompile Include="test_log_sections.cpp" />
     <ClCompile Include="test_log_runid.cpp" />
     <ClCompile Include="test_command_line.cpp" />
+    <ClCompile Include="test_feishu_client.cpp" />
+    <ClCompile Include="test_opencode_runner.cpp" />
+    <ClCompile Include="test_log_monitor.cpp" />
+    <ClCompile Include="test_log_monitor_limits.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\test_tmp_dir.h" />
+    <ClInclude Include="test_log_monitor_common.h" />
     <ClInclude Include="mock\mock_itemmgr.h" />
   </ItemGroup>
   <ItemGroup>

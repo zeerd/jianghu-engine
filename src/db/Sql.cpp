@@ -101,6 +101,16 @@ bool ensure_wizard_accounts()
         // 从配置文件读取巫师默认密码，读不到则使用 12345678
         const char* wizard_passwd = ini_get("wizard", "password", "12345678");
 
+        // 口令不能为空：配置显式给了空值按配置错误中止启动（键未配置时
+        // ini_get 已回退到缺省口令，不会走到这里）。空口令若进到下面的建行，
+        // 巫师账号就成了谁都不用密码也能登进的空门。
+        if (!wizard_passwd[0]) {
+            LOG_ERROR(
+                "EnsureWizardAccounts: [wizard] password 为空——口令不"
+                "能为空，请在配置中补全后重启");
+            return false;
+        }
+
         // 巫师口令与玩家同制：盐+哈希落库、明文列不写值。规范化与登录口
         // 同语义（剥单引号），否则配置里带引号的口令永远登不上。
         std::string cred_salt, cred_hash;

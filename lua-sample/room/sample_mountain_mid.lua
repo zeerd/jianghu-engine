@@ -13,6 +13,16 @@ return {
         self:add_object("npc", "sample_master")
         self:add_object("npc", "sample_wooden_dummy")
         self:add_object("npc", "sample_iron_dummy")
+
+        -- 重伤山贼：路边捡来的一击即死残血靶（血上限 1）
+        local npc = self:add_object("npc", "blank_npc")
+        npc:set("eff_hp", 1)
+        npc:set("hp", 1)
+        npc:set_name("重伤山贼", "zhong shang shan zei")
+        npc:set("long", "一个重伤倒地的山贼，气若游丝，已经无力再战。")
+        npc:set("level", 1)
+        npc:set("combat_exp", 3)
+
         self:add_object("door", "青云山山脚", "青云山山脚", "青云山半山腰")
         self:add_object("door", "青云山山顶", "青云山山顶", "青云山半山腰")
 

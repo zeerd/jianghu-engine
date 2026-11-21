@@ -11,7 +11,7 @@
 //   4. create_item(name, unique_id) 按 save_key 恢复实例存档；
 //   5. 箱子析构：声明专属表的箱内物件被 purge（存档行删除）。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 

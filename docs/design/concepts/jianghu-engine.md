@@ -39,7 +39,7 @@ verified-by: 待作者确认（部分意图已由作者在 2026-10-24 当面裁�
 **规模与复杂度**：
 - 代码量：`src\` 约 33,000 行 C++；`lua-sample` + `lua-default` 约 8,000 行 Lua。
 - 复杂度：**生产级**（非一次性原型）——有完整测试闭环
-  （`run-coverage.ps1` Release 同构覆盖率门禁 + `run-integration-tests.ps1`
+  （`run-unit-tests.ps1` Release 同构覆盖率门禁 + `run-integration-tests.ps1`
   CLI 无头剧本 E2E），协议有规范文档（`docs\protocol.md`），热重载与
   `--check-lua` 启动前校验齐备。
 
@@ -74,7 +74,7 @@ verified-by: 待作者确认（部分意图已由作者在 2026-10-24 当面裁�
 ```
 写/改 Lua 数据集脚本 → 热重载（5 秒扫描, HeartBeat.cpp:84）或 --check-lua 预校验
 → 起服实机验证（CLI 客户端 / 任意 TCP 客户端连 6600）
-→ run-coverage.ps1 + run-integration-tests.ps1 质量闸门 → 角色/房间/住宅自动落库
+→ run-unit-tests.ps1 + run-integration-tests.ps1 质量闸门 → 角色/房间/住宅自动落库
 ```
 
 **玩家侧幻想**（作为示例世界所呈现的产品面）：
@@ -173,7 +173,7 @@ RMT 走私，交易留痕可征税。
 **经验**：「战斗结束后做什么」在别的引擎要写状态机，这里是一个参数；
 隐式的注册前提必须由入口校验兜住，不能靠调用方自觉。
 
-✅ **Release 同构测试门禁**：`run-coverage.ps1` 全程 Release|x64
+✅ **Release 同构测试门禁**：`run-unit-tests.ps1` 全程 Release|x64
 （生产同构），Debug 版测试内置 `TestConfigGate` 无条件报红
 （见 `docs/design/unit-test.md` §3）。**经验**：把「Debug 结果不作数」
 做成硬门禁而非口头纪律，消除了「Debug 全绿但生产未验证」的假信心。
@@ -308,7 +308,7 @@ RMT 走私，交易留痕可征税。
 | 单进程简单性：正确性优先于规模 | ✅ 强 | 全游戏状态单线程主循环；延迟析构；无锁游戏逻辑 |
 | 社区自净：治理工具内置（投票禁言、罪恶/声望、监狱） | ✅ 强 | `vote`、`kill/guilt`、`jy.lua`（18000 秒刑期） |
 | 软死亡：损失可感知但不毁灭 | ✅ 强 | §3 已确认设计 |
-| 质量闭环：Release 同构测试门禁 | ✅ 强 | `run-coverage.ps1`、Debug 硬门禁 |
+| 质量闭环：Release 同构测试门禁 | ✅ 强 | `run-unit-tests.ps1`、Debug 硬门禁 |
 
 **总体契合**：概念自洽——六条支柱互相支撑（可替换性需要钩子面，
 钩子面需要软死亡兜底风险，社区自净兜底钩子放开的自由度）。
@@ -437,7 +437,7 @@ RMT 走私，交易留痕可征税。
 - `tests\unit\`：Google Test 引擎单测 + mock 层（链接时替换架构）。
 - `tests\integration\`：CLI 无头剧本 E2E（多账号并行十条道；
   设计见 `docs\design\integration-test.md`）。
-- 门禁：`run-coverage.ps1`（Release 同构 + 覆盖率增量）、
+- 门禁：`run-unit-tests.ps1`（Release 同构 + 覆盖率增量）、
   `run-integration-tests.ps1`（真实服务器 + OpenCppCoverage）。
 
 ---

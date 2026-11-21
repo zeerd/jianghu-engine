@@ -1,6 +1,6 @@
 // test_char_state.cpp - Unit tests for CharState.cpp (死亡/苏醒/状态广播).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Char.h"

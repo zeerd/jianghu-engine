@@ -3,7 +3,7 @@
 // dice 已从 C++ 巫师表移除（command/dice.lua），经真实分发链
 // （CCmdHandle::handlecommand → Lua commands）验证权限门槛与回落行为。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include "Char.h"

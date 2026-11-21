@@ -1,13 +1,13 @@
-﻿# run-coverage.ps1 - Collect code coverage for tests
+﻿# run-unit-tests.ps1 - Collect code coverage for tests
 #
 # Usage:
-#   powershell -File run-coverage.ps1                    # line coverage (default)
-#   powershell -File run-coverage.ps1 -CoverageType branch  # branch coverage
-#   powershell -File run-coverage.ps1 -ListNotInstrumented  # also list files absent from the report
-#   powershell -File run-coverage.ps1 -CovKeepCount 3       # 只保留最近 3 份 .cov（0 = 不清理）
-#   powershell -File run-coverage.ps1 -SummaryKeepCount 5   # summary.csv 与 summary-*.txt 各留最近 5 份（0 = 不清理）
-#   powershell -File run-coverage.ps1 -TestTmpDir D:\jt     # 测试临时目录（默认 <仓库根>\test_tmp）
-#   powershell -File run-coverage.ps1 -Shards 4             # 引擎测试分片数（0 = 自动）
+#   powershell -File run-unit-tests.ps1                    # line coverage (default)
+#   powershell -File run-unit-tests.ps1 -CoverageType branch  # branch coverage
+#   powershell -File run-unit-tests.ps1 -ListNotInstrumented  # also list files absent from the report
+#   powershell -File run-unit-tests.ps1 -CovKeepCount 3       # 只保留最近 3 份 .cov（0 = 不清理）
+#   powershell -File run-unit-tests.ps1 -SummaryKeepCount 5   # summary.csv 与 summary-*.txt 各留最近 5 份（0 = 不清理）
+#   powershell -File run-unit-tests.ps1 -TestTmpDir D:\jt     # 测试临时目录（默认 <仓库根>\test_tmp）
+#   powershell -File run-unit-tests.ps1 -Shards 4             # 引擎测试分片数（0 = 自动）
 #
 # Requires: OpenCppCoverage (https://github.com/OpenCppCoverage/OpenCppCoverage)
 #           installed and on PATH, or set $OpenCppCoveragePath below.

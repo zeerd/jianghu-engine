@@ -182,7 +182,7 @@
       <Culture>0x0804</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <!-- 库搜索目录：核心库的唯一副本在 $(SolutionDir)bin\（ProjectReference 上已
          剔除 OutDir 传播，e2e 构建不再往 $(OutDir) 里复制第二份），且同一轮构建内
@@ -235,7 +235,7 @@
       <Culture>0x0804</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <!-- 库搜索目录：x64 的核心库与本 exe 同落 x64\$(Configuration)\，e2e 构建
          用 /p:OutDir 换掉 $(OutDir) 后仍靠它索到同轮新建的库；bin\ 是 Win32
@@ -288,7 +288,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)bin\Debug\;$(SolutionDir)bin\;$(SolutionDir)bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -338,7 +338,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <!-- 库搜索目录：x64 核心库与本 exe 同落 x64\$(Configuration)\；bin\ 是
@@ -391,7 +391,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_01.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>$(OutDir).;$(LuaLibDir);$(MySQLLibDir);$(SolutionDir)bin\Debug\;$(SolutionDir)bin\;$(SolutionDir)bin\DebugSeason\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -441,7 +441,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jianghu_core.lib;libmysql.lib;Rpcrt4.lib;lua55.lib;ws2_32.lib;mswsock.lib;shell32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_01.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <!-- 库搜索目录：x64 核心库与本 exe 同落 x64\$(Configuration)\；bin\ 是

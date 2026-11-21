@@ -3,7 +3,7 @@
 //
 // 房屋以 house_ 前缀动态实例房承载：测试用 CLuaRoom("house_base") 驱动
 // 脚本钩子，断言与 C++ 时代逐条对齐。
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <initializer_list>

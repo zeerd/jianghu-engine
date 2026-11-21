@@ -399,6 +399,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugSeason|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\util\Logger.cpp" />
+    <ClCompile Include="src\util\LogMonitor.cpp" />
+    <ClCompile Include="src\util\FeishuClient.cpp" />
+    <ClCompile Include="src\util\OpencodeRunner.cpp" />
     <ClCompile Include="src\util\Random.cpp" />
     <ClCompile Include="src\util\StringUtil.cpp" />
     <ClCompile Include="src\util\Crypto.cpp" />
@@ -440,6 +443,9 @@
     <ClInclude Include="src\object\Mapping.h" />
     <ClInclude Include="src\util\Encoding.h" />
     <ClInclude Include="src\util\Logger.h" />
+    <ClInclude Include="src\util\LogMonitor.h" />
+    <ClInclude Include="src\util\FeishuClient.h" />
+    <ClInclude Include="src\util\OpencodeRunner.h" />
     <ClInclude Include="src\util\CommandLine.h" />
     <ClInclude Include="src\npc\Npc.h" />
     <ClInclude Include="src\object\Queue.h" />

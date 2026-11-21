@@ -8,7 +8,7 @@
 //   - create(flag) 的缺脚本/空脚本双兜底
 //   - lua_do_action_base 的环境推导
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include "Char.h"

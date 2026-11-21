@@ -50,7 +50,7 @@
 - **注释铁律**：`src/` 注释出现迁移记录、测试计划、E2E 剧本、覆盖率、验收
   清单、文档编号、被删代码的痕迹——发现；注释只能解释功能、接口、机制归属。
 - **测试配套**：修改 `.cpp`/`.h` 未同步对应 `test_*.cpp`（或已有用例未更新），
-  按 unit-test 规则报告；验证途径只有仓库根 `.\run-coverage.ps1`（Release）。
+  按 unit-test 规则报告；验证途径只有仓库根 `.\run-unit-tests.ps1`（Release）。
   新增测试的价值先过 test-audit 技能的编写门槛，不按行覆盖率凑数。
 - **测试专用 seam**：生产代码里出现只有测试会用的导出、getter、reset、
   `#ifdef _TESTING`、注入参数——按 unit-test 的 seam 判据报告。
@@ -65,7 +65,7 @@
 只用仓库脚本，从仓库根执行；不自建 CMake，不跑 Debug：
 
 ```powershell
-.\run-coverage.ps1            # 编译 + 单测 + 覆盖率（唯一认可途径）
+.\run-unit-tests.ps1          # 编译 + 单测 + 覆盖率（唯一认可途径）
 .\run-cppcheck.ps1            # 结果在 bin\cppcheck.result.txt，有报必修
 .\style.ps1                   # clang-format + stylua 自检
 ```

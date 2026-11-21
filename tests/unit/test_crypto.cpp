@@ -3,7 +3,7 @@
 // PBKDF2 期望值来自 .NET Rfc2898DeriveBytes(HMAC-SHA256) 独立算出，
 // 不是被测实现自己产生的，避免"实现错、测试跟着错"。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>
@@ -242,4 +242,16 @@ TEST(CryptoCredential, EncodedFormHasNoSqlMetacharacters)
     ASSERT_TRUE(make_password_credential("a'b\"c\\d", salt, hash));
     EXPECT_EQ(salt.find_first_of("'\"\\;"), std::string::npos);
     EXPECT_EQ(hash.find_first_of("'\"\\;"), std::string::npos);
+}
+
+// 空口令不能成为凭据：空串派生出的哈希等价于「密码为空」，一旦落库，
+// 空口令就能凭它顶替真口令登进账号——凭据层从源头拒绝这种哈希
+TEST(CryptoCredential, EmptyPasswordRejected)
+{
+    std::string salt, hash;
+    EXPECT_FALSE(make_password_credential("", salt, hash));
+    EXPECT_TRUE(salt.empty()) << "派生失败时输出内容不得被使用";
+    EXPECT_TRUE(hash.empty()) << "派生失败时输出内容不得被使用";
+
+    EXPECT_FALSE(make_password_credential(nullptr, salt, hash));
 }

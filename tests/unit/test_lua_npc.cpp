@@ -7,7 +7,7 @@
 //  - 战斗/社交/生死回调（die、finish_kill、is_defeated、hit_ob、师徒、
 //    relay_*）逐个派发到脚本，脚本返回什么就是什么
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>

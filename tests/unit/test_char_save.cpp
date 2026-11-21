@@ -1,6 +1,6 @@
 // test_char_save.cpp - Unit tests for CharSave.cpp (存盘/读档).
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include <string>

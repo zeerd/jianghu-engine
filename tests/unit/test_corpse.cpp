@@ -7,7 +7,7 @@
 //  - make_corpse 承接遇害者姓名与属性；非主人随身物留在房间，
 //    巫师装备随身保留
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>

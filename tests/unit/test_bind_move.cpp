@@ -1,6 +1,6 @@
 // test_bind_move.cpp — self:move(target) 返回值契约
 //
-// 构建与运行（仓库根）：.\run-coverage.ps1
+// 构建与运行（仓库根）：.\run-unit-tests.ps1
 // 聚焦：x64\Release\tests.exe --gtest_filter=BindMoveTest.*
 //
 // 契约：move 透传 CContainer::move 的结果——移入成功返回 true，失败返回

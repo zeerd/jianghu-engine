@@ -13,7 +13,7 @@
 // 样本脚本经 ScopedSampleScript 拷进单测脚本根（拷原文，不与样本漂移）；
 // 钩子表由 ensure_lua_env 每次重建，用例不必手工还原。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <algorithm>

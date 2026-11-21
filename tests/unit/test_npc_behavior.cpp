@@ -7,7 +7,7 @@
 //   - is_fighting = query_temp("fight/is_fighting")（Char.cpp 直读 temp）
 //   - random_move 经 command("go 0 <dir>")：目标房须先注册 g_room_list
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include "Global.h"

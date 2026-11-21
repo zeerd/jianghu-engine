@@ -11,7 +11,7 @@
 //   6. handle_action 的 list/buy/sell 分发与战斗中拒答；
 //   7. 贸易任务（红顶商人）在真实 dataset 钩子下的等价性（Lua 化后功能不变）。
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 

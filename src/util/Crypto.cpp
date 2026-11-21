@@ -149,6 +149,11 @@ bool constant_time_equal(const uint8_t* a, const uint8_t* b, size_t len)
 bool make_password_credential(const char* pass, std::string& out_salt,
                               std::string& out_hash)
 {
+    // 空口令不能成为凭据：空串派生出的哈希等价于「密码为空」，一旦落库，
+    // 空口令就能顶替真口令登进账号。所有写入口（注册、改密、巫师自举、
+    // 历史明文迁移）在这里一并拒绝，凭据层是这条规则的唯一裁决者。
+    if (!pass || !*pass) return false;
+
     uint8_t salt[CRYPTO_SALT_LEN];
     uint8_t hash[CRYPTO_HASH_LEN];
 

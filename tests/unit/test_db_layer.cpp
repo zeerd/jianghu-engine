@@ -20,6 +20,7 @@
 #include "Sql.h"
 #include "mock/mock_database.h"
 #include "test_credential_sql.h"
+#include "test_log_hits.h"
 
 // 全局 mock 实例（测试 fixture 设置/恢复 g_db）
 static MockDatabase* s_mockDb = nullptr;
@@ -305,6 +306,22 @@ TEST_F(DbLayerTest, ChangePassword_Fails)
     EXPECT_FALSE(db_change_password("1", "newpass"));
 }
 
+// 空口令不得落库：改密入口收到空口令直接失败，且不产生任何写操作
+TEST_F(DbLayerTest, ChangePassword_EmptyPasswordRejected)
+{
+    EXPECT_FALSE(db_change_password("1", ""));
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update"))
+        << "空口令不得派生成凭据写进库";
+}
+
+// 暗码同契约：空口令不得落库
+TEST_F(DbLayerTest, ChangeVerifyPassword_EmptyPasswordRejected)
+{
+    EXPECT_FALSE(db_change_verify_password("1", ""));
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update"))
+        << "空口令不得派生成凭据写进库";
+}
+
 TEST_F(DbLayerTest, change_verify_password)
 {
     EXPECT_TRUE(db_change_verify_password("1", "newpass"));
@@ -483,6 +500,20 @@ TEST_F(DbLayerTest, VerifyPassword_EmptyResult)
     EXPECT_FALSE(db_verify_password("1", "wrong"));
 }
 
+// 暗码未设置（历史两列皆空）时空校验放行——新号首次设暗码前的口令确认
+// 靠这条语义；但「未设置」本就没有凭据，空口令不得被派生成哈希落库
+TEST_F(DbLayerTest, VerifyPassword_EmptyOnUnsetPassesWithoutWritingCredential)
+{
+    PresetLegacyVerifyCredential();
+    DbResultSet rs = MockDatabase::MakeSingleRow({"u"});
+    // mock 走 MySQL 方言：历史比对串是 OLD_PASSWORD('')
+    s_mockDb->SetQueryResultMatching("cc_verifypass=OLD_PASSWORD('')", rs);
+
+    EXPECT_TRUE(db_verify_password("1", "")) << "未设置暗码时的空校验必须放行";
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update"))
+        << "空口令不得派生成凭据落库";
+}
+
 // 账号不存在（首查无行）→ false
 TEST_F(DbLayerTest, VerifyPassword_NoAccountRow)
 {
@@ -562,6 +593,28 @@ TEST_F(DbLayerTest, AuthenticateAccount_EmptyCredentialAlwaysDenied)
     EXPECT_FALSE(s_mockDb->ExecutedContaining("update"));
 }
 
+// 空口令的硬拒绝：即使库里存着「空口令的哈希」也不得放行——哈希比对本身
+// 会命中空入参，这是空口令唯一能通过认证的通道（旧版本可派生空口令时
+// 留下的历史行即属此类）
+TEST_F(DbLayerTest, AuthenticateAccount_EmptyPasswordDeniedEvenWhenHashMatches)
+{
+    uint8_t salt_bytes[CRYPTO_SALT_LEN];
+    memset(salt_bytes, 0x5a, sizeof(salt_bytes));
+    uint8_t derived[CRYPTO_HASH_LEN];
+    ASSERT_TRUE(pbkdf2_hmac_sha256("", salt_bytes, sizeof(salt_bytes),
+                                   PBKDF2_ITERATIONS, derived,
+                                   sizeof(derived)));
+    s_mockDb->SetQueryResultMatching(
+        "select cc_passwd, cc_passwd_salt, cc_passwd_hash",
+        MockDatabase::MakeSingleRow(
+            {"", base64_encode(salt_bytes, sizeof(salt_bytes)),
+             base64_encode(derived, sizeof(derived))}));
+
+    EXPECT_FALSE(db_authenticate_account("1001", ""))
+        << "空口令不得通过认证，即使哈希对得上";
+    EXPECT_FALSE(s_mockDb->ExecutedContaining("update"));
+}
+
 // 账号不存在（首查无行）→ false，且不落任何写操作
 TEST_F(DbLayerTest, AuthenticateAccount_NoAccountRow)
 {
@@ -594,6 +647,42 @@ TEST_F(DbLayerTest, AuthenticateAccount_DbExceptionDoesNotEscape)
     EXPECT_FALSE(db_authenticate_account("1001", "pass1234"));
 
     g_db = s_mockDb;  // 恢复 fixture mock（EXPECT 非致命 → 必达）
+}
+
+// --- SqlAccount.cpp: 认证失败日志不带口令 ---
+
+// 认证失败是 ERROR 级，ERROR 行会经日志监控外发到飞书与分析链路：失败尝试的
+// 口令往往就是用户真实口令，落日志即等于出网。两个失败分支——账号行缺失、
+// 凭据不符——都只记掩码。
+// 断言取本次调用新增的日志增量：整文件里还有同一次运行中其他用例的行，
+// 直接 find 会把别人的输出算进来。
+static const char kAuthLogProbePass[] = "probe_pw_must_not_be_logged";
+
+TEST_F(DbLayerTest, AuthenticateAccount_NoAccountRowKeepsPasswordOutOfLog)
+{
+    const std::string before = read_log_content();
+
+    EXPECT_FALSE(db_authenticate_account("424242", kAuthLogProbePass));
+
+    const std::string added = read_log_content().substr(before.size());
+    EXPECT_NE(added.find("store null"), std::string::npos)
+        << "账号行缺失分支没执行，本用例的断言落空: " << added;
+    EXPECT_EQ(added.find(kAuthLogProbePass), std::string::npos)
+        << "认证失败把失败尝试的口令写进了日志";
+}
+
+TEST_F(DbLayerTest, AuthenticateAccount_CredentialMismatchKeepsPasswordOutOfLog)
+{
+    PresetHashedLoginCredential("realpass1");
+    const std::string before = read_log_content();
+
+    EXPECT_FALSE(db_authenticate_account("1001", kAuthLogProbePass));
+
+    const std::string added = read_log_content().substr(before.size());
+    EXPECT_NE(added.find("store null"), std::string::npos)
+        << "凭据不符分支没执行，本用例的断言落空: " << added;
+    EXPECT_EQ(added.find(kAuthLogProbePass), std::string::npos)
+        << "认证失败把失败尝试的口令写进了日志";
 }
 
 // 暗码历史行迁移写失败：校验结论不变（已通过），只记日志

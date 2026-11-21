@@ -5,7 +5,7 @@
 // callback fields must be snapshotted before erase(). If they were read after
 // erase(), the params would be garbage / crash under ASAN.
 //
-// Build+Run: .\run-coverage.ps1
+//
 //
 #include "pch.h"
 #include "Container.h"

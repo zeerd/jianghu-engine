@@ -15,7 +15,7 @@ verified-by: 待作者确认
 
 ## 核心循环 — 内容作者/运营者的循环
 - 改 Lua 数据集脚本（`npc` / `item` / `skill` / `room` / `condition` / `data` / `command` 分目录）→ 服务器热重载加载，`--check-lua` 先全量校验语法与绑定环境
-- 跑质量闸门：引擎单测（`run-coverage.ps1`，Release 生产同构 + 覆盖率增量）与 CLI 无头剧本集成测试（`run-integration-tests.ps1`）
+- 跑质量闸门：引擎单测（`run-unit-tests.ps1`，Release 生产同构 + 覆盖率增量）与 CLI 无头剧本集成测试（`run-integration-tests.ps1`）
 - 起服 + CLI 客户端（或任意 TCP 客户端）连 6600 实机体验
 - 角色/房间/住宅自动落库（MySQL / SQLite 双后端），改内容再出发
 

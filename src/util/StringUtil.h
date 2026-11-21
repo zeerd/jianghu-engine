@@ -34,6 +34,12 @@ char* snprintf(char* buf, int len, _Printf_format_string_ const char* fmt, ...);
 // [security] comm_key，缺省或留空回退内置默认密钥。
 char* decode_str(char* msg);
 
+// --- 路径 ---
+// 相对路径 → 绝对路径：按当前工作目录词法拼接（不触盘）。配置允许写
+// 相对路径（工程整体可挪动）；运行期产物（进程入参、落盘文件、对外
+// 报告的路径）出生即绝对，此后与 cwd 脱钩。空串或解析失败原样返回。
+std::string absolute_path(const std::string& path);
+
 // --- 密码规范化 ---
 // 密码契约：密码不含单引号。登录口把整个登录串的单引号剥除后才比对
 // （Login.cpp replace_string），因此所有写入/校验密码的入口必须先把

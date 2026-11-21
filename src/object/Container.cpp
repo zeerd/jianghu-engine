@@ -148,7 +148,7 @@ void CContainer::setup() {}
 
 void CContainer::heart_beat()
 {
-    LOG_TRACE("IN");
+    // LOG_TRACE("IN");
     // 执行延迟函式
     int32_t object_id = m_object_id;
     if (!this) return;
@@ -191,7 +191,7 @@ void CContainer::heart_beat()
 
         LOG_DEBUG(">> call_out");
     }
-    LOG_TRACE("OUT");
+    // LOG_TRACE("OUT");
 }
 
 //---------------------------------------------------------

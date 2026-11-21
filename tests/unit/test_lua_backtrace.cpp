@@ -8,7 +8,7 @@
 // 失败方式即崩溃：栈被冲毁时本用例在 dump_caller_info 返回途中即 SEH，
 // 测试进程以失败退出；回溯块被摘除则命中计数断言失败。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <cstring>

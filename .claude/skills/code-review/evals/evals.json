@@ -67,7 +67,7 @@
     {
       "id": 5,
       "name": "cpp-change-without-test",
-      "prompt": "评审这个 diff：src/db/ 的 `CUserData::load_profile` 新增一条失败分支（DB 读失败时返回空档案并记日志），改了 .cpp 和 .h，但 tests/unit/ 下没有任何对应新增或更新的测试。本工程 unit-test 技能规定：每次修改 .cpp/.h 必须同时提交对应测试，验证唯一途径是仓库根 .\\run-coverage.ps1。只报可行动的发现。",
+      "prompt": "评审这个 diff：src/db/ 的 `CUserData::load_profile` 新增一条失败分支（DB 读失败时返回空档案并记日志），改了 .cpp 和 .h，但 tests/unit/ 下没有任何对应新增或更新的测试。本工程 unit-test 技能规定：每次修改 .cpp/.h 必须同时提交对应测试，验证唯一途径是仓库根 .\\run-unit-tests.ps1。只报可行动的发现。",
       "expected_output": "一条发现（通常 P2 或 P3）：改动缺少配套测试，引用 unit-test 规则并点名新增分支应有覆盖（失败分支是可达负例）。不得虚构 load_profile 本身的行为缺陷；缺测试本身不是 bug。",
       "files": [],
       "assertions": [

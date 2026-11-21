@@ -11,7 +11,7 @@
 //                             "lua-default/npc/monster_yongren.lua");
 //   ASSERT_TRUE(script.ok()) << "样本脚本未就位: " << script.file();
 //
-// Build+Run: .\run-coverage.ps1
+//
 #pragma once
 
 #include <filesystem>

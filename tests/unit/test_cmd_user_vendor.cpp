@@ -7,7 +7,7 @@
 // g_item_mgr 取钱——夹具注入 CMockItemMgr，测试进程默认 g_item_mgr
 // 为空指针）。买方用录制用户接菜单与私聊文案。
 //
-// Build+Run: .\run-coverage.ps1
+//
 #include "pch.h"
 
 #include <string>

@@ -15,7 +15,7 @@ name = game
 
 [wizard]
 ; 默认的巫师密码，仅在首次创建数据库时使用一次
-password 12345678
+password = 12345678
 
 [server]
 port = 6600
@@ -55,3 +55,28 @@ share_exp = true
 auto_follow_fight = true
 ; 夫妻组队允许的等级差，范围 0-50，默认 10
 couple_level_diff = 10
+
+[opencode]
+; opencode CLI 可执行文件路径（含扩展名的完整路径）。
+; 留空 = 不启用日志监控（不启动监控线程）。
+cli_path =
+; 飞书自定义机器人 webhook URL。留空 = plan 只落盘不推送。
+; 本文件受 git 管理：真实 URL 请写在本地覆盖配置（--config 指向的副本）里。
+feishu_webhook =
+; 触发分析的最低日志级别：trace/debug/info/warn/error/fatal，默认 warn
+level = warn
+; 同签名日志的触发 TTL（秒）：同一处问题（消息仅数字不同视为同一处）
+; 在 TTL 内只分析一次，默认 86400（一天）。
+cooldown = 86400
+; 单次 opencode 分析超时（秒），默认 120；超时终止本次分析
+; 注意： opencode 模型速度一般都不快，这个功能可用性其实别不高。
+timeout = 3600
+; 唤醒后的合流窗口（毫秒）：并发同时落盘的日志聚齐后一并分析，默认 500
+flush_ms = 500
+; 分析携带的最近日志行数，默认 100
+context_lines = 100
+; 使用的模型（provider/model），留空 = opencode 默认模型
+; model = opencode-go/deepseek-v4.1-flash
+model = opencode/deepseek-v4.1-flash-free
+; opencode 工作目录（需能读到引擎源码，plan 才指向真实代码），留空 = 服务器工作目录
+work_dir =
