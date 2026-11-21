@@ -1474,6 +1474,41 @@ bool CLuaEngine::get_bullet_lines(std::vector<std::string>& out)
     return get_data_array("bullet", "bullet_lines", out);
 }
 
+// 专用：查野兽攻击动作（beast_combat_action.lua，verb -> { action, damage }）
+// 按 verb 单条取用：野兽每拍出招、动词白名单每个动词各查一次，都只要一条，
+// 不必整表搬进调用方。动作表不可读时按未命中返回——加载失败的锚点错误由
+// load_script 按脚本名上报，这里再报一条只是重复。
+bool CLuaEngine::get_beast_combat_action(const char* verb, std::string& action,
+                                         int& damage)
+{
+    action.clear();
+    damage = 0;
+    if (!m_state || !verb || !verb[0]) return false;
+
+    int ref = load_data_script_internal("beast_combat_action");
+    if (ref == LUA_NOREF) return false;
+
+    lua_rawgeti(m_state, LUA_REGISTRYINDEX, ref);
+    if (lua_istable(m_state, -1)) {
+        lua_getfield(m_state, -1, verb);
+        if (lua_istable(m_state, -1)) {
+            lua_getfield(m_state, -1, "action");
+            if (lua_isstring(m_state, -1)) action = lua_tostring(m_state, -1);
+            lua_pop(m_state, 1);
+            // action 是必填字段：缺文案的条目不构成一次出招
+            if (!action.empty()) {
+                lua_getfield(m_state, -1, "damage");
+                if (lua_isnumber(m_state, -1))
+                    damage = (int)lua_tointeger(m_state, -1);
+                lua_pop(m_state, 1);
+            }
+        }
+        lua_pop(m_state, 1);  // verb 条目（未命中时是 nil）
+    }
+    lua_pop(m_state, 1);  // 动作表
+    return !action.empty();
+}
+
 // 手动重载单个脚本（供 reload 命令调用）
 // bareName: 脚本文件名（不含 .lua），如 "hammer"
 // 搜索所有匹配的复合 key（如 "item/hammer"、"skill/hammer"）并逐个重载。

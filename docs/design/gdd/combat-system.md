@@ -302,6 +302,11 @@ victim.receive_damage("hp", dmg, me)
 - ✅ 抢怪保护：击晕归属 60 秒窗 + 同门零经验 + 归属匹配才发击杀经验。
 - ✅ 野兽动词白名单：未知动词抛 Lua 错，防止静默退化为 0 伤害默认攻击
   （`CharFight.cpp` 的野兽动词白名单）。
+- ✅ 野兽无技能体系（裁定）：野兽出招只认 dbase `verbs` + 动作表
+  `lua-default/data/beast_combat_action.lua`，不走 `set_skill`——映射目标脚本
+  缺失时 `load_skill` 仍返回空壳，出招会在 `retrieve_action` 被整轮吞掉。
+  `skill\high\animal\` 的 5 个脚本与数据集侧 `animal_*` 技能映射
+  （`pub_monster` / `qufeng` / `xunshou_shu`）一并移除。
 - ✅ 投掷武器耗尽播报后递减；`owner`/`no_duo` 武器不消耗（`WeaponEffect.cpp` 的投掷消耗）。
 - ✅ 条件覆盖：更弱的同名毒不覆盖、伤害钳 `[0,1000]`、脚本缺失/损坏拒绝施加。
 - ✅ `receive_damage` 钳至 −1、仅接受 hp/mp；心跳按阈值重推导昏迷/死亡。
@@ -335,8 +340,9 @@ victim.receive_damage("hp", dmg, me)
 **Content Dependencies**：
 - 每个 Lua 技能脚本的 `query_action` 动作表（`{action, dodge, parry, damage}`）与
   `valid_force`；缺动作表的技能会清空准备（管线阶段 2 早退）。
-- `lua-default/data/hooks.lua`（`kill_bonus`、`calculate_damage` 等）与
-  `lua-default/data/level_exp.lua`（等级曲线表）。
+- `lua-default/data/hooks.lua`（`kill_bonus`、`calculate_damage` 等）、
+  `lua-default/data/level_exp.lua`（等级曲线表）与
+  `lua-default/data/beast_combat_action.lua`（野兽动作表，`verbs` 白名单的权威）。
 - 招式文案的占位符约定（`$N/$n/$w/$W/$d/$P/$p/$l`）。
 
 ---

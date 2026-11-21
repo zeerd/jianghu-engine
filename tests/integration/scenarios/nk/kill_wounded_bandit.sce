@@ -28,7 +28,9 @@ clear
 # 按 4s/击 约 50s；240s 是「连掷不中」的死锁护栏，不是时长上界
 cmd /kill
 wait text 获得70点NK经验 timeout=240000
-# 尸体要等战斗房收场、角色移回半山腰才落进房间
+# 尸体由 make_corpse 落进战斗房（victim 当前房间），死亡即可见
 wait object 重伤山贼的尸体 timeout=20000
-wait attr combat_exp >= 70 timeout=10000
+# combat_exp 的客户端快照只在战斗收束 do_leave_team→flush_my_info 推 RTNINFO 时更新；
+# 收束由战斗房心跳驱动（死亡后还要等回合推进判定，约十几拍），超时给足收束窗口
+wait attr combat_exp >= 70 timeout=60000
 cmd /t 0

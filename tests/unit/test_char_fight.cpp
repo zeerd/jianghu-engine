@@ -68,9 +68,23 @@ TEST_F(CharFightTest, QueryAction_Beast)
     ch->set("verbs", verbs);
     CMapping* m = ch->query_action();
     ASSERT_NE(m, nullptr);
-    // 单一 verb 确定性命中内置动作表：文案与伤害系数一一对应
+    // 单一 verb 确定性命中动作表：文案与伤害系数一一对应
     EXPECT_STREQ("$N扑上来张嘴往$n的$l狠狠地一咬", m->querystr("action"));
     EXPECT_EQ(20, m->query("damage"));
+}
+
+// 绕过 set_beast_verbs 直接塞进 dbase 的表外动词：动作表查不到就退回缺省攻击，
+// 不让脏动词拿到别人的文案与伤害
+TEST_F(CharFightTest, QueryAction_BeastUnknownVerbFallsBackToDefault)
+{
+    ch->set("race", "野兽");
+    CVector verbs;
+    verbs.append("bogus");
+    ch->set("verbs", verbs);
+    CMapping* m = ch->query_action();
+    ASSERT_NE(m, nullptr);
+    EXPECT_STREQ("$N攻击$n的$l。", m->querystr("action"));
+    EXPECT_EQ(0, m->query("damage"));
 }
 
 TEST_F(CharFightTest, QueryAction_Default)

@@ -58,9 +58,11 @@ couple_level_diff = 10
 
 [opencode]
 ; opencode CLI 可执行文件路径（含扩展名的完整路径）。
-; 留空 = 不启用日志监控（不启动监控线程）。
+; 留空 = 不做 opencode 分析，此时若配了 feishu_webhook 则日志快照直推飞书；
+; 与 feishu_webhook 都留空 = 不启用日志监控（不启动监控线程）。
 cli_path =
 ; 飞书自定义机器人 webhook URL。留空 = plan 只落盘不推送。
+; 只配本项（不配 cli_path）= 直推模式：日志快照不经分析直接推飞书。
 ; 本文件受 git 管理：真实 URL 请写在本地覆盖配置（--config 指向的副本）里。
 feishu_webhook =
 ; 触发分析的最低日志级别：trace/debug/info/warn/error/fatal，默认 warn

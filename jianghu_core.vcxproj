@@ -400,6 +400,7 @@
     </ClCompile>
     <ClCompile Include="src\util\Logger.cpp" />
     <ClCompile Include="src\util\LogMonitor.cpp" />
+    <ClCompile Include="src\util\LogMonitorMessage.cpp" />
     <ClCompile Include="src\util\FeishuClient.cpp" />
     <ClCompile Include="src\util\OpencodeRunner.cpp" />
     <ClCompile Include="src\util\Random.cpp" />

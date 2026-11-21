@@ -1,8 +1,9 @@
 # 日志监控（LogMonitor）
 
-`config.ini` 的 `[opencode]` 配置了 `cli_path` 即启用：监控线程发现日志中
-新的 WARN/ERROR 级问题 → 调 opencode CLI 分析生成 plan → plan 落盘 →
-经飞书自定义机器人 webhook 推给开发者。
+`config.ini` 的 `[opencode]` 配了 `cli_path` 或 `feishu_webhook` 即启用：监控线程
+发现日志中新的 WARN/ERROR 级问题——配了 `cli_path` 走 opencode CLI 分析生成 plan、
+plan 落盘后推飞书；只配 `feishu_webhook` 则把日志快照直接推上飞书（直推模式）。
+两项都留空 = 不启用。
 
 ## 为什么挂钩 `log_message`，而不是尾随日志文件
 
@@ -35,6 +36,17 @@
   不会被反复拉起，故障以 INFO 日志留痕；
 - 快照里至少一个新签名才开分析，一轮带出快照中的所有新问题。
 
+## 直推模式（只配 webhook）
+
+- 触发判定、合流窗口与签名 TTL 两种形态共用：直推同样按签名去重，冷却
+  期内不重复刷屏；
+- 正文 = 级别 + 触发行 + 日志快照（含触发前的上下文行），不经 opencode：
+  不写上下文附件、不落 plan；超 28KB 在 UTF-8 边界截断；
+- 装配侧只装 sender 不装 runner，启动横幅 `mode=` 标出 direct / analyze；
+- 推送失败只记 INFO、签名不回收，本轮仍判成功——与分析模式的失败语义一致；
+- 关机没有可取消的在途分析：join 等当前 webhook 投递自行返回（投递超时
+  口径见 `FeishuClient`）。
+
 ## 依赖与失败语义
 
 - `IFeishuSender`（载荷组装 + WinHTTP 传输 + 失败重试一次）与
@@ -64,7 +76,8 @@
   交给子进程的入参都不依赖 cwd（opencode 在 work_dir 下运行，相对路径
   会到那里去找文件）。
 - `log_monitor_start` 在 `init_game` 成功后调用；配置写定后不再变更，
-  挂钩侧据此做无锁读取与零成本早退；`cli_path` 为空 = 配置即停用；
+  挂钩侧据此做无锁读取与零成本早退；`cli_path` 与 `feishu_webhook` 均为空
+  = 配置即停用；
 - `log_monitor_stop` 在 `WM_DESTROY` 最先执行：先取消在途分析再 join，
   否则关机会等满一个分析超时；
 - 签名表属监控实例，随进程存续；线程停止后实例可重复 start。

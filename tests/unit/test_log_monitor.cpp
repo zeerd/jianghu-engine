@@ -149,6 +149,23 @@ TEST(BuildFeishuMessage, CarriesPlanTriggerAndPath)
     EXPECT_NE(msg.find("ERROR"), std::string::npos);
 }
 
+TEST(BuildFeishuMessage, EmptyPathOmitsPlanTail)
+{
+    // 直推模式没有 plan 落盘：正文只带快照与触发行，不出现悬空的路径尾巴
+    const std::string msg = build_feishu_message(
+        "## 日志快照", "", "[ERROR] (2026-11-21 10:00:00) boom", LOG_LVL_ERROR);
+    EXPECT_NE(msg.find("## 日志快照"), std::string::npos);
+    EXPECT_EQ(msg.find("plan 文件"), std::string::npos);
+
+    // 截断注记同样不引用不存在的路径
+    std::string big;
+    while (big.size() < 40 * 1024) big += "错误边界错误边界错误边界\n";
+    const std::string cut = build_feishu_message(big, "", "t", LOG_LVL_WARN);
+    EXPECT_LE(cut.size(), 28u * 1024u);
+    EXPECT_NE(cut.find("已截断"), std::string::npos);
+    EXPECT_EQ(cut.find("完整 plan 见"), std::string::npos);
+}
+
 TEST(BuildFeishuMessage, TruncatesOversizedPlanKeepingPath)
 {
     std::string plan;
@@ -168,10 +185,118 @@ TEST(BuildFeishuMessage, TruncatesOversizedPlanKeepingPath)
 
 TEST_F(LogMonitorTest, DisabledMonitorIgnoresLines)
 {
-    CLogMonitor monitor;  // 未配置 cli_path = 不启用
+    CLogMonitor monitor;  // cli_path 与 webhook 均未配置 = 不启用
     monitor.on_line(LOG_LVL_ERROR, "[ERROR] (2026-11-21 00:00:00) boom");
     EXPECT_FALSE(monitor.enabled());
     EXPECT_FALSE(monitor.process_pending(1000));
+}
+
+// ---------------------------------------------------------------------
+// 直推模式（只配 webhook、未配 cli_path：日志快照直接上飞书）
+// ---------------------------------------------------------------------
+
+TEST_F(LogMonitorTest, EnabledWhenOnlyWebhookConfigured)
+{
+    LogMonitorConfig config = make_config();
+    config.cli_path.clear();
+
+    CLogMonitor monitor;
+    monitor.configure(config);
+    EXPECT_TRUE(monitor.enabled());
+
+    LogMonitorConfig neither = make_config();
+    neither.cli_path.clear();
+    neither.feishu_webhook.clear();
+    monitor.configure(neither);
+    EXPECT_FALSE(monitor.enabled());
+}
+
+TEST_F(LogMonitorTest, DirectPushSendsSnapshotWithoutAnalysis)
+{
+    CLogMonitor monitor;
+    auto sender = std::make_unique<FakeSender>();
+    auto* sp    = sender.get();
+    // 只有 webhook 的装配形态：不注入 runner，没有分析通道
+    monitor.set_dependencies(std::move(sender), nullptr);
+    LogMonitorConfig config = make_config();
+    config.cli_path.clear();
+    monitor.configure(config);
+    ASSERT_TRUE(monitor.enabled());
+
+    monitor.on_line(LOG_LVL_INFO,
+                    "[INFO  ] (2026-11-21 09:59:00) 连接建立完成");
+    monitor.on_line(LOG_LVL_ERROR,
+                    "[ERROR] (2026-11-21 10:00:00) 缓冲越界: 用户 12345");
+    ASSERT_TRUE(monitor.process_pending(1000));
+
+    // 正文 = 级别 + 触发行 + 快照（含触发前的上下文行）
+    ASSERT_EQ(sp->messages.size(), 1u);
+    EXPECT_NE(sp->messages[0].find("ERROR"), std::string::npos);
+    EXPECT_NE(sp->messages[0].find("缓冲越界: 用户 12345"), std::string::npos);
+    EXPECT_NE(sp->messages[0].find("连接建立完成"), std::string::npos);
+
+    // 不经 opencode：不落 plan、不写上下文附件
+    const std::filesystem::path plan_dir
+        = std::filesystem::path(m_log_dir) / "plans";
+    EXPECT_FALSE(std::filesystem::exists(plan_dir));
+    EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(m_log_dir)
+                                         / "plan-context.txt"));
+
+    const std::string log = read_log_content();
+    EXPECT_NE(log.find("log_monitor: feishu push ok"), std::string::npos);
+}
+
+TEST_F(LogMonitorTest, DirectPushFailureDoesNotFailRound)
+{
+    CLogMonitor monitor;
+    auto sender = std::make_unique<FakeSender>();
+    auto* sp    = sender.get();
+    sp->result  = false;
+    monitor.set_dependencies(std::move(sender), nullptr);
+    LogMonitorConfig config = make_config();
+    config.cli_path.clear();
+    monitor.configure(config);
+
+    monitor.on_line(LOG_LVL_ERROR, "[ERROR] (2026-11-21 10:00:00) boom");
+    // 直推失败只是留痕：快照已达触发，本轮结论仍是成功
+    EXPECT_TRUE(monitor.process_pending(1000));
+    EXPECT_EQ(sp->messages.size(), 1u);
+    EXPECT_NE(read_log_content().find("log_monitor: feishu push failed"),
+              std::string::npos);
+
+    // 签名已认领：通道故障期间同一问题在 TTL 内不再反复直推
+    monitor.on_line(LOG_LVL_ERROR, "[ERROR] (2026-11-21 10:01:00) boom");
+    EXPECT_FALSE(monitor.process_pending(2000));
+    EXPECT_EQ(sp->messages.size(), 1u);
+}
+
+TEST_F(LogMonitorTest, DirectPushSuppressedWithinTtl)
+{
+    CLogMonitor monitor;
+    auto sender = std::make_unique<FakeSender>();
+    auto* sp    = sender.get();
+    monitor.set_dependencies(std::move(sender), nullptr);
+    LogMonitorConfig config = make_config();
+    config.cli_path.clear();
+    monitor.configure(config);
+
+    monitor.on_line(LOG_LVL_ERROR,
+                    "[ERROR] (2026-11-21 10:00:00) 缓冲越界: 用户 1");
+    ASSERT_TRUE(monitor.process_pending(1000));
+    EXPECT_EQ(sp->messages.size(), 1u);
+
+    // 同签名（仅 id 不同）在 TTL 内：直推同样被签名压制，不刷屏
+    monitor.on_line(LOG_LVL_ERROR,
+                    "[ERROR] (2026-11-21 10:05:00) 缓冲越界: 用户 2");
+    EXPECT_FALSE(monitor.process_pending(2000));
+    EXPECT_EQ(sp->messages.size(), 1u);
+
+    // 越过 TTL：同一问题再次直推
+    monitor.on_line(LOG_LVL_ERROR,
+                    "[ERROR] (2026-11-22 10:00:00) 缓冲越界: 用户 3");
+    const int64_t after_ttl = 1000 + static_cast<int64_t>(86400) * 1000;
+    ASSERT_TRUE(monitor.process_pending(after_ttl));
+    EXPECT_EQ(sp->messages.size(), 2u);
 }
 
 TEST_F(LogMonitorTest, BelowThresholdLineDoesNotTrigger)
@@ -387,7 +512,7 @@ TEST_F(LogMonitorTest, HookIsNoopWhenDisabled)
 
 TEST_F(LogMonitorTest, GlobalStartStopFollowsIni)
 {
-    // 未配置 cli_path：启动入口是空操作
+    // cli_path 与 webhook 均未配置：启动入口是空操作
     g_ini_data.erase("opencode");
     log_monitor_start();
     EXPECT_FALSE(log_monitor().enabled());
@@ -407,6 +532,14 @@ TEST_F(LogMonitorTest, GlobalStartStopFollowsIni)
               std::string::npos);
     log_monitor_on_line(LOG_LVL_ERROR,
                         "[ERROR] (2026-11-21 00:00:00) global hook");
+    log_monitor_stop();
+
+    // 只配 webhook、未配 cli_path：直推模式同样武装监控线程与横幅
+    g_ini_data.erase("opencode");
+    g_ini_data["opencode"]["feishu_webhook"] = "https://127.0.0.1:1/hook";
+    log_monitor_start();
+    EXPECT_TRUE(log_monitor().enabled());
+    EXPECT_NE(read_log_content().find("mode=direct"), std::string::npos);
     log_monitor_stop();
 
     // 复位为停用：后续用例的日志不再进入监控

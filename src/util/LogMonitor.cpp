@@ -1,6 +1,7 @@
 /**
  * @file LogMonitor.cpp
- * @brief 日志监控实现：配置读取、签名去重、环形缓冲与分析编排。 */
+ * @brief 日志监控实现：配置读取、签名去重、环形缓冲与告警编排；
+ *        级别名、提示词与飞书正文在 LogMonitorMessage.cpp。 */
 
 #include "LogMonitor.h"
 
@@ -19,24 +20,6 @@
 
 // 签名表上限：TTL 表只记「问题身份 → 到期时刻」，有界才能常驻内存
 static const size_t kMaxSeenEntries = 4096;
-
-// 级别名（与 LogLevel 枚举同序）
-static const char* kLevelLower[]
-    = {"trace", "debug", "info", "warn", "error", "fatal"};
-static const char* kLevelUpper[]
-    = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
-
-static const char* level_lower_name(int level)
-{
-    return (level >= 0 && level <= LOG_LVL_FATAL) ? kLevelLower[level]
-                                                  : "unknown";
-}
-
-static const char* level_upper_name(int level)
-{
-    return (level >= 0 && level <= LOG_LVL_FATAL) ? kLevelUpper[level]
-                                                  : "UNKNOWN";
-}
 
 // ---------------------------------------------------------------------
 // 配置
@@ -59,7 +42,7 @@ LogMonitorConfig load_log_monitor_config()
     const char* level_str = ini_get("opencode", "level", "warn");
     if (level_str && level_str[0]) {
         for (int i = 0; i <= LOG_LVL_FATAL; i++) {
-            if (_stricmp(level_str, kLevelLower[i]) == 0) {
+            if (_stricmp(level_str, level_lower_name(i)) == 0) {
                 config.level = i;
                 break;
             }
@@ -121,65 +104,9 @@ int log_level_from_line(const std::string& line)
     std::string name = line.substr(1, close - 1);
     while (!name.empty() && name.back() == ' ') name.pop_back();
     for (int i = 0; i <= LOG_LVL_FATAL; i++) {
-        if (_stricmp(name.c_str(), kLevelUpper[i]) == 0) return i;
+        if (_stricmp(name.c_str(), level_upper_name(i)) == 0) return i;
     }
     return -1;
-}
-
-// ---------------------------------------------------------------------
-// 提示词与推送正文
-// ---------------------------------------------------------------------
-
-std::string build_analysis_prompt(const LogMonitorConfig& config)
-{
-    // 提示词只描述任务与产出格式：日志上下文走 --file 附件，
-    // 命令行长度不随日志规模增长。
-    std::string prompt
-        = "你是游戏服务器「金剑江湖」（C++/Lua MUD 引擎）的值班工程师。"
-          "随附文件是服务器最近的日志片段，其中出现了 ";
-    prompt += level_upper_name(config.level);
-    prompt += " 及以上级别的新问题。请分析日志，定位问题与根因，产出"
-              "一份可执行的修复计划，用 Markdown 输出，包含：问题现象、"
-              "根因分析、修复步骤（按序、可直接执行）、验证方式。"
-              "只输出计划本身，不要输出无关说明。";
-    return prompt;
-}
-
-// UTF-8 安全截断：从切点回退过续字节（10xxxxxx），不切碎多字节字符
-static std::string truncate_utf8(const std::string& s, size_t max_bytes)
-{
-    if (s.size() <= max_bytes) return s;
-    size_t cut = max_bytes;
-    while (cut > 0 && (static_cast<unsigned char>(s[cut]) & 0xC0) == 0x80) {
-        cut--;
-    }
-    return s.substr(0, cut);
-}
-
-std::string build_feishu_message(const std::string& plan,
-                                 const std::string& plan_path,
-                                 const std::string& trigger_line, int level)
-{
-    // 飞书 text 消息约 30KB 上限：28KB 截断留余量
-    const size_t kMaxBytes = 28 * 1024;
-
-    std::string head = "【金剑江湖·日志告警】";
-    head += level_upper_name(level);
-    head += "\n触发日志: ";
-    head += truncate_utf8(trigger_line, 500);
-    head += "\n\n";
-
-    std::string tail = "\n\nplan 文件: " + plan_path;
-    std::string msg  = head + plan + tail;
-
-    if (msg.size() > kMaxBytes) {
-        // 截断会把尾部的路径一并切掉：截断注记里重新带上路径，
-        // 超长消息仍可溯源到落盘文件
-        const std::string note
-            = "\n\n（正文超长已截断，完整 plan 见: " + plan_path + "）";
-        msg = truncate_utf8(msg, kMaxBytes - note.size()) + note;
-    }
-    return msg;
 }
 
 // ---------------------------------------------------------------------
@@ -295,7 +222,8 @@ bool CLogMonitor::should_trigger(uint64_t signature, int64_t now_ms)
 bool CLogMonitor::process_pending(int64_t now_ms)
 {
     if (!m_pending.exchange(false)) return false;
-    if (!m_runner) return false;  // 依赖未注入：不消费也不登记签名
+    // 依赖未注入：不消费也不登记签名。直推形态没有 runner，只有 sender
+    if (!m_runner && !m_sender) return false;
 
     const std::string snapshot = snapshot_context();
 
@@ -325,6 +253,20 @@ bool CLogMonitor::process_pending(int64_t now_ms)
     }
     if (trigger_line.empty()) return false;
 
+    // 直推模式：没有分析通道，快照本身就是告警内容——不写上下文附件、
+    // 不落 plan，触发去重已在上面完成
+    if (!m_runner) {
+        push_snapshot(snapshot, trigger_line, trigger_level);
+        return true;
+    }
+
+    return analyze_snapshot(snapshot, trigger_line, trigger_level, fresh_count);
+}
+
+bool CLogMonitor::analyze_snapshot(const std::string& snapshot,
+                                   const std::string& trigger_line, int level,
+                                   int fresh_count)
+{
     const std::string context_path = write_context_file(snapshot);
     if (context_path.empty()) {
         LOG_INFO("log_monitor: context file write failed");
@@ -348,7 +290,7 @@ bool CLogMonitor::process_pending(int64_t now_ms)
               std::chrono::steady_clock::now() - begin)
               .count();
 
-    const std::string plan_path = save_plan(plan, trigger_level);
+    const std::string plan_path = save_plan(plan, level);
     if (plan_path.empty()) {
         LOG_INFO("log_monitor: plan save failed");
         return false;
@@ -357,16 +299,28 @@ bool CLogMonitor::process_pending(int64_t now_ms)
              elapsed_ms);
 
     if (m_sender) {
-        const std::string msg = build_feishu_message(
-            plan, plan_path, trigger_line, trigger_level);
-        if (!m_sender->send(msg)) {
-            LOG_INFO("log_monitor: feishu push failed");
-        }
-        else {
-            LOG_INFO("log_monitor: feishu push ok");
-        }
+        push_message(
+            build_feishu_message(plan, plan_path, trigger_line, level));
     }
     return true;
+}
+
+void CLogMonitor::push_snapshot(const std::string& snapshot,
+                                const std::string& trigger_line, int level)
+{
+    // 直推形态下 process_pending 已保证 sender 在场
+    LOG_INFO("log_monitor: direct push, snapshot without analysis");
+    push_message(build_feishu_message(snapshot, "", trigger_line, level));
+}
+
+void CLogMonitor::push_message(const std::string& msg)
+{
+    if (!m_sender->send(msg)) {
+        LOG_INFO("log_monitor: feishu push failed");
+    }
+    else {
+        LOG_INFO("log_monitor: feishu push ok");
+    }
 }
 
 std::string CLogMonitor::write_context_file(const std::string& snapshot)
@@ -471,28 +425,35 @@ void log_monitor_start()
     config.work_dir = absolute_path(config.work_dir);
 
     CLogMonitor& monitor = log_monitor();
-    // 配置始终写定：cli_path 为空即整体停用（挂钩随之成为空操作）
+    // 配置始终写定：cli_path 与 feishu_webhook 均为空即整体停用
+    // （挂钩随之成为空操作）
     monitor.configure(config);
-    if (config.cli_path.empty()) return;
+    if (config.cli_path.empty() && config.feishu_webhook.empty()) return;
 
     std::unique_ptr<IFeishuSender> sender;
     if (!config.feishu_webhook.empty()) {
         sender = std::make_unique<CFeishuClient>(
             std::make_unique<CWinHttpTransport>(), config.feishu_webhook);
     }
-    auto runner = std::make_unique<COpencodeRunner>(
-        std::make_unique<CWinProcessRunner>(), config.cli_path, config.work_dir,
-        config.model, config.timeout_sec);
+    // 分析通道只在配了 cli_path 时装配：只配 webhook 的直推形态没有 runner
+    std::unique_ptr<IOpencodeRunner> runner;
+    if (!config.cli_path.empty()) {
+        runner = std::make_unique<COpencodeRunner>(
+            std::make_unique<CWinProcessRunner>(), config.cli_path,
+            config.work_dir, config.model, config.timeout_sec);
+    }
 
     monitor.set_dependencies(std::move(sender), std::move(runner));
     monitor.start();
 
-    // 启动横幅：监控是否武装、参数与 plan 目录一眼可读
+    // 启动横幅：模式（分析 / 直推）、参数与 plan 目录一眼可读
+    const bool direct          = config.cli_path.empty();
     const std::string plan_dir = absolute_path(logger_get_path()) + "/plans";
     LOG_INFO(
-        "log_monitor: enabled (cli=%s, work_dir=%s, model=%s, level=%s, "
-        "cooldown=%ds, timeout=%ds, plan_dir=%s)",
-        config.cli_path.c_str(),
+        "log_monitor: enabled (mode=%s, cli=%s, work_dir=%s, model=%s, "
+        "level=%s, cooldown=%ds, timeout=%ds, plan_dir=%s)",
+        direct ? "direct" : "analyze",
+        direct ? "(none)" : config.cli_path.c_str(),
         config.work_dir.empty() ? "(inherit)" : config.work_dir.c_str(),
         config.model.empty() ? "(default)" : config.model.c_str(),
         level_lower_name(config.level), config.cooldown_sec, config.timeout_sec,

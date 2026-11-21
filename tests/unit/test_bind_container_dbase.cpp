@@ -316,6 +316,9 @@ static void PushStrArray(lua_State* L, const char* const* items, int n)
 
 TEST_F(BindContainerDbaseTest, SetBeastVerbsStoresWhitelist)
 {
+    // 白名单来自 data/beast_combat_action.lua，校验要走引擎
+    ASSERT_NE(ensure_lua_env(), nullptr);
+
     // self:set_beast_verbs({"bite", "claw"})
     PushSelf(&ch);
     const char* verbs[] = {"bite", "claw"};
@@ -337,7 +340,11 @@ TEST_F(BindContainerDbaseTest, SetBeastVerbsStoresWhitelist)
 
 TEST_F(BindContainerDbaseTest, SetBeastVerbsRejectsUnknownVerb)
 {
-    // 白名单校验失败要抛 Lua 错误，且不得留下半成品 dbase
+    // 白名单校验失败要抛 Lua 错误，且不得留下半成品 dbase。
+    // 引擎在位才能区分「表外动词被拒」与「动作表读不到」，否则整批动词
+    // 都会被拒，用例等于没验。
+    ASSERT_NE(ensure_lua_env(), nullptr);
+
     PushSelf(&ch);
     const char* verbs[] = {"bite", "bogus"};
     PushStrArray(L, verbs, 2);

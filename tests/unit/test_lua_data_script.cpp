@@ -14,6 +14,9 @@
 //     存在时按 频道名 -> { field -> 值 } 读出，值恒为字符串（Lua 数字
 //     归一为 "1" 这类文本，布尔归一为 "1"/"0"）。文件属数据集内容：
 //     夹具在 tests/unit/lua-tests/data/，引擎默认 lua-default 不带。
+//   - get_beast_combat_action：野兽攻击动作表属引擎默认数据（lua-default
+//     自带）。verb 命中返回文案与伤害加成；表外动词判未命中并清空输出
+//     （damage 归 0），damage = 0 是合法取值而非未命中。
 //
 #include "pch.h"
 
@@ -187,4 +190,47 @@ TEST_F(LuaDataScriptTest, DefaultScriptRootHasNoChannelConfig)
 {
     EXPECT_FALSE(std::filesystem::exists("lua-default/data/channel_config.lua"))
         << "扩展频道属数据集，引擎默认不得自带 channel_config.lua";
+}
+
+// 契约：野兽攻击动作表属引擎默认数据（lua-default），数据集无需自带；
+// verb 命中时返回文案与伤害加成。
+TEST_F(LuaDataScriptTest, BeastCombatActionLoadsFromDefaultRoot)
+{
+    EXPECT_TRUE(
+        std::filesystem::exists("lua-default/data/beast_combat_action.lua"))
+        << "野兽动作表属引擎默认数据";
+
+    std::string action;
+    int damage = -1;
+    ASSERT_TRUE(g_LuaEngine->get_beast_combat_action("bite", action, damage))
+        << "默认根的野兽动作表必须可读";
+    EXPECT_EQ("$N扑上来张嘴往$n的$l狠狠地一咬", action);
+    EXPECT_EQ(20, damage);
+}
+
+// damage = 0 是合法取值（claw 不加成），不得与「未命中」混为一谈
+TEST_F(LuaDataScriptTest, BeastCombatActionZeroDamageIsStillAHit)
+{
+    std::string action;
+    int damage = -1;
+    ASSERT_TRUE(g_LuaEngine->get_beast_combat_action("claw", action, damage));
+    EXPECT_EQ("$N用爪子往$n的$l一抓", action);
+    EXPECT_EQ(0, damage);
+}
+
+TEST_F(LuaDataScriptTest, BeastCombatActionUnknownVerbMisses)
+{
+    std::string action = "stale";
+    int damage         = 7;
+    EXPECT_FALSE(g_LuaEngine->get_beast_combat_action("bogus", action, damage))
+        << "表外动词必须判为未命中";
+    EXPECT_TRUE(action.empty()) << "未命中必须清空输出";
+    EXPECT_EQ(0, damage);
+
+    // 空动词直接拒绝，不进动作表查询
+    action = "stale";
+    damage = 7;
+    EXPECT_FALSE(g_LuaEngine->get_beast_combat_action("", action, damage));
+    EXPECT_TRUE(action.empty());
+    EXPECT_EQ(0, damage);
 }

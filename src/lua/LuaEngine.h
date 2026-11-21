@@ -224,6 +224,13 @@ public:
     // bullet_lines）
     bool get_bullet_lines(std::vector<std::string>& out);
 
+    // 专用：查野兽攻击动作（内部调用 LoadDataScript("beast_combat_action")
+    // 解析）。结构：verb -> { action, damage }。verb 命中动作表时填
+    // action/damage 并返回 true；verb 不在表内、动作表不可读时返回 false，
+    // 调用方按缺省攻击处理。
+    bool get_beast_combat_action(const char* verb, std::string& action,
+                                 int& damage);
+
     // 内部：加载 DATA 类型脚本（供 GetDataArray/GetDataMap 调用）
     int load_data_script_internal(const char* name);
 

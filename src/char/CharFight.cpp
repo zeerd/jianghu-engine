@@ -25,6 +25,7 @@
 #include "Corpse.h"
 #include "Sql.h"
 #include "../config/MainConfig.h"
+#include "../lua/LuaEngine.h"
 
 // 返回武器
 CContainer* CChar::query_weapon()
@@ -78,25 +79,15 @@ void CChar::init(CChar* me)
     }
 }
 
-// 野兽攻击动作表：verb -> 战斗文案与伤害系数。
-// query_action 出招与 set_beast_verbs 的合法动作集合共用此表。
-static const struct BeastCombatAction {
-    char verb[10];
-    char action[80];
-    int damage;
-} beast_combat_action[5] = {
-    {"hoof", "$N用后腿往$n的$l用力一蹬", 100},
-    {"bite", "$N扑上来张嘴往$n的$l狠狠地一咬", 20},
-    {"claw", "$N用爪子往$n的$l一抓", 0},
-    {"poke", "$N用嘴往$n的$l一啄", 30},
-    {"knock", "$N用头往$n的$l用力一撞", 100},
-};
-
+// 野兽攻击动作表：verb -> 战斗文案与伤害加成。
+// 数据唯一来源是 lua-xxxx/data/beast_combat_action.lua，经
+// g_LuaEngine->get_beast_combat_action() 按 verb 取用，C++ 不留硬编码动作表。
+// query_action 出招与 set_beast_verbs 的合法动作集合共用该表。
 static bool is_beast_verb(const char* verb)
 {
-    for (const auto& action : beast_combat_action)
-        if (strcmp(action.verb, verb) == 0) return true;
-    return false;
+    string action;
+    int damage = 0;
+    return g_LuaEngine->get_beast_combat_action(verb, action, damage);
 }
 
 CMapping* CChar::query_action()
@@ -138,12 +129,14 @@ CMapping* CChar::query_action()
         }
 
         verb = (*v)[static_cast<unsigned int>(g_utils.random(v->count()))];
-        for (int i = 0; i < 5; i++)
-            if (verb == beast_combat_action[i].verb) {
-                m_action.set("action", beast_combat_action[i].action);
-                m_action.set("damage", beast_combat_action[i].damage);
-                return &m_action;
-            }
+        string action;
+        int damage = 0;
+        if (g_LuaEngine->get_beast_combat_action(verb.c_str(), action,
+                                                 damage)) {
+            m_action.set("action", action.c_str());
+            m_action.set("damage", damage);
+            return &m_action;
+        }
     };
 
     m_action.set("action", "$N攻击$n的$l。");
@@ -413,8 +406,8 @@ int l_do_bishi(lua_State* L)
 
 // self:set_beast_verbs({"bite","claw"}) - 设置野兽可用的攻击动作白名单
 // （dbase "verbs"，战斗时 query_action 随机选用其一）。动物没有技能体系，
-// 不走 set_skill；动作必须在 beast_combat_action 表内，否则抛 Lua 错误，
-// 防止拼写错误静默退化成无伤害的默认攻击。
+// 不走 set_skill；动词必须在 data/beast_combat_action.lua 动作表内，否则抛
+// Lua 错误，防止拼写错误静默退化成无伤害的默认攻击。
 int l_set_beast_verbs(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

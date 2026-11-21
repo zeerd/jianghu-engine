@@ -6,8 +6,8 @@
  *
  *  1. 语法          luaL_loadbuffer：括号/引号不匹配、关键字拼错。
  *  2. require 闭包  字面量 require("a.b") 指向不存在的模块（历史事故：
- *                   lua-default/skill/high/animal/*.lua 引用不存在的
- *                   skill.skill_utils，语法全绿、加载即炸）。
+ *                   技能脚本引用了不存在的
+ * skill.skill_utils，语法全绿、加载即炸）。
  *  3. 未绑定全局    data/card_core.lua 调 get_db_type()，引擎从未注册 →
  *                   登录期 login.on_login 抛
  *                   "attempt to call a nil value (global 'get_db_type')"。
