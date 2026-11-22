@@ -180,6 +180,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="bot_test.cc" />
     <ClCompile Include="client_core_test.cc" />
     <ClCompile Include="color_test.cc" />
     <ClCompile Include="commands_test.cc" />

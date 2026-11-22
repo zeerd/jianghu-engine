@@ -25,10 +25,13 @@ class IFeishuSender {
 public:
     virtual ~IFeishuSender() = default;
     // 发送一条文本消息；返回是否送达（传输层成功）。
+    // text 是 UTF-8 字节（飞书按 UTF-8 解析载荷，引擎默认字面量是 GBK，
+    // 组装方负责在边界上统一到 UTF-8）。
     virtual bool send(const std::string& text) = 0;
 };
 
 // 自定义机器人的 text 消息载荷：{"msg_type":"text","content":{"text":"..."}}
+// text 为 UTF-8 字节，本函数只做 JSON 转义、不改编码。
 std::string build_feishu_payload(const std::string& text);
 
 // webhook 投递实现：载荷组装 + 传输失败时重试一次（瞬时网络抖动不丢消息）。

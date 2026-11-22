@@ -7,6 +7,7 @@
 #include <chrono>
 #include <string>
 
+#include "Encoding.h"
 #include "StringUtil.h"
 #include "test_log_hits.h"
 #include "test_log_monitor_common.h"
@@ -149,21 +150,39 @@ TEST(BuildFeishuMessage, CarriesPlanTriggerAndPath)
     EXPECT_NE(msg.find("ERROR"), std::string::npos);
 }
 
+TEST(BuildFeishuMessage, ChineseFragmentsAreUtf8)
+{
+    // 载荷按 UTF-8 解析，而本测试工程的字面量是 GBK（/execution-charset）：
+    // 期望值经 gbk_to_utf8 独立换算——正文若混进 GBK 字面量，此处必失配
+    const std::string msg
+        = build_feishu_message("plan", "log/plans/p.md", "t", LOG_LVL_WARN);
+    EXPECT_NE(msg.find(gbk_to_utf8("【金剑江湖·日志告警】")),
+              std::string::npos);
+    EXPECT_NE(msg.find(gbk_to_utf8("触发日志")), std::string::npos);
+    EXPECT_NE(msg.find(gbk_to_utf8("plan 文件")), std::string::npos);
+
+    // 截断注记同样是 UTF-8
+    std::string big;
+    while (big.size() < 40 * 1024) big += "错误边界错误边界错误边界\n";
+    const std::string cut = build_feishu_message(big, "", "t", LOG_LVL_WARN);
+    EXPECT_NE(cut.find(gbk_to_utf8("已截断")), std::string::npos);
+}
+
 TEST(BuildFeishuMessage, EmptyPathOmitsPlanTail)
 {
     // 直推模式没有 plan 落盘：正文只带快照与触发行，不出现悬空的路径尾巴
     const std::string msg = build_feishu_message(
         "## 日志快照", "", "[ERROR] (2026-11-21 10:00:00) boom", LOG_LVL_ERROR);
     EXPECT_NE(msg.find("## 日志快照"), std::string::npos);
-    EXPECT_EQ(msg.find("plan 文件"), std::string::npos);
+    EXPECT_EQ(msg.find(gbk_to_utf8("plan 文件")), std::string::npos);
 
     // 截断注记同样不引用不存在的路径
     std::string big;
     while (big.size() < 40 * 1024) big += "错误边界错误边界错误边界\n";
     const std::string cut = build_feishu_message(big, "", "t", LOG_LVL_WARN);
     EXPECT_LE(cut.size(), 28u * 1024u);
-    EXPECT_NE(cut.find("已截断"), std::string::npos);
-    EXPECT_EQ(cut.find("完整 plan 见"), std::string::npos);
+    EXPECT_NE(cut.find(gbk_to_utf8("已截断")), std::string::npos);
+    EXPECT_EQ(cut.find(gbk_to_utf8("完整 plan 见")), std::string::npos);
 }
 
 TEST(BuildFeishuMessage, TruncatesOversizedPlanKeepingPath)
@@ -176,7 +195,7 @@ TEST(BuildFeishuMessage, TruncatesOversizedPlanKeepingPath)
     EXPECT_LE(msg.size(), 28u * 1024u);
     // 截断后路径仍可溯源（注记里带路径）
     EXPECT_NE(msg.find("log/plans/p.md"), std::string::npos);
-    EXPECT_NE(msg.find("已截断"), std::string::npos);
+    EXPECT_NE(msg.find(gbk_to_utf8("已截断")), std::string::npos);
 }
 
 // ---------------------------------------------------------------------
@@ -234,6 +253,11 @@ TEST_F(LogMonitorTest, DirectPushSendsSnapshotWithoutAnalysis)
     EXPECT_NE(sp->messages[0].find("ERROR"), std::string::npos);
     EXPECT_NE(sp->messages[0].find("缓冲越界: 用户 12345"), std::string::npos);
     EXPECT_NE(sp->messages[0].find("连接建立完成"), std::string::npos);
+
+    // 头部标签是 UTF-8 字节（飞书按 UTF-8 解析；GBK 字面量会整段乱码）
+    EXPECT_NE(sp->messages[0].find(gbk_to_utf8("【金剑江湖·日志告警】")),
+              std::string::npos);
+    EXPECT_NE(sp->messages[0].find(gbk_to_utf8("触发日志")), std::string::npos);
 
     // 不经 opencode：不落 plan、不写上下文附件
     const std::filesystem::path plan_dir

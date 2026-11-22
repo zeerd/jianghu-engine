@@ -10,7 +10,7 @@
 #   暴露）。
 #
 # 副本实例语义与回环依据同 persist_pre 头注（每次闯入山寨都是全新实例、
-# 首进刷出不触发对象 init、出厅依赖 valid_leave 的 query 字符串拦截恒放行）。
+# 首进刷出不触发对象 init）。
 
 include ../common/login.sce
 

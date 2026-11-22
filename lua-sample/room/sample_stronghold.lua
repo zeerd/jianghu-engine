@@ -14,7 +14,6 @@ return {
         )
 
         -- 副本门：退回庭院。第三个参数是庭院一侧的出口名（来路出口）。
-        -- 敌人清场前 valid_leave 会拒绝使用。
         self:add_object("door", "庭院大门", "黑风寨庭院", "聚义大厅")
 
         -- 添加副本管理员
@@ -42,21 +41,5 @@ return {
             self:add_object("npc", "sample_bandit_boss")
             self:set("spawned", 1)
         end
-    end,
-
-    valid_leave = function(self, me, dir)
-        -- 检查是否还有敌人
-        local list = self:get_item_list()
-        if list then
-            for item in iter_items(list) do
-                if item:is_character() and item:is_user() == 0 then
-                    if item:querystr("attitude") == "aggressive" then
-                        tell_object(me, "$HIR还有敌人在场，你无法离开！")
-                        return 0
-                    end
-                end
-            end
-        end
-        return 1
     end,
 }

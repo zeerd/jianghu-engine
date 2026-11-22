@@ -35,9 +35,12 @@ CLuaNpcT<T>::~CLuaNpcT()
 }
 
 // 刷新脚本引用并重新执行 create()（热重载用）
-// 默认行为：purge（脚本声明 save_table 时删其存档行，不清背包）+ 重新
-// create()，使脚本改动立即生效
-// 脚本可定义 reload(self) 覆盖此行为（仅刷新引用，不重新 create）
+// 默认行为：purge 旧存档行 → clean_up 清空随身物 → 按新脚本重新 create()，
+// 使脚本改动立即生效。
+//   create() 是「装配初始状态」的构造语义，只能在空容器上重跑：不先清空，
+//   carry_object / add_money 会叠在旧随身物之上，热重载一次翻一倍，
+//   死后 CCorpse::make_corpse 把身上每一份都倒出来。
+//   脚本可定义 reload(self) 覆盖整段默认行为（如仅刷新引用、不重建）。
 template <typename T>
 void CLuaNpcT<T>::reload_script()
 {
@@ -66,8 +69,9 @@ void CLuaNpcT<T>::reload_script()
     }
     lua_pop(L, 2);  // 弹出 nil 和 table
 
-    // 默认行为：purge 背包 + 重新 create()
+    // 默认行为：purge 旧存档行 → 清空随身物 → 按新脚本重新装配
     purge();
+    clean_up();
     create();
 }
 

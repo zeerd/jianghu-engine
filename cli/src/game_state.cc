@@ -67,6 +67,8 @@ std::vector<std::string> GameState::handle_message(const GameMessage& msg)
             // Clear room objects on room change
             room_objects_.clear();
             exits_.clear();
+            vendor_items_.clear();  // 货架随目标离开当前房间失效
+            collecting_vendor_ = false;
 
             output_lines.push_back(
                 color::convert("$GRN你进入了" + room_name_ + "。\n$COM"));
@@ -634,8 +636,25 @@ std::vector<std::string> GameState::handle_message(const GameMessage& msg)
             break;
         }
 
-        // 37: SENDTABLE
+        // 37: SENDTABLE — 分段表格下发；商店货架（T=vendor）解析进
+        // vendor_items_，供 bot 识别商人与取商品号。段语义见 protocol §6.23：
+        // st=1 首行（带表名+首条数据）、中间行无 st、st=2 末行、st=3 单行。
         case 37: {
+            const std::string table = msg.get("T");
+            const std::string st    = msg.get("st");
+            if (st == "1" || st == "3") {
+                vendor_items_.clear();
+                collecting_vendor_ = (table == "vendor");
+            }
+            if (collecting_vendor_ && msg.has("good")) {
+                VendorItem item;
+                item.code  = static_cast<int>(msg.get_int("good"));
+                item.name  = msg.get("name");
+                item.price = msg.get("value");
+                item.qty   = static_cast<int>(msg.get_int("amount"));
+                vendor_items_.push_back(std::move(item));
+            }
+            if (st == "2") collecting_vendor_ = false;
             break;
         }
 

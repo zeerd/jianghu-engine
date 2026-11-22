@@ -149,11 +149,17 @@ int l_set_name(lua_State* L)
 // ---- 持久 dbase 分派 self:dbase(action, key[, value]) ----
 // 分支实现的栈位约定：1=self、2=action、3=key（set 的表在 4）
 
+// 谓词动作恒返回布尔（true/false）：谓词只有两种答案，nil/lightuserdata 会让
+// 脚本侧 `== false` 恒假、且与 defined 的返回类型漂移。取值动作（map_keys/
+// vec/get）仍返回 值|nil——nil 表示「没这个值」是取值语义，不属谓词归一范围。
 static int dbase_defined(lua_State* L, CMainObject* obj)
 {
     const char* key = luaL_checkstring(L, 3);
     CContainer* con = dynamic_cast<CContainer*>(obj);
-    if (!con) return 0;
+    if (!con) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
     CMapping* m = con->query_entire_dbase();
     if (!m) {
         lua_pushboolean(L, 0);
@@ -167,10 +173,7 @@ static int dbase_map(lua_State* L, CMainObject* obj)
 {
     const char* key = luaL_checkstring(L, 3);
     CMapping* m     = obj->querymap(key);
-    if (m)
-        lua_pushboolean(L, 1);
-    else
-        lua_pushnil(L);
+    lua_pushboolean(L, m != nullptr);
     return 1;
 }
 
@@ -275,10 +278,11 @@ static int dbase_set(lua_State* L, CMainObject* obj)
 }
 
 // self:dbase(action, key[, value]) - 持久 dbase 查询/读写，ACTION 取
-// defined（key 是否已定义）/ map（子映射存在性）/ map_keys（子映射
-// {key,value} 条目）/ vec（CVector 转字符串数组）/ get（子映射整表
-// 副本，保留数值/字符串类型）/ set（用 Lua 表整体设置子映射）。
-// 未登记 ACTION 报错；get/set 仅 CChar，其余为容器级查询
+// defined（key 是否已定义）/ map（子映射存在性）——此二者为谓词，恒返回
+// boolean；map_keys（子映射 {key,value} 条目）/ vec（CVector 转字符串数组）/
+// get（子映射整表副本，保留数值/字符串类型）——此三者为取值，返回 值|nil；
+// set（用 Lua 表整体设置子映射）无返回。未登记 ACTION 报错；
+// get/set 仅 CChar，其余为容器级查询
 int l_dbase(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);
@@ -299,10 +303,8 @@ static int dbase_temp_map(lua_State* L, CMainObject* obj)
 {
     const char* key = luaL_checkstring(L, 3);
     CMapping* m     = obj->querymap_temp(key);
-    if (m)
-        lua_pushlightuserdata(L, (void*)m);
-    else
-        lua_pushnil(L);
+    // 与 dbase("map") 同形：只答存在性，不把 CMapping* 指针泄给脚本
+    lua_pushboolean(L, m != nullptr);
     return 1;
 }
 
@@ -345,9 +347,9 @@ static int dbase_temp_str(lua_State* L, CMainObject* obj)
 }
 
 // self:dbase_temp(action, key) - 临时 dbase 查询，ACTION 取
-// map（子映射存在性，返回 lightuserdata 仅作存在性判断）/
-// map_keys（子映射 {key,value} 条目，value 取数值）/ str（字符串值，
-// 无值返回 ""）；未登记 ACTION 报错
+// map（子映射存在性，谓词，恒返回 boolean，与 dbase("map") 同形）/
+// map_keys（子映射 {key,value} 条目，value 取数值，返回 值|nil）/ str
+// （字符串值，无值返回 ""）；未登记 ACTION 报错
 int l_dbase_temp(lua_State* L)
 {
     CMainObject* obj = get_object(L, 1);

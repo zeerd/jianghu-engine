@@ -69,19 +69,25 @@ TEST(LoginRegister, CheckValidChar_ChineseThenAscii)
 TEST(LoginRegister, CheckLegalName_EmptyString)
 {
     EXPECT_STREQ(check_legal_name(""),
-                 "对不起，你的中文名字必须是 1 到 6 个中文字。");
+                 "对不起，你的中文名字必须是 1 到 5 个中文字。");
 }
 
 TEST(LoginRegister, CheckLegalName_TooShort)
 {
     EXPECT_STREQ(check_legal_name("a"),
-                 "对不起，你的中文名字必须是 1 到 6 个中文字。");
+                 "对不起，你的中文名字必须是 1 到 5 个中文字。");
+}
+
+TEST(LoginRegister, CheckLegalName_JustOverMax)
+{
+    EXPECT_STREQ(check_legal_name("abcdefghijk"),
+                 "对不起，你的中文名字必须是 1 到 5 个中文字。");
 }
 
 TEST(LoginRegister, CheckLegalName_TooLong)
 {
     EXPECT_STREQ(check_legal_name("abcdefghijklm"),
-                 "对不起，你的中文名字必须是 1 到 6 个中文字。");
+                 "对不起，你的中文名字必须是 1 到 5 个中文字。");
 }
 
 TEST(LoginRegister, CheckLegalName_ExactMin)
@@ -91,7 +97,7 @@ TEST(LoginRegister, CheckLegalName_ExactMin)
 
 TEST(LoginRegister, CheckLegalName_ExactMax)
 {
-    EXPECT_STREQ(check_legal_name("abcdefghijkl"), "");
+    EXPECT_STREQ(check_legal_name("abcdefghij"), "");
 }
 
 TEST(LoginRegister, CheckLegalName_WithinRange)

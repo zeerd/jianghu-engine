@@ -310,6 +310,7 @@
     <ClCompile Include="test_corpse.cpp" />
     <ClCompile Include="test_lua_npc.cpp" />
     <ClCompile Include="test_npc_mirror.cpp" />
+    <ClCompile Include="test_npc_reload.cpp" />
     <!-- Infrastructure -->
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="test_env.cpp" />

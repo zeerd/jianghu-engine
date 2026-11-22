@@ -6,6 +6,8 @@
 //  - decay 三阶段：腐烂 → 骸骨 → 化灰（遗物归还房间并自毁）
 //  - make_corpse 承接遇害者姓名与属性；非主人随身物留在房间，
 //    巫师装备随身保留
+//  - 走完整 CChar::die() 的死亡掉落：尸体一具、每件随身装备各一份，
+//    不因装备位/随身清单而多出副本
 //
 //
 #include "pch.h"
@@ -15,6 +17,7 @@
 #include "Char.h"
 #include "Corpse.h"
 #include "Global.h"
+#include "HeartBeat.h"  // g_destruct_list：die() 自毁后的回收口径
 #include "Item.h"
 #include "test_lua_env.h"
 #include "mock/mock_itemmgr.h"
@@ -166,6 +169,72 @@ TEST_F(CorpseTest, MakeCorpse_CopiesVictimAndDropsForeignLoot)
     delete gear;
     FreeChar(killer);
     FreeChar(victim);
+}
+
+// 死亡掉落：带武器与衣服的遇害者走完整 CChar::die() 后，
+// 房间里每件装备只应各出现一份（尸体一具、武器一件、衣服一件）
+TEST_F(CorpseTest, Die_DropsEachEquippedGearExactlyOnce)
+{
+    CContainer* room = new CContainer();
+    room->set_name("落魂坡", "corpse_die_room");
+    room->set("infinity", (long)1);
+
+    CChar* victim = new CChar();
+    victim->set_name("遇害者", "corpse_die_victim");
+    victim->move(room);
+
+    CItem* weapon = new CItem();
+    weapon->set_name("佩剑", "corpse_die_sword");
+    weapon->set("base_name", "corpse_die_sword");
+    weapon->set("wield_position", (long)7);
+    weapon->move(victim);
+    weapon->set("equipped", (long)7);
+
+    CItem* cloth = new CItem();
+    cloth->set_name("布衣", "corpse_die_cloth");
+    cloth->set("base_name", "corpse_die_cloth");
+    cloth->set("wield_position", (long)12);
+    cloth->move(victim);
+    cloth->set("equipped", (long)12);
+
+    victim->die();  // 造尸体 + 倾倒随身物 + DESTRUCT_OB
+
+    int sword_count  = 0;
+    int cloth_count  = 0;
+    int corpse_count = 0;
+    for (auto* ob : *room->get_item_list()) {
+        const char* base = ob->querystr("base_name");
+        if (std::strcmp(base, "corpse_die_sword") == 0)
+            sword_count++;
+        else if (std::strcmp(base, "corpse_die_cloth") == 0)
+            cloth_count++;
+        else if (std::strcmp(base, "corpse_ob") == 0)
+            corpse_count++;
+    }
+
+    EXPECT_EQ(1, corpse_count) << "死亡只应制造一具尸体";
+    EXPECT_EQ(1, sword_count) << "武器只应掉落一份";
+    EXPECT_EQ(1, cloth_count) << "衣服只应掉落一份";
+
+    // die() 末尾已 DESTRUCT_OB：从延迟销毁队列摘除，避免 double-free
+    {
+        std::lock_guard<std::mutex> lock(g_destruct_list_mutex);
+        g_destruct_list.remove(victim);
+    }
+
+    // 遇害者由 FreeChar 单独回收，不进房间快照
+    victim->move(nullptr);
+
+    // 先快照再回收：move 会把自身从 room 列表摘除，边遍历边删会失效迭代器
+    DTItemList snapshot;
+    copy_list(&snapshot, room->get_item_list());
+    for (auto* ob : snapshot) {
+        ob->set_heart_beat(0);
+        ob->move(nullptr);
+        delete ob;
+    }
+    FreeChar(victim);
+    delete room;
 }
 
 // 制造尸体：巫师的随身装备不被剥离

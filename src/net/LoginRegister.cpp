@@ -56,8 +56,8 @@ static const char* call_lua_check_name(const char* name)
 // 内部优先调用 Lua（login.check_name），Lua 不可用时回退长度检查。
 char* check_legal_name(const char* name)
 {
-    if (strlen(name) < 2 || strlen(name) > 12) {
-        return "对不起，你的中文名字必须是 1 到 6 个中文字。";
+    if (strlen(name) < 2 || strlen(name) > 10) {
+        return "对不起，你的中文名字必须是 1 到 5 个中文字。";
     }
 
     const char* err = call_lua_check_name(name);

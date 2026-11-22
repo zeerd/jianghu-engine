@@ -59,6 +59,13 @@ public:
     // Exits of the current room
     const std::vector<DoorInfo>& exits() const { return exits_; }
 
+    // 当前目标的货架表（SENDTABLE C=37 T=vendor 解析产物）。/list 探到
+    // 商人后非空；换房即清（目标随房间失效）。
+    const std::vector<VendorItem>& vendor_items() const
+    {
+        return vendor_items_;
+    }
+
     // Inventory items
     const std::vector<ObjectInfo>& inventory() const { return inventory_; }
 
@@ -176,6 +183,10 @@ private:
 
     // --- Exits ---
     std::vector<DoorInfo> exits_;
+
+    // --- Vendor table (SENDTABLE C=37, T=vendor) ---
+    std::vector<VendorItem> vendor_items_;
+    bool collecting_vendor_ = false;  // 分段收集中（st=1..st=2 之间）
 
     // --- Target ---
     ObjectID target_id_ = 0;

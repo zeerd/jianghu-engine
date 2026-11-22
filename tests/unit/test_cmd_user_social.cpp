@@ -620,16 +620,16 @@ TEST_F(CmdUserSocialTest, NickName_TooShortRejected)
     g_notify_fail_msg[0] = '\0';
     EXPECT_EQ(CallNickName(me, 0, arg), 0);
     EXPECT_STREQ(g_notify_fail_msg,
-                 "对不起，你的中文名字必须是 1 到 6 个中文字。");
+                 "对不起，你的中文名字必须是 1 到 5 个中文字。");
 }
 
 TEST_F(CmdUserSocialTest, NickName_TooLongRejected)
 {
-    char arg[]           = "abcdefghijklm";  // 13 字节 > Lua 上限 12
+    char arg[]           = "abcdefghijklm";  // 13 字节 > 名字上限 10
     g_notify_fail_msg[0] = '\0';
     EXPECT_EQ(CallNickName(me, 0, arg), 0);
     EXPECT_STREQ(g_notify_fail_msg,
-                 "对不起，你的中文名字必须是 1 到 6 个中文字。");
+                 "对不起，你的中文名字必须是 1 到 5 个中文字。");
 }
 
 TEST_F(CmdUserSocialTest, NickName_Success)

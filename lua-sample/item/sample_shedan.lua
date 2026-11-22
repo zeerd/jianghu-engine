@@ -72,7 +72,10 @@ return {
             -- 参数：第 4 参是附加伤害（这里为 0），第 5 参是施加者归属——
             -- 蛇胆是自己吞下的，毒便记在吞下的人名下（心跳结算按此归属找人）。
             local current = me:query_condition("snake_poison")
-            local add = self:query("poison_supply") or 2 -- 每颗贡献的时长
+            local add = self:query("poison_supply")
+            if add == 0 then
+                add = 2
+            end
             me:apply_condition("snake_poison", current + add, 0, me)
 
             me:flush_my_info()

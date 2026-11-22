@@ -46,6 +46,10 @@ libmysql.dll.zip
 /tests/integration/e2e_persist.db*
 /test_tmp/
 /tmp/
+# 压力测试：账本（账号密码）与运行产物不入库
+/stress/accounts.tsv
+/stress/logs/
+/stress/tmp/
 /x64
 /Release
 /dist

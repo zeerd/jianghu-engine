@@ -167,6 +167,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\application.cc" />
+    <ClCompile Include="src\bot.cc" />
     <ClCompile Include="src\color.cc" />
     <ClCompile Include="src\client_core.cc" />
     <ClCompile Include="src\commands.cc" />
@@ -186,6 +187,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\application.h" />
+    <ClInclude Include="src\bot.h" />
     <ClInclude Include="src\color.h" />
     <ClInclude Include="src\client_core.h" />
     <ClInclude Include="src\commands.h" />

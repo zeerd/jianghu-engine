@@ -302,7 +302,8 @@ foreach ($lane in $ActiveLanes) {
 # persist 试验台的**段表**（N 段通用机制，头注第 10 条）：每项 = 试验台的
 # 一个服务器生命周期，段与段之间即一次重启；后台任务按本表循环执行，全程与
 # 各道并行。字段：Id 段名（变量/报告/日志文件名）｜Suffix 账号名后缀（避开
-# 道序号数字，段间不得重名）｜Script 段剧本｜Inject 段前注入（$null=无；
+# 道序号数字，段间不得重名，且 ≤1 字节——角色名窗口是 2~10 字节）｜Script
+# 段剧本｜Inject 段前注入（$null=无；
 # "expect_n_plus1"=读上一段 vars 的 n、注入 expect_n=n+1——跨重启断言用）。
 # 扩成三段只需追加一项并按需新增一种 Inject，任务循环与覆盖率合并自动适配。
 $PersistSegments = @()
@@ -829,10 +830,19 @@ if (-not $NoCoverage -and -not (Test-Path $OccExe)) {
 $tWallStart = Get-Date
 
 # --- 生成各道的 vars（唯一角色名 + 邮箱） --------------------------------------
-# 角色名长度限制为 2~10 字节（LoginRegister::check_legal_name / make_body）：
-# "e2e"(3) + 6 位十六进制(6) + 1 位道序号(1) = 10 字节。同轮内各道靠末位道序号
-# 互不重名，跨轮靠 6 位时间片段避免与历史账号撞名（重名会注册失败）。
+# 角色名长度限制为 2~10 字节（LoginRegister::check_legal_name；登录时
+# login.validate_name 还会把超长名改成「非法名字」）："e2e"(3) + 6 位十六进制
+# 时间片段(6) + 单字节后缀(1) = 10 字节。同轮内各道靠后缀互不重名，跨轮靠时间
+# 片段避开历史账号撞名。后缀取道序号的十六进制（L10→a、L11→b，1~15 道均为
+# 单字节），超窗即刻报错，别把超长名送到注册阶段才炸。
 $RunHex = '{0:x6}' -f ([DateTime]::UtcNow.Ticks -band 0xFFFFFF)
+function New-E2eRoleName([string]$Suffix) {
+    $n = "e2e$RunHex$Suffix"
+    if ($n.Length -gt 10) {
+        throw "角色名 '$n' 超出 10 字节上限（后缀 '$Suffix'）：缩短后缀或时间片段"
+    }
+    return $n
+}
 # L9 巫师道密码：取 config [wizard] password（缺省 12345678，与服务端
 # Sql.cpp ensure_wizard_accounts 同缺省），只在 config 有 [wizard] 节时读它
 $wizardPass = "12345678"
@@ -843,7 +853,7 @@ foreach ($cfgLine in Get-Content -LiteralPath $ConfPath) {
 }
 foreach ($lane in $ActiveLanes) {
     if (-not $lane.NoRegister) {
-        $lane.Name = "e2e$RunHex$($lane.Id)"
+        $lane.Name = New-E2eRoleName ('{0:x}' -f $lane.Id)
         $lane.Email = "e2e$RunHex$($lane.Id)@example.com"
     }
     else {
@@ -1684,10 +1694,13 @@ try {
                 # 段 1 的服务器先起（注册也要打在试验台独立库上）
                 Start-SideServer -SegNo 1
 
-                # --- 注册各段账号（同 register.sce；名 = e2e<hex><Suffix>） -----
+                # --- 注册各段账号（同 register.sce；名 = e2e<hex><Suffix>，≤10 字节）
                 foreach ($seg in $segments) {
                     $vars = Join-Path $WorkDir ("persist_{0}.vars" -f $seg.Id)
                     $name = "e2e$RunHex$($seg.Suffix)"
+                    if ($name.Length -gt 10) {
+                        throw "试验台角色名 '$name' 超出 10 字节上限（后缀 '$($seg.Suffix)'）"
+                    }
                     $varsText = "name=$($name)`npass=e2e1234`nemail=$($name)@example.com`ngender=男性`nattrs=21 21 21 21`n"
                     [System.IO.File]::WriteAllText($vars, $varsText,
                         (New-Object System.Text.UTF8Encoding($false)))

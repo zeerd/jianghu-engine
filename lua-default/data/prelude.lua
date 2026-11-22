@@ -445,8 +445,8 @@ function check_legal_name(name)
     if type(name) == "number" then
         name = tostring(name)
     end
-    if #name < 2 or #name > 12 then
-        return "对不起，你的中文名字必须是 1 到 6 个中文字。"
+    if #name < 2 or #name > 10 then
+        return "对不起，你的中文名字必须是 1 到 5 个中文字。"
     end
     local ok, login = pcall(require, "data.login")
     if not ok or type(login) ~= "table" or type(login.check_name) ~= "function" then

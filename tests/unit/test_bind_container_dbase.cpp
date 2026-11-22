@@ -11,6 +11,24 @@ protected:
 
     void PushStr(const char* s) { lua_pushstring(L, s); }
     void PushInt(long v) { lua_pushinteger(L, v); }
+
+    // 谓词动作的返回类型断言：必须是 boolean。
+    // CallBool 把 nil 也读成 false，区分不了「谓词答 false」与「谓词漏推值」，
+    // 也区分不了 lightuserdata，故直接查栈上类型。
+    // 返回：1 = true，0 = false，-1 = 未返回值，-2 = 返回了非 boolean 值
+    int CallBoolType(int (*fn)(lua_State*), int nargs)
+    {
+        int k = call(fn, nargs);
+        int r;
+        if (k < 1)
+            r = -1;
+        else if (lua_isboolean(L, -1))
+            r = lua_toboolean(L, -1) ? 1 : 0;
+        else
+            r = -2;
+        if (k >= 0) lua_pop(L, k);
+        return r;
+    }
 };
 
 // ---------------- set / query / querystr / add / del ----------------
@@ -218,17 +236,18 @@ TEST_F(BindContainerDbaseTest, QuerymapAndKeys)
     PushSelf(&ch);
     PushStr("map");
     PushStr("sub");
-    EXPECT_TRUE(CallBool(l_dbase, 3));  // exists -> true
+    EXPECT_EQ(1, CallBoolType(l_dbase, 3)) << "存在 -> boolean true";
 
     PushSelf(&ch);
     PushStr("map");
     PushStr("nosuch");
-    EXPECT_EQ(1, CallRetCount(l_dbase, 3));  // returns nil (1 value)
+    EXPECT_EQ(0, CallBoolType(l_dbase, 3))
+        << "不存在 -> boolean false，不是 nil";
 
     PushSelf(&ch);
     PushStr("map_keys");
     PushStr("sub");
-    EXPECT_EQ(1, CallRetCount(l_dbase, 3));
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3)) << "取值动作仍返回一个值";
 }
 
 TEST_F(BindContainerDbaseTest, QuerymapTempFamily)
@@ -240,12 +259,55 @@ TEST_F(BindContainerDbaseTest, QuerymapTempFamily)
     PushSelf(&ch);
     PushStr("map");
     PushStr("tmp");
-    EXPECT_EQ(1, CallRetCount(l_dbase_temp, 3));
+    EXPECT_EQ(1, CallBoolType(l_dbase_temp, 3))
+        << "存在 -> boolean true，不再泄 lightuserdata";
+
+    PushSelf(&ch);
+    PushStr("map");
+    PushStr("notmp");
+    EXPECT_EQ(0, CallBoolType(l_dbase_temp, 3)) << "不存在 -> boolean false";
 
     PushSelf(&ch);
     PushStr("map_keys");
     PushStr("tmp");
     EXPECT_EQ(1, CallRetCount(l_dbase_temp, 3));
+}
+
+// dbase_defined 的 !con 分支：非容器对象没有 dbase，仍须答 boolean false，
+// 否则与容器路径的返回类型漂移（nil vs false），脚本侧 `== false` 恒假。
+TEST_F(BindContainerDbaseTest, DbaseDefinedNonContainer)
+{
+    CMainObject bare;  // is-a 但 is-not CContainer
+    lua_bind_push_object(L, &bare);
+    PushStr("defined");
+    PushStr("anykey");
+    EXPECT_EQ(0, CallBoolType(l_dbase, 3))
+        << "非容器 -> boolean false，不是 nil";
+
+    // 同一对象上 map 动作（走 obj->querymap，不经 dynamic_cast）同为布尔
+    lua_bind_push_object(L, &bare);
+    PushStr("map");
+    PushStr("anykey");
+    EXPECT_EQ(0, CallBoolType(l_dbase, 3));
+}
+
+// 谓词/取值边界：谓词恒布尔，取值保持 值|nil —— 归一化不得越界改到取值动作
+TEST_F(BindContainerDbaseTest, ValueActionsKeepNilWhenAbsent)
+{
+    PushSelf(&ch);
+    PushStr("map_keys");
+    PushStr("nosuch");
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3)) << "取值动作缺席仍返回 1 个值(nil)";
+
+    PushSelf(&ch);
+    PushStr("vec");
+    PushStr("nosuch");
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3)) << "vec 同上";
+
+    PushSelf(&ch);
+    PushStr("get");
+    PushStr("nosuch");
+    EXPECT_EQ(1, CallRetCount(l_dbase, 3)) << "get 同上";
 }
 
 TEST_F(BindContainerDbaseTest, DbaseDefined)
@@ -254,12 +316,12 @@ TEST_F(BindContainerDbaseTest, DbaseDefined)
     PushSelf(&ch);
     PushStr("defined");
     PushStr("present");
-    EXPECT_TRUE(CallBool(l_dbase, 3));
+    EXPECT_EQ(1, CallBoolType(l_dbase, 3));
 
     PushSelf(&ch);
     PushStr("defined");
     PushStr("absent");
-    EXPECT_FALSE(CallBool(l_dbase, 3));
+    EXPECT_EQ(0, CallBoolType(l_dbase, 3)) << "缺席 -> boolean false，不是 nil";
 }
 
 TEST_F(BindContainerDbaseTest, UnknownActionErrors)

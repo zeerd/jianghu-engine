@@ -271,7 +271,6 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 **副本门机制**（参照 `src/room/FBRoom.cpp` 的 `CFBDoor`）：
 - 副本房间内 `add_door(出口名, 目标房, 目标房出口名)` 创建的是副本出口：进入时经父副本 `load_fb_room` 按需加载目标房（不查全局房间表），两房同属一个副本实例
 - 副本总控只预加载入口"黑风寨庭院"，"黑风寨大厅"由庭院的副本门首次通过时按需创建
-- 大厅回庭院的出口在敌人清场前被 `valid_leave` 拦截，清场后可原路返回
 
 ## 场景结构
 
@@ -307,7 +306,7 @@ book.create(self, nFlag, { name = "内功秘籍", skill_name = "force", ... })
 | `sample_resident.lua` | 住宅区：type=resident，申请→置产→搬家；驻守月老 |
 | `sample_stronghold_fb.lua` | 副本总控：type=fb，只预加载入口 |
 | `sample_stronghold_courtyard.lua` | 庭院：type=fbroom，副本门入口 |
-| `sample_stronghold.lua` | 大厅：type=fbroom，战斗NPC + valid_leave |
+| `sample_stronghold.lua` | 大厅：type=fbroom，战斗NPC |
 
 **npc/**（16）
 

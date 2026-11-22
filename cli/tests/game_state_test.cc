@@ -399,6 +399,79 @@ TEST_F(GameStateTest, LoginFailure)
     EXPECT_TRUE(out[0].find("密码错误") != std::string::npos);
 }
 
+// ==================== C=37 SENDTABLE (vendor) ====================
+
+// 商店货架三段式（protocol §6.23）：st=1 带表名+首行、中间行无 st、
+// st=2 末行。段错序或表名不对都不得污染已解析的货架。
+TEST_F(GameStateTest, VendorTableParsesAcrossSegments)
+{
+    state_.handle_message(make_msg(37, {{"st", "1"},
+                                        {"T", "vendor"},
+                                        {"R", "20"},
+                                        {"P", "1"},
+                                        {"good", "1001"},
+                                        {"name", "铁剑"},
+                                        {"value", "50"},
+                                        {"amount", "3"}}));
+    state_.handle_message(make_msg(
+        37,
+        {{"good", "1002"}, {"name", "草药"}, {"value", "5"}, {"amount", "9"}}));
+    state_.handle_message(make_msg(37, {{"st", "2"},
+                                        {"good", "1003"},
+                                        {"name", "干粮"},
+                                        {"value", "2"},
+                                        {"amount", "20"}}));
+
+    const auto& goods = state_.vendor_items();
+    ASSERT_EQ(goods.size(), 3u);
+    EXPECT_EQ(goods[0].code, 1001);
+    EXPECT_EQ(goods[0].name, "铁剑");
+    EXPECT_EQ(goods[0].price, "50");
+    EXPECT_EQ(goods[0].qty, 3);
+    EXPECT_EQ(goods[2].code, 1003);
+}
+
+// 单行表（st=3）与非 vendor 表：单行照收；T=other 不得写进货架。
+TEST_F(GameStateTest, VendorTableSingleRowAndForeignTableIgnored)
+{
+    state_.handle_message(make_msg(37, {{"st", "3"},
+                                        {"T", "vendor"},
+                                        {"R", "3"},
+                                        {"P", "0"},
+                                        {"good", "7"},
+                                        {"name", "火把"},
+                                        {"value", "1"},
+                                        {"amount", "1"}}));
+    ASSERT_EQ(state_.vendor_items().size(), 1u);
+    EXPECT_EQ(state_.vendor_items()[0].name, "火把");
+
+    // 换新表（st=1 + 其他表名）应清空旧货架——货架只反映最近一次 list
+    state_.handle_message(make_msg(37, {{"st", "1"},
+                                        {"T", "other"},
+                                        {"good", "9"},
+                                        {"name", "x"},
+                                        {"value", "1"},
+                                        {"amount", "1"}}));
+    EXPECT_TRUE(state_.vendor_items().empty());
+}
+
+// 换房即失效：GOTOROOM 后目标已不在视野，货架必须清空。
+TEST_F(GameStateTest, VendorTableClearedOnRoomChange)
+{
+    state_.handle_message(make_msg(37, {{"st", "3"},
+                                        {"T", "vendor"},
+                                        {"good", "1"},
+                                        {"name", "x"},
+                                        {"value", "1"},
+                                        {"amount", "1"}}));
+    ASSERT_EQ(state_.vendor_items().size(), 1u);
+
+    state_.handle_message(make_msg(
+        10, {{"R", "6001"}, {"I", "map2"}, {"N", "别处"}, {"F", "0"}}));
+    EXPECT_TRUE(state_.vendor_items().empty());
+    EXPECT_EQ(state_.current_room(), 6001);
+}
+
 // ==================== C=19 / 29 / 31 Notifications ====================
 
 TEST_F(GameStateTest, NotifyMessage)

@@ -7,8 +7,8 @@ local login = {}
 -- @param name  玩家名字（UTF-8）
 -- @return "" 表示合法，非空字符串为错误信息
 function login.check_name(name)
-    if #name < 2 or #name > 12 then
-        return "对不起，你的中文名字必须是 1 到 6 个中文字。"
+    if #name < 2 or #name > 10 then
+        return "对不起，你的中文名字必须是 1 到 5 个中文字。"
     end
     return ""
 end

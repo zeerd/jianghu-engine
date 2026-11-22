@@ -59,23 +59,26 @@ std::string build_feishu_message(const std::string& body,
     // 飞书 text 消息约 30KB 上限：28KB 截断留余量
     const size_t kMaxBytes = 28 * 1024;
 
-    std::string head = "【金剑江湖·日志告警】";
+    // 载荷按 UTF-8 解析，而引擎窄字面量经 /execution-charset 落成 GBK：
+    // 本函数产出的中文字面量一律 u8 钉成 UTF-8，与日志快照（出生即 UTF-8）
+    // 同一口径；漏掉 u8 前缀即出现「前半段乱码、快照正常」的混合载荷。
+    std::string head = u8"【金剑江湖·日志告警】";
     head += level_upper_name(level);
-    head += "\n触发日志: ";
+    head += u8"\n触发日志: ";
     head += truncate_utf8(trigger_line, 500);
     head += "\n\n";
 
     // 直推模式没有落盘产物：省略路径尾巴，不报一个不存在的文件
     std::string tail;
-    if (!body_path.empty()) tail = "\n\nplan 文件: " + body_path;
+    if (!body_path.empty()) tail = std::string(u8"\n\nplan 文件: ") + body_path;
     std::string msg = head + body + tail;
 
     if (msg.size() > kMaxBytes) {
         // 截断会把尾部的路径一并切掉：截断注记里重新带上路径，
         // 超长消息仍可溯源到落盘文件
-        std::string note = "\n\n（正文超长已截断";
-        if (!body_path.empty()) note += "，完整 plan 见: " + body_path;
-        note += "）";
+        std::string note = u8"\n\n（正文超长已截断";
+        if (!body_path.empty()) note += u8"，完整 plan 见: " + body_path;
+        note += u8"）";
         msg = truncate_utf8(msg, kMaxBytes - note.size()) + note;
     }
     return msg;

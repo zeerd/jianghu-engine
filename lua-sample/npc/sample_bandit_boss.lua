@@ -97,7 +97,7 @@ end
 
 -- 定时回血
 function npc.do_full(self, param1, param2)
-    if not self:query("fight/is_fighting", "T") then
+    if self:query("fight/is_fighting", "T") == 0 then
         -- 脱战后回血
         if self:query("hp") < self:query("max_hp") then
             self:set("hp", math.min(self:query("hp") + 500, self:query("max_hp")))

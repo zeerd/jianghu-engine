@@ -147,10 +147,10 @@ TEST_F(DbRegisterAccountTest, StatOutOfRange_Fails)
 TEST_F(DbRegisterAccountTest, IllegalName_Fails)
 {
     char err[256] = "";
-    // 单字名：check_legal_name 要求 2~12 字节
+    // 单字名：check_legal_name 要求 2~10 字节
     EXPECT_EQ(0, Register("x", "abc12345", "x@example.com", "男性", 21, 21, 21,
                           21, err, sizeof(err)));
-    EXPECT_STREQ("对不起，你的中文名字必须是 1 到 6 个中文字。", err);
+    EXPECT_STREQ("对不起，你的中文名字必须是 1 到 5 个中文字。", err);
     EXPECT_FALSE(db->ExecutedContaining("insert into jianghudb"));
 }
 

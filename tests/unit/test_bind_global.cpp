@@ -157,7 +157,7 @@ TEST_F(BindGlobalTest, CheckLegalName)
     ASSERT_NE(ensure_lua_env(), nullptr);
     lua_State* E = ensure_lua_env();
 
-    for (const char* name : {"zhangsan", "ab", "abcdefghijkl"}) {
+    for (const char* name : {"zhangsan", "ab", "abcdefghij"}) {
         const std::string cpp = check_legal_name(name);
         const std::string lua = lua_str_expr(
             E, ("check_legal_name('" + std::string(name) + "')").c_str());
