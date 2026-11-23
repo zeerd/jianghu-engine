@@ -119,7 +119,8 @@ TEST_F(DbLayerTest, LoadContainer_Found)
         "select obj_data from t_item where obj_id='sword_01'", rs);
 
     std::string data;
-    EXPECT_TRUE(db_load_container("t_item", "sword_01", data));
+    EXPECT_EQ(DbLoadResult::Loaded,
+              db_load_container("t_item", "sword_01", data));
     EXPECT_EQ(data, "the_data");
 }
 
@@ -127,14 +128,15 @@ TEST_F(DbLayerTest, LoadContainer_NotFound)
 {
     // 默认空结果
     std::string data;
-    EXPECT_FALSE(db_load_container("t_item", "nonexistent", data));
+    EXPECT_EQ(DbLoadResult::NotFound,
+              db_load_container("t_item", "nonexistent", data));
 }
 
 TEST_F(DbLayerTest, LoadContainer_QueryFails)
 {
     s_mockDb->SetShouldFail(true);
     std::string data;
-    EXPECT_FALSE(db_load_container("t_item", "x", data));
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t_item", "x", data));
 }
 
 TEST_F(DbLayerTest, DeleteContainer)
@@ -204,9 +206,11 @@ TEST_F(DbLayerTest, LoadRoomBoxes_Found)
 
     std::vector<std::string> boxes;
     std::string data;
-    EXPECT_TRUE(db_load_container("t_box", "road1_0", data));
+    EXPECT_EQ(DbLoadResult::Loaded,
+              db_load_container("t_box", "road1_0", data));
     boxes.push_back(data);
-    EXPECT_TRUE(db_load_container("t_box", "road1_1", data));
+    EXPECT_EQ(DbLoadResult::Loaded,
+              db_load_container("t_box", "road1_1", data));
     boxes.push_back(data);
     EXPECT_EQ((int)boxes.size(), 2);
     EXPECT_EQ(boxes[0], "box_data_0");
@@ -217,7 +221,8 @@ TEST_F(DbLayerTest, LoadRoomBoxes_Empty)
 {
     std::vector<std::string> boxes;
     std::string data;
-    EXPECT_FALSE(db_load_container("t_box", "empty_room_0", data));
+    EXPECT_EQ(DbLoadResult::NotFound,
+              db_load_container("t_box", "empty_room_0", data));
     EXPECT_EQ((int)boxes.size(), 0);
 }
 
@@ -846,7 +851,7 @@ TEST_F(DbLayerTest, LoadContainer_NullDb)
 {
     g_db = nullptr;
     std::string data;
-    EXPECT_FALSE(db_load_container("t_item", "x", data));
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t_item", "x", data));
     g_db = s_mockDb;
 }
 
@@ -876,7 +881,7 @@ TEST_F(DbLayerTest, LoadObject_NullDb)
 {
     g_db = nullptr;
     std::string data;
-    EXPECT_FALSE(db_load_container("t_item", "1_0", data));
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t_item", "1_0", data));
     g_db = s_mockDb;
 }
 
@@ -884,7 +889,7 @@ TEST_F(DbLayerTest, LoadRoomBoxes_NullDb)
 {
     g_db = nullptr;
     std::string data;
-    EXPECT_FALSE(db_load_container("t_box", "x_0", data));
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t_box", "x_0", data));
     g_db = s_mockDb;
 }
 
@@ -897,7 +902,7 @@ TEST_F(DbLayerTest, LoadContainer_ColumnsEmpty)
     s_mockDb->SetQueryResult("select obj_data from t_item where obj_id='x'",
                              rs);
     std::string data;
-    EXPECT_FALSE(db_load_container("t_item", "x", data));
+    EXPECT_EQ(DbLoadResult::NotFound, db_load_container("t_item", "x", data));
 }
 
 TEST_F(DbLayerTest, LoadContainer_DataEmpty)
@@ -907,7 +912,7 @@ TEST_F(DbLayerTest, LoadContainer_DataEmpty)
     s_mockDb->SetQueryResult("select obj_data from t_item where obj_id='x'",
                              rs);
     std::string data;
-    EXPECT_FALSE(db_load_container("t_item", "x", data));
+    EXPECT_EQ(DbLoadResult::NotFound, db_load_container("t_item", "x", data));
 }
 
 TEST_F(DbLayerTest, LockContainer_RowsEmpty)
@@ -938,13 +943,13 @@ TEST_F(DbLayerTest, LoadObject_TooFewColumns)
     s_mockDb->SetQueryResult("select obj_data from t_item where obj_id='1_0'",
                              rs);
     std::string data;
-    EXPECT_FALSE(db_load_container("t_item", "1_0", data));
+    EXPECT_EQ(DbLoadResult::NotFound, db_load_container("t_item", "1_0", data));
 
     // 列存在但数据为空同样不可加载
     DbResultSet emptyVal = MockDatabase::MakeSingleRow({""});
     s_mockDb->SetQueryResult("select obj_data from t_item where obj_id='2_0'",
                              emptyVal);
-    EXPECT_FALSE(db_load_container("t_item", "2_0", data));
+    EXPECT_EQ(DbLoadResult::NotFound, db_load_container("t_item", "2_0", data));
 }
 
 TEST_F(DbLayerTest, LoadRoomBoxes_RowEmptyColumns)
@@ -953,7 +958,7 @@ TEST_F(DbLayerTest, LoadRoomBoxes_RowEmptyColumns)
     DbRow row;
     rs.rows.push_back(row);
     std::string data;
-    EXPECT_FALSE(db_load_container("t_box", "x_0", data));
+    EXPECT_EQ(DbLoadResult::NotFound, db_load_container("t_box", "x_0", data));
 }
 
 // --- SqlAccount.cpp: NullDb 路径 ---
@@ -1160,7 +1165,7 @@ TEST_F(DbLayerTest, SqlContainer_AllUnknownExceptionCatches)
         << "save_container catch(65-66)";
     EXPECT_FALSE(db_save_container("t", "i1", "n", "d", true))
         << "update 支同样落 catch";
-    EXPECT_FALSE(db_load_container("t", "i1", data))
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t", "i1", data))
         << "load_container catch(95-96)";
     EXPECT_FALSE(db_delete_container("t", "i1"))
         << "delete_container catch(115-116)";
@@ -1168,9 +1173,9 @@ TEST_F(DbLayerTest, SqlContainer_AllUnknownExceptionCatches)
         << "lock_container catch(163-164)";
     EXPECT_FALSE(db_save_container("t_item", "1_0", "x", "y", false))
         << "save_object catch(227-228)";
-    EXPECT_FALSE(db_load_container("t_item", "1_0", data))
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t_item", "1_0", data))
         << "load_object catch(259-260)";
-    EXPECT_FALSE(db_load_container("t_box", "r_0", data))
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t_box", "r_0", data))
         << "load_room_boxes catch(294-295)";
 
     g_db = saved;
@@ -1198,9 +1203,9 @@ TEST_F(DbLayerTest, SqlContainer_ExecuteAndQueryFailBranches)
     // load_container / load_room_boxes：首个 query 失败(247-248,283-284)
     s_mockDb->SetShouldFail(true);
     std::string base, data;
-    EXPECT_FALSE(db_load_container("t_item", "1001_0", base))
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t_item", "1001_0", base))
         << "load_container query 失败(247-248)";
     std::vector<std::string> boxes;
-    EXPECT_FALSE(db_load_container("t_box", "road1_0", data))
+    EXPECT_EQ(DbLoadResult::Error, db_load_container("t_box", "road1_0", data))
         << "load_room_boxes query 失败(283-284)";
 }

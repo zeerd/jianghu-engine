@@ -180,6 +180,7 @@
     <ClCompile Include="src\game_state_target.cc" />
     <ClCompile Include="src\input.cc" />
     <ClCompile Include="src\protocol.cc" />
+    <ClCompile Include="src\room_map.cc" />
     <ClCompile Include="src\scenario.cc" />
     <ClCompile Include="src\scenario_steps.cc" />
     <ClCompile Include="src\terminal_ui.cc" />
@@ -201,6 +202,7 @@
     <ClInclude Include="src\game_state_target.h" />
     <ClInclude Include="src\input.h" />
     <ClInclude Include="src\protocol.h" />
+    <ClInclude Include="src\room_map.h" />
     <ClInclude Include="src\scenario.h" />
     <ClInclude Include="src\scenario_runner.h" />
     <ClInclude Include="src\terminal_ui.h" />

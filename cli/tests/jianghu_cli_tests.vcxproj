@@ -191,6 +191,7 @@
     <ClCompile Include="game_state_test.cc" />
     <ClCompile Include="input_test.cc" />
     <ClCompile Include="protocol_test.cc" />
+    <ClCompile Include="room_map_test.cc" />
     <ClCompile Include="scenario_steps_test.cc" />
     <ClCompile Include="scenario_test.cc" />
     <ClCompile Include="terminal_ui_test.cc" />

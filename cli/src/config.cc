@@ -66,6 +66,10 @@ Config load_config(const std::string& path)
             cfg.logs_dir = val;
         else if (key == "comm_key")
             cfg.comm_key = val;
+        else if (key == "map_file")
+            cfg.map_file = expand_home(val);
+        else if (key == "map_step_timeout_ms")
+            cfg.map_step_timeout_ms = std::stoi(val);
         else if (key == "heartbeat_interval")
             cfg.heartbeat_interval = std::stoi(val);
     }

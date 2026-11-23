@@ -182,8 +182,9 @@ int CContainer::save_impl(CMapping* savedata)
 
         // 记录已存在则 UPDATE，否则 INSERT（不能因查不到记录而拒绝写入）
         std::string dummy;
-        bool is_update
-            = db_load_container(table_name.c_str(), obj_id.c_str(), dummy);
+        const bool is_update
+            = db_load_container(table_name.c_str(), obj_id.c_str(), dummy)
+              == DbLoadResult::Loaded;
 
         if (!db_save_container(table_name.c_str(), obj_id.c_str(), name(1),
                                attr, is_update)) {
@@ -208,7 +209,8 @@ int CContainer::load_impl(CMapping* savedata)
         save_route(table_name, obj_id);
 
         std::string data;
-        if (!db_load_container(table_name.c_str(), obj_id.c_str(), data)) {
+        if (db_load_container(table_name.c_str(), obj_id.c_str(), data)
+            != DbLoadResult::Loaded) {
             return 0;
         }
 

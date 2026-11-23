@@ -1,12 +1,22 @@
 #include "input.h"
 
+#include <chrono>
 #include <sstream>
+#include <thread>
 
 #include "color.h"
 #include "commands.h"
 #include "connection.h"
 #include "game_state.h"
 #include "terminal_ui.h"
+
+static std::string trim_ws(const std::string& s)
+{
+    size_t a = s.find_first_not_of(" \t");
+    if (a == std::string::npos) return std::string();
+    size_t b = s.find_last_not_of(" \t");
+    return s.substr(a, b - a + 1);
+}
 
 // Display all player info panels (used by .info CLI command).
 static void show_player_info(const GameState& gs, TerminalUI& ui)
@@ -120,11 +130,19 @@ void InputProcessor::show_help_text()
     ui_.add_line(
         "Banker:   /balance — 查看存款, /deposit — 存款, /withdraw — 取款, "
         "/loan — 贷款");
+    ui_.add_line(".go <目的地> — 按房间地图寻路，自动逐步 /go 走到目的地");
 }
 
 InputProcessor::InputProcessor(CommandHandler& cmd_handler, GameState& state,
-                               Connection& conn, TerminalUI& ui)
-    : cmd_handler_(cmd_handler), state_(state), conn_(conn), ui_(ui)
+                               Connection& conn, TerminalUI& ui,
+                               const std::string& map_file,
+                               int map_step_timeout_ms)
+    : cmd_handler_(cmd_handler),
+      state_(state),
+      conn_(conn),
+      ui_(ui),
+      map_file_(map_file),
+      map_step_timeout_ms_(map_step_timeout_ms)
 {
 }
 
@@ -300,6 +318,9 @@ void InputProcessor::process_cli_cmd(const std::string& input)
             }
         }
     }
+    else if (input == ".go" || input.rfind(".go ", 0) == 0) {
+        process_go(input == ".go" ? "" : input.substr(4));
+    }
     else if (input == ".tune" || input.rfind(".tune ", 0) == 0) {
         // 本地切频道：纯客户端状态，不下发任何 wire
         std::string tune_args = (input == ".tune") ? "" : input.substr(6);
@@ -311,6 +332,77 @@ void InputProcessor::process_cli_cmd(const std::string& input)
         ui_.add_line(
             "CLI commands start with '.', Server commands start with '/'.");
     }
+}
+
+void InputProcessor::process_go(const std::string& args)
+{
+    std::string dest = trim_ws(args);
+    if (dest.empty()) {
+        ui_.add_line(color::convert("$YELUsage: .go <目的地>$COM"));
+        return;
+    }
+    if (!map_loaded_) {
+        map_loaded_ = true;
+        if (!room_map_.load(map_file_)) {
+            ui_.add_line(
+                color::convert("$RED房间地图加载失败: " + map_file_ + "$COM"));
+            return;
+        }
+    }
+
+    int from = room_map_.find_room(state_.room_name());
+    if (from < 0) from = room_map_.find_room(state_.room_map());
+    if (from < 0) {
+        ui_.add_line(color::convert(
+            "$RED当前位置不在地图中: " + state_.room_name() + "$COM"));
+        return;
+    }
+    int to = room_map_.find_room(dest);
+    if (to < 0) {
+        ui_.add_line(color::convert("$RED目的地不在地图中: " + dest + "$COM"));
+        return;
+    }
+
+    auto steps = room_map_.find_path(from, to);
+    if (steps.empty()) {
+        ui_.add_line(
+            from == to
+                ? color::convert("$YEL你已经在 " + dest + "。$COM")
+                : color::convert("$RED找不到通往 " + dest + " 的路径。$COM"));
+        return;
+    }
+
+    ui_.add_line(color::convert("$CYN寻路 " + std::to_string(steps.size())
+                                + " 步 -> " + dest + "$COM"));
+    for (const auto& step : steps) {
+        ui_.add_line(color::convert("$CYN/go $COM" + step.go_key));
+        cmd_handler_.process("go " + step.go_key);
+        if (!wait_for_room(step.arrival_names)) {
+            ui_.add_line(color::convert("$RED未能进入 " + step.go_key
+                                        + "，停止寻路。$COM"));
+            break;
+        }
+    }
+}
+
+bool InputProcessor::wait_for_room(const std::vector<std::string>& names) const
+{
+    if (map_step_timeout_ms_ <= 0) return true;
+
+    auto reached = [&]() {
+        std::string current = state_.room_name();
+        for (const auto& name : names) {
+            if (!name.empty() && current == name) return true;
+        }
+        return false;
+    };
+
+    auto deadline = std::chrono::steady_clock::now()
+                    + std::chrono::milliseconds(map_step_timeout_ms_);
+    while (!reached() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+    return reached();
 }
 
 void InputProcessor::process_server_cmd(const std::string& input)

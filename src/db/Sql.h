@@ -42,8 +42,18 @@ void disconnect_sql_server();
 bool db_save_container(const char* table, const char* obj_id,
                        const char* obj_name, const char* obj_data,
                        bool is_update);
-bool db_load_container(const char* table, const char* obj_id,
-                       std::string& out_data);
+
+// 容器读取结果：行不存在是「对象尚未首次存盘」的正常初始态（新建房间的
+// 首个箱子即此态），与查询执行失败性质不同——前者按空对象继续，后者必须
+// 报错，两者不可压进同一个 false。
+enum class DbLoadResult {
+    Loaded,    // 读到非空行，out_data 已填充
+    NotFound,  // 表中无该 obj_id 的行，或行内 obj_data 为空
+    Error,     // 查询未执行成功：无连接、语句失败或抛异常
+};
+
+DbLoadResult db_load_container(const char* table, const char* obj_id,
+                               std::string& out_data);
 bool db_delete_container(const char* table, const char* obj_id);
 bool db_lock_container(const char* table, const char* obj_id, int locked,
                        int& out_current_lock);

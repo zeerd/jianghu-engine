@@ -18,11 +18,11 @@
 passwd:*** store null	L4 account.sce 口令错误负测（凭据不符分支，口令已掩码）
 #
 # per-owner 房屋实例首建回退（house/apply.sce、interaction/invite_a.sce 置业）：
-# 首次置业时 load_room("house_<房名>_<acct>") 库中尚无该行 → 标准房间回退 +
-# 房内箱 db_load_container 随之失败；首建后即落库，同账号二次加载不再触发。
+# 首次置业时 load_room("house_<房名>_<acct>") 库中尚无该行 → 标准房间回退；
+# 首建后即落库，同账号二次加载不再触发。房内箱随房间首建同样无行，
+# 按「尚未首次存盘」的空箱常态处理，不产生服务端 ERROR。
 # 锚定 house_ 前缀：其他房间的缺失（配置错/脚本改名）不带此前缀，照常 FAIL。
 create_room: 没有该房间house_	house/apply.sce 置业首建：per-owner 房间库中无行的预期回退
-db_load_container failed for house_	house/apply.sce 置业首建：房内箱随房间首建的预期失败
 #
 # reload 试验台（scenarios/reload/*）：坏文件变体的重载失败锚点行——失败分支
 # 必须报错并保留旧版本，这是被守护的契约本身（回溯栈帧已降 INFO，此处只登记

@@ -170,7 +170,10 @@ int CBox::load_object()
 
     // 从数据库加载箱子内容
     std::string data;
-    if (!db_load_container("t_box", querystr("db_room_id"), data)) {
+    const DbLoadResult loaded
+        = db_load_container("t_box", querystr("db_room_id"), data);
+    if (loaded == DbLoadResult::NotFound) return 0;  // 无行 = 尚未首次存盘
+    if (loaded != DbLoadResult::Loaded) {
         LOG_ERROR("CBox::LoadObject: db_load_container failed for %s",
                   querystr("db_room_id"));
         return 0;
@@ -234,8 +237,9 @@ int CBox::save_object()
     // 保存到数据库 t_box (使用通用容器接口)
     // 先检查是否存在以决定是 insert 还是 update
     std::string existing;
-    bool is_update
-        = db_load_container("t_box", querystr("db_room_id"), existing);
+    const bool is_update
+        = db_load_container("t_box", querystr("db_room_id"), existing)
+          == DbLoadResult::Loaded;
     if (!db_save_container("t_box", querystr("db_room_id"), name(1),
                            m.get_buffer(), is_update)) {
         LOG_ERROR("CBox::SaveObject: db_save_container failed for %s",

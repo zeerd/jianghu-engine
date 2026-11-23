@@ -15,6 +15,7 @@
 #include "Npc.h"
 #include "Item.h"
 #include "Skill.h"
+#include "Sql.h"  // DbLoadResult
 
 // ====================================================================
 // Smoke test: basic object creation
@@ -65,16 +66,18 @@ TEST(SmokeTest, MockFunctionsLink)
     extern void message_vision(const char*, CContainer*, CContainer*, bool);
     extern bool db_save_container(const char*, const char*, const char*,
                                   const char*, bool);
-    extern bool db_load_container(const char*, const char*, std::string&);
+    extern DbLoadResult db_load_container(const char*, const char*,
+                                          std::string&);
     extern int is_user(CContainer*);
     extern int is_wizard(CChar*);
 
     tell_object(nullptr, "test", "system");
     message_vision("test", nullptr, nullptr, false);
-    // g_db is nullptr here, so real implementations return false
+    // g_db is nullptr here, so real implementations report failure
     EXPECT_FALSE(db_save_container("t_item", "owner_1", "item", "data", false));
     std::string data;
-    EXPECT_FALSE(db_load_container("t_item", "owner_1", data));
+    EXPECT_EQ(DbLoadResult::Error,
+              db_load_container("t_item", "owner_1", data));
     EXPECT_EQ(is_user(nullptr), 0);
     EXPECT_EQ(is_wizard(nullptr), 0);
 }

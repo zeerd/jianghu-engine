@@ -67,10 +67,10 @@ bool db_save_container(const char* table, const char* obj_id,
     }
 }
 
-bool db_load_container(const char* table, const char* obj_id,
-                       std::string& out_data)
+DbLoadResult db_load_container(const char* table, const char* obj_id,
+                               std::string& out_data)
 {
-    if (!g_db) return false;
+    if (!g_db) return DbLoadResult::Error;
 
     try {
         char msg[512];
@@ -81,19 +81,19 @@ bool db_load_container(const char* table, const char* obj_id,
         if (ret_code != 0) {
             LOG_ERROR("db_load_container: %s query db fail! %s", table,
                       g_db->error());
-            return false;
+            return DbLoadResult::Error;
         }
 
         if (result.empty() || result.rows[0].columns.empty()
             || result.rows[0][0].empty()) {
-            return false;
+            return DbLoadResult::NotFound;
         }
 
         out_data = result.rows[0][0];
-        return true;
+        return DbLoadResult::Loaded;
     } catch (...) {
         LOG_ERROR("db_load_container: unknown exception");
-        return false;
+        return DbLoadResult::Error;
     }
 }
 

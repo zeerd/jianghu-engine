@@ -364,6 +364,31 @@ TEST_F(BoxDoorTest, LoadObjectToleratesCorruptBuffer)
         << "宽容路径不记错误日志";
 }
 
+// 首建：房间/箱子尚未存过盘，t_box 里没有这一行——这是新箱子的初始态
+TEST_F(BoxDoorTest, LoadObjectWithoutRowStaysSilent)
+{
+    CBox box;
+    PlaceInSaveableRoom(box, "boxdoor_fresh");
+
+    const int errs = count_log_hits("CBox::LoadObject");
+    EXPECT_EQ(0, box.load_object()) << "无行可还原";
+    EXPECT_EQ(count_log_hits("CBox::LoadObject"), errs)
+        << "首建无行是常态，不记错误日志";
+}
+
+// 查询真失败（连接/语句层面）必须照旧报错，不得与「无行」混同
+TEST_F(BoxDoorTest, LoadObjectLogsErrorWhenQueryFails)
+{
+    CBox box;
+    PlaceInSaveableRoom(box, "boxdoor_qfail");
+    db->SetShouldFail(true);
+
+    const int errs = count_log_hits("CBox::LoadObject");
+    EXPECT_EQ(0, box.load_object());
+    EXPECT_EQ(count_log_hits("CBox::LoadObject"), errs + 1)
+        << "查询失败仍记一条错误日志";
+}
+
 TEST_F(BoxDoorTest, DbFailuresLogSaveAndRemoveErrors)
 {
     CBox box;

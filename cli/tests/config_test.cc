@@ -75,6 +75,21 @@ TEST(ConfigParse, MissingFileReturnsDefaults)
     EXPECT_EQ(c.host, "127.0.0.1");
     EXPECT_EQ(c.port, 6600);
     EXPECT_EQ(c.heartbeat_interval, 15);
+    EXPECT_EQ(c.map_file, "sample.dat");
+    EXPECT_EQ(c.map_step_timeout_ms, 5000);
+}
+
+// 自动寻路契约：地图文件与每步等待上限可配，~ 在地图路径里同样展开。
+TEST(ConfigParse, ParsesMapFileAndStepTimeout)
+{
+    Config c = load_conf(logs_line() + "map_file = sample.dat\n"
+                                       "map_step_timeout_ms = 1200\n");
+    EXPECT_EQ(c.map_file, "sample.dat");
+    EXPECT_EQ(c.map_step_timeout_ms, 1200);
+
+    c = load_conf(logs_line() + "map_file = ~/my_map.dat\n");
+    const std::string home = home_dir();
+    EXPECT_EQ(c.map_file, home.empty() ? "~/my_map.dat" : home + "/my_map.dat");
 }
 
 // logs_dir 里的 ~ 展开为主目录，否则日志会写进相对路径。

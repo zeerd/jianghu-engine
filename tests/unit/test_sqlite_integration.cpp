@@ -97,15 +97,18 @@ TEST_F(SqliteIntegrationTest, ContainerCrudRoundTrip)
     ASSERT_TRUE(
         db_save_container("t_item", "sword_01", "铁剑", "data1", false));
     std::string data;
-    ASSERT_TRUE(db_load_container("t_item", "sword_01", data));
+    ASSERT_EQ(DbLoadResult::Loaded,
+              db_load_container("t_item", "sword_01", data));
     EXPECT_EQ(data, "data1");
 
     ASSERT_TRUE(db_save_container("t_item", "sword_01", "铁剑", "data2", true));
-    ASSERT_TRUE(db_load_container("t_item", "sword_01", data));
+    ASSERT_EQ(DbLoadResult::Loaded,
+              db_load_container("t_item", "sword_01", data));
     EXPECT_EQ(data, "data2");
 
     ASSERT_TRUE(db_delete_container("t_item", "sword_01"));
-    EXPECT_FALSE(db_load_container("t_item", "sword_01", data));
+    EXPECT_EQ(DbLoadResult::NotFound,
+              db_load_container("t_item", "sword_01", data));
 }
 
 // JSON blob 里的反斜杠/单引号/双引号/制表符必须原样存取：MySQL 侧靠
@@ -121,7 +124,7 @@ TEST_F(SqliteIntegrationTest, ContainerBlobPreservesSpecialBytes)
         db_save_container("t_box", "blob_1", "箱", payload.c_str(), false));
 
     std::string data;
-    ASSERT_TRUE(db_load_container("t_box", "blob_1", data));
+    ASSERT_EQ(DbLoadResult::Loaded, db_load_container("t_box", "blob_1", data));
     EXPECT_EQ(data, payload);
 }
 
@@ -135,9 +138,11 @@ TEST_F(SqliteIntegrationTest, RoomBoxesLoadByPrefix)
     std::vector<std::string> boxes;
     // 使用通用容器接口逐个加载
     std::string data;
-    ASSERT_TRUE(db_load_container("t_box", "road1_0", data));
+    ASSERT_EQ(DbLoadResult::Loaded,
+              db_load_container("t_box", "road1_0", data));
     boxes.push_back(data);
-    ASSERT_TRUE(db_load_container("t_box", "road1_1", data));
+    ASSERT_EQ(DbLoadResult::Loaded,
+              db_load_container("t_box", "road1_1", data));
     boxes.push_back(data);
     EXPECT_EQ((int)boxes.size(), 2);
     EXPECT_EQ(boxes[0], "b0");

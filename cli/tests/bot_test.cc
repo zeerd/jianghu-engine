@@ -123,7 +123,7 @@ TEST(BotDecide, FightIsLowProbability)
 {
     std::mt19937 rng(7);
     int fight_count = 0;
-    const int total  = 2000;
+    const int total = 2000;
     for (int i = 0; i < total; ++i) {
         if (bot::decide(full_view(), rng) == Action::Fight) ++fight_count;
     }

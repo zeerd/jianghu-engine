@@ -15,6 +15,8 @@
 class CBox : public CItem {
 public:
     void remove_objects();
+    // 读档：t_box 中读到该箱的行则还原内容并返回 1；行不存在（尚未首次
+    // 存盘，新建房间的首箱即此态）或读取失败返回 0。无行不是故障，不记错误。
     int load_object();
     int save_object();
 

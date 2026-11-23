@@ -18,7 +18,8 @@ ClientCore::ClientCore(const Config& cfg, std::unique_ptr<Connection> conn)
       state_(*conn_),
       ui_(),
       cmd_handler_(state_, *conn_, ui_),
-      input_processor_(cmd_handler_, state_, *conn_, ui_)
+      input_processor_(cmd_handler_, state_, *conn_, ui_, cfg.map_file,
+                       cfg.map_step_timeout_ms)
 {
     host_ = cfg.host;
     port_ = cfg.port;

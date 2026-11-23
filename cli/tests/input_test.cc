@@ -367,6 +367,53 @@ TEST_F(InputProcessorTest, CliUnknownCommandShowsHint)
     EXPECT_NE(out.find("CLI commands start with '.'"), std::string::npos);
 }
 
+// ==================== .go 按地图寻路并逐步 /go ====================
+
+TEST_F(InputProcessorTest, GoWithoutDestinationShowsUsage)
+{
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "sample.dat", 0);
+    OutputCapture cap(ui_);
+    EXPECT_TRUE(fast.process_line(".go"));
+    EXPECT_NE(cap.str().find("Usage: .go"), std::string::npos);
+    EXPECT_EQ(conn_.command_count(), 0);
+}
+
+TEST_F(InputProcessorTest, GoUnknownDestinationSendsNothing)
+{
+    state_.set_room_name_for_test("青云山山脚");
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "sample.dat", 0);
+    OutputCapture cap(ui_);
+    EXPECT_TRUE(fast.process_line(".go 不存在"));
+    EXPECT_NE(cap.str().find("目的地不在地图中"), std::string::npos);
+    EXPECT_EQ(conn_.command_count(), 0);
+}
+
+TEST_F(InputProcessorTest, GoAlreadyThereSendsNothing)
+{
+    state_.set_room_name_for_test("山脚茶棚");
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "sample.dat", 0);
+    OutputCapture cap(ui_);
+    EXPECT_TRUE(fast.process_line(".go 山脚茶棚"));
+    EXPECT_NE(cap.str().find("已经在"), std::string::npos);
+    EXPECT_EQ(conn_.command_count(), 0);
+}
+
+TEST_F(InputProcessorTest, GoWalksEveryStepOfPath)
+{
+    state_.set_room_name_for_test("青云山山顶");
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "sample.dat", 0);
+    {
+        OutputCapture cap(ui_);
+        EXPECT_TRUE(fast.process_line(".go 山脚茶棚"));
+        EXPECT_NE(cap.str().find("寻路 3 步"), std::string::npos);
+    }
+    auto cmds = conn_.get_sent_commands();
+    ASSERT_EQ(cmds.size(), 3u);
+    EXPECT_EQ(cmds[0], "1001 go 0 青云山半山腰\t");
+    EXPECT_EQ(cmds[1], "1001 go 0 青云山山脚\t");
+    EXPECT_EQ(cmds[2], "1001 go 0 山脚茶棚\t");
+}
+
 // ==================== /login /register ====================
 
 TEST_F(InputProcessorTest, LoginWithCredentialsSetsAccount)
