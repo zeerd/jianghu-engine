@@ -371,7 +371,7 @@ TEST_F(InputProcessorTest, CliUnknownCommandShowsHint)
 
 TEST_F(InputProcessorTest, GoWithoutDestinationShowsUsage)
 {
-    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "sample.dat", 0);
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "cli/sample.dat", 0);
     OutputCapture cap(ui_);
     EXPECT_TRUE(fast.process_line(".go"));
     EXPECT_NE(cap.str().find("Usage: .go"), std::string::npos);
@@ -380,18 +380,30 @@ TEST_F(InputProcessorTest, GoWithoutDestinationShowsUsage)
 
 TEST_F(InputProcessorTest, GoUnknownDestinationSendsNothing)
 {
-    state_.set_room_name_for_test("青云山山脚");
-    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "sample.dat", 0);
+    state_.set_room_map_for_test("青云山山脚");
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "cli/sample.dat", 0);
     OutputCapture cap(ui_);
     EXPECT_TRUE(fast.process_line(".go 不存在"));
     EXPECT_NE(cap.str().find("目的地不在地图中"), std::string::npos);
     EXPECT_EQ(conn_.command_count(), 0);
 }
 
+// 目的地只认注册名（door 名）：显示名（set_name 短名）全服允许重名，
+// 拿它寻址会落到排在前面的同名房上。
+TEST_F(InputProcessorTest, GoRejectsDisplayNameAsDestination)
+{
+    state_.set_room_map_for_test("青云山山脚");
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "cli/sample.dat", 0);
+    OutputCapture cap(ui_);
+    EXPECT_TRUE(fast.process_line(".go 钱庄"));
+    EXPECT_NE(cap.str().find("目的地不在地图中"), std::string::npos);
+    EXPECT_EQ(conn_.command_count(), 0);
+}
+
 TEST_F(InputProcessorTest, GoAlreadyThereSendsNothing)
 {
-    state_.set_room_name_for_test("山脚茶棚");
-    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "sample.dat", 0);
+    state_.set_room_map_for_test("山脚茶棚");
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "cli/sample.dat", 0);
     OutputCapture cap(ui_);
     EXPECT_TRUE(fast.process_line(".go 山脚茶棚"));
     EXPECT_NE(cap.str().find("已经在"), std::string::npos);
@@ -400,8 +412,8 @@ TEST_F(InputProcessorTest, GoAlreadyThereSendsNothing)
 
 TEST_F(InputProcessorTest, GoWalksEveryStepOfPath)
 {
-    state_.set_room_name_for_test("青云山山顶");
-    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "sample.dat", 0);
+    state_.set_room_map_for_test("青云山山顶");
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "cli/sample.dat", 0);
     {
         OutputCapture cap(ui_);
         EXPECT_TRUE(fast.process_line(".go 山脚茶棚"));
@@ -412,6 +424,54 @@ TEST_F(InputProcessorTest, GoWalksEveryStepOfPath)
     EXPECT_EQ(cmds[0], "1001 go 0 青云山半山腰\t");
     EXPECT_EQ(cmds[1], "1001 go 0 青云山山脚\t");
     EXPECT_EQ(cmds[2], "1001 go 0 山脚茶棚\t");
+}
+
+// ==================== .go 起点定位与到房判定 ====================
+
+// 到房判定只比对注册名（I= 对地图 Name1）：两者同源于 base_name、全服唯一。
+// 显示名允许重名，拿它判到房会把「进了同名的另一间房」当成到达。
+// 空串不参与匹配——两侧同时为空时相等，会把「尚未收到切房消息」误判成已到达。
+TEST_F(InputProcessorTest, ArrivedAtComparesMapKeyOnly)
+{
+    EXPECT_TRUE(InputProcessor::arrived_at("黑木崖内室", "黑木崖内室"));
+    // 注册名对不上即未到达，显示名再像也不算
+    EXPECT_FALSE(InputProcessor::arrived_at("黑木崖内室", "黑木崖小舍内室"));
+    EXPECT_FALSE(InputProcessor::arrived_at("别处", "黑木崖内室"));
+    // 尚未收到切房消息（两侧皆空）不算到达
+    EXPECT_FALSE(InputProcessor::arrived_at("", ""));
+}
+
+// 起点定位只认注册名（I=）：显示名「沙漠」「厨房」等多房同名，拿它定位会
+// 落到别的房间，整条寻路从错误起点展开。
+TEST_F(InputProcessorTest, GoIgnoresAmbiguousDisplayNameForStart)
+{
+    // 山脚钱庄(Name1=山脚钱庄/Name2=钱庄) 与 青云山山脚 相邻；
+    // 这里把显示名设成一个会歧义的名字，注册名设成真实起点。
+    state_.set_room_map_for_test("青云山山脚");
+    state_.set_room_name_for_test("钱庄");  // 歧义显示名，指向另一房
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "cli/sample.dat", 0);
+    {
+        OutputCapture cap(ui_);
+        EXPECT_TRUE(fast.process_line(".go 山脚茶棚"));
+        // 起点被正确解析为青云山山脚（1 跳），而非歧义显示名命中的钱庄
+        EXPECT_NE(cap.str().find("寻路 1 步"), std::string::npos);
+    }
+    auto cmds = conn_.get_sent_commands();
+    ASSERT_EQ(cmds.size(), 1u);
+    EXPECT_EQ(cmds[0], "1001 go 0 山脚茶棚\t");
+}
+
+// 注册名查不到就报错，不回落显示名：显示名可能属于地图外或重名的房，
+// 拿它当起点等于凭空造一个位置。
+TEST_F(InputProcessorTest, GoFailsWhenMapKeyNotInMap)
+{
+    state_.set_room_map_for_test("不在地图的房");
+    state_.set_room_name_for_test("钱庄");  // 显示名可解析，但不参与定位
+    InputProcessor fast(cmd_handler_, state_, conn_, ui_, "cli/sample.dat", 0);
+    OutputCapture cap(ui_);
+    EXPECT_TRUE(fast.process_line(".go 山脚茶棚"));
+    EXPECT_NE(cap.str().find("当前位置不在地图中"), std::string::npos);
+    EXPECT_EQ(conn_.command_count(), 0);
 }
 
 // ==================== /login /register ====================

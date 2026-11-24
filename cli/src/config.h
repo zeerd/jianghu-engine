@@ -15,7 +15,7 @@ struct Config {
     // 同样回退默认）。服务端与 CLI 必须写成同一份，否则互相解不开帧。
     std::string comm_key;
     // .go 自动寻路用的房间地图（jx.dat 同结构）与每步进房等待上限。
-    std::string map_file    = "sample.dat";
+    std::string map_file    = "cli/sample.dat";
     int map_step_timeout_ms = 5000;
 };
 

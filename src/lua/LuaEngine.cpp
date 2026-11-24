@@ -62,24 +62,58 @@ static FileFingerprint get_file_fingerprint(const char* path)
     return fp;
 }
 
-// 清空 require 的模块缓存，使重载后的脚本 require 到全新加载的版本。
+// 清空 require 的脚本模块缓存，使重载后的脚本 require 到全新加载的版本。
 // 用于"全部重载"。require 的缓存读写走 registry["_LOADED"]（luaopen_package
 // 初始把 package.loaded 与它指成同一张表）——只把 package.loaded 字段重绑
 // 新表，require 会继续在旧表上命中启动时的缓存，「reload all 换掉共享模块」
 // 就永远不生效。故两张引用一起换到同一张新表，保持身份一致。
+//
+// 新表只搬标准库条目：luaL_openlibs 经 luaL_requiref(setglobal=1) 注册的
+// 模块在 _LOADED 与 _G 里是同一张表，脚本模块没有这个等价关系（其模块名
+// 作为 _G 键不存在）。标准库不是脚本、不参与重载——丢了它们，reload all
+// 之后 require("math") 既不在 package.preload、文件系统也无 math.lua 可寻，
+// 必然失败。
 static void clear_loaded_shared_scripts(lua_State* L)
 {
     if (!L) return;
-    lua_newtable(L);  // 新缓存表；stack: new
-    lua_pushvalue(L, -1);
-    lua_setfield(L, LUA_REGISTRYINDEX, "_LOADED");  // require 读这里
-    lua_getglobal(L, "package");                    // stack: new, package
-    if (lua_istable(L, -1)) {
-        lua_pushvalue(L, -2);
-        lua_setfield(L, -2, "loaded");  // 脚本读 package.loaded 这里
-        lua_pop(L, 1);                  // stack: new
+    lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");  // stack: old
+    const bool has_old = lua_istable(L, -1);
+    lua_newtable(L);  // 新缓存表；stack: old, new
+    const int new_idx = lua_gettop(L);
+
+    if (has_old) {
+        const int old_idx = new_idx - 1;
+        lua_getglobal(L, "_G");  // stack: old, new, _G
+        const int glob_idx = lua_gettop(L);
+        if (lua_istable(L, glob_idx)) {
+            lua_pushnil(L);                  // stack: old, new, _G, k
+            while (lua_next(L, old_idx)) {   // stack: old, new, _G, k, v
+                lua_pushvalue(L, glob_idx);  // stack: ..., k, v, _G
+                lua_pushvalue(L, -3);        // stack: ..., k, v, _G, k
+                lua_rawget(L, -2);           // stack: ..., k, v, _G, _G[k]
+                const int keep
+                    = lua_rawequal(L, -1, -3);  // _G[k] 与 v 同一对象
+                lua_pop(L, 2);                  // stack: ..., k, v
+                if (keep) {
+                    lua_pushvalue(L, -2);  // stack: ..., k, v, k
+                    lua_pushvalue(L, -2);  // stack: ..., k, v, k, v
+                    lua_rawset(L, new_idx);
+                }
+                lua_pop(L, 1);  // 留 key 给下一轮 lua_next；stack: ..., k
+            }
+        }
+        lua_pop(L, 1);  // stack: old, new
     }
-    lua_pop(L, 1);  // stack: (empty)
+
+    lua_pushvalue(L, new_idx);
+    lua_setfield(L, LUA_REGISTRYINDEX, "_LOADED");  // require 读这里
+    lua_getglobal(L, "package");                    // stack: old, new, package
+    if (lua_istable(L, -1)) {
+        lua_pushvalue(L, new_idx);
+        lua_setfield(L, -2, "loaded");  // 脚本读 package.loaded 这里
+        lua_pop(L, 1);                  // stack: old, new
+    }
+    lua_pop(L, 2);  // stack: (empty)
 }
 
 // 计算文件内容哈希（用于热重载检测，比 mtime 更可靠）
@@ -706,7 +740,10 @@ int CLuaEngine::load_script(const char* name, LuaScriptType type)
                                    "cannot read file");
         return LUA_NOREF;
     }
-    if (luaL_loadbuffer(m_state, gbkContent.c_str(), gbkContent.size(), name)
+    // chunkname 用文件路径而非复合 key：chunk 的来源就是它读进来的那个
+    // 文件，错误信息与回溯据此定位到具体文件；与 gbk_file_loader 同口径
+    if (luaL_loadbuffer(m_state, gbkContent.c_str(), gbkContent.size(),
+                        path.c_str())
         != LUA_OK) {
         const char* err = lua_tostring(m_state, -1);
         LOG_ERROR("Lua loadfile failed [%s]: %s", name, err ? err : "unknown");
@@ -831,8 +868,9 @@ int CLuaEngine::reload_script(const char* compositeKey, bool* reloaded)
         return script.ref;  // 文件缺失，保留旧版本
     }
 
+    // chunkname 用文件路径：与 load_script 同口径，chunk 来源即可定位到文件
     if (luaL_loadbuffer(m_state, gbkContent.c_str(), gbkContent.size(),
-                        bareName)
+                        script.file.c_str())
         != LUA_OK) {
         // 语法错误，记录错误状态，保留旧版本
         const char* err  = lua_tostring(m_state, -1);

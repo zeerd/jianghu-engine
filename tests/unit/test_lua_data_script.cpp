@@ -17,6 +17,8 @@
 //   - get_beast_combat_action：野兽攻击动作表属引擎默认数据（lua-default
 //     自带）。verb 命中返回文案与伤害加成；表外动词判未命中并清空输出
 //     （damage 归 0），damage = 0 是合法取值而非未命中。
+//   - load_script 的 chunkname 是文件路径（既非复合 key 也非裸名）：
+//     回溯据此定位文件，覆盖率据此把执行归因到具体语料文件。
 //
 #include "pch.h"
 
@@ -233,4 +235,25 @@ TEST_F(LuaDataScriptTest, BeastCombatActionUnknownVerbMisses)
     EXPECT_FALSE(g_LuaEngine->get_beast_combat_action("", action, damage));
     EXPECT_TRUE(action.empty());
     EXPECT_EQ(0, damage);
+}
+
+// 契约：load_script 装出来的 chunk，其 source 就是脚本文件的相对路径。
+// 复合 key（data/login）与裸名（login）都定位不到文件，回溯与覆盖率归因
+// 会一起失效——两者消费的是同一个字符串。
+TEST_F(LuaDataScriptTest, LoadScriptChunkNameIsFileRelativePath)
+{
+    lua_State* L = ensure_lua_env();
+    ASSERT_NE(L, nullptr);
+
+    const int ref = g_LuaEngine->load_script("login", LUA_SCRIPT_DATA);
+    ASSERT_NE(ref, LUA_NOREF) << "夹具 data/login.lua 必须可加载";
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+    lua_setglobal(L, "__chunkname_probe");
+    const std::string source = lua_str_expr(
+        L, "debug.getinfo(__chunkname_probe.check_name, 'S').source");
+    lua_pushnil(L);
+    lua_setglobal(L, "__chunkname_probe");
+
+    EXPECT_EQ(source, "tests/unit/lua-tests/data/login.lua");
 }

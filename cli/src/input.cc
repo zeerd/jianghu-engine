@@ -130,7 +130,9 @@ void InputProcessor::show_help_text()
     ui_.add_line(
         "Banker:   /balance — 查看存款, /deposit — 存款, /withdraw — 取款, "
         "/loan — 贷款");
-    ui_.add_line(".go <目的地> — 按房间地图寻路，自动逐步 /go 走到目的地");
+    ui_.add_line(
+        ".go <目的地> — 按房间地图寻路，目的地写房间全名（注册名），"
+        "自动逐步 /go 走过去");
 }
 
 InputProcessor::InputProcessor(CommandHandler& cmd_handler, GameState& state,
@@ -338,7 +340,7 @@ void InputProcessor::process_go(const std::string& args)
 {
     std::string dest = trim_ws(args);
     if (dest.empty()) {
-        ui_.add_line(color::convert("$YELUsage: .go <目的地>$COM"));
+        ui_.add_line(color::convert("$YELUsage: .go <目的地房间全名>$COM"));
         return;
     }
     if (!map_loaded_) {
@@ -350,11 +352,13 @@ void InputProcessor::process_go(const std::string& args)
         }
     }
 
-    int from = room_map_.find_room(state_.room_name());
-    if (from < 0) from = room_map_.find_room(state_.room_map());
+    // 起点定位只认注册名（I=）：服务端每次切房必发 I=，缺省即 base_name
+    // （Name1），恒非空且全服唯一。显示名（N=）允许重名，拿它定位会落在
+    // 「沙漠」「厨房」这类撞名房上，整条寻路从错误起点展开。
+    int from = room_map_.find_room(state_.room_map());
     if (from < 0) {
         ui_.add_line(color::convert(
-            "$RED当前位置不在地图中: " + state_.room_name() + "$COM"));
+            "$RED当前位置不在地图中: " + state_.room_map() + "$COM"));
         return;
     }
     int to = room_map_.find_room(dest);
@@ -377,7 +381,7 @@ void InputProcessor::process_go(const std::string& args)
     for (const auto& step : steps) {
         ui_.add_line(color::convert("$CYN/go $COM" + step.go_key));
         cmd_handler_.process("go " + step.go_key);
-        if (!wait_for_room(step.arrival_names)) {
+        if (!wait_for_room(step.arrival_name)) {
             ui_.add_line(color::convert("$RED未能进入 " + step.go_key
                                         + "，停止寻路。$COM"));
             break;
@@ -385,17 +389,23 @@ void InputProcessor::process_go(const std::string& args)
     }
 }
 
-bool InputProcessor::wait_for_room(const std::vector<std::string>& names) const
+bool InputProcessor::arrived_at(const std::string& map_key,
+                                const std::string& arrival_name)
+{
+    // 到房判定只比对注册名：服务端 I= 与地图 Name1 同源于 base_name，全服
+    // 唯一。显示名（N= 对 Name2）允许重名，拿它判到房会把「进了同名的另一
+    // 间房」当成到达，后续步骤从错误位置继续走。
+    // 空串不参与匹配——两侧同时为空时相等，会把「尚未收到切房消息」误判成
+    // 已到达。
+    return !map_key.empty() && map_key == arrival_name;
+}
+
+bool InputProcessor::wait_for_room(const std::string& arrival_name) const
 {
     if (map_step_timeout_ms_ <= 0) return true;
 
-    auto reached = [&]() {
-        std::string current = state_.room_name();
-        for (const auto& name : names) {
-            if (!name.empty() && current == name) return true;
-        }
-        return false;
-    };
+    auto reached
+        = [&]() { return arrived_at(state_.room_map(), arrival_name); };
 
     auto deadline = std::chrono::steady_clock::now()
                     + std::chrono::milliseconds(map_step_timeout_ms_);

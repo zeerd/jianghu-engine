@@ -783,14 +783,26 @@ TEST_F(LuaErrorPathTest, ReloadFailures_LogAndKeepOldVersion)
 
     // 修好后回传 true，且新内容真的生效（marker 字段可读）
     write_file(path, "return { create = function(self) end, marker = 1 }\n");
+    int reloaded_ref = LUA_NOREF;
     {
-        bool ok = false;
-        engine->reload_script("item/t_reload_state_item", &ok);
+        bool ok      = false;
+        reloaded_ref = engine->reload_script("item/t_reload_state_item", &ok);
         EXPECT_TRUE(ok) << "修复后必须回传成功";
     }
     EXPECT_TRUE(engine->get_script_bool_field("t_reload_state_item",
                                               LUA_SCRIPT_ITEM, "marker"))
         << "成功重载后新内容必须生效";
+
+    // reload 装出来的 chunk 与 load 同口径：source 是文件路径而非复合 key
+    // 或裸名。回溯定位与覆盖率按文件归因消费的都是这个字符串。
+    ASSERT_NE(reloaded_ref, LUA_NOREF);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, reloaded_ref);
+    lua_setglobal(L, "__chunkname_probe");
+    const std::string source = lua_str_expr(
+        L, "debug.getinfo(__chunkname_probe.create, 'S').source");
+    lua_pushnil(L);
+    lua_setglobal(L, "__chunkname_probe");
+    EXPECT_EQ(source, path);
 
     std::remove(path.c_str());
 }

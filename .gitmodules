@@ -1,0 +1,6 @@
+[submodule "3rd/lua/luaunit"]
+	path = 3rd/lua/luaunit
+	url = https://github.com/bluebird75/luaunit
+[submodule "3rd/lua/luacov"]
+	path = 3rd/lua/luacov
+	url = https://github.com/lunarmodules/luacov

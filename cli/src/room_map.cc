@@ -25,7 +25,6 @@ bool all_digits(const std::string& s)
 
 struct ParsedRoom {
     std::string name1;
-    std::string name2;
     std::vector<std::pair<int, std::string>> exits;
 };
 
@@ -62,9 +61,6 @@ bool RoomMap::load(const std::string& path)
         if (key == "Name1") {
             parsed[current].name1 = val;
         }
-        else if (key == "Name2") {
-            parsed[current].name2 = val;
-        }
         else if (key.rfind("Out", 0) == 0 && all_digits(key.substr(3))) {
             int index = std::stoi(key.substr(3));
             parsed[current].exits.emplace_back(index, val);
@@ -78,7 +74,6 @@ bool RoomMap::load(const std::string& path)
             [](const auto& a, const auto& b) { return a.first < b.first; });
         Room room;
         room.name1 = std::move(item.name1);
-        room.name2 = std::move(item.name2);
         for (auto& exit : item.exits)
             room.exits.push_back(std::move(exit.second));
         rooms_.push_back(std::move(room));
@@ -92,10 +87,12 @@ int RoomMap::find_room(const std::string& name) const
 {
     std::string wanted = trim(name);
     if (wanted.empty()) return -1;
+
+    // 只认注册名（Name1）：它是唯一权威键，也是 door 名与 /go 的导航键。
+    // 显示名（Name2）全服允许重名（rooms.dat 里 46 处撞车：厨房/客店/沙漠…），
+    // 拿它解析会让目的地与起点都落到排在前面的同名房上。
     for (size_t i = 0; i < rooms_.size(); ++i) {
-        if (rooms_[i].name1 == wanted || rooms_[i].name2 == wanted) {
-            return static_cast<int>(i);
-        }
+        if (rooms_[i].name1 == wanted) return static_cast<int>(i);
     }
     return -1;
 }
@@ -131,8 +128,7 @@ std::vector<MapStep> RoomMap::find_path(int from, int to) const
 
     std::vector<MapStep> steps;
     for (int at = to; at != from; at = prev[at]) {
-        const Room& room = rooms_[at];
-        steps.push_back({prev_key[at], {room.name1, room.name2}});
+        steps.push_back({prev_key[at], rooms_[at].name1});
     }
     std::reverse(steps.begin(), steps.end());
     return steps;

@@ -748,6 +748,36 @@ TEST_F(CmdWizardSystemTest, ReloadAll_RequireCacheGetsFreshTable)
     lua_pop(L, 1);
 }
 
+// reload all 清的是脚本模块缓存，标准库不是脚本：luaL_openlibs 注册的
+// math/string 等在 _LOADED 与 _G 中是同一张表（luaL_requiref setglobal
+// 的产物），换新表时必须带过去。丢了它们，reload all 之后 require("math")
+// 既不在 package.preload、文件系统也无 math.lua 可寻，必然失败——
+// 生产脚本同样会踩（教材目前只是没这么写）。
+TEST_F(CmdWizardSystemTest, ReloadAll_KeepsStandardLibraryCache)
+{
+    lua_State* L = CLuaEngine::instance()->get_state();
+    ASSERT_NE(L, nullptr);
+
+    extern int lua_reload_all(bool force);
+    lua_reload_all(false);
+
+    // 逐个 require 标准库，收集丢失者；字符串拼接不依赖任何标准库，
+    // 即使 table 丢了也能给出可操作的失败信息
+    ASSERT_EQ(
+        luaL_dostring(
+            L,
+            "local lost = ''\n"
+            "for _, m in ipairs({'math', 'string', 'table', 'io', 'os',\n"
+            "                   'debug', 'coroutine', 'utf8', 'package'}) do\n"
+            "    if not pcall(require, m) then lost = lost .. m .. ' ' end\n"
+            "end\n"
+            "return lost"),
+        LUA_OK);
+    EXPECT_STREQ("", lua_tostring(L, -1))
+        << "reload all 把标准库条目从 require 缓存里清掉了";
+    lua_pop(L, 1);
+}
+
 // 默认目录（fromDefault）脚本的生产保护与 force 越权入口：普通 reload all
 // 跳过默认根脚本，reload all force 必须一并重载。判据用脚本表对象身份——
 // 重载必然重新执行文件产出新表（旧表在新表分配时仍在 registry 占位，地址

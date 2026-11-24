@@ -681,12 +681,30 @@ void GameState::map_changed()
     conn_.send_command_utf8(std::to_string(player_id_) + " loc 0 12 12\t");
 }
 
-std::string GameState::room_name() const { return room_name_; }
+// 读侧必须加锁。handle_message 全程持 mutex_，其中 GOTOROOM 分支是
+// 「先写 room_name_/room_map_name_，后经 map_changed() 向服务端回 loc」
+// —— loc 是清服务端 client/loading 的唯一途径，而 CmdHandle::command 对
+// loading 态的命令是静默 return 0（零回执）。不加锁时 .go 的 wait_for_room
+// 可能在写入之后、loc 发出之前读到新房名，紧接着发出的下一跳 go 就会抢在
+// loc 之前到达并被丢弃，表现为「未能进入 X，停止寻路」且日志里既无
+// 「你进入了」也无 notify_fail。加锁后观察到新房名即意味着 handle_message
+// 已走完、loc 已上线路，下一跳 go 必然后到。
+std::string GameState::room_name() const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    return room_name_;
+}
 
-std::string GameState::room_map() const { return room_map_name_; }
+std::string GameState::room_map() const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    return room_map_name_;
+}
 
 std::string GameState::status_line() const
 {
+    std::lock_guard<std::mutex> lock(mutex_);
+
     std::ostringstream ss;
     ss << room_map_name_ << " | " << room_name_;
     if (room_fight_flag_) ss << " [BATTLE]";

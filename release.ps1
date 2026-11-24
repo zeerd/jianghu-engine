@@ -6,8 +6,11 @@
 #   powershell -ExecutionPolicy Bypass -File release.ps1 -Tag v1.2.0      # 同上（命名参数写法）
 #
 # 发行包：dist\jianghu-<版本>-x64.zip，解开为同名目录，内容为
-#   jianghu.exe、libmysql.dll、config.ini、lua-default\、lua-sample\
+#   jianghu.exe、libmysql.dll、config.ini、lua-default\、lua-sample\、
+#   jianghu_cli.exe、cli\sample.dat
 # 调试符号（pdb/map）与测试可执行文件不进发行包。
+# cli\sample.dat 保持 cli\ 前缀：jianghu_cli 的默认 map_file 就是
+# cli/sample.dat（相对 CWD），在包目录起客户端即可直接自动寻路。
 #
 # config.ini 由 config.ini.sample 生成，[lua] 的两处脚本根改写成随包相对目录：
 # 服务器按 CWD 解析相对路径，在包目录起服即可加载脚本；仓库根的 sample 保留
@@ -73,7 +76,11 @@ Write-Host "MSBuild: $msbuild" -ForegroundColor DarkGray
 # 引用方调 Build，指望一次 Rebuild 连带清掉核心库是不可靠的。
 # SolutionDir 显式给出：直接构建 vcxproj 时该属性为空，输出目录要与从解决方案
 # 构建时一致（$(SolutionDir)x64\$(Configuration)\），不能落到相对路径上。
-foreach ($proj in @('jianghu_core.vcxproj', 'jianghu.vcxproj')) {
+# cli 同理：先 jianghu_cli_lib 后 jianghu_cli。
+foreach ($proj in @(
+        'jianghu_core.vcxproj', 'jianghu.vcxproj',
+        'cli\jianghu_cli_lib.vcxproj', 'cli\jianghu_cli.vcxproj'
+    )) {
     & $msbuild (Join-Path $RootDir $proj) /t:Rebuild /p:Configuration=Release /p:Platform=x64 `
         "/p:SolutionDir=$RootDir\" /m /nologo /verbosity:minimal
     if ($LASTEXITCODE -ne 0) { throw "全量重建失败（$proj Release|x64）" }
@@ -82,6 +89,11 @@ foreach ($proj in @('jianghu_core.vcxproj', 'jianghu.vcxproj')) {
 $ExePath = Join-Path $OutDir 'jianghu.exe'
 $DllPath = Join-Path $OutDir 'libmysql.dll'
 if (-not (Test-Path $ExePath)) { throw "构建产物缺失：$ExePath" }
+
+# cli 输出目录：$(SolutionDir)\bin\cli\x64\（Release|x64）
+$CliOutDir = Join-Path $RootDir 'bin\cli\x64'
+$CliExePath = Join-Path $CliOutDir 'jianghu_cli.exe'
+if (-not (Test-Path $CliExePath)) { throw "构建产物缺失：$CliExePath" }
 # PostBuildEvent 只在目标不存在时补 DLL，直接构建时兜底复制一份
 if (-not (Test-Path $DllPath)) {
     $srcDll = Join-Path $RootDir '3rd\x64\mysql-connector-c-6.1.11-winx64\lib\libmysql.dll'
@@ -99,6 +111,13 @@ New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
 
 Copy-Item $ExePath $StageDir
 Copy-Item $DllPath $StageDir
+
+# cli 客户端 + 房间地图（sample.dat 放 cli\ 子目录，匹配默认 map_file 路径）
+Copy-Item $CliExePath $StageDir
+$SampleDat = Join-Path $RootDir 'cli\sample.dat'
+if (-not (Test-Path $SampleDat)) { throw "地图数据缺失：$SampleDat" }
+New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'cli') | Out-Null
+Copy-Item $SampleDat (Join-Path $StageDir 'cli')
 
 # 配置：sample → 包内 config.ini，脚本根改随包相对目录（服务器按 CWD 解析）
 $samplePath = Join-Path $RootDir 'config.ini.sample'

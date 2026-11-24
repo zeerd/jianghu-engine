@@ -15,7 +15,7 @@
 # What it does:
 #   1. Builds tests (Release|x64 — 生产同构配置；Debug 构建的
 #      测试程序内含 TestConfigGate，运行即报错，故默认禁止)。
-#      引擎测试（tests）与 CLI 测试（cli\tests）分别构建。
+#      引擎测试（tests）与 CLI 测试（cli\tests）经解决方案一次并行构建。
 #   2. Discovers test suites (--gtest_list_tests), packs them into
 #      -Shards deterministic groups, gives each shard a private working
 #      directory (per-shard fixture tree + JIANGHU_TEST_TMP), then runs
@@ -140,24 +140,23 @@ if (-not (Test-Path $msbuildExe)) {
 }
 Write-Host "Using MSBuild: $msbuildExe" -ForegroundColor DarkGray
 
-# 引擎测试与 CLI 测试分别构建，共享同一 Configuration|Platform。
-# 工程路径拼成绝对路径：msbuild 按当前目录解析相对路径，脚本不应依赖调用方 CWD。
-$testProjects = @(
-    (Join-Path $RootDir "tests\unit\tests.vcxproj"),
-    (Join-Path $RootDir "cli\tests\jianghu_cli_tests.vcxproj")
+# 引擎测试与 CLI 测试经解决方案一次构建，共享同一 Configuration|Platform：
+# 两棵依赖树（tests→jianghu_core、jianghu_cli_tests→jianghu_cli_lib）互不相交，
+# /m 让它们并行推进；/t: 定向只构建这两个目标及其依赖，不牵连服务器与 CLI 主程序。
+# 解决方案路径拼成绝对路径：msbuild 按当前目录解析相对路径，脚本不应依赖调用方 CWD。
+$slnPath = Join-Path $RootDir "jianghu.sln"
+$msbuildArgs = @(
+    $slnPath,
+    "/t:tests;jianghu_cli_tests",
+    "/m",
+    "/p:Configuration=$BuildConfig",
+    "/p:Platform=$BuildPlatform",
+    "/nologo", "/verbosity:minimal"
 )
-foreach ($proj in $testProjects) {
-    $msbuildArgs = @(
-        $proj,
-        "/p:Configuration=$BuildConfig",
-        "/p:Platform=$BuildPlatform",
-        "/nologo", "/verbosity:minimal"
-    )
-    & $msbuildExe $msbuildArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Build failed ($proj)!" -ForegroundColor Red
-        exit 1
-    }
+& $msbuildExe $msbuildArgs
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Build failed ($slnPath /t:tests;jianghu_cli_tests)!" -ForegroundColor Red
+    exit 1
 }
 Write-Host "Build succeeded." -ForegroundColor Green
 
@@ -299,6 +298,8 @@ for ($i = 0; $i -lt $shardCount; $i++) {
     Copy-Item (Join-Path $RootDir "tests\unit\lua-tests") (Join-Path $wd "tests\unit") -Recurse -Force
     Copy-Item (Join-Path $RootDir "lua-default") $wd -Recurse -Force
     Copy-Item (Join-Path $RootDir "lua-sample") $wd -Recurse -Force
+    # Lua 单测框架的 submodule（luaunit/luacov），桥按 CWD 相对路径 require
+    Copy-Item (Join-Path $RootDir "3rd\lua") (Join-Path $wd "3rd\lua") -Recurse -Force
     Copy-Item (Join-Path $RootDir "libmySQL.dll") $wd -Force
 }
 Write-Host "Shard workspaces: $ShardsRoot (rebuilt this run)" -ForegroundColor DarkGray
@@ -565,6 +566,124 @@ catch {
     Write-Host "Shard workspaces kept for diagnosis: $ShardsRoot" -ForegroundColor Yellow
     exit 1
 }
+# --- Step 3.3: Lua 覆盖率（luacov 行级明细 → 跨分片合并 → lua-summary.csv） ---
+# 必须在分片工作目录删除前完成：明细只存在于分片私有树里。
+#
+# 合并按「多片求并」实现：Lua 单测套件以套件为单位装箱、当前整体落单个分片，
+# 但采集面一旦扩大到多片，结构无需改动。明细是行级的（N=恒计行数 /
+# H=命中行 / C=命中且「未命中才排除」的行）而非每文件计数——计数在多采集面
+# 之间不可合并，行号集合才能取并集。三种行各自的合成式见 lib/lua_coverage.lua。
+Write-Host ""
+Write-SummaryLine "=== Lua coverage ===" -Color Cyan
+$LuaDelta = "n/a"
+$LuaTotal = 0
+$LuaCovered = 0
+$LuaPct = 0.0
+$luaDetailCsv = Join-Path $HistoryDir "lua-detail.csv"
+$luaSummaryCsv = Join-Path $HistoryDir "lua-summary.csv"
+$luaReports = @(Get-ChildItem -Path $ShardsRoot -Recurse -Filter "lua-coverage.csv" -File -ErrorAction SilentlyContinue)
+if ($luaReports.Count -eq 0) {
+    # 正常管线里 LuaUnitBridge 必然执行（Step 3.1 已核对执行数 == 发现数），
+    # 采集窗口也必然开在它之前——报告缺席只可能是采集链断了，不是「没数据」。
+    Write-Host "ERROR: Lua coverage report missing (lua-coverage.csv not produced by any shard)!" -ForegroundColor Red
+    Write-Host "Shard workspaces kept for diagnosis: $ShardsRoot" -ForegroundColor Yellow
+    exit 1
+}
+else {
+    # N 只由文件内容决定，各采集面必然一致（取一即可）；H/C 是行号集合，求并集
+    $luaUncond = @{}
+    $luaHitSet = @{}
+    $luaCondHitSet = @{}
+    foreach ($rep in $luaReports) {
+        foreach ($row in (Get-Content -LiteralPath $rep.FullName)) {
+            if ([string]::IsNullOrWhiteSpace($row)) { continue }
+            $cols = $row -split ",", 3
+            if ($cols.Count -lt 3) { continue }
+            $f = $cols[1]
+            switch ($cols[0]) {
+                "N" { $luaUncond[$f] = [int]$cols[2] }
+                "H" {
+                    if (-not $luaHitSet.ContainsKey($f)) {
+                        $luaHitSet[$f] = New-Object 'System.Collections.Generic.HashSet[int]'
+                    }
+                    [void]$luaHitSet[$f].Add([int]$cols[2])
+                }
+                "C" {
+                    if (-not $luaCondHitSet.ContainsKey($f)) {
+                        $luaCondHitSet[$f] = New-Object 'System.Collections.Generic.HashSet[int]'
+                    }
+                    [void]$luaCondHitSet[$f].Add([int]$cols[2])
+                }
+            }
+        }
+    }
+    # 命中却没有恒计行数 = 该文件在报告里读不到，无法计入分母（不应发生，
+    # 出现即口径被破坏：报出来而不是静默吞掉）
+    $luaOrphans = @($luaHitSet.Keys | Where-Object { -not $luaUncond.ContainsKey($_) })
+    foreach ($o in $luaOrphans) {
+        Write-Host "  WARN: hits without denominator: $o" -ForegroundColor Yellow
+    }
+
+    $luaDetailRows = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($file in ($luaUncond.Keys | Sort-Object)) {
+        $n = [int]$luaUncond[$file]
+        $condHit = 0
+        if ($luaCondHitSet.ContainsKey($file)) { $condHit = $luaCondHitSet[$file].Count }
+        $hit = 0
+        if ($luaHitSet.ContainsKey($file)) { $hit = $luaHitSet[$file].Count }
+        $t = $n + $condHit
+        # 分子 ≤ 分母是口径恒等式（|H| = |H∩恒计| + |C| ≤ N + |C|），破了即合并有误
+        if ($hit -gt $t) {
+            Write-Host "  WARN: covered ($hit) exceeds total ($t) in $file" -ForegroundColor Yellow
+        }
+        $LuaTotal += $t
+        $LuaCovered += $hit
+        $p = if ($t -gt 0) { [math]::Round($hit * 100.0 / $t, 1) } else { 0.0 }
+        $luaDetailRows.Add(("{0},{1},{2},{3}" -f $file, $t, $hit, $p.ToString("0.0")))
+    }
+    $LuaPct = if ($LuaTotal -gt 0) { [math]::Round($LuaCovered * 100.0 / $LuaTotal, 1) } else { 0.0 }
+    @("file,total_lines,covered_lines,coverage_pct") + $luaDetailRows |
+        Out-File -FilePath $luaDetailCsv -Encoding utf8
+
+    # delta 只与同采集配置的上一条比较（与 C++ 侧 summary.csv 同口径）：
+    # method 记录采集方式 + 配置 + 平台，跨配置/跨平台各自成基线。
+    $luaMethod = "lua-line-$($BuildConfig.ToLower())-$($BuildPlatform.ToLower())"
+    if (-not (Test-Path $luaSummaryCsv)) {
+        "date,total_lines,covered_lines,coverage_pct,delta,method" | Out-File -FilePath $luaSummaryCsv -Encoding utf8
+    }
+    $luaPrev = Get-Content $luaSummaryCsv -ErrorAction SilentlyContinue |
+        Where-Object { ($_ -split ",")[-1] -eq $luaMethod } |
+        Select-Object -Last 1
+    if ($luaPrev) {
+        $pf = $luaPrev -split ","
+        if ($pf.Count -ge 4) {
+            $luaDeltaVal = [math]::Round($LuaPct - [double]$pf[3], 1)
+            if ($luaDeltaVal -ge 0) { $LuaDelta = "+" + $luaDeltaVal.ToString("0.0") }
+            else { $LuaDelta = $luaDeltaVal.ToString("0.0") }
+        }
+    }
+    $luaDateStr = Get-Date -Format "yyyy-MM-dd"
+    "$luaDateStr,$LuaTotal,$LuaCovered,$($LuaPct.ToString("0.0")),$LuaDelta,$luaMethod" |
+        Out-File -FilePath $luaSummaryCsv -Append -Encoding utf8
+    if ($SummaryKeepCount -gt 0) {
+        $luaCsvLines = @(Get-Content -LiteralPath $luaSummaryCsv)
+        if ($luaCsvLines.Count -gt $SummaryKeepCount + 1) {
+            $luaKeep = @($luaCsvLines | Select-Object -First 1) +
+                       @($luaCsvLines | Select-Object -Skip 1 | Select-Object -Last $SummaryKeepCount)
+            $luaKeep | Out-File -FilePath $luaSummaryCsv -Encoding utf8
+        }
+    }
+
+    $luaDeltaColor = if ($LuaDelta.StartsWith("+") -and $LuaDelta -ne "+0.0") { "Green" }
+                     elseif ($LuaDelta.StartsWith("-")) { "Red" }
+                     else { "Gray" }
+    Write-SummaryLine ("  corpus: {0} files, {1}/{2} lines, {3}%" -f $luaUncond.Count, $LuaCovered, $LuaTotal, $LuaPct) -Color DarkGray
+    if ($LuaDelta -eq "n/a") { Write-SummaryLine "  Lua Delta: n/a (first baseline)" -Color Yellow }
+    else { Write-SummaryLine "  Lua Delta: $LuaDelta%" -Color $luaDeltaColor }
+    Write-SummaryLine "  Lua summary: $luaSummaryCsv" -Color DarkGray
+    Write-SummaryLine "  Lua detail:  $luaDetailCsv" -Color DarkGray
+}
+
 # 合并完成且产物合格：分片工作目录（含中间 .cov/.xml/日志）不再需要
 Remove-Item -LiteralPath $ShardsRoot -Recurse -Force -ErrorAction SilentlyContinue
 

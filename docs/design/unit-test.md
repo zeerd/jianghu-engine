@@ -130,3 +130,19 @@ Debug 与 Release 不是同一个被测对象。Debug 的栈填充区与调试�
 **覆盖率合并契约**：各分片只导二进制 `.cov`，最终报告由一趟合并通行证产出（多路 `--input_coverage` 并集，child 用立即退出的空进程、不贡献覆盖）——与集测脚本同款。合并通行证的 child 退出码不可靠（OCC 0.9.x 会重建出 cmd 报错的命令行，集测同样如此），因此**以产物为闸门**：旧 `coverage.xml` 先删、合并后必须重新出现且行数非零，防止空报告污染 delta 历史。
 
 **CLI 路**：CLI 测试全部经 `JIANGHU_TEST_TMP` 写临时目录、无仓库相对路径依赖，故作为独立一路与引擎分片同时跑、不参与装箱，工作目录保持仓库根。
+
+## 5. Lua 脚本测试与覆盖率
+
+**目标**：`lua-default` / `lua-sample` 是随引擎交付的脚本语料，与 C++ 一样需要可回归的测试与覆盖率闭环。方案是把 Lua 用例挂进既有 gtest 管线，而非另起一套 runner——分片、覆盖、delta 全部复用 C++ 侧既有设施。
+
+**测试侧是桥 + 执行器**：`tests/unit/test_lua_unit.cpp` 发现 `tests/unit/lua-tests/test_*.lua`，经 `lib/lua_unit_runner.lua` 在引擎自己的 `lua_State` 里逐文件装载执行（与生产同一 GBK `require` 口径），LuaUnit 的失败与装载错误逐条转 `ADD_FAILURE`。执行器只管跑用例，覆盖率不归它。
+
+**采集窗口横跨整个测试进程**（`test_lua_coverage.cpp` 的全局测试环境 + `lib/lua_coverage.lua`）：语料的首次执行常落在 Lua 单测之外——C++ 测试经 `load_script` / `require` 加载同一批 `lua-default` 脚本，且共享 `lua_State` 的 `package.loaded` 与脚本缓存跨用例存活，晚开窗只记录到「已无人执行」的空档。故窗口挂在全局测试环境上，先于任何测试开、后于任何测试关，而非挂在某个用例上。
+
+**chunkname 是文件路径**：`load_script` / `reload_script` 装 chunk 时传磁盘路径，而非复合 key（`data/login`）或裸名（`login`）。回溯据此定位文件，覆盖率据此把执行归因到具体语料文件——两侧消费同一个字符串，这是按文件归因的前提。
+
+**语料口径**：分母只取 `lua-default`——它是引擎默认语料且 chunkname 即其路径，能归因。`lua-sample` 经 `ScopedSampleScript` 拷进 `script_root` 执行，chunkname 是拷贝路径，归因待建立拷贝路径到源路径的映射后再纳入；`tests/unit/lua-tests` 是测试夹具，不入分母。
+
+**分母随命中变化，故合并按行集并集**：luacov 把「未命中才排除」的行只在真被命中时计入分母，单个采集面给出的分母只对它自己的命中成立。因此分片产出**行级明细**而非每文件计数——计数在多采集面之间不可合并（分母会随份数翻倍），行号集合才能取并集。明细分三种行：恒计行数 `N`（无论命中与否都进分母，只由文件内容决定，各采集面必然一致）、命中行 `H`（分子）、命中且属「未命中才排除」的行 `C`。合并侧合成 `分子 = |H|`、`分母 = N + |C|`，覆盖率恒 ≤ 100%。
+
+**产物与门禁**：明细写在各分片私有的 `JIANGHU_TEST_TMP` 下，`run-unit-tests.ps1` 在分片工作目录删除前合并，落 `coverage_history/lua-summary.csv`（历史 + delta）与 `coverage_history/lua-detail.csv`（逐文件）。`method` 列记录采集方式 + 配置 + 平台，delta 只与同口径上一条比较；负值标红不硬失败，与 C++ 侧 `summary.csv` 同口径。报告缺席在正常管线里不可能发生（LuaUnitBridge 必然执行、窗口必然先于它开），故按硬错误处理并保留分片目录。

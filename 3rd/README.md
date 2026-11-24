@@ -26,3 +26,25 @@ https://downloads.mysql.com/archives/c-c/
 
 ### License
 [Public Domain](https://sqlite.org/copyright.html)
+
+## lua/luaunit（git submodule，仅测试侧使用）
+
+### 来源
+https://github.com/bluebird75/luaunit
+
+### Version
+钉在 commit cd1311c（LUAUNIT_V3_5 之后 37 个提交），升级 = `git submodule update --remote` 后重新钉选。
+
+### License
+[MIT](https://github.com/bluebird75/luaunit/blob/master/LICENSE)
+
+## lua/luacov（git submodule，仅测试侧使用）
+
+### 来源
+https://github.com/lunarmodules/luacov
+
+### Version
+钉在 commit 645a984（v0.17.0 之后 1 个提交），升级同上。
+
+### License
+[MIT](https://github.com/lunarmodules/luacov/blob/master/LICENSE)

@@ -36,4 +36,4 @@ foreach ($file in $files) {
 }
 
 Write-Host ""
-Write-Host "Done. $changedCount file(s) processed." -ForegroundColor Green
+Write-Host "Done. $changedCount file(s) removed BOM." -ForegroundColor Green

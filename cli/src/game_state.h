@@ -101,6 +101,12 @@ public:
     }
     void set_current_room_for_test(ObjectID room) { current_room_ = room; }
     void set_room_name_for_test(const std::string& name) { room_name_ = name; }
+    // 注册名（协议 I=，缺省 = 房间表 name 键）：.go 起点定位按它优先，
+    // 与显示名分别注入才能覆盖「显示名撞车、注册名唯一」的定位口径。
+    void set_room_map_for_test(const std::string& name)
+    {
+        room_map_name_ = name;
+    }
 
     // ---- NPC Menu / Dialog (QUESTION system) ----
 

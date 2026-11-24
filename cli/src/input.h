@@ -17,7 +17,7 @@ class InputProcessor {
 public:
     InputProcessor(CommandHandler& cmd_handler, GameState& state,
                    Connection& conn, TerminalUI& ui,
-                   const std::string& map_file = "sample.dat",
+                   const std::string& map_file = "cli/sample.dat",
                    int map_step_timeout_ms     = 5000);
 
     /** Process a single line of user input. Returns false if client should
@@ -36,6 +36,12 @@ public:
     GameState& game_state() { return state_; }
     const GameState& game_state() const { return state_; }
 
+    /** 到房判定：服务端当前房间的注册名（I=）与该步目标房的注册名
+     *  （地图 Name1）相等即到达。两者同源于 base_name、全服唯一，显示名
+     *  （N= / Name2）允许重名、不参与判定。抽成谓词便于单测覆盖。 */
+    static bool arrived_at(const std::string& map_key,
+                           const std::string& arrival_name);
+
 private:
     CommandHandler& cmd_handler_;
     GameState& state_;
@@ -52,7 +58,7 @@ private:
     void process_server_cmd(const std::string& input);
     void process_go(const std::string& args);
 
-    // 等待服务端把房间切换到 names 中的某一个；超时返回 false。
+    // 等待服务端把房间切到 arrival_name；超时返回 false。
     // map_step_timeout_ms_ <= 0 时视为立即到达（无需等待）。
-    bool wait_for_room(const std::vector<std::string>& names) const;
+    bool wait_for_room(const std::string& arrival_name) const;
 };

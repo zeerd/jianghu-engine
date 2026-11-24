@@ -74,10 +74,13 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
@@ -96,10 +99,13 @@
   <!-- Debug|x64 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
@@ -120,9 +126,12 @@
   <!-- Release|Win32 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -142,9 +151,12 @@
   <!-- Release|x64 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions);_HAS_STD_BYTE=0</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..;../../src/object;../../src/item;../../src/util;../../src/char;../../src/user;../../src/npc;../../src/engine;../../src/room;../../src/room/std_game;../../src/npc;../../src/npc/std_npc;../../src/skill;../../src/combat;../../src/cmd;../../src/net;../../src/lua;../../src/db;../../src/config;../../src/ui;../../src;../../src/interfaces;$(LuaIncludeDir);$(MySQLIncludeDir);$(ThirdPartyIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -305,6 +317,8 @@
     <ClCompile Include="test_lua_error_paths.cpp" />
     <ClCompile Include="test_lua_item.cpp" />
     <ClCompile Include="test_lua_smoke.cpp" />
+    <ClCompile Include="test_lua_coverage.cpp" />
+    <ClCompile Include="test_lua_unit.cpp" />
     <ClCompile Include="test_sample_food_poison.cpp" />
     <ClCompile Include="test_emote_system.cpp" />
     <ClCompile Include="test_corpse.cpp" />
@@ -312,7 +326,9 @@
     <ClCompile Include="test_npc_mirror.cpp" />
     <ClCompile Include="test_npc_reload.cpp" />
     <!-- Infrastructure -->
-    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="test_env.cpp" />
     <ClCompile Include="test_log_sections.cpp" />
     <ClCompile Include="test_log_runid.cpp" />

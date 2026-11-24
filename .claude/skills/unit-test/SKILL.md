@@ -71,6 +71,10 @@ TEST(XxxSuite, BasicOperation)
    <ClCompile Include="test_<功能名>.cpp" />
    ```
 
+### 创建 Lua 脚本测试
+
+脚本用例放 `tests/unit/lua-tests/` 下的 `test_*.lua`（桥按该前缀发现），断言用 LuaUnit；用例的定义契约与文件间清理规则见执行器 `tests/unit/lua-tests/lib/lua_unit_runner.lua` 头注释，架构与覆盖率口径见 `docs/design/unit-test.md` §5。
+
 ### 夹具与测试命名
 
 共享 setup/teardown 用 `TEST_F` + fixture。**`SetUp()` 中必须重置所有全局状态与 mock 计数器**（状态泄漏的表现：单独运行通过、批量运行失败），`TearDown()` 恢复被替换的全局指针：
@@ -181,14 +185,15 @@ Mock 文件通过 **链接时替换** 提供外部依赖的 mock 实现。当修
 
 **每次提交的测试覆盖率必须不低于上次提交。** 具体规则：
 
-1. **不允许覆盖率下降**：运行覆盖率脚本后，`coverage_history/summary.csv` 中的 `delta` 列必须 ≥ 0。`delta` 只与**同构建配置**的上一条比较（`method` 列记录采集配置）；切换配置后的首条记录显示 `n/a` 并成为新基线。
+1. **不允许覆盖率下降**：运行覆盖率脚本后，`coverage_history/summary.csv`（C++）与 `coverage_history/lua-summary.csv`（`lua-default` 语料）中的 `delta` 列必须 ≥ 0。`delta` 只与**同构建配置**的上一条比较（`method` 列记录采集配置）；切换配置后的首条记录显示 `n/a` 并成为新基线。负值标红但不硬失败。
 2. **新增代码必须覆盖**：新增的函数/方法必须有对应的测试用例。
 3. **修改代码必须验证**：修改的函数必须确保其修改的分支被测试覆盖。
 4. **覆盖率报告作为提交依据**：提交代码时应附上覆盖率报告截图或数据，供 reviewer 确认。
 
 覆盖率报告输出位置：
 - **HTML报告**：`coverage_report/index.html`
-- **历史数据**：`coverage_history/summary.csv`
+- **历史数据**：`coverage_history/summary.csv`（C++）、`coverage_history/lua-summary.csv`（Lua 语料）
+- **Lua 逐文件明细**：`coverage_history/lua-detail.csv`
 
 阈值：
 75%是及格线，90%是良好，95%以上是优秀。低于75%必须有合理解释（如测试难度大、外部依赖无法 mock 等）。
@@ -203,3 +208,5 @@ Mock 文件通过 **链接时替换** 提供外部依赖的 mock 实现。当修
 | `LNK1181: cannot open input file` | 库文件路径错误 | 检查 `AdditionalLibraryDirectories` |
 | 运行时崩溃、堆损坏 | `jianghu_core.lib` 与 `tests.exe` 使用了不同 CRT 版本 | 两者使用相同 CRT；以 `run-unit-tests.ps1` 的统一构建为准，不要手工混搭配置 |
 | 单独运行通过、批量运行失败 | 测试间状态泄漏 | 在 `SetUp()` 中重置所有全局状态与 mock 计数器 |
+| `ERROR: Lua coverage report missing` | 覆盖率采集窗口没开起来（`lib.lua_coverage` 装载失败、引擎状态缺失） | 分片 stdout/stderr 里搜 `[lua-coverage]`；分片目录被保留，直接看 `tmp\` 下有没有 `luacov.stats.out` |
+| Lua 覆盖率远低于预期且 delta 恒为 0 | 采集窗口没包住语料的首次执行（语料在更早的用例里已进缓存） | 窗口挂全局测试环境；机制与判定见 `docs/design/unit-test.md` §5 |
