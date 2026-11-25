@@ -10,7 +10,8 @@
 //   3. npc/sample_qingshe.lua 的 die：蛇胆丢在脚下让玩家自己捡，且必须回链
 //      die_base——不回链就不掉尸体、不结算击杀经验。
 //
-// 样本脚本经 ScopedSampleScript 拷进单测脚本根（拷原文，不与样本漂移）；
+// 本套件跑在 sample 配置组（script_root = lua-sample，见
+// test_config.sample.ini）：样本由引擎作为脚本根直接加载，不经任何拷贝；
 // 钩子表由 ensure_lua_env 每次重建，用例不必手工还原。
 //
 //
@@ -39,7 +40,6 @@
 #include "mock/mock_itemmgr.h"
 #include "test_log_hits.h"
 #include "test_lua_env.h"
-#include "test_sample_script.h"
 
 namespace {
 
@@ -73,22 +73,9 @@ protected:
     {
         ASSERT_NE(ensure_lua_env(), nullptr);
 
-        // 样本脚本进单测脚本根；food_base 在 lua-default，
-        // 作为 default_script_root 天然可见，无需搬运
-        baozi_.reset(new ScopedSampleScript(
-            "item/sample_baozi.lua", "lua-sample/item/sample_baozi.lua"));
-        shedan_.reset(new ScopedSampleScript(
-            "item/sample_shedan.lua", "lua-sample/item/sample_shedan.lua"));
-        venom_.reset(
-            new ScopedSampleScript("condition/snake_poison.lua",
-                                   "lua-sample/condition/snake_poison.lua"));
-        snake_.reset(new ScopedSampleScript(
-            "npc/sample_qingshe.lua", "lua-sample/npc/sample_qingshe.lua"));
-        ASSERT_TRUE(baozi_->ok()) << "样本脚本未就位: " << baozi_->file();
-        ASSERT_TRUE(shedan_->ok()) << "样本脚本未就位: " << shedan_->file();
-        ASSERT_TRUE(venom_->ok()) << "样本脚本未就位: " << venom_->file();
-        ASSERT_TRUE(snake_->ok()) << "样本脚本未就位: " << snake_->file();
-
+        // 样本（baozi / shedan / snake_poison / qingshe）由
+        // script_root = lua-sample 直接加载；food_base 在 lua-default，
+        // 作为 default_script_root 天然可见——两者都不必搬运。
         saved_mgr        = g_item_mgr;
         g_item_mgr       = &mgr;
         mgr.load_factory = &SampleItemFactory;
@@ -200,10 +187,6 @@ protected:
     CMockItemMgr mgr;
     IItemMgr* saved_mgr = nullptr;
     CRoom room_;
-    std::unique_ptr<ScopedSampleScript> baozi_;
-    std::unique_ptr<ScopedSampleScript> shedan_;
-    std::unique_ptr<ScopedSampleScript> venom_;
-    std::unique_ptr<ScopedSampleScript> snake_;
     std::vector<CContainer*> owned_;
     std::vector<CContainer*> queued_at_setup_;
 };

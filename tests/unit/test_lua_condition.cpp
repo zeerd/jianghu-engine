@@ -12,6 +12,12 @@
 // 挂上的那一份，引擎契约绿了但样本写错（比如不递减 duration、归零不返回 0）
 // 时，仍会表现为「毒永远不解」。
 //
+// 样本一节自成套件 LuaSampleConditionTest：它跑在 sample 配置组的分片里
+// （script_root = lua-sample，见 test_config.sample.ini），样本脚本由引擎
+// 作为脚本根直接加载，不经任何拷贝。套件与配置组的对应关系登记在
+// run-unit-tests.ps1 的 $SampleSuites——一个套件需要的根必须全部落在它
+// 所在组的配置里，否则会串根。
+//
 //
 #include "pch.h"
 
@@ -26,7 +32,6 @@
 #include "SkillMgr.h"
 #include "test_log_hits.h"
 #include "test_lua_env.h"
-#include "test_sample_script.h"
 
 namespace {
 
@@ -76,6 +81,12 @@ protected:
         return true;
     }
 };
+
+// 样本世界的条件套件：跑在 sample 配置组（script_root = lua-sample，见
+// test_config.sample.ini），与 LuaConditionTest 分属不同配置组——同一分片
+// 只许一个组，故必须自成套件。夹具沿用 LuaConditionTest：它只建 CChar、
+// 不读任何夹具脚本文件，换根后依然成立。
+class LuaSampleConditionTest : public LuaConditionTest {};
 
 // ---------------------------------------------------------------------
 // 成功路径：脚本返回表且含 update_condition，duration 每跳自减并写回
@@ -228,17 +239,26 @@ TEST_F(LuaConditionTest, LoadFailure_RecoversWhenScriptFileAppears)
 // ---------------------------------------------------------------------
 // 样本条件脚本契约：lua-sample/condition/snake_poison.lua
 //
-// 引擎只认自己的脚本根（test_config.ini 的 script_root），而条件名必须与
-// 条件脚本同名，故用例把样本脚本原文拷进单测脚本根再交给引擎加载——
-// 拷原文用共享夹具 ScopedSampleScript（test_sample_script.h）。
+// 样本作为脚本根被引擎直接加载（test_config.sample.ini 的
+// script_root = lua-sample），不经任何拷贝——条件名必须与条件脚本同名，
+// 而样本正是玩家真正挂上的那一份。
 // ---------------------------------------------------------------------
 
 // 样本条件脚本：挂载即写入条件项，逐拍扣血并递减 duration，归零后引擎清除条件项
-TEST_F(LuaConditionTest, SampleScript_MountsTicksAndExpires)
+TEST_F(LuaSampleConditionTest, SampleScript_MountsTicksAndExpires)
 {
-    ScopedSampleScript script("condition/snake_poison.lua",
-                              "lua-sample/condition/snake_poison.lua");
-    ASSERT_TRUE(script.ok()) << "样本条件脚本未就位: " << script.file();
+    // 锁住加载来源：样本必须来自 lua-sample 根。退回「拷进夹具根」的旧做法
+    // 会让本断言变红——那时覆盖率也归不到 sample 名下。
+    CLuaEngine* engine = CLuaEngine::instance();
+    ASSERT_NE(engine->load_script("snake_poison", LUA_SCRIPT_CONDITION),
+              LUA_NOREF)
+        << "样本条件脚本必须可从脚本根直接加载";
+    LuaScript* script
+        = engine->get_script("snake_poison", LUA_SCRIPT_CONDITION);
+    ASSERT_NE(script, nullptr);
+    EXPECT_EQ(script->file.rfind("lua-sample/", 0), 0u)
+        << "样本必须来自 lua-sample 根，实际: " << script->file;
+
     ScopedCondition guard("snake_poison");
 
     ch->set("max_hp", (long)100);

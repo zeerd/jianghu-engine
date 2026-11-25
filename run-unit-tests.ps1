@@ -16,6 +16,8 @@
 #   1. Builds tests (Release|x64 — 生产同构配置；Debug 构建的
 #      测试程序内含 TestConfigGate，运行即报错，故默认禁止)。
 #      引擎测试（tests）与 CLI 测试（cli\tests）经解决方案一次并行构建。
+#      随后重建 bin\e2e\jianghu.exe 并跑 --check-lua 全量静态校验（教材两根
+#      lua-sample / lua-default），静态违规即整轮失败。
 #   2. Discovers test suites (--gtest_list_tests), packs them into
 #      -Shards deterministic groups, gives each shard a private working
 #      directory (per-shard fixture tree + JIANGHU_TEST_TMP), then runs
@@ -101,6 +103,34 @@ function Write-SummaryLine {
     $script:SummaryLogLines.Add($Text)
 }
 
+# 给子进程参数逐项加引号（ProcessStartInfo.Arguments 只收单个字符串）。
+function Quote-Arg([string]$s) {
+    if ($s -match '[\s"]') { return '"' + ($s -replace '"', '\"') + '"' }
+    return $s
+}
+
+# 无窗口启动一路子进程（--check-lua 校验、OCC → 测试分片），stdout/stderr
+# 异步排空到内存（不读管道会堵死子进程），退出后由调用方判读或落盘。
+function Start-LaneProcess {
+    param([string]$Exe, [string[]]$Arguments, [string]$WorkDir)
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $Exe
+    $psi.Arguments = (($Arguments | ForEach-Object { Quote-Arg $_ }) -join ' ')
+    $psi.WorkingDirectory = $WorkDir
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $psi
+    [void]$p.Start()
+    return [pscustomobject]@{
+        Process = $p
+        StdOut  = $p.StandardOutput.ReadToEndAsync()
+        StdErr  = $p.StandardError.ReadToEndAsync()
+    }
+}
+
 # --- Step 0: Find OpenCppCoverage ---
 if (-not $OpenCppCoveragePath) {
     # Check PATH first
@@ -159,6 +189,55 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 Write-Host "Build succeeded." -ForegroundColor Green
+
+# --- Step 1.5: Lua 静态校验（--check-lua 全量，教材两根） ---
+# 脚本的静态契约（语法、require 闭包、未绑定全局/方法、random 语义、整型实参、
+# 模块字段、钩子冒烟）只有 --check-lua 模式全量裁决：单测与集测跑的是运行期
+# 行为，拦不住静态违规。校验器每轮随 src 重建（jianghu_core 在 Step 1 已建好），
+# 旧 exe 会拿过期的绑定表假绿；教材两根各自整树扫描，禁止抽样。
+Write-Host "`n=== Lua check (--check-lua) ===" -ForegroundColor Cyan
+$CheckLuaProj = Join-Path $RootDir "jianghu.vcxproj"
+$CheckLuaExeDir = Join-Path $RootDir "bin\e2e"
+$CheckLuaExe = Join-Path $CheckLuaExeDir "jianghu.exe"
+New-Item -ItemType Directory -Force -Path $CheckLuaExeDir | Out-Null
+# 双写结尾反斜杠：既满足 OutDir 必须以 \ 结尾，又避开 PowerShell 向原生命令
+# 传「单个结尾反斜杠」被吃掉的坑（与 run-integration-tests.ps1 同款）。
+# 恒用 Release|x64：校验器是生产同构的裁决者，不随 -BuildConfig/-BuildPlatform 变。
+& $msbuildExe $CheckLuaProj /p:Configuration=Release /p:Platform=x64 /m "/p:OutDir=$CheckLuaExeDir\\" /nologo /verbosity:minimal
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Build failed ($CheckLuaProj)!" -ForegroundColor Red
+    exit 1
+}
+# 校验工作目录钉在仓库根：config 的两个脚本根是相对路径，只在仓库根成立。
+$checkFailedRoots = @()
+foreach ($checkRoot in @("lua-sample", "lua-default")) {
+    $checkArgs = @("--check-lua", "--config", "tests\integration\config.ini", "--dir", $checkRoot)
+    try {
+        $checkRun = Start-LaneProcess -Exe $CheckLuaExe -Arguments $checkArgs -WorkDir $RootDir
+    } catch {
+        Write-Host "ERROR: cannot start --check-lua ($checkRoot): $_" -ForegroundColor Red
+        exit 1
+    }
+    $checkRun.Process.WaitForExit()
+    $checkExit = $checkRun.Process.ExitCode
+    $checkOut = $checkRun.StdOut.Result
+    $checkErr = $checkRun.StdErr.Result
+    $checkLines = @($checkOut -split "\r?\n" | Where-Object { $_ -ne "" })
+    # 空输出按失败处理：拿不到逐文件结果 = 什么都没校验，不许假绿。
+    if ($checkExit -eq 0 -and $checkLines.Count -gt 0) {
+        Write-Host ("  {0}: {1}" -f $checkRoot, $checkLines[-1]) -ForegroundColor Green
+    }
+    else {
+        $checkFailedRoots += $checkRoot
+        Write-Host ("  {0}: FAIL (exit {1})" -f $checkRoot, $checkExit) -ForegroundColor Red
+        if ($checkLines.Count -gt 0) { Write-Host $checkOut }
+        if ($checkErr) { Write-Host $checkErr }
+    }
+}
+if ($checkFailedRoots.Count -gt 0) {
+    Write-Host "ERROR: --check-lua failed: $($checkFailedRoots -join ', ')!" -ForegroundColor Red
+    exit 1
+}
 
 # --- Step 2: Ensure directories ---
 if (-not (Test-Path $HistoryDir)) { New-Item -ItemType Directory -Path $HistoryDir | Out-Null }
@@ -237,23 +316,61 @@ if ($shardCount -le 0) {
 if ($shardCount -gt $engineSuites.Count) { $shardCount = $engineSuites.Count }
 if ($shardCount -lt 1) { $shardCount = 1 }
 
-# 贪心装箱（LPT）：按用例数降序、并列按名序 → 每套件进当前最轻的分片
-# （并列取序号小者）。排序键唯一（套件名不重复）→ 装箱结果与机器无关、可复现。
-$entries = foreach ($kv in $engineSuites.GetEnumerator()) {
-    [pscustomobject]@{ Name = [string]$kv.Key; Count = [int]$kv.Value }
+# --- 配置组：套件按「需要哪个世界」分组 ---
+# 每条并发路（分片）只带一份配置文件，因此同一分片内的套件必须同组——
+# 否则后跑的套件会读到另一个世界的根。装箱先按组分、组内再 LPT。
+# 约束：一个套件需要的根必须全部落在它所在组的配置里。
+$ConfigGroupFile = [ordered]@{
+    default = "test_config.ini"         # script_root=夹具根, default=lua-default
+    sample  = "test_config.sample.ini"  # script_root=lua-sample, default=lua-default
 }
+$SampleSuites = @("LuaSampleConditionTest", "SampleFoodPoisonTest",
+    "SampleWoodenDummyTest")
+
+$entries = foreach ($kv in $engineSuites.GetEnumerator()) {
+    $grp = if ($SampleSuites -contains [string]$kv.Key) { "sample" } else { "default" }
+    [pscustomobject]@{ Name = [string]$kv.Key; Count = [int]$kv.Value; Group = $grp }
+}
+# 贪心装箱（LPT）：按用例数降序、并列按名序 → 每套件进本组当前最轻的分片
+# （并列取序号小者）。排序键唯一（套件名不重复）→ 装箱结果与机器无关、可复现。
 $sortedEntries = $entries | Sort-Object -Property @{Expression = "Count"; Descending = $true}, @{Expression = "Name"}
+
+# 分片数按组分：每组至少 1 片（不足会把不同组挤进同片、串根），其余片给
+# 用例数最多的组——组间用例数极不均衡，按占比分会让小组拿到 0 片。
+$groupNames = @($entries | Select-Object -ExpandProperty Group -Unique)
+$shardsByGroup = @{}
+foreach ($g in $groupNames) { $shardsByGroup[$g] = 1 }
+$extraShards = $shardCount - $groupNames.Count
+if ($extraShards -gt 0) {
+    $biggest = $groupNames[0]
+    $biggestTests = -1
+    foreach ($g in $groupNames) {
+        $t = 0
+        foreach ($e in $entries) { if ($e.Group -eq $g) { $t += $e.Count } }
+        if ($t -gt $biggestTests) { $biggestTests = $t; $biggest = $g }
+    }
+    $shardsByGroup[$biggest] += $extraShards
+}
+
 $bucketNames = @()
 $bucketCounts = @()
-for ($i = 0; $i -lt $shardCount; $i++) { $bucketNames += , @(); $bucketCounts += 0 }
-foreach ($e in $sortedEntries) {
-    $minIdx = 0
-    for ($i = 1; $i -lt $shardCount; $i++) {
-        if ($bucketCounts[$i] -lt $bucketCounts[$minIdx]) { $minIdx = $i }
+$bucketGroup = @()
+foreach ($g in $groupNames) {
+    $start = $bucketNames.Count
+    for ($i = 0; $i -lt $shardsByGroup[$g]; $i++) {
+        $bucketNames += , @(); $bucketCounts += 0; $bucketGroup += $g
     }
-    $bucketNames[$minIdx] += $e.Name
-    $bucketCounts[$minIdx] += $e.Count
+    foreach ($e in $sortedEntries) {
+        if ($e.Group -ne $g) { continue }
+        $minIdx = $start
+        for ($i = $start + 1; $i -lt $start + $shardsByGroup[$g]; $i++) {
+            if ($bucketCounts[$i] -lt $bucketCounts[$minIdx]) { $minIdx = $i }
+        }
+        $bucketNames[$minIdx] += $e.Name
+        $bucketCounts[$minIdx] += $e.Count
+    }
 }
+$shardCount = $bucketNames.Count
 # 硬校验：装箱无遗漏、无空分片（filter 为空会退化成“跑全部”，必须拦死）
 $packedTotal = 0
 foreach ($c in $bucketCounts) { $packedTotal += $c }
@@ -274,7 +391,7 @@ for ($i = 0; $i -lt $shardCount; $i++) {
 Write-Host ("engine: {0} suites / {1} tests -> {2} shard(s) [{3}]; cli: {4} suites / {5} tests -> 1 lane" -f `
         $engineSuites.Count, $engineTotal, $shardCount, $shardSource, $cliSuites.Count, $cliTotal) -ForegroundColor DarkGray
 for ($i = 0; $i -lt $shardCount; $i++) {
-    Write-Host ("  s{0}: {1} suites / {2} tests" -f $i, @($bucketNames[$i]).Count, $bucketCounts[$i]) -ForegroundColor DarkGray
+    Write-Host ("  s{0} [{1}]: {2} suites / {3} tests" -f $i, $bucketGroup[$i], @($bucketNames[$i]).Count, $bucketCounts[$i]) -ForegroundColor DarkGray
 }
 
 # --- Step 2.6: 分片工作目录（隔离靠构造，不靠「哪些套件有冲突」的名单） ---
@@ -295,6 +412,12 @@ for ($i = 0; $i -lt $shardCount; $i++) {
     $wd = Join-Path $ShardsRoot "s$i"
     New-Item -ItemType Directory -Force -Path (Join-Path $wd "tests\unit\log") | Out-Null
     Copy-Item (Join-Path $RootDir "tests\unit\*.ini") (Join-Path $wd "tests\unit") -Force
+    # 本分片的配置文件：默认组就是 test_config.ini，其余组换成自己那份。
+    # 换在拷贝之后——两个文件同名，后写者生效。
+    $grpCfg = $ConfigGroupFile[$bucketGroup[$i]]
+    if ($grpCfg -ne "test_config.ini") {
+        Copy-Item (Join-Path $RootDir "tests\unit\$grpCfg") (Join-Path $wd "tests\unit\test_config.ini") -Force
+    }
     Copy-Item (Join-Path $RootDir "tests\unit\lua-tests") (Join-Path $wd "tests\unit") -Recurse -Force
     Copy-Item (Join-Path $RootDir "lua-default") $wd -Recurse -Force
     Copy-Item (Join-Path $RootDir "lua-sample") $wd -Recurse -Force
@@ -315,34 +438,6 @@ $cliSourcePath = Join-Path $RootDir $CliSrc
 $branchArg = @()
 if ($CoverageType -eq "branch") {
     $branchArg = @("--branch_coverage")
-}
-
-# 给子进程参数逐项加引号（ProcessStartInfo.Arguments 只收单个字符串）。
-function Quote-Arg([string]$s) {
-    if ($s -match '[\s"]') { return '"' + ($s -replace '"', '\"') + '"' }
-    return $s
-}
-
-# 无窗口启动一路测试（OCC → 测试进程），stdout/stderr 异步排空到内存
-# （不读管道会堵死子进程），退出后由调用方落盘到分片目录。
-function Start-LaneProcess {
-    param([string]$Exe, [string[]]$Arguments, [string]$WorkDir)
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $Exe
-    $psi.Arguments = (($Arguments | ForEach-Object { Quote-Arg $_ }) -join ' ')
-    $psi.WorkingDirectory = $WorkDir
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $p = New-Object System.Diagnostics.Process
-    $p.StartInfo = $psi
-    [void]$p.Start()
-    return [pscustomobject]@{
-        Process = $p
-        StdOut  = $p.StandardOutput.ReadToEndAsync()
-        StdErr  = $p.StandardError.ReadToEndAsync()
-    }
 }
 
 $lanes = @()
@@ -582,6 +677,20 @@ $LuaPct = 0.0
 $luaDetailCsv = Join-Path $HistoryDir "lua-detail.csv"
 $luaSummaryCsv = Join-Path $HistoryDir "lua-summary.csv"
 $luaReports = @(Get-ChildItem -Path $ShardsRoot -Recurse -Filter "lua-coverage.csv" -File -ErrorAction SilentlyContinue)
+# 每条并发路都必须产出报告：缺一片说明那条路的采集链断了（典型如它的
+# script_root 里没有 lib/、覆盖率模块 require 不到），静默缺报会让该片的
+# 覆盖全部漏统计而总表照样看着正常。
+$luaMissing = @()
+for ($i = 0; $i -lt $shardCount; $i++) {
+    if (-not (Test-Path -LiteralPath (Join-Path $ShardsRoot "s$i\tmp\lua-coverage.csv"))) {
+        $luaMissing += "s$i"
+    }
+}
+if ($luaMissing.Count -gt 0) {
+    Write-Host "ERROR: Lua coverage report missing for shard(s): $($luaMissing -join ', ')!" -ForegroundColor Red
+    Write-Host "Shard workspaces kept for diagnosis: $ShardsRoot" -ForegroundColor Yellow
+    exit 1
+}
 if ($luaReports.Count -eq 0) {
     # 正常管线里 LuaUnitBridge 必然执行（Step 3.1 已核对执行数 == 发现数），
     # 采集窗口也必然开在它之前——报告缺席只可能是采集链断了，不是「没数据」。

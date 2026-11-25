@@ -26,7 +26,6 @@
 #include "HeartBeat.h"  // g_destruct_list 快照回收
 #include "Money.h"      // CMCoin/CMoney（房租现金支）
 #include "test_online_user.h"
-#include "test_sample_script.h"
 #include "test_state_recorder.h"  // 帐单/门牌菜单观察面
 
 extern IDatabase* g_db;
@@ -1058,16 +1057,11 @@ TEST_F(HouseTest, Give_ToYongrenOk_RentItemGuarded)
 // E2E 走不到收还分支——do_price 把租品交到仆役手上，玩家背包里按名
 // 定位到的只可能是非租品（house/servant.sce 只能断言拒收侧），
 // 正向契约在此守护：脚本检查丢失 yongren/rent 时此处必须变红。
-// 单测脚本根不含 lua-sample，故用共享夹具把样本脚本原文暂存进
-// 脚本根（引擎按内容 hash 自动重载，负缓存见
-// LuaConditionTest.LoadFailure_RecoversWhenScriptFileAppears）。
+// monster_yongren 在 lua-default，作为 default_script_root 直接可见，
+// 无需搬运。
 // =====================================================================
 TEST_F(HouseTest, ServantAcceptObject_AcceptsRentItemOnly)
 {
-    ScopedSampleScript script("npc/monster_yongren.lua",
-                              "lua-default/npc/monster_yongren.lua");
-    ASSERT_TRUE(script.ok()) << "样本仆役脚本未就位: " << script.file();
-
     h->set("owner", "owner1");
     h->create();  // 仆役入房：本次 spawn 时样本脚本已就位，脚本引用生效
 

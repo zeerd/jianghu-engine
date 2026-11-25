@@ -38,10 +38,21 @@ local cov
 -- 不把采集状态泄漏给同一 lua_State 里的其他测试。
 local raw = { os.exit, coroutine.create, coroutine.wrap }
 
+local function fail(...)
+    io.stderr:write("[lua-coverage] ", ..., "\n")
+end
+
 function M.start(statsfile)
-    if cov or not statsfile then return end
+    if cov then return end
+    if not statsfile then
+        fail("start: no statsfile")
+        return
+    end
     local ok, runner = pcall(require, "luacov.runner")
-    if not ok then return end
+    if not ok then
+        fail("start: require luacov.runner failed: ", tostring(runner))
+        return
+    end
     cov = runner
     cov.init({
         statsfile = statsfile,
@@ -49,11 +60,11 @@ function M.start(statsfile)
         -- runreport=false 故该文件不会被创建，只为跳过 popen
         reportfile = statsfile .. ".report",
         codefromstrings = true,  -- 引擎 luaL_loadbuffer 的 chunkname 不带 @
-        -- 只量 lua-default：它是引擎默认语料且 chunkname 即其路径，能按文件
-        -- 归因。lua-sample 经 ScopedSampleScript 拷进 script_root 执行，
-        -- chunkname 是拷贝路径，归因待拷贝路径与源路径建立映射后再纳入；
-        -- tests/unit/lua-tests 是测试夹具，不入分母。
-        include = { "lua%-default/" },
+        -- 分母按交付取：lua-default（默认数据集）与 lua-sample（样例世界）
+        -- 都随引擎交付，都在分母里。tests/unit/lua-tests 是测试夹具，不入分母。
+        -- sample 侧的用例跑在独立配置组（script_root = lua-sample），
+        -- 样本由引擎作为根直接加载，命中因此归得到 sample 名下。
+        include = { "lua%-default/", "lua%-sample/" },
     })
 end
 
@@ -61,16 +72,26 @@ end
 -- runner.data 已被清空，回读的正是落盘产物本身。
 local function write_report(statsfile, corpus, reportfile)
     local probe = io.open(statsfile, "r")
-    if not probe then return end  -- 没有采集数据：不产出报告，上层报「无数据」
+    if not probe then
+        fail("report: cannot read statsfile ", statsfile)
+        return
+    end
     probe:close()
 
     local ok_stats, stats_mod = pcall(require, "luacov.stats")
     local ok_scan, LineScanner = pcall(require, "luacov.linescanner")
-    if not (ok_stats and ok_scan) then return end
+    if not (ok_stats and ok_scan) then
+        fail("report: require failed: ", tostring(stats_mod), " / ",
+             tostring(LineScanner))
+        return
+    end
 
     local data = stats_mod.load(statsfile) or {}
-    local out = io.open(reportfile, "w")
-    if not out then return end
+    local out, err = io.open(reportfile, "w")
+    if not out then
+        fail("report: cannot write ", reportfile, ": ", tostring(err))
+        return
+    end
 
     for i = 1, #corpus do
         local file = corpus[i]
@@ -105,7 +126,10 @@ local function write_report(statsfile, corpus, reportfile)
 end
 
 function M.finish(corpus, reportfile)
-    if not cov then return end
+    if not cov then
+        fail("finish: coverage window was never opened")
+        return
+    end
     local statsfile = cov.configuration and cov.configuration.statsfile
     cov.shutdown()
     os.exit = raw[1]
@@ -115,6 +139,8 @@ function M.finish(corpus, reportfile)
     cov = nil
     if statsfile and reportfile then
         write_report(statsfile, corpus, reportfile)
+    else
+        fail("finish: missing statsfile/reportfile")
     end
 end
 

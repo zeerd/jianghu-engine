@@ -378,14 +378,58 @@ void InputProcessor::process_go(const std::string& args)
 
     ui_.add_line(color::convert("$CYN寻路 " + std::to_string(steps.size())
                                 + " 步 -> " + dest + "$COM"));
-    for (const auto& step : steps) {
+
+    // 逐跳等待落空最常见的原因是**中途被动进战斗**：开打即被移进战斗精灵
+    // （容器无出口），本跳 /go 被吞、wait_for_room 落空。此时主动 flee 回到
+    // 可走动的房间再续走：本跳已实际到达（先到房、后被拖走）就接下一步，
+    // 否则从当前位置重新寻路。恢复有次数上限，防「进房即被再拖进战斗」死循环。
+    constexpr int kMaxRecover = 5;
+    int recover = 0;
+    size_t i = 0;
+    for (;;) {
+        if (i >= steps.size()) break;
+        const auto& step = steps[i];
         ui_.add_line(color::convert("$CYN/go $COM" + step.go_key));
         cmd_handler_.process("go " + step.go_key);
-        if (!wait_for_room(step.arrival_name)) {
-            ui_.add_line(color::convert("$RED未能进入 " + step.go_key
-                                        + "，停止寻路。$COM"));
-            break;
+        if (wait_for_room(step.arrival_name)) {
+            ++i;
+            continue;
         }
+
+        if (state_.in_battle() && recover < kMaxRecover) {
+            ++recover;
+            ui_.add_line(color::convert(
+                "$YEL寻路中被动进战斗，先逃跑（第 " + std::to_string(recover)
+                + " 次）…$COM"));
+            if (!flee_battle()) {
+                ui_.add_line(color::convert("$RED未能脱离战斗，停止寻路。$COM"));
+                break;
+            }
+            if (arrived_at(state_.room_map(), step.arrival_name)) {
+                ++i;  // 逃跑后发现自己已在本跳目标房（先到房、后被拖进战斗）
+                continue;
+            }
+            int here = room_map_.find_room(state_.room_map());
+            if (here < 0) {
+                ui_.add_line(color::convert(
+                    "$RED逃跑后当前位置不在地图中: " + state_.room_map()
+                    + "，停止寻路。$COM"));
+                break;
+            }
+            auto redo = room_map_.find_path(here, to);
+            if (redo.empty()) {
+                ui_.add_line(color::convert(
+                    "$RED逃跑后找不到通往 " + dest + " 的路径。$COM"));
+                break;
+            }
+            steps = std::move(redo);
+            i = 0;
+            continue;
+        }
+
+        ui_.add_line(color::convert("$RED未能进入 " + step.go_key
+                                    + "，停止寻路。$COM"));
+        break;
     }
 }
 
@@ -410,9 +454,39 @@ bool InputProcessor::wait_for_room(const std::string& arrival_name) const
     auto deadline = std::chrono::steady_clock::now()
                     + std::chrono::milliseconds(map_step_timeout_ms_);
     while (!reached() && std::chrono::steady_clock::now() < deadline) {
+        // 中途被动进战斗：开打即被移进战斗精灵（CharFight.cpp:250-279，
+        // 容器无出口），本跳 /go 已被吞——立刻返回，让 .go 走逃跑恢复分支，
+        // 不必干等满 5s 超时。
+        if (state_.in_battle()) return false;
         std::this_thread::sleep_for(std::chrono::milliseconds(25));
     }
     return reached();
+}
+
+// 主动逃跑直到脱离战斗。flee 即 halt（CmdStandardInit.cpp:12 的别名），在
+// 战斗精灵内走 do_flee / end_fight 分支；busy 中与 AP<50 都会被引擎拒
+// （「你没空逃跑！」/ check_ap 失败），故整轮重试。
+bool InputProcessor::flee_battle()
+{
+    auto deadline = std::chrono::steady_clock::now()
+                    + std::chrono::milliseconds(15000);
+    while (state_.in_battle()
+           && std::chrono::steady_clock::now() < deadline) {
+        cmd_handler_.process("flee");
+
+        // 给引擎处理 flee（end_fight 会把人移回原房并下发 GOTOROOM F=0）
+        // 留出时间；in_battle 变假即脱战成功。
+        auto settle = std::chrono::steady_clock::now()
+                      + std::chrono::milliseconds(2000);
+        while (state_.in_battle()
+               && std::chrono::steady_clock::now() < settle) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+        }
+        if (!state_.in_battle()) return true;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    return !state_.in_battle();
 }
 
 void InputProcessor::process_server_cmd(const std::string& input)

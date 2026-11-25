@@ -14,6 +14,12 @@
 #include "SkillMgr.h"    // load_skill
 #include "UserMgr.h"     // find_player
 
+#include <new>     // ListIterState 的 placement new
+#include <vector>  // ListIterState 的指针快照
+
+// iter_items 迭代器状态 userdata 的元表名（挂 __gc 析构快照）
+static const char kListIterMeta[] = "jianghu_item_list_iter";
+
 // is(ob, KIND) -> boolean - 对象谓词合一：KIND 取 user/wizard/living/
 // character；缺 KIND 或未登记的 KIND 报错，非对象一律返回 false。
 // 恒返回布尔：Query 类接口吐的是整数 0/1，Lua 里 0 为真，不可互换。
@@ -126,15 +132,31 @@ int l_enter_register_hall(lua_State* L)
 
 typedef DTItemList::iterator ListIterType;
 
+// 迭代器内部状态结构
+//
+// **必须存快照，不能持有活容器**：get_item_list() 返回的就是容器的活列表
+// （ContainerItem.cpp:22 直接 return &m_item_list），而遍历体里最常见的动作
+// ——fight_ob / receive_damage 让对象离场、DESTRUCT_OB 摘除节点——都会就地
+// 改写它。持活迭代器时，被删节点会让 `pos == end()` 再也追不上，for-in 变成
+// 死循环；容器若在遍历途中被整体销毁，pos 更会指向已释放内存。
+// C++ 侧所有同类遍历一律先 copy_list 取副本（Container.h:20），Lua 这条
+// 通路漏了同一道防护。症状见 tests 里摄心术（do_roar 遍历房间物件时
+// fight_ob 触发改写）刷出上百万行私聊的那轮。
 struct ListIterState {
-    DTItemList* list = nullptr;
-
-    ListIterType pos;
+    std::vector<CContainer*> items;  // 起遍历那一刻的指针快照
+    size_t idx = 0;
 };
 
-// 迭代器闭包：每次 for-in 循环调用一次
+// 闭包被 GC 时析构状态（placement new 出来的对象必须显式析构）
+int l_iter_items_gc(lua_State* L)
+{
+    ListIterState* st = (ListIterState*)lua_touserdata(L, 1);
+    if (st) st->~ListIterState();
+    return 0;
+}
 
-// 返回下一个对象，遍历完毕返回 nil
+// 迭代器闭包：每次 for-in 循环调用一次
+// 返回快照里的下一个对象，取完返回 nil
 
 int l_iter_items_next(lua_State* L)
 
@@ -143,15 +165,13 @@ int l_iter_items_next(lua_State* L)
 
     ListIterState* st = (ListIterState*)lua_touserdata(L, lua_upvalueindex(1));
 
-    if (!st || !st->list || st->pos == st->list->end()) {
+    if (!st || st->idx >= st->items.size()) {
         lua_pushnil(L);
 
         return 1;
     }
 
-    CContainer* item = *st->pos;
-
-    ++st->pos;
+    CContainer* item = st->items[st->idx++];
 
     lua_bind_push_object(L, item);
 
@@ -160,7 +180,8 @@ int l_iter_items_next(lua_State* L)
 
 // iter_items(list) -> next_func
 
-// 接受 jianghu_item_list userdata，返回一个闭包作为 for-in 迭代器
+// 接受 jianghu_item_list userdata，返回一个闭包作为 for-in 迭代器。
+// 快照语义与 C++ 侧 copy_list 一致：遍历期间容器的增删不参与本轮。
 
 int l_iter_items(lua_State* L)
 
@@ -173,18 +194,22 @@ int l_iter_items(lua_State* L)
         return 0;
     }
 
-    // 创建迭代器状态作为闭包的 upvalue
+    // 状态 userdata 挂 __gc：闭包被回收时顺带析构快照
+    if (luaL_newmetatable(L, kListIterMeta)) {
+        lua_pushcfunction(L, l_iter_items_gc);
+        lua_setfield(L, -2, "__gc");
+    }
 
     ListIterState* st
-
         = (ListIterState*)lua_newuserdata(L, sizeof(ListIterState));
+    new (st) ListIterState();
 
-    st->list = *ud;
+    lua_insert(L, -2);        // 元表挪到状态之上
+    lua_setmetatable(L, -2);  // 弹出元表，状态带上它
 
-    new (&st->pos) ListIterType((*ud)->begin());
+    st->items.assign((*ud)->begin(), (*ud)->end());
 
-    // 返回闭包，捕获 st 作为唯一 upvalue
-
+    // 返回闭包，捕获 st 作为唯一 upvalue（pushcclosure 会把 st 弹出）
     lua_pushcclosure(L, l_iter_items_next, 1);
 
     return 1;

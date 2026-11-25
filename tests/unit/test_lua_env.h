@@ -39,8 +39,31 @@ inline lua_State* ensure_lua_env_impl()
     return engine->get_state();
 }
 
-// 读配置 + 起引擎（幂等）+ 注册绑定 + 装载钩子表
-inline lua_State* ensure_lua_env() { return ensure_lua_env_impl(); }
+// 测试自身的模块目录（lib/lua_unit_runner、lib/lua_coverage）必须始终可
+// require。script_root 随配置组变化——sample 组的根是 lua-sample，里面没有
+// lib/——所以不能靠引擎按 script_root 捎带，这里显式补进 package.path。
+inline void ensure_test_module_path(lua_State* L)
+{
+    static const char* kEntry = "tests/unit/lua-tests/?.lua";
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "path");
+    const char* cur  = lua_tostring(L, -1);
+    std::string path = cur ? cur : "";
+    lua_pop(L, 1);
+    if (path.find(kEntry) == std::string::npos) {
+        lua_pushstring(L, (path + ";" + kEntry).c_str());
+        lua_setfield(L, -2, "path");
+    }
+    lua_pop(L, 1);
+}
+
+// 读配置 + 起引擎（幂等）+ 注册绑定 + 补测试模块路径 + 装载钩子表
+inline lua_State* ensure_lua_env()
+{
+    lua_State* L = ensure_lua_env_impl();
+    if (L) ensure_test_module_path(L);
+    return L;
+}
 
 // 调用全局 Lua 函数（前导组合出的 API）：入参（不含函数）已压栈，
 // 返回值个数（-1 = 调用失败，错误信息已弹出）

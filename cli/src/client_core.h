@@ -51,11 +51,37 @@ public:
     void request_stop() { running_ = false; }
     bool server_closed() const { return server_closed_.load(); }
 
+    /// 文本匹配与输出缓冲的窗口行数。
+    ///
+    /// 触发式服务链里，巫师道要**囤住全部未处理请求**：21 道 × ~55 条
+    /// ≈ 1200 条 tell，外加自己跑命令换回来的回执，峰值约 3000 行。窗口
+    /// 取 2000 时会从头部截断、把最老的未消费请求悄悄丢掉（剧本侧表现为
+    /// 「某道的请求永远等不到」），故抬到 8192 留足余量。
+    static constexpr size_t kOutputWindow = 8192;
+
     /// 最近 max_lines 行的输出快照（按时间先后排列，最早在前）。
-    std::vector<std::string> recent_output(size_t max_lines = 400) const;
+    ///
+    /// 起点是**消费游标**（`advance_output_cursor` 之前的历史行不参与匹配）；
+    /// 未消费行多于 max_lines 时才从头部截断。first_abs 非空时回传首行的
+    /// 绝对序号——`consume` 靠它把游标推进到命中行之后。
+    std::vector<std::string> recent_output(size_t max_lines  = 400,
+                                           size_t* first_abs = nullptr) const;
 
     /// 清空输出快照（脚本在关键步骤前可调用，避免匹配到陈旧文本）。
+    /// 连同消费游标一起归零到当前末尾：清空后所有行都算「未看过」。
     void clear_output();
+
+    /// 输出缓冲的绝对行号上界（累计入队行数，只增不减）。
+    size_t output_seq() const;
+
+    /// 消费游标：该绝对行号之前的行不再参与 recent_output 与文本匹配。
+    size_t output_cursor() const;
+
+    /// 把消费游标推进到 to_abs（不含），只增不减；已消费的行随即释放。
+    void advance_output_cursor(size_t to_abs);
+
+    /// 取绝对行号 abs 的行文本（该行必须仍在缓冲内且未被消费）。
+    bool output_line_at(size_t abs, std::string& out) const;
 
     /// 启动心跳保活线程（间隔取配置 heartbeat_interval，0=关闭）。
     void start_heartbeat();
@@ -91,4 +117,12 @@ private:
 
     mutable std::mutex output_mutex_;
     std::deque<std::string> output_lines_;
+    // 输出缓冲的绝对行号坐标系（三个量都由 output_mutex_ 保护）：
+    //   output_base_   output_lines_[0] 的绝对行号（出队时递增）
+    //   output_seq_    累计入队行数（绝对行号的上界）
+    //   output_cursor_ 消费游标；之前的行不参与文本匹配，且随游标推进释放
+    // absolute index = output_base_ + 下标。
+    size_t output_base_   = 0;
+    size_t output_seq_    = 0;
+    size_t output_cursor_ = 0;
 };

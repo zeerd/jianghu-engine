@@ -37,6 +37,7 @@ public:
     using CScenarioRunner::run_capture_step;
     using CScenarioRunner::run_menu_step;
     using CScenarioRunner::run_step;
+    using CScenarioRunner::strip_token;
     using CScenarioRunner::subst;
     using CScenarioRunner::wait_cond;
 
@@ -676,6 +677,139 @@ TEST_F(ScenarioStepsTest, RunCaptureStepInvalidRegexFails)
     EXPECT_FALSE(runner.run_capture_step("([ as var"));
     EXPECT_NE(runner.fail_reason().find("capture invalid regex"),
               std::string::npos);
+}
+
+// ==================== wait text … consume ====================
+// 触发式服务链的地基：车道把要执行的命令逐条 tell 给巫师，巫师只跑一段
+// `wait … consume → capture → /t → cmd` 的统一循环。三个不变量：
+//   ① wait 只认**消费游标之后**最早的一条，命中即把游标推过该行 ——
+//      同一批滞留缓冲的请求按到达顺序被逐条吃掉（存量 wait text 不消费，
+//      循环里会永远撞回同一条）；
+//   ② 行文本存给紧跟的 capture 读（命中行已被游标丢出缓冲）；
+//   ③ capture 只读那一行，绝不退回全缓冲倒序扫去抓更晚的请求。
+
+namespace {
+CScenarioRunner::Step sce_step(const std::string& verb, const std::string& args)
+{
+    CScenarioRunner::Step s;
+    s.verb = verb;
+    s.args = args;
+    return s;
+}
+}  // namespace
+
+TEST_F(ScenarioStepsTest, WaitTextConsumeAdvancesPastEachHit)
+{
+    inject_text("#W# gongneng 1001 /call set level 45");
+    inject_text("#W# gongneng 1002 /call set level 45");
+
+    auto runner = make_runner();
+    EXPECT_TRUE(
+        runner.run_step(sce_step("wait", "text #W# consume timeout=1000")))
+        << runner.fail_reason();
+    EXPECT_EQ(core_->output_cursor(), 1u);
+
+    EXPECT_TRUE(
+        runner.run_step(sce_step("wait", "text #W# consume timeout=1000")))
+        << runner.fail_reason();
+    EXPECT_EQ(core_->output_cursor(), 2u);
+
+    // 全吃干净了 → 第三次只能等到超时，而不是又抓回前两条
+    EXPECT_FALSE(
+        runner.run_step(sce_step("wait", "text #W# consume timeout=60")));
+    EXPECT_NE(runner.fail_reason().find("timeout"), std::string::npos);
+}
+
+TEST_F(ScenarioStepsTest, WaitTextConsumeFeedsCaptureFromTheHitLine)
+{
+    inject_text("#W# gongneng 1001 /call set level 45");
+    inject_text("#W# gongneng 1002 /call set mp 10000");
+
+    auto runner = make_runner();
+    EXPECT_TRUE(
+        runner.run_step(sce_step("wait", "text #W# consume timeout=1000")))
+        << runner.fail_reason();
+
+    EXPECT_TRUE(runner.run_capture_step("#W# \\S+ (\\d+) as acct"));
+    EXPECT_EQ(runner.mutable_vars().at("acct"), "1001");
+
+    EXPECT_TRUE(runner.run_capture_step("#W# \\S+ \\d+ (.+) as wcmd"));
+    EXPECT_EQ(runner.mutable_vars().at("wcmd"), "/call set level 45");
+}
+
+TEST_F(ScenarioStepsTest, CaptureAfterConsumeRefusesOtherLines)
+{
+    inject_text("#W# gongneng 1001 /call set level 45");
+    inject_text("别处提到账号是 999");
+
+    auto runner = make_runner();
+    EXPECT_TRUE(
+        runner.run_step(sce_step("wait", "text #W# consume timeout=1000")))
+        << runner.fail_reason();
+
+    EXPECT_FALSE(runner.run_capture_step("账号是 as acct"));
+    EXPECT_NE(runner.fail_reason().find("consumed line"), std::string::npos);
+}
+
+// 没带 consume 的存量剧本必须原样走「全缓冲倒序扫」那条路，零行为变化。
+TEST_F(ScenarioStepsTest, CaptureWithoutConsumeKeepsBackwardScan)
+{
+    inject_text("先到的编号是 111。");
+    inject_text("后到的编号是 222。");
+
+    auto runner = make_runner();
+    EXPECT_TRUE(runner.run_step(sce_step("wait", "text 编号是 timeout=1000")));
+    EXPECT_TRUE(runner.run_capture_step("编号是 as acct"));
+    EXPECT_EQ(runner.mutable_vars().at("acct"), "222");
+}
+
+TEST_F(ScenarioStepsTest, WaitConsumeOnlyValidOnText)
+{
+    inject_text("无关的输出");
+
+    auto runner = make_runner();
+    EXPECT_FALSE(
+        runner.run_step(sce_step("wait", "notext 不存在 consume timeout=100")));
+    EXPECT_NE(runner.fail_reason().find("not allowed on notext"),
+              std::string::npos);
+
+    EXPECT_FALSE(
+        runner.run_step(sce_step("wait", "room 书房 consume timeout=100")));
+    EXPECT_NE(runner.fail_reason().find("only supported on 'wait text'"),
+              std::string::npos);
+}
+
+// consume 只摘独立单词：needle 里含 consumes 这类子串不能被误伤。
+TEST_F(ScenarioStepsTest, StripTokenRemovesOnlyStandaloneWord)
+{
+    std::string tail = "text abc consume";
+    EXPECT_TRUE(TestableScenarioRunner::strip_token(tail, "consume"));
+    EXPECT_EQ(tail, "text abc");
+
+    std::string head = "consume text abc";
+    EXPECT_TRUE(TestableScenarioRunner::strip_token(head, "consume"));
+    EXPECT_EQ(head, " text abc");  // run_step 随后会 trim
+
+    std::string sub = "text consumes";
+    EXPECT_FALSE(TestableScenarioRunner::strip_token(sub, "consume"));
+    EXPECT_EQ(sub, "text consumes");
+}
+
+// clear 要连消费游标一起归到末尾：否则清空后游标还停在旧位置，
+// recent_output 会算出 `start > size`、读越界。
+TEST_F(ScenarioStepsTest, ClearOutputAlsoResetsConsumeCursor)
+{
+    inject_text("#W# gongneng 1001 /call set level 45");
+
+    auto runner = make_runner();
+    EXPECT_TRUE(
+        runner.run_step(sce_step("wait", "text #W# consume timeout=1000")));
+    EXPECT_EQ(core_->output_cursor(), 1u);
+    EXPECT_TRUE(core_->recent_output().empty());
+
+    EXPECT_TRUE(runner.run_step(sce_step("clear", "")));
+    EXPECT_EQ(core_->output_cursor(), core_->output_seq());
+    EXPECT_TRUE(core_->recent_output().empty());
 }
 
 // ==================== subst ====================

@@ -20,7 +20,6 @@
 #include "pch.h"
 
 #include <cstdint>
-#include <memory>
 
 #include "Char.h"
 #include "Container.h"
@@ -32,8 +31,7 @@
 #include "User.h"
 #include "LuaBind.h"  // lua_bind_push_object
 #include "test_lua_env.h"
-#include "test_sample_script.h"  // ScopedSampleScript（暂存样本脚本原文）
-#include "test_npc_cleanup.h"    // discard_npc
+#include "test_npc_cleanup.h"  // discard_npc
 #include "test_state_recorder.h"
 #include "mock/mock_itemmgr.h"
 
@@ -299,20 +297,17 @@ TEST_F(NpcMirrorTest, MirrorHooksSurviveScriptReload)
 
 // ====================================================================
 // 样本脚本契约：lua-sample/npc/sample_wooden_dummy.lua，半山腰的练功木人。
-// 单测脚本根不含 lua-sample，用共享夹具把样本原文暂存进脚本根、用完即删
-// （引擎按内容 hash 自动重载）。样本自己 require 镜像基模块并在文件末尾
-// install——装配是否到位由下面各用例的行为断言证明。
+// 本套件跑在 sample 配置组（script_root = lua-sample，见
+// test_config.sample.ini）：样本由引擎作为脚本根直接加载，不经任何拷贝；
+// 它 require 的镜像基模块 mirror_base 在 lua-default，作为
+// default_script_root 天然可见。样本自己在文件末尾 install——装配是否
+// 到位由下面各用例的行为断言证明。
 // ====================================================================
 class SampleWoodenDummyTest : public NpcMirrorTest {
 protected:
     void SetUp() override
     {
         NpcMirrorTest::SetUp();
-
-        script = std::make_unique<ScopedSampleScript>(
-            "npc/sample_wooden_dummy.lua",
-            "lua-sample/npc/sample_wooden_dummy.lua");
-        ASSERT_TRUE(script->ok()) << "样本脚本未就位: " << script->file();
 
         dummy = load_npc("sample_wooden_dummy");
         ASSERT_NE(dummy, nullptr);
@@ -324,12 +319,10 @@ protected:
         // 走过 die 的用例已把 dummy 置空（自毁的实例由延迟销毁队列回收）
         if (dummy && g_npc_list.count(dummy->object_id())) discard_npc(dummy);
         dummy = nullptr;
-        script.reset();
         NpcMirrorTest::TearDown();
     }
 
     CNpc* dummy = nullptr;
-    std::unique_ptr<ScopedSampleScript> script;
 };
 
 // 对练：按 diff=8 抄走挑战者状态，且把 make_mirror 写空的名字改回来

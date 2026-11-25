@@ -12,7 +12,8 @@
 #include "client_core.h"
 #include "game_state.h"
 
-bool CScenarioRunner::eval_cond(const std::string& cond, std::string& detail)
+bool CScenarioRunner::eval_cond(const std::string& cond, std::string& detail,
+                                TextHit* hit)
 {
     std::string c = trim(cond);
     if (c.empty()) {
@@ -65,11 +66,21 @@ bool CScenarioRunner::eval_cond(const std::string& cond, std::string& detail)
             detail = key + " condition needs at least one non-empty needle";
             return false;
         }
+        if (hit) hit->valid = false;
+        // 按**绝对行号**从消费游标往后扫，取最早命中的那条：`consume` 要靠
+        // 命中行的行号把游标推进过去，也要靠行文本喂给随后的 capture。
+        size_t first_abs = 0;
+        auto lines = core_.recent_output(ClientCore::kOutputWindow, &first_abs);
         bool found = false;
-        for (const auto& line : core_.recent_output(2000)) {
+        for (size_t i = 0; i < lines.size(); ++i) {
             for (const auto& needle : needles) {
-                if (line.find(needle) != std::string::npos) {
+                if (lines[i].find(needle) != std::string::npos) {
                     found = true;
+                    if (hit && key == "text") {
+                        hit->valid = true;
+                        hit->abs   = first_abs + i;
+                        hit->line  = lines[i];
+                    }
                     break;
                 }
             }
@@ -214,7 +225,8 @@ bool CScenarioRunner::eval_attr_cond(const std::string& val,
     return false;
 }
 
-bool CScenarioRunner::wait_cond(const std::string& cond, int timeout_ms)
+bool CScenarioRunner::wait_cond(const std::string& cond, int timeout_ms,
+                                bool consume)
 {
     // notext 语义相反：全程监视"不该出现的文本"，一旦出现立即失败，
     // 坚持到期满无出现才算通过；其余条件为"等到出现"。
@@ -223,12 +235,28 @@ bool CScenarioRunner::wait_cond(const std::string& cond, int timeout_ms)
     std::string token       = (sp == std::string::npos) ? c : c.substr(0, sp);
     const bool watch_absent = (lower_ascii(token) == "notext");
 
+    // consume 的适用面：它推的是**输出行的消费游标**，只有「等到出现某行」
+    // 的 text 条件才有命中行可推。notext 是全程监视、别的条件没有行号，
+    // 带上 consume 只会是笔误，早失败好过静默不生效。
+    if (consume) {
+        if (watch_absent) {
+            return fail("consume is not allowed on notext: " + c);
+        }
+        if (lower_ascii(token) != "text") {
+            return fail("consume is only supported on 'wait text': " + c);
+        }
+    }
+
+    // 上一条 wait 的命中行只对紧随其后的 capture 有意义，换 wait 即作废。
+    consumed_line_.clear();
+
     auto deadline = std::chrono::steady_clock::now()
                     + std::chrono::milliseconds(timeout_ms);
     for (;;) {
         core_.process_received();
         std::string detail;
-        bool ok = eval_cond(cond, detail);
+        TextHit hit;
+        bool ok = eval_cond(cond, detail, &hit);
         if (!detail.empty()) {
             return fail("bad condition '" + cond + "': " + detail);
         }
@@ -244,6 +272,14 @@ bool CScenarioRunner::wait_cond(const std::string& cond, int timeout_ms)
                 // busy/not_busy 的 wait 通过 = 忙的起止都已走完，消费起始锁存
                 if (token == "busy" || token == "not_busy")
                     core_.state().clear_busy_latched();
+                // consume：命中行到此为止「看过了」。游标前移使下一次 wait
+                // 只会命中**更晚**的行——这正是服务链按到达顺序逐条推进的
+                // 机制；行文本同时存下来，供紧跟的 capture 读（命中行已被
+                // 游标丢出缓冲，再扫缓冲必然落空）。
+                if (consume && hit.valid) {
+                    core_.advance_output_cursor(hit.abs + 1);
+                    consumed_line_ = hit.line;
+                }
                 return true;
             }
             if (core_.server_closed()) {
@@ -306,7 +342,11 @@ bool CScenarioRunner::run_step(const Step& step)
                 cond = trim(cond);
             }
         }
-        return wait_cond(cond, tmo);
+        // 独立 token `consume`：命中即把该行推出消费游标（`wait text X
+        // consume`）
+        const bool consume = strip_token(cond, "consume");
+        cond               = trim(cond);
+        return wait_cond(cond, tmo, consume);
     }
 
     if (verb == "sleep") {
@@ -421,6 +461,26 @@ bool CScenarioRunner::run_step(const Step& step)
     return fail("unknown step verb: " + verb);
 }
 
+bool CScenarioRunner::strip_token(std::string& s, const std::string& tok)
+{
+    size_t pos = 0;
+    while (pos <= s.size()) {
+        while (pos < s.size() && (s[pos] == ' ' || s[pos] == '\t')) ++pos;
+        if (pos >= s.size()) break;
+        size_t end = pos;
+        while (end < s.size() && s[end] != ' ' && s[end] != '\t') ++end;
+        if (s.compare(pos, end - pos, tok) == 0) {
+            // 连同它前面的那个分隔符一起摘掉：token 在尾部时不留尾随空格，
+            // 在中部时不产生双空格；首部则只摘 token，剩余字节原样保留。
+            const size_t from = (pos > 0) ? pos - 1 : pos;
+            s.erase(from, end - from);
+            return true;
+        }
+        pos = end;
+    }
+    return false;
+}
+
 bool CScenarioRunner::run_menu_step(const std::string& want)
 {
     if (want.empty()) return fail("menu needs an index or text");
@@ -470,50 +530,57 @@ bool CScenarioRunner::run_capture_step(const std::string& args)
         return fail("capture invalid regex: " + marker);
     }
 
-    auto lines = core_.recent_output(2000);
-    for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
+    auto try_line = [&](const std::string& line) -> bool {
         std::smatch m;
-        if (!std::regex_search(*it, m, re)) continue;
+        if (!std::regex_search(line, m, re)) return false;
 
         if (re.mark_count() > 0) {
-            bool captured = false;
             for (size_t g = 1; g < m.size(); ++g) {
                 if (m[g].matched && !m[g].str().empty()) {
                     vars_[var] = m[g].str();
-                    captured   = true;
-                    break;
+                    save_vars();
+                    if (opts_.echo) {
+                        core_.ui().post_raw("[script] captured " + var + "="
+                                            + vars_[var] + "\n");
+                    }
+                    return true;
                 }
             }
-            if (captured) {
-                save_vars();
-                if (opts_.echo) {
-                    core_.ui().post_raw("[script] captured " + var + "="
-                                        + vars_[var] + "\n");
-                }
-                return true;
-            }
-            continue;  // 组存在但本行没匹配上，试下一行
+            return false;  // 组存在但本行没匹配上，交由调用方试下一行
         }
 
         size_t pos = static_cast<size_t>(m.position(0) + m.length(0));
-        while (pos < it->size()
-               && !std::isdigit(static_cast<unsigned char>((*it)[pos]))) {
+        while (pos < line.size()
+               && !std::isdigit(static_cast<unsigned char>(line[pos]))) {
             ++pos;
         }
         size_t start = pos;
-        while (pos < it->size()
-               && std::isdigit(static_cast<unsigned char>((*it)[pos]))) {
+        while (pos < line.size()
+               && std::isdigit(static_cast<unsigned char>(line[pos]))) {
             ++pos;
         }
-        if (start < pos) {
-            vars_[var] = it->substr(start, pos - start);
-            save_vars();
-            if (opts_.echo) {
-                core_.ui().post_raw("[script] captured " + var + "="
-                                    + vars_[var] + "\n");
-            }
-            return true;
+        if (start >= pos) return false;
+        vars_[var] = line.substr(start, pos - start);
+        save_vars();
+        if (opts_.echo) {
+            core_.ui().post_raw("[script] captured " + var + "=" + vars_[var]
+                                + "\n");
         }
+        return true;
+    };
+
+    // consume 语义：`wait text … consume` 命中行已被消费游标丢出缓冲，只能
+    // 从存下来的那一行读，而且**只读那一行**。收紧是有意的——服务链里先到的
+    // 请求会滞留缓冲，退回全缓冲倒序扫的话 capture 会抓到比 wait 命中更新的
+    // 请求，账号与命令就张冠李戴了。未带 consume 的存量剧本走下面的原路。
+    if (!consumed_line_.empty()) {
+        if (try_line(consumed_line_)) return true;
+        return fail("capture marker not found in consumed line: " + marker);
+    }
+
+    auto lines = core_.recent_output(ClientCore::kOutputWindow);
+    for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
+        if (try_line(*it)) return true;
     }
     return fail("capture marker not found: " + marker);
 }

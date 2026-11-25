@@ -74,6 +74,37 @@ TEST_F(GameStateQuestionTest, SelectMenuItemSendsCommand)
     EXPECT_FALSE(state_.in_menu());
 }
 
+// 裸词菜单项（无 $ 前缀）按参考客户端 OnQuestion（xclient
+// ClientHandle.cpp:964-970）包成 talk <obj> <词>：原样发裸词到服务端
+// target=0 进不了对象分派，只会回「未知的命令。」——雪山剃度的
+// "kneel"、询问话题菜单都依赖这层包装进 do_talk。
+
+TEST_F(GameStateQuestionTest, BareMenuCmdWrapsAsTalkToMenuOwner)
+{
+    // 菜单主 N == 当前目标 → talk <N> <词>（真人点「下跪」的通路）
+    state_.set_target_id(200);
+    state_.handle_message(
+        make_msg(27, {{"N", "200"}, {"s", "下跪"}, {"c", "kneel"}}));
+    state_.handle_message(make_msg(27, {{"N", "200"}, {"e", "1"}}));
+
+    std::string cmd = state_.select_menu_item(0);
+    EXPECT_EQ(cmd, "talk 200 kneel");
+    EXPECT_FALSE(state_.in_menu());
+}
+
+TEST_F(GameStateQuestionTest, BareMenuCmdFallsBackToCurrentRoom)
+{
+    // N 不等于当前目标 → 回落当前房间（与原版 obj != GetTarget() 分支一致）
+    state_.set_target_id(0);
+    state_.set_current_room_for_test(777);
+    state_.handle_message(
+        make_msg(27, {{"N", "200"}, {"s", "问问"}, {"c", "南帝"}}));
+    state_.handle_message(make_msg(27, {{"N", "200"}, {"e", "1"}}));
+
+    std::string cmd = state_.select_menu_item(0);
+    EXPECT_EQ(cmd, "talk 777 南帝");
+}
+
 TEST_F(GameStateQuestionTest, SelectInvalidIndexReturnsEmpty)
 {
     state_.handle_message(

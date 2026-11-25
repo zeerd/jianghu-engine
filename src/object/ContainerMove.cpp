@@ -133,12 +133,26 @@ void CContainer::change_room(CContainer* me)
 
     if (!is_user(me)) return;
 
-    const char* map = querystr("map");
+    // I= 是客户端寻路用的房间键，必须落到**有 map 的那一层**。
+    //
+    // 战斗精灵（CFightRoom，CharFight.cpp:250-279 开打时把人移进去的那个
+    // 「<受害者>的战斗」物品容器）本身不带 map；原实现在 map 为空时兜成
+    // 「玩家民居1」——那是 house_base 给房屋打的片区名（house_base.lua:177），
+    // 套到野外战斗上就成了 rooms.dat 里根本不存在的键：客户端 room_map 被
+    // 污染，.go 起点定位直接报「当前位置不在地图中: 玩家民居1」。
+    // 房屋的 map 由 house.setup 显式赋值，压根不需要这个兜底。改为
+    // 本容器 → 外层容器 逐级取，最后才回落 base_name，与 Room.cpp:275 /
+    // FBRoom.cpp:87 的「map 缺省回落 base_name」同一语义。
+    const char* map   = querystr("map");
+    CContainer* outer = this;
+    while (!map[0] && (outer = outer->environment()) != nullptr)
+        map = outer->querystr("map");
+    if (!map[0]) map = querystr("base_name");
 
     // 切换场景之对玩家发
     snprintf(cmd, 480, "&C=%d&R=%d&I=%s&N=%s&F=%d&D=%s&", GOTOROOM, object_id(),
-             map[0] ? map : "玩家民居1", name(),
-             query_attr(CChar::IS_FIGHTROOM), me->querystr_temp("init_door"));
+             map, name(), query_attr(CChar::IS_FIGHTROOM),
+             me->querystr_temp("init_door"));
 
     static_cast<CUser*>(me)->send_command(cmd, SEND_WAIT_BUFFERED);
     // 用户要等待切换场景

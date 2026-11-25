@@ -58,7 +58,13 @@ private:
     void process_server_cmd(const std::string& input);
     void process_go(const std::string& args);
 
-    // 等待服务端把房间切到 arrival_name；超时返回 false。
-    // map_step_timeout_ms_ <= 0 时视为立即到达（无需等待）。
+    // 等待服务端把房间切到 arrival_name；超时或**中途被动进战斗**返回 false
+    // （战斗精灵容器无出口，本跳 /go 已被吞，干等满超时没有意义——立即返回
+    // 让 .go 走「逃跑→恢复→续走」）。map_step_timeout_ms_ <= 0 时视为立即到达。
     bool wait_for_room(const std::string& arrival_name) const;
+
+    // 主动逃跑直到脱离战斗（.go 寻路恢复用）。flee 在 busy（「你没空逃跑！」）
+    // 或 AP<50 时被引擎拒收，故轮询重试；脱战信号 = GOTOROOM 的 F= 翻 0
+    // （GameState::in_battle 变假）。15s 内未脱战返回 false。
+    bool flee_battle();
 };

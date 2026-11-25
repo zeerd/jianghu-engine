@@ -144,7 +144,24 @@ std::string GameState::select_menu_item(int index)
     }
 
     const auto& item = menu_state_.items[static_cast<size_t>(index)];
-    std::string cmd  = resolve_menu_cmd(item.raw_cmd, menu_state_.npc_id);
+
+    // 裸词菜单项（无 $ 前缀）按参考客户端 OnQuestion（xclient
+    // ClientHandle.cpp:964-970）包成 talk <obj> <词> 再发：裸词是对话话题/
+    // 动作，必须走 talk 通道进 NPC 的 do_talk（雪山剃度的 "kneel"、询问
+    // 话题菜单都是这一类）；原样发裸词到服务端 target=0，进不了任何对象
+    // 分派，只会回「未知的命令。」。obj 取菜单主 N——仅当 N 等于当前目标，
+    // 否则回落当前房间，与原版逐字一致。$ 前缀仍走原解析（目标槽在体内）。
+    std::string cmd;
+    if (!item.raw_cmd.empty() && item.raw_cmd[0] != '$') {
+        ObjectID obj = (menu_state_.npc_id != 0
+                        && menu_state_.npc_id == target_id())
+                           ? menu_state_.npc_id
+                           : current_room();
+        cmd = "talk " + std::to_string(obj) + " " + item.raw_cmd;
+    }
+    else {
+        cmd = resolve_menu_cmd(item.raw_cmd, menu_state_.npc_id);
+    }
 
     // Check for unresolved placeholders ($2, $3, etc.)
     std::vector<std::string> placeholders = find_unresolved_placeholders(cmd);

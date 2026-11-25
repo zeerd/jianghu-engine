@@ -117,8 +117,11 @@ void ClientCore::process_received()
                 {
                     std::lock_guard<std::mutex> lock(output_mutex_);
                     output_lines_.push_back(line);
-                    while (output_lines_.size() > 2000)
+                    ++output_seq_;
+                    while (output_lines_.size() > kOutputWindow) {
                         output_lines_.pop_front();
+                        ++output_base_;
+                    }
                 }
                 ui_.add_line(line);
             }
@@ -134,21 +137,60 @@ void ClientCore::process_received()
     }
 }
 
-std::vector<std::string> ClientCore::recent_output(size_t max_lines) const
+std::vector<std::string> ClientCore::recent_output(size_t max_lines,
+                                                   size_t* first_abs) const
 {
     std::lock_guard<std::mutex> lock(output_mutex_);
-    size_t start = 0;
-    if (output_lines_.size() > max_lines) {
-        start = output_lines_.size() - max_lines;
-    }
-    return std::vector<std::string>(output_lines_.begin() + start,
-                                    output_lines_.end());
+    // 起点：消费游标之后才算「还没看过」，且不能早于 deque 里现存的首行。
+    size_t start = output_base_;
+    if (output_cursor_ > start) start = output_cursor_;
+    // 未消费行超过窗口才从头部截断（正常情况下窗口足够大，走不到这里）。
+    if (output_seq_ - start > max_lines) start = output_seq_ - max_lines;
+    if (first_abs) *first_abs = start;
+    return std::vector<std::string>(
+        output_lines_.begin() + (start - output_base_), output_lines_.end());
 }
 
 void ClientCore::clear_output()
 {
     std::lock_guard<std::mutex> lock(output_mutex_);
     output_lines_.clear();
+    output_base_   = output_seq_;
+    output_cursor_ = output_seq_;
+}
+
+size_t ClientCore::output_seq() const
+{
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    return output_seq_;
+}
+
+size_t ClientCore::output_cursor() const
+{
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    return output_cursor_;
+}
+
+void ClientCore::advance_output_cursor(size_t to_abs)
+{
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    if (to_abs <= output_cursor_) return;
+    output_cursor_ = to_abs;
+    // 已消费的行没有再被读到的可能，直接释放——否则服务道跑满一轮后
+    // 缓冲里会堆着上千行没人看的旧请求。
+    while (!output_lines_.empty() && output_base_ < output_cursor_) {
+        output_lines_.pop_front();
+        ++output_base_;
+    }
+}
+
+bool ClientCore::output_line_at(size_t abs, std::string& out) const
+{
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    if (abs < output_cursor_ || abs < output_base_ || abs >= output_seq_)
+        return false;
+    out = output_lines_[abs - output_base_];
+    return true;
 }
 
 void ClientCore::cleanup_threads()
